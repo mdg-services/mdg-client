@@ -32,11 +32,17 @@ export function useConversationSocket(
       const key = messagesQueryKey(conversationId);
       qc.setQueryData<InfiniteData<Message[]>>(key, (old) => {
         if (!old) return { pages: [[payload.message]], pageParams: [undefined] };
-        // dedupe by id
-        const first = old.pages[0] ?? [];
-        if (first.some((m) => m.id === payload.message.id)) return old;
-        const pages = [...old.pages];
-        pages[0] = [payload.message, ...first];
+        // Dedupe by real id across ALL pages (not just the first page).
+        if (old.pages.some((p) => p.some((m) => m.id === payload.message.id))) {
+          return old;
+        }
+        // If this is the sender's own echo, strip any optimistic temp-* placeholders
+        // so we don't end up showing the message twice.
+        const isOwnEcho = payload.message.senderId === currentUserId;
+        const pages = old.pages.map((page) =>
+          isOwnEcho ? page.filter((m) => !m.id.startsWith('temp-')) : page,
+        );
+        pages[0] = [payload.message, ...(pages[0] ?? [])];
         return { ...old, pages };
       });
       qc.setQueryData<Conversation>(['conversation', 'mine'], payload.conversation);

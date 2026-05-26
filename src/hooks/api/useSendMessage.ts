@@ -52,10 +52,21 @@ export function useSendMessage() {
       const key = messagesQueryKey(vars.conversationId);
       qc.setQueryData<InfiniteData<Message[]>>(key, (old) => {
         if (!old) return { pages: [[msg]], pageParams: [undefined] };
-        const pages = old.pages.map((page) =>
-          page.map((m) => (m.id === ctx?.tempId ? msg : m)),
-        );
-        return { ...old, pages };
+        // If the socket already pushed the real message, just drop the temp.
+        const alreadyHasReal = old.pages.some((p) => p.some((m) => m.id === msg.id));
+        if (alreadyHasReal) {
+          return {
+            ...old,
+            pages: old.pages.map((page) => page.filter((m) => m.id !== ctx?.tempId)),
+          };
+        }
+        // Otherwise replace the temp with the real one in-place.
+        return {
+          ...old,
+          pages: old.pages.map((page) =>
+            page.map((m) => (m.id === ctx?.tempId ? msg : m)),
+          ),
+        };
       });
     },
   });

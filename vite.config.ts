@@ -10,9 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-      '@dk/shared/schemas': path.resolve(__dirname, '../shared/src/schemas/index.ts'),
-      '@dk/shared/types': path.resolve(__dirname, '../shared/src/types/index.ts'),
-      '@dk/shared': path.resolve(__dirname, '../shared/src/index.ts'),
+      '@dk/shared/schemas': path.resolve(__dirname, './shared/src/schemas/index.ts'),
+      '@dk/shared/types': path.resolve(__dirname, './shared/src/types/index.ts'),
+      '@dk/shared': path.resolve(__dirname, './shared/src/index.ts'),
     },
   },
   server: { port: 5174, host: true },

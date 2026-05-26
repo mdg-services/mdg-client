@@ -11,7 +11,7 @@
     "lint": "eslint \"src/**/*.{ts,tsx}\" --max-warnings=0"
   },
   "dependencies": {
-    "@dk/shared": "*",
+    "@dk/shared": "file:./shared",
     "@hookform/resolvers": "^3.9.0",
     "@tanstack/react-query": "^5.59.0",
     "clsx": "^2.1.1",

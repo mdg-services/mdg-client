@@ -1,0 +1,24 @@
+export type UserRole = 'admin' | 'dealer-owner' | 'dealer-staff';
+export type UserStatus = 'ACTIVE' | 'SUSPENDED';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  /** Required for dealer-* roles; null/undefined for admin. */
+  dealerId?: string | null;
+  phone?: string;
+  avatarKey?: string | null;
+  status: UserStatus;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type UserPublic = User;
+
+export interface AuthLoginResponse {
+  token: string;
+  user: UserPublic;
+}
