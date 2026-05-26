@@ -1,0 +1,120 @@
+import type { DealerService } from '@dk/shared/types';
+import { useQuery } from '@tanstack/react-query';
+import { CheckCircle2, Clock, Wrench, XCircle } from 'lucide-react';
+import * as React from 'react';
+
+import { Card, CardContent, EmptyState, Spinner } from '@/components/ui';
+import { ApiError, api } from '@/lib/api';
+import { cn } from '@/lib/cn';
+import { useAuthStore } from '@/store/auth';
+
+function formatDate(iso?: string): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function StatusPill({ status }: { status: DealerService['status'] }) {
+  const isActive = status === 'ACTIVE';
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+        isActive
+          ? 'bg-emerald-100 text-emerald-700'
+          : 'bg-amber-100 text-amber-700',
+      )}
+    >
+      {isActive ? (
+        <CheckCircle2 width={12} strokeWidth={2} />
+      ) : (
+        <XCircle width={12} strokeWidth={2} />
+      )}
+      {status}
+    </span>
+  );
+}
+
+export function ServicesPage() {
+  const user = useAuthStore((s) => s.user);
+  const dealerId = user?.dealerId ?? undefined;
+
+  const servicesQuery = useQuery<DealerService[]>({
+    queryKey: ['dealer-services', dealerId],
+    enabled: !!dealerId,
+    queryFn: async () => {
+      try {
+        return await api.get<DealerService[]>('/v1/dealer-services', {
+          dealerId,
+        });
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return [];
+        throw err;
+      }
+    },
+  });
+
+  return (
+    <div className="flex flex-1 flex-col gap-3 p-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold tracking-tight text-text">
+          Your services
+        </h1>
+      </div>
+
+      {servicesQuery.isLoading ? (
+        <div className="flex flex-1 items-center justify-center py-12">
+          <Spinner size={20} />
+        </div>
+      ) : servicesQuery.isError ? (
+        <EmptyState
+          icon={<Wrench width={28} strokeWidth={1.5} />}
+          title="Couldn't load services"
+          description="Pull down to retry, or contact your account manager."
+        />
+      ) : !servicesQuery.data || servicesQuery.data.length === 0 ? (
+        <EmptyState
+          icon={<Wrench width={28} strokeWidth={1.5} />}
+          title="No services yet"
+          description="Your account manager will set these up for you. We'll show them here once they're active."
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {servicesQuery.data.map((svc) => (
+            <Card key={svc.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-text">
+                      {svc.serviceId}
+                    </p>
+                    <p className="mt-0.5 text-xs text-text-muted">
+                      {svc.cadence.toLowerCase()} cadence
+                    </p>
+                  </div>
+                  <StatusPill status={svc.status} />
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-text-muted">
+                  <div className="flex items-center gap-1.5">
+                    <Clock width={12} strokeWidth={1.75} />
+                    <span>Last: {formatDate(svc.lastRunAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Clock width={12} strokeWidth={1.75} />
+                    <span>Next: {formatDate(svc.nextRunAt)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
