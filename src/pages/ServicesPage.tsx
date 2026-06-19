@@ -36,7 +36,7 @@ function StatusPill({ status }: { status: DealerService['status'] }) {
       ) : (
         <XCircle width={12} strokeWidth={2} />
       )}
-      {status}
+      {isActive ? 'Active' : 'Paused'}
     </span>
   );
 }
@@ -75,8 +75,8 @@ export function ServicesPage() {
       ) : servicesQuery.isError ? (
         <EmptyState
           icon={<Wrench width={28} strokeWidth={1.5} />}
-          title="Couldn't load services"
-          description="Pull down to retry, or contact your account manager."
+          title="We couldn't show your services just now"
+          description="Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help."
         />
       ) : !servicesQuery.data || servicesQuery.data.length === 0 ? (
         <EmptyState
@@ -95,7 +95,7 @@ export function ServicesPage() {
                       {svc.serviceId}
                     </p>
                     <p className="mt-0.5 text-xs text-text-muted">
-                      {svc.cadence.toLowerCase()} cadence
+                      Runs {svc.cadence.toLowerCase()}
                     </p>
                   </div>
                   <StatusPill status={svc.status} />

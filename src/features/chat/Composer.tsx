@@ -113,7 +113,7 @@ export function Composer({
       <div className="flex items-end gap-2 px-3 py-3">
         <button
           type="button"
-          aria-label="Attach file"
+          aria-label="Add a photo or document"
           onClick={() => fileRef.current?.click()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
           disabled={disabled}
@@ -137,7 +137,7 @@ export function Composer({
           }}
           onKeyDown={onKeyDown}
           rows={1}
-          placeholder="Message"
+          placeholder="Type your message…"
           className={cn(
             'min-h-[40px] max-h-[140px] flex-1 resize-none rounded-2xl border border-border bg-surface-2 px-4 py-2.5',
             'text-[15px] text-text placeholder:text-text-subtle',

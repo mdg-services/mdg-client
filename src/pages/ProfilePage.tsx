@@ -82,11 +82,13 @@ function ChangePasswordCard() {
         password: values.newPassword,
       }),
     onSuccess: () => {
-      toast.success('Password updated');
+      toast.success('Your password has been changed');
       reset();
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Could not update');
+    onError: () => {
+      toast.error(
+        "We couldn't change your password. Please try again, or message us in Chat.",
+      );
     },
   });
 
@@ -187,10 +189,10 @@ function TeamSection() {
       }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
-      toast.success('Status updated');
+      toast.success('Done');
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Action failed');
+    onError: () => {
+      toast.error("That didn't work. Please try again, or message us in Chat.");
     },
   });
 
@@ -211,13 +213,15 @@ function TeamSection() {
         password: values.password,
       }),
     onSuccess: () => {
-      toast.success('Teammate invited');
+      toast.success('Teammate added');
       reset();
       setInviteOpen(false);
       void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
     },
-    onError: (err) => {
-      toast.error(err instanceof Error ? err.message : 'Invite failed');
+    onError: () => {
+      toast.error(
+        "We couldn't add your teammate. Please try again, or message us in Chat.",
+      );
     },
   });
 

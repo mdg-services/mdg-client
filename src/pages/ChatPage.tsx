@@ -8,7 +8,6 @@ import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useMessages } from '@/hooks/api/useMessages';
 import { useMyConversation } from '@/hooks/api/useMyConversation';
 import { useSendMessage } from '@/hooks/api/useSendMessage';
-import { ApiError } from '@/lib/api';
 import { uploadAttachment } from '@/lib/uploadAttachment';
 import { useAuthStore } from '@/store/auth';
 
@@ -34,7 +33,7 @@ export function ChatPage() {
 
   const handleSend = async (text: string, files: File[]) => {
     if (!conversationId) {
-      toast.error('Chat is not ready yet, please try again.');
+      toast.error('Still connecting. Please wait a moment and try again.');
       return;
     }
     if (!text && files.length === 0) return;
@@ -45,9 +44,10 @@ export function ChatPage() {
         try {
           const att = await uploadAttachment(file, conversationId);
           attachments.push(att);
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : 'Upload failed';
-          toast.error(`Couldn't upload ${file.name}: ${msg}`);
+        } catch {
+          toast.error(
+            `We couldn't send ${file.name}. Please check your network and try again.`,
+          );
         }
       }
       await sendMutation.mutateAsync({
@@ -55,14 +55,10 @@ export function ChatPage() {
         body: text || undefined,
         attachments,
       });
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? err.message
-          : err instanceof Error
-            ? err.message
-            : 'Could not send message.';
-      toast.error(msg);
+    } catch {
+      toast.error(
+        "Your message didn't go through. Please check your network and try again.",
+      );
     }
   };
 

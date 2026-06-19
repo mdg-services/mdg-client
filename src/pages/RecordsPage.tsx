@@ -38,8 +38,8 @@ export function RecordsPage() {
       ) : recordsQuery.isError ? (
         <EmptyState
           icon={<FileText width={28} strokeWidth={1.5} />}
-          title="Couldn't load your reports"
-          description="Please check your connection and try again."
+          title="We couldn't show your reports just now"
+          description="Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help."
         />
       ) : total === 0 ? (
         <EmptyState
