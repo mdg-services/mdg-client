@@ -1,10 +1,34 @@
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
 
+/** Ticket priority for the admin/CRM side. Hidden from dealers. */
+export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
+export const TICKET_PRIORITIES: TicketPriority[] = ['low', 'normal', 'high', 'urgent'];
+
+/** Coarse ticket category for triage/reporting. Hidden from dealers. */
+export type TicketCategory =
+  | 'general'
+  | 'sales'
+  | 'compliance'
+  | 'billing'
+  | 'technical'
+  | 'onboarding';
+export const TICKET_CATEGORIES: TicketCategory[] = [
+  'general',
+  'sales',
+  'compliance',
+  'billing',
+  'technical',
+  'onboarding',
+];
+
 export interface Conversation {
   id: string;
   dealerId: string;
   dealerName?: string;
   status: ConversationStatus;
+  /** Admin-only triage fields; never surfaced to dealers. */
+  priority?: TicketPriority;
+  category?: TicketCategory;
   assignedAdminId?: string | null;
   assignedAdminName?: string | null;
   lastMessageAt?: string;
@@ -35,6 +59,10 @@ export interface Message {
   senderName?: string;
   body?: string;
   attachments: Attachment[];
+  /** When present, this message renders as a rich record card in the chat. */
+  card?: import('./record').RecordCard;
+  /** Distinguishes system/automated messages (e.g. "Your DSR is ready"). */
+  system?: boolean;
   readBy: string[];
   createdAt: string;
 }

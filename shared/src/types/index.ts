@@ -8,4 +8,5 @@ export * from './auditLog';
 export * from './plugin';
 export * from './user';
 export * from './conversation';
+export * from './record';
 export * from './socket';

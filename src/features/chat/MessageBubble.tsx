@@ -1,13 +1,56 @@
 import type { Message } from '@dk/shared/types';
 import { Check, CheckCheck } from 'lucide-react';
 
+import { useRecord } from '@/hooks/api/useRecords';
 import { cn } from '@/lib/cn';
 
+import { RecordCard } from '@/features/records/RecordCard';
 import { MessageAttachment } from './AttachmentPreview';
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function CardMessage({ message }: { message: Message }) {
+  const card = message.card!;
+  // Resolve the signed file URL so the card is tappable.
+  const recordQuery = useRecord(card.recordId);
+  const url = recordQuery.data?.attachment.url;
+
+  return (
+    <div className="flex w-full flex-col items-center gap-1.5 animate-in">
+      {message.body ? (
+        <p className="max-w-[80%] text-center text-xs text-text-muted">
+          {message.body}
+        </p>
+      ) : null}
+      <div className="w-full max-w-[88%]">
+        <RecordCard
+          record={{
+            recordType: card.recordType,
+            title: card.title,
+            periodLabel: card.periodLabel,
+          }}
+          url={url}
+          compact
+        />
+      </div>
+      <span className="px-1 text-[11px] text-text-subtle">
+        {formatTime(message.createdAt)}
+      </span>
+    </div>
+  );
+}
+
+function SystemMessage({ message }: { message: Message }) {
+  return (
+    <div className="flex w-full justify-center animate-in">
+      <p className="max-w-[85%] rounded-full bg-surface-2 px-3 py-1 text-center text-[12px] text-text-muted">
+        {message.body}
+      </p>
+    </div>
+  );
 }
 
 export function MessageBubble({
@@ -21,6 +64,13 @@ export function MessageBubble({
   showReadIndicator?: boolean;
   onOpenImage?: (url: string) => void;
 }) {
+  if (message.card) {
+    return <CardMessage message={message} />;
+  }
+  if (message.system) {
+    return <SystemMessage message={message} />;
+  }
+
   const readByOther = message.readBy.some((id) => id !== message.senderId);
   return (
     <div

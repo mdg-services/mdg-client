@@ -1,8 +1,9 @@
-import { MessageCircle, User as UserIcon, Wrench } from 'lucide-react';
+import { FileText, MessageCircle, User as UserIcon, Wrench } from 'lucide-react';
 import * as React from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { Avatar } from '@/components/ui';
+import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
 import { cn } from '@/lib/cn';
 import { LoginPage } from '@/pages/LoginPage';
@@ -10,6 +11,7 @@ import { useAuthStore } from '@/store/auth';
 
 import { ChatPage } from '@/pages/ChatPage';
 import { ProfilePage } from '@/pages/ProfilePage';
+import { RecordsPage } from '@/pages/RecordsPage';
 import { ServicesPage } from '@/pages/ServicesPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -23,6 +25,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AppShell({ children }: { children: React.ReactNode }) {
   useMe(); // refresh /me when authed
+  useRecordsSocket(); // refresh Reports + toast on record:new
   const user = useAuthStore((s) => s.user);
 
   return (
@@ -53,6 +56,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1">
           <TabLink to="/chat" icon={<MessageCircle width={22} strokeWidth={1.75} />} label="Chat" />
+          <TabLink to="/records" icon={<FileText width={22} strokeWidth={1.75} />} label="Reports" />
           <TabLink to="/services" icon={<Wrench width={22} strokeWidth={1.75} />} label="Services" />
           <TabLink to="/profile" icon={<UserIcon width={22} strokeWidth={1.75} />} label="Profile" />
         </div>
@@ -106,6 +110,16 @@ export function App() {
           <ProtectedRoute>
             <AppShell>
               <ChatPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/records"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <RecordsPage />
             </AppShell>
           </ProtectedRoute>
         }

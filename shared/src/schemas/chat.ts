@@ -33,6 +33,28 @@ export const assignConversationSchema = z.object({
 });
 export type AssignConversationInput = z.infer<typeof assignConversationSchema>;
 
+export const recordTypeSchema = z.enum(['dsr', 'invoice', 'compliance', 'statement', 'other']);
+
+export const createRecordSchema = z.object({
+  dealerId: z.string().min(1),
+  type: recordTypeSchema,
+  title: z.string().trim().min(1).max(120),
+  periodLabel: z.string().trim().max(60).optional(),
+  note: z.string().trim().max(1000).optional(),
+  attachment: attachmentSchema,
+  /** When true, also post a record card into the dealer's conversation. */
+  announceInChat: z.boolean().optional().default(true),
+});
+export type CreateRecordInput = z.infer<typeof createRecordSchema>;
+
+export const updateTicketSchema = z.object({
+  priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
+  category: z
+    .enum(['general', 'sales', 'compliance', 'billing', 'technical', 'onboarding'])
+    .optional(),
+});
+export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
+
 export const createDealerUserSchema = z.object({
   dealerId: z.string().min(1),
   email: z.string().email().toLowerCase(),
