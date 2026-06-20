@@ -1,3 +1,5 @@
+import type { UserRole } from './user';
+
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
 
 /** Ticket priority for the admin/CRM side. Hidden from dealers. */
@@ -25,6 +27,14 @@ export interface Conversation {
   id: string;
   dealerId: string;
   dealerName?: string;
+  /** The organisation member (User) this private thread belongs to. */
+  userId: string;
+  /** Member display name, populated by the API. */
+  memberName?: string;
+  /** Member role (dealer-owner / dealer-staff), populated by the API. */
+  memberRole?: UserRole;
+  /** Member display title (e.g. "Owner", "Manager"), populated by the API. */
+  memberTitle?: string;
   status: ConversationStatus;
   /** Admin-only triage fields; never surfaced to dealers. */
   priority?: TicketPriority;

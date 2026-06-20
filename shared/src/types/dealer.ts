@@ -42,15 +42,6 @@ export interface DealerPortalCredentials {
   mustChangeOnFirstLogin: boolean;
 }
 
-export interface DealerWhatsappGroups {
-  adminGroupName?: string;
-  adminGroupInviteLink?: string;
-  adminGroupCreatedAt?: string;
-  dealerGroupName?: string;
-  dealerGroupInviteLink?: string;
-  dealerGroupCreatedAt?: string;
-}
-
 export interface OnboardingStepEntry {
   id: OnboardingStepId;
   status: OnboardingStepStatus;
@@ -90,9 +81,6 @@ export interface Dealer {
 
   // Step 7 (portal creds: never includes hash in serialized form)
   portalCredentials?: DealerPortalCredentials;
-
-  // Steps 7 + 8
-  whatsappGroups?: DealerWhatsappGroups;
 
   // Optional business data, no longer gating ACTIVE
   bankDetails?: BankDetails;

@@ -4,7 +4,11 @@ export const attachmentSchema = z.object({
   storageKey: z.string().min(1).max(512),
   filename: z.string().min(1).max(255),
   contentType: z.string().min(1).max(127),
-  size: z.number().int().nonnegative().max(25 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(25 * 1024 * 1024),
   kind: z.enum(['image', 'file']),
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
@@ -22,7 +26,11 @@ export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export const presignUploadSchema = z.object({
   filename: z.string().min(1).max(255),
   contentType: z.string().min(1).max(127),
-  size: z.number().int().positive().max(25 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(25 * 1024 * 1024),
   scope: z.enum(['chat', 'avatar']).default('chat'),
   conversationId: z.string().optional(),
 });
@@ -60,7 +68,22 @@ export const createDealerUserSchema = z.object({
   email: z.string().email().toLowerCase(),
   name: z.string().min(1).max(120),
   role: z.enum(['dealer-owner', 'dealer-staff']),
+  /** Display label for the member, e.g. "Owner" or "Manager". */
+  title: z.string().trim().min(1).max(60).optional(),
   password: z.string().min(8).max(200),
   phone: z.string().max(40).optional(),
 });
 export type CreateDealerUserInput = z.infer<typeof createDealerUserSchema>;
+
+export const updateDealerUserSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120).optional(),
+    title: z.string().trim().min(1).max(60).optional(),
+    phone: z.string().max(40).optional(),
+    status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+    password: z.string().min(8).max(200).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: 'At least one field must be provided',
+  });
+export type UpdateDealerUserInput = z.infer<typeof updateDealerUserSchema>;

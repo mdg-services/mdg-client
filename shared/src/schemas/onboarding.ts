@@ -35,21 +35,11 @@ export const assignCodeStepSchema = z.object({
   note: noteSchema,
 });
 
-export const createAdminGroupStepSchema = z.object({
-  groupName: z.string().trim().min(1).max(120),
-  inviteLink: z
-    .string()
-    .url('Group invite link must be a valid URL'),
-  username: z.string().trim().min(3).max(120),
+export const issueAppLoginStepSchema = z.object({
+  email: z.string().email().toLowerCase(),
+  name: z.string().trim().min(2).max(200),
   password: z.string().min(8).max(200),
-  note: noteSchema,
-});
-
-export const createDealerGroupStepSchema = z.object({
-  groupName: z.string().trim().min(1).max(120),
-  inviteLink: z
-    .string()
-    .url('Group invite link must be a valid URL'),
+  phone: phoneSchema.optional(),
   note: noteSchema,
 });
 
@@ -66,8 +56,7 @@ export const STEP_PAYLOAD_SCHEMAS = {
   'send-pdf': sendPdfStepSchema,
   'receive-payment-and-gst': receivePaymentAndGstStepSchema,
   'assign-code': assignCodeStepSchema,
-  'create-admin-group': createAdminGroupStepSchema,
-  'create-dealer-group': createDealerGroupStepSchema,
+  'issue-app-login': issueAppLoginStepSchema,
 } as const satisfies Record<OnboardingStepId, z.ZodTypeAny>;
 
 export type StepPayload<S extends OnboardingStepId> = z.infer<(typeof STEP_PAYLOAD_SCHEMAS)[S]>;

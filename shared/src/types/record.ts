@@ -3,13 +3,7 @@ import type { Attachment } from './conversation';
 /** Categories of records delivered to a dealer. 'dsr' = Daily Sales Report. */
 export type RecordType = 'dsr' | 'invoice' | 'compliance' | 'statement' | 'other';
 
-export const RECORD_TYPES: RecordType[] = [
-  'dsr',
-  'invoice',
-  'compliance',
-  'statement',
-  'other',
-];
+export const RECORD_TYPES: RecordType[] = ['dsr', 'invoice', 'compliance', 'statement', 'other'];
 
 /** Human-friendly labels for each record type (client-facing, plain language). */
 export const RECORD_TYPE_LABELS: Record<RecordType, string> = {

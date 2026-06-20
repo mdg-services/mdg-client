@@ -5,6 +5,7 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Avatar } from '@/components/ui';
 import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
+import { usePushBridge } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
 import { LoginPage } from '@/pages/LoginPage';
 import { useAuthStore } from '@/store/auth';
@@ -26,6 +27,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppShell({ children }: { children: React.ReactNode }) {
   useMe(); // refresh /me when authed
   useRecordsSocket(); // refresh Reports + toast on record:new
+  usePushBridge(); // register push token + handle deep links from native
   const user = useAuthStore((s) => s.user);
 
   return (

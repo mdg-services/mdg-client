@@ -25,10 +25,13 @@ export const ONBOARDING_STEP_IDS = [
   'send-pdf',
   'receive-payment-and-gst',
   'assign-code',
-  'create-admin-group',
-  'create-dealer-group',
+  'issue-app-login',
 ] as const;
 export type OnboardingStepId = (typeof ONBOARDING_STEP_IDS)[number];
+
+/** Platforms a push-notification device token can come from. */
+export const DEVICE_PLATFORMS = ['ios', 'android', 'web'] as const;
+export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
 
 export const ONBOARDING_STEP_STATUSES = ['PENDING', 'DONE'] as const;
 export type OnboardingStepStatus = (typeof ONBOARDING_STEP_STATUSES)[number];

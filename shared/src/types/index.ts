@@ -10,3 +10,5 @@ export * from './user';
 export * from './conversation';
 export * from './record';
 export * from './socket';
+export * from './device';
+export * from './serviceLog';

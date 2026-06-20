@@ -8,6 +8,8 @@ export interface User {
   role: UserRole;
   /** Required for dealer-* roles; null/undefined for admin. */
   dealerId?: string | null;
+  /** Optional display label for a dealer member, e.g. "Owner" or "Manager". */
+  title?: string;
   phone?: string;
   avatarKey?: string | null;
   status: UserStatus;

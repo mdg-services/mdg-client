@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
+import { postToNative } from '@/lib/nativeBridge';
 import { useAuthStore } from '@/store/auth';
 
 const schema = z.object({
@@ -37,6 +38,9 @@ export function LoginPage() {
       api.post<AuthLoginResponse>('/v1/auth/login', values),
     onSuccess: (data) => {
       login({ token: data.token, user: data.user });
+      // Tell the native shell (if any) to register for push notifications.
+      // No-op in a normal browser.
+      postToNative({ type: 'auth:login', token: data.token });
       navigate('/chat', { replace: true });
     },
     onError: (err) => {
