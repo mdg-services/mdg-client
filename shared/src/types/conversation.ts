@@ -49,7 +49,7 @@ export interface Conversation {
   updatedAt: string;
 }
 
-export type AttachmentKind = 'image' | 'file';
+export type AttachmentKind = 'image' | 'file' | 'audio';
 
 export interface Attachment {
   storageKey: string;
@@ -57,6 +57,11 @@ export interface Attachment {
   contentType: string;
   size: number;
   kind: AttachmentKind;
+  /**
+   * Length of the clip in milliseconds. Only set for `audio` attachments
+   * (voice notes) so the UI can show the duration before playback.
+   */
+  durationMs?: number;
   /** Signed download URL, populated by the API when returning messages. */
   url?: string;
 }

@@ -91,6 +91,7 @@ export function MessageBubble({
               <MessageAttachment
                 key={a.storageKey}
                 attachment={a}
+                mine={mine}
                 onOpenImage={onOpenImage}
               />
             ))}

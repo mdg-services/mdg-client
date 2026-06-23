@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+/** Hard cap on a single voice note: 10 minutes. */
+export const MAX_VOICE_DURATION_MS = 10 * 60 * 1000;
+
 export const attachmentSchema = z.object({
   storageKey: z.string().min(1).max(512),
   filename: z.string().min(1).max(255),
@@ -9,7 +12,9 @@ export const attachmentSchema = z.object({
     .int()
     .nonnegative()
     .max(25 * 1024 * 1024),
-  kind: z.enum(['image', 'file']),
+  kind: z.enum(['image', 'file', 'audio']),
+  /** Voice-note length in ms; only meaningful when kind === 'audio'. */
+  durationMs: z.number().int().nonnegative().max(MAX_VOICE_DURATION_MS).optional(),
 });
 export type AttachmentInput = z.infer<typeof attachmentSchema>;
 

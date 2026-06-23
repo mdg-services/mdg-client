@@ -1,5 +1,6 @@
-import type { AttachmentInput } from '@dk/shared/schemas';
 import * as React from 'react';
+
+import type { AttachmentInput } from '@dk/shared/schemas';
 
 import { Spinner, useToast } from '@/components/ui';
 import { Composer } from '@/features/chat/Composer';
@@ -8,7 +9,7 @@ import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useMessages } from '@/hooks/api/useMessages';
 import { useMyConversation } from '@/hooks/api/useMyConversation';
 import { useSendMessage } from '@/hooks/api/useSendMessage';
-import { uploadAttachment } from '@/lib/uploadAttachment';
+import { uploadAttachment, type OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useAuthStore } from '@/store/auth';
 
 export function ChatPage() {
@@ -31,7 +32,7 @@ export function ChatPage() {
     [messagesQuery.data],
   );
 
-  const handleSend = async (text: string, files: File[]) => {
+  const handleSend = async (text: string, files: OutgoingAttachment[]) => {
     if (!conversationId) {
       toast.error('Still connecting. Please wait a moment and try again.');
       return;
@@ -40,13 +41,15 @@ export function ChatPage() {
 
     try {
       const attachments: AttachmentInput[] = [];
-      for (const file of files) {
+      for (const item of files) {
         try {
-          const att = await uploadAttachment(file, conversationId);
+          const att = await uploadAttachment(item, conversationId);
           attachments.push(att);
         } catch {
           toast.error(
-            `We couldn't send ${file.name}. Please check your network and try again.`,
+            item.kind === 'audio'
+              ? "We couldn't send your voice message. Please check your network and try again."
+              : `We couldn't send ${item.file.name}. Please check your network and try again.`,
           );
         }
       }
