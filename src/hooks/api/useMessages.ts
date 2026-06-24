@@ -25,8 +25,8 @@ export function useMessages(conversationId: string | undefined) {
     },
     getNextPageParam: (lastPage) => {
       if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
-      // newest-first → use the OLDEST item's createdAt as the cursor
-      const oldest = lastPage[lastPage.length - 1];
+      // each page is oldest-first → the OLDEST item (the cursor) is at index 0
+      const oldest = lastPage[0];
       return oldest?.createdAt;
     },
   });

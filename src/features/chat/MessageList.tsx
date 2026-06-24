@@ -62,8 +62,17 @@ export function MessageList({
     lastCount.current = messages.length;
   }, [messages.length]);
 
-  // Display oldest -> newest. API returns newest-first; reverse for render.
-  const ordered = React.useMemo(() => [...messages].reverse(), [messages]);
+  // Display oldest -> newest. Each API page is oldest-first, but pages arrive
+  // newest-batch-first and realtime/optimistic messages are prepended, so sort
+  // by timestamp for a stable chronological order regardless of insertion point.
+  const ordered = React.useMemo(
+    () =>
+      [...messages].sort(
+        (a, b) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+    [messages],
+  );
 
   // group by day
   const rendered: React.ReactNode[] = [];
