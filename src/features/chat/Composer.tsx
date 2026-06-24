@@ -135,9 +135,15 @@ export function Composer({
   const stopAndSend = async () => {
     const rec = await recorder.stop();
     if (!rec || rec.blob.size === 0) return;
-    const ext = extForMime(rec.mimeType);
+    // Normalise to a clean base audio MIME: strip any ";codecs=…" suffix and
+    // guarantee an audio/* type, so the presign allowlist accepts it and the
+    // S3 PUT Content-Type matches what was signed. Some Android WebViews report
+    // an empty blob type, which would otherwise become application/octet-stream.
+    let mime = ((rec.mimeType || rec.blob.type || 'audio/webm').split(';')[0] || 'audio/webm').trim();
+    if (!mime.startsWith('audio/')) mime = 'audio/webm';
+    const ext = extForMime(mime);
     const file = new File([rec.blob], `voice-${Date.now()}.${ext}`, {
-      type: rec.blob.type || rec.mimeType,
+      type: mime,
     });
     const item: StagedFile = {
       id: `voice-${Date.now()}`,
