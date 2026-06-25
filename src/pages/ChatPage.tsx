@@ -21,7 +21,10 @@ export function ChatPage() {
 
   const messagesQuery = useMessages(conversationId);
   const sendMutation = useSendMessage();
-  const { typing, emitTyping } = useConversationSocket(conversationId, user?.id);
+  const { typing, emitTyping, markRead } = useConversationSocket(
+    conversationId,
+    user?.id,
+  );
 
   const [composerSeed, setComposerSeed] = React.useState<string | undefined>(
     undefined,
@@ -31,6 +34,21 @@ export function ChatPage() {
     () => (messagesQuery.data?.pages ?? []).flat(),
     [messagesQuery.data],
   );
+
+  // Mark the other party's messages read once they're on screen. Covers
+  // messages loaded over HTTP (history) as well as anything realtime missed.
+  React.useEffect(() => {
+    if (!user?.id) return;
+    const unread = messages
+      .filter(
+        (m) =>
+          !m.id.startsWith('temp-') &&
+          m.senderId !== user.id &&
+          !m.readBy.includes(user.id),
+      )
+      .map((m) => m.id);
+    if (unread.length > 0) markRead(unread);
+  }, [messages, user?.id, markRead]);
 
   const handleSend = async (text: string, files: OutgoingAttachment[]) => {
     if (!conversationId) {

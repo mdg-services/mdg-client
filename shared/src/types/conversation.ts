@@ -78,6 +78,9 @@ export interface Message {
   card?: import('./record').RecordCard;
   /** Distinguishes system/automated messages (e.g. "Your DSR is ready"). */
   system?: boolean;
+  /** User ids that have received the message on a device (drives the ✓✓ "delivered" tick). */
+  deliveredTo?: string[];
+  /** User ids that have read the message (drives the blue ✓✓ "seen" tick). Includes the sender. */
   readBy: string[];
   createdAt: string;
 }

@@ -3,6 +3,7 @@ import type { Message } from '@dk/shared/types';
 import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 
 import { messagesQueryKey } from './useMessages';
 
@@ -25,13 +26,17 @@ export function useSendMessage() {
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData<InfiniteData<Message[]>>(key);
       const tempId = `temp-${Date.now()}`;
+      const me = useAuthStore.getState().user;
       const optimistic: Message = {
         id: tempId,
         conversationId: vars.conversationId,
-        senderId: 'me',
-        senderRole: 'dealer-owner',
+        // Use the real sender id so the bubble renders as "mine" (right-aligned
+        // with a pending ✓ clock) before the server echo arrives.
+        senderId: me?.id ?? 'me',
+        senderRole: me?.role ?? 'dealer-owner',
         body: vars.body,
         attachments: (vars.attachments ?? []).map((a) => ({ ...a })),
+        deliveredTo: [],
         readBy: [],
         createdAt: new Date().toISOString(),
       };

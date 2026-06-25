@@ -5,6 +5,7 @@ import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { Avatar } from '@/components/ui';
 import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
+import { useDeliveryAck } from '@/hooks/useDeliveryAck';
 import { usePushBridge } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
 import { LoginPage } from '@/pages/LoginPage';
@@ -27,6 +28,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function AppShell({ children }: { children: React.ReactNode }) {
   useMe(); // refresh /me when authed
   useRecordsSocket(); // refresh Reports + toast on record:new
+  useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
   const user = useAuthStore((s) => s.user);
 

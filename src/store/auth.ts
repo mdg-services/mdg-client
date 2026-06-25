@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { postToNative } from '@/lib/nativeBridge';
+import { queryClient } from '@/lib/queryClient';
 
 interface AuthState {
   token: string | null;
@@ -64,11 +65,21 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       token: null,
       user: null,
-      login: ({ token, user }) => set({ token, user }),
+      login: ({ token, user }) => {
+        // Purge any cached queries from a previous session. The QueryClient is
+        // a long-lived singleton (notably inside the Expo WebView, whose JS
+        // context survives across logins), so without this a new account could
+        // briefly see the previous user's cached conversation and messages.
+        queryClient.clear();
+        set({ token, user });
+      },
       logout: () => {
         const { token } = get();
         teardownPushOnLogout(token);
         set({ token: null, user: null });
+        // Drop all cached data so nothing from this session lingers for the
+        // next account that signs in on the same device.
+        queryClient.clear();
       },
       setUser: (user) => set({ user }),
     }),

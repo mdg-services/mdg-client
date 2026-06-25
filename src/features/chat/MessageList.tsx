@@ -94,16 +94,11 @@ export function MessageList({
       lastDay = dl;
     }
     const mine = m.senderId === currentUserId;
-    // last bubble from current user gets read indicator
-    const isLastMine =
-      mine &&
-      ordered.slice(idx + 1).every((later) => later.senderId !== currentUserId);
     rendered.push(
       <MessageBubble
         key={m.id}
         message={m}
         mine={mine}
-        showReadIndicator={isLastMine}
         onOpenImage={(url) => setLightbox(url)}
       />,
     );

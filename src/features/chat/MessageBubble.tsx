@@ -1,5 +1,5 @@
 import type { Message } from '@dk/shared/types';
-import { Check, CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, Clock } from 'lucide-react';
 
 import { useRecord } from '@/hooks/api/useRecords';
 import { cn } from '@/lib/cn';
@@ -53,15 +53,32 @@ function SystemMessage({ message }: { message: Message }) {
   );
 }
 
+/** WhatsApp-style delivery state for one of the current user's own messages. */
+function MessageTicks({ message }: { message: Message }) {
+  // Optimistic, not yet acknowledged by the server.
+  if (message.id.startsWith('temp-')) {
+    return <Clock width={12} strokeWidth={2} className="opacity-70" />;
+  }
+  const seen = (message.readBy ?? []).some((id) => id !== message.senderId);
+  if (seen) {
+    return <CheckCheck width={14} strokeWidth={2} className="text-[#34b7f1]" />;
+  }
+  const delivered = (message.deliveredTo ?? []).some(
+    (id) => id !== message.senderId,
+  );
+  if (delivered) {
+    return <CheckCheck width={14} strokeWidth={2} />;
+  }
+  return <Check width={14} strokeWidth={2} />;
+}
+
 export function MessageBubble({
   message,
   mine,
-  showReadIndicator,
   onOpenImage,
 }: {
   message: Message;
   mine: boolean;
-  showReadIndicator?: boolean;
   onOpenImage?: (url: string) => void;
 }) {
   if (message.card) {
@@ -71,7 +88,6 @@ export function MessageBubble({
     return <SystemMessage message={message} />;
   }
 
-  const readByOther = message.readBy.some((id) => id !== message.senderId);
   return (
     <div
       className={cn(
@@ -116,13 +132,7 @@ export function MessageBubble({
           )}
         >
           <span>{formatTime(message.createdAt)}</span>
-          {mine && showReadIndicator ? (
-            readByOther ? (
-              <CheckCheck width={13} strokeWidth={2} className="text-[#0f766e]" />
-            ) : (
-              <Check width={13} strokeWidth={2} />
-            )
-          ) : null}
+          {mine ? <MessageTicks message={message} /> : null}
         </div>
       </div>
     </div>
