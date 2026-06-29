@@ -48,5 +48,13 @@ export const AUDIT_ACTIONS = [
   'STEP_COMPLETE',
   'STEP_REOPEN',
   'STEP_REOPEN_FORCED',
+  // Kavach Programme (ADR 0006)
+  'KAVACH_INITIATE',
+  'KAVACH_MARK_DONE',
+  'KAVACH_ESCALATE',
+  'KAVACH_RESOLVE',
+  'KAVACH_ITEM_ADD',
+  'KAVACH_ITEM_PAUSE',
+  'KAVACH_SOS_FLAG',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

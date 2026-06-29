@@ -1,7 +1,7 @@
 import type { User } from '@dk/shared/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { LogOut, UserPlus } from 'lucide-react';
+import { ChevronRight, LogOut, UserPlus, Wrench } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -379,6 +379,31 @@ export function ProfilePage() {
             </div>
           </div>
         </CardContent>
+      </Card>
+
+      <Card>
+        <button
+          type="button"
+          onClick={() => navigate('/services')}
+          className="flex w-full items-center gap-3 p-5 text-left active:bg-surface-2"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted">
+            <Wrench width={18} strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-text">
+              Your services
+            </span>
+            <span className="block text-xs text-text-muted">
+              See what we run for your pump
+            </span>
+          </span>
+          <ChevronRight
+            width={18}
+            strokeWidth={1.75}
+            className="shrink-0 text-text-subtle"
+          />
+        </button>
       </Card>
 
       <ChangePasswordCard />

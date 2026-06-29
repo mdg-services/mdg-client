@@ -12,3 +12,4 @@ export * from './record';
 export * from './socket';
 export * from './device';
 export * from './serviceLog';
+export * from './kavach';
