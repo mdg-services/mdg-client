@@ -5,6 +5,7 @@ import type {
 } from '@dk/shared/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 
@@ -53,6 +54,7 @@ interface MarkDoneVars {
  */
 export function useMarkKavachItemDone() {
   const qc = useQueryClient();
+  const toast = useToast();
   return useMutation<KavachItem, ApiError, MarkDoneVars, { previous?: KavachMe | null }>(
     {
       mutationFn: ({ itemId, proof, note }: MarkDoneVars) =>
@@ -99,9 +101,17 @@ export function useMarkKavachItemDone() {
 
         return { previous };
       },
-      onError: (_err, _vars, ctx) => {
+      onError: (err, _vars, ctx) => {
+        // Always roll the optimistic change back so the dealer sees true state.
         if (ctx && ctx.previous !== undefined) {
           qc.setQueryData(kavachMeQueryKey, ctx.previous);
+        }
+        // A 4xx is a hard, non-retryable rejection (item paused / validation):
+        // explain it once and don't leave the dealer tapping a button that
+        // will keep failing. Network (status 0) and 5xx are transient, so we
+        // keep the in-place tap-to-retry the card already shows — no toast.
+        if (err.status >= 400 && err.status < 500) {
+          toast.error(err.message);
         }
       },
       onSuccess: (updated) => {

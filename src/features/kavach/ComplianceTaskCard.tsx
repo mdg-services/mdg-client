@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
-import { Button, Spinner } from '@/components/ui';
+import { Button, Spinner, useToast } from '@/components/ui';
 import { useMarkKavachItemDone } from '@/hooks/api/useKavach';
 import { cn } from '@/lib/cn';
 import { uploadAttachment } from '@/lib/uploadAttachment';
@@ -32,13 +32,20 @@ function iconFor(domain: KavachItem['domain']): LucideIcon {
 export function ComplianceTaskCard({
   item,
   conversationId,
+  conversationLoading = false,
+  onNeedChat,
   onDone,
 }: {
   item: KavachItem;
   /** Needed to upload proof photos (chat-scoped uploads). */
   conversationId?: string;
+  /** While the conversation id is still resolving, the proof flow waits. */
+  conversationLoading?: boolean;
+  /** Route the dealer to chat when proof upload can't proceed without it. */
+  onNeedChat?: () => void;
   onDone?: (item: KavachItem) => void;
 }) {
+  const toast = useToast();
   const status = friendlyStatus(item.status);
   const Icon = iconFor(item.domain);
   const fileRef = React.useRef<HTMLInputElement>(null);
@@ -57,6 +64,18 @@ export function ComplianceTaskCard({
 
   const onMarkDone = () => {
     if (item.requiresProof) {
+      // The conversation id is still resolving — never silently drop the tap.
+      if (conversationLoading) return;
+      // Genuinely missing/errored: tell the dealer and offer a way forward.
+      if (!conversationId) {
+        toast.error("We couldn't add your photo just now / अभी फोटो नहीं जुड़ी", {
+          description: 'Please message us and we will help. / कृपया हमें लिखें, हम मदद करेंगे।',
+          action: onNeedChat
+            ? { label: 'Message us / हमें लिखें', onClick: onNeedChat }
+            : undefined,
+        });
+        return;
+      }
       fileRef.current?.click();
       return;
     }
@@ -67,7 +86,15 @@ export function ComplianceTaskCard({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!conversationId) return;
+    if (!conversationId) {
+      toast.error("We couldn't add your photo just now / अभी फोटो नहीं जुड़ी", {
+        description: 'Please message us and we will help. / कृपया हमें लिखें, हम मदद करेंगे।',
+        action: onNeedChat
+          ? { label: 'Message us / हमें लिखें', onClick: onNeedChat }
+          : undefined,
+      });
+      return;
+    }
     setUploading(true);
     try {
       const proof = await uploadAttachment(
@@ -75,6 +102,10 @@ export function ComplianceTaskCard({
         conversationId,
       );
       submit(proof);
+    } catch {
+      // Upload failed — surface it and leave the card in its retry state so
+      // the dealer can tap to try again. Never swallow the error.
+      toast.error("Photo didn't upload — please try again / फोटो अपलोड नहीं हुई — फिर से कोशिश करें");
     } finally {
       setUploading(false);
     }
@@ -82,6 +113,7 @@ export function ComplianceTaskCard({
 
   const busy = markDone.isPending || uploading;
   const failed = markDone.isError;
+  const preparing = item.requiresProof && conversationLoading;
 
   return (
     <div
@@ -143,18 +175,21 @@ export function ComplianceTaskCard({
             fullWidth
             size="lg"
             onClick={onMarkDone}
-            loading={busy}
+            disabled={preparing}
+            loading={busy || preparing}
             leftIcon={
-              busy ? undefined : item.requiresProof ? (
+              busy || preparing ? undefined : item.requiresProof ? (
                 <Camera width={16} strokeWidth={2} />
               ) : (
                 <Check width={16} strokeWidth={2.25} />
               )
             }
           >
-            {item.requiresProof
-              ? 'Add photo & mark done / फोटो डालकर हो गया'
-              : 'Mark done / हो गया'}
+            {preparing
+              ? 'Preparing… / तैयार हो रहा है'
+              : item.requiresProof
+                ? 'Add photo & mark done / फोटो डालकर हो गया'
+                : 'Mark done / हो गया'}
           </Button>
         )}
       </div>

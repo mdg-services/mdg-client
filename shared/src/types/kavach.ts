@@ -189,6 +189,13 @@ export interface KavachProgramme {
   lastEvaluatedAt?: string;
   /** Earliest reminder/expiry across items; lets the sweep skip idle programmes. */
   nextEvaluateAt?: string;
+  /**
+   * Per-dealer local hour-of-day (0–23, IST) at which the daily digest fires.
+   * Absent => the global `KAVACH_DEFAULT_REMINDER_HOUR` env default (8). The
+   * sweep still delivers at most once per IST day (server-internal `lastDigestAt`
+   * gate). Admin-editable from the dealer's Kavach panel.
+   */
+  reminderHour?: number;
   createdAt: string;
   updatedAt: string;
 }

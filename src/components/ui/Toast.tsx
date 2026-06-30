@@ -5,12 +5,19 @@ import { cn } from '@/lib/cn';
 
 type Intent = 'success' | 'danger' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: string;
   title?: string;
   description?: string;
   intent: Intent;
   duration?: number;
+  /** Optional affordance (e.g. "Message us") rendered as a button in the toast. */
+  action?: ToastAction;
 }
 
 interface ToastContextValue {
@@ -91,6 +98,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               ) : null}
               {t.description ? (
                 <p className="mt-0.5 text-xs text-text-muted">{t.description}</p>
+              ) : null}
+              {t.action ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.action?.onClick();
+                    dismiss(t.id);
+                  }}
+                  className="mt-1.5 text-xs font-semibold text-brand underline-offset-2 hover:underline"
+                >
+                  {t.action.label}
+                </button>
               ) : null}
             </div>
             <button

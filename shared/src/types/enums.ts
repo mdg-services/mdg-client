@@ -56,5 +56,6 @@ export const AUDIT_ACTIONS = [
   'KAVACH_ITEM_ADD',
   'KAVACH_ITEM_PAUSE',
   'KAVACH_SOS_FLAG',
+  'KAVACH_PROGRAMME_UPDATE',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

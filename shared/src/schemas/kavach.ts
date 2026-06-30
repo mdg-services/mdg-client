@@ -64,14 +64,30 @@ export const kavachOutletMetaSchema = z.object({
 });
 export type KavachOutletMetaInput = z.infer<typeof kavachOutletMetaSchema>;
 
+/** Hour-of-day (0–23, IST) at which the dealer's daily digest fires. */
+export const kavachReminderHourSchema = z.number().int().min(0).max(23);
+
 /** Body for POST /dealers/:dealerId/kavach/programme — admin initiates once. */
 export const initiateKavachProgrammeSchema = z.object({
   outlet: kavachOutletMetaSchema,
   /** Per-template baseline dates from the first visit; omitted => "fresh clock". */
   baselines: z.record(z.string(), z.string().datetime()).optional(),
   excludeCodes: z.array(z.string().min(1)).max(60).optional(),
+  /** Optional per-dealer digest hour; omitted => global env default. */
+  reminderHour: kavachReminderHourSchema.optional(),
 });
 export type InitiateKavachProgrammeInput = z.infer<typeof initiateKavachProgrammeSchema>;
+
+/** Body for PATCH /dealers/:dealerId/kavach/programme — admin updates programme settings. */
+export const updateKavachProgrammeSchema = z
+  .object({
+    status: z.enum(['ACTIVE', 'PAUSED']).optional(),
+    reminderHour: kavachReminderHourSchema.optional(),
+  })
+  .refine((v) => v.status !== undefined || v.reminderHour !== undefined, {
+    message: 'Provide at least one of status or reminderHour',
+  });
+export type UpdateKavachProgrammeInput = z.infer<typeof updateKavachProgrammeSchema>;
 
 /** Body for POST /kavach/items/:itemId/mark-done. */
 export const markKavachItemDoneSchema = z.object({

@@ -34,6 +34,7 @@ function HelpFooter() {
 
 export function KavachPage() {
   const toast = useToast();
+  const navigate = useNavigate();
   const meQuery = useKavachMe();
   const conversationQuery = useMyConversation();
 
@@ -99,6 +100,8 @@ export function KavachPage() {
   }
 
   const conversationId = conversationQuery.data?.id;
+  const conversationLoading = conversationQuery.isLoading;
+  const goToChat = React.useCallback(() => navigate('/chat'), [navigate]);
   const todoCount = today.length;
 
   return (
@@ -142,6 +145,8 @@ export function KavachPage() {
                 key={item.id}
                 item={item}
                 conversationId={conversationId}
+                conversationLoading={conversationLoading}
+                onNeedChat={goToChat}
                 onDone={onDone}
               />
             ))}
