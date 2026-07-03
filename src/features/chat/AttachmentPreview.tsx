@@ -4,6 +4,7 @@ import * as React from 'react';
 import type { Attachment, AttachmentKind } from '@dk/shared/types';
 
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
 
 export interface StagedFile {
@@ -22,6 +23,7 @@ export function StagedAttachmentChip({
   staged: StagedFile;
   onRemove: () => void;
 }) {
+  const t = useT();
   if (staged.kind === 'audio') {
     return (
       <div className="group relative flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-2 pr-8 shadow-sm">
@@ -29,15 +31,19 @@ export function StagedAttachmentChip({
           <Mic width={18} strokeWidth={1.75} />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-text">Voice message</p>
+          <p className="truncate text-xs font-medium text-text">
+            {t('chat.voiceMessage')}
+          </p>
           <p className="text-[11px] text-text-subtle">
-            {staged.durationMs ? formatDuration(staged.durationMs) : 'Recorded'}
+            {staged.durationMs
+              ? formatDuration(staged.durationMs)
+              : t('chat.recorded')}
           </p>
         </div>
         <button
           type="button"
           onClick={onRemove}
-          aria-label="Remove voice message"
+          aria-label={t('chat.removeVoice')}
           className="absolute right-1 top-1 rounded-full p-1 text-text-muted hover:bg-surface-2"
         >
           <X width={12} strokeWidth={2} />
@@ -71,7 +77,7 @@ export function StagedAttachmentChip({
       <button
         type="button"
         onClick={onRemove}
-        aria-label="Remove attachment"
+        aria-label={t('chat.removeAttachment')}
         className="absolute right-1 top-1 rounded-full p-1 text-text-muted hover:bg-surface-2"
       >
         <X width={12} strokeWidth={2} />
@@ -88,6 +94,7 @@ export function VoiceMessage({
   attachment: Attachment;
   mine?: boolean;
 }) {
+  const t = useT();
   const audioRef = React.useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = React.useState(false);
   const [currentMs, setCurrentMs] = React.useState(0);
@@ -119,7 +126,7 @@ export function VoiceMessage({
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? 'Pause voice message' : 'Play voice message'}
+        aria-label={playing ? t('chat.pauseVoice') : t('chat.playVoice')}
         className={cn(
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
           mine ? 'bg-white/20 text-text-inverse' : 'bg-brand/10 text-brand',

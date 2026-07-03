@@ -5,6 +5,7 @@ import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 
 import { Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 import {
   attachmentKindFor,
   formatDuration,
@@ -36,6 +37,7 @@ export function Composer({
   sending,
   initialText,
 }: ComposerProps) {
+  const t = useT();
   const [text, setText] = React.useState(initialText ?? '');
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -172,7 +174,7 @@ export function Composer({
         <div className="flex items-center gap-3 px-3 py-3">
           <button
             type="button"
-            aria-label="Cancel recording"
+            aria-label={t('chat.cancelRecording')}
             onClick={() => recorder.cancel()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
           >
@@ -183,11 +185,13 @@ export function Composer({
             <span className="text-sm font-medium tabular-nums text-text">
               {formatDuration(recorder.elapsedMs)}
             </span>
-            <span className="text-sm text-text-subtle">Recording… tap send when done</span>
+            <span className="text-sm text-text-subtle">
+              {t('chat.recordingHint')}
+            </span>
           </div>
           <button
             type="button"
-            aria-label="Send voice message"
+            aria-label={t('chat.sendVoice')}
             onClick={() => void stopAndSend()}
             disabled={sending}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-text-inverse hover:bg-brand-hover disabled:cursor-not-allowed"
@@ -199,7 +203,7 @@ export function Composer({
         <div className="flex items-end gap-2 px-3 py-3">
           <button
             type="button"
-            aria-label="Add a photo or document"
+            aria-label={t('chat.addPhoto')}
             onClick={() => fileRef.current?.click()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
             disabled={disabled}
@@ -223,7 +227,7 @@ export function Composer({
             }}
             onKeyDown={onKeyDown}
             rows={1}
-            placeholder="Type your message…"
+            placeholder={t('chat.placeholder')}
             className={cn(
               'min-h-[40px] max-h-[140px] flex-1 resize-none rounded-2xl border border-border bg-surface-2 px-4 py-2.5',
               'text-[15px] text-text placeholder:text-text-subtle',
@@ -234,7 +238,7 @@ export function Composer({
           {canSend ? (
             <button
               type="button"
-              aria-label="Send"
+              aria-label={t('chat.send')}
               onClick={() => void doSend()}
               disabled={sending}
               className={cn(
@@ -248,7 +252,7 @@ export function Composer({
           ) : (
             <button
               type="button"
-              aria-label="Record voice message"
+              aria-label={t('chat.recordVoice')}
               onClick={() => void startRecording()}
               disabled={disabled}
               className={cn(

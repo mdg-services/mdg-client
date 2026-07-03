@@ -2,6 +2,7 @@ import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 type Intent = 'success' | 'danger' | 'info';
 
@@ -37,6 +38,7 @@ const INTENT_CLASSES: Record<Intent, string> = {
 };
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const [toasts, setToasts] = React.useState<Toast[]>([]);
 
   const dismiss = React.useCallback((id: string) => {
@@ -72,50 +74,52 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={ctx}>
       {children}
       <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto flex w-full max-w-sm flex-col gap-2 px-4">
-        {toasts.map((t) => (
+        {toasts.map((item) => (
           <div
-            key={t.id}
+            key={item.id}
             role="status"
             className="pointer-events-auto flex items-start gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5 shadow-md animate-in"
           >
             <span
               className={cn(
                 'mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full',
-                INTENT_CLASSES[t.intent],
+                INTENT_CLASSES[item.intent],
               )}
             >
-              {t.intent === 'success' ? (
+              {item.intent === 'success' ? (
                 <CheckCircle2 width={14} height={14} strokeWidth={1.75} />
-              ) : t.intent === 'danger' ? (
+              ) : item.intent === 'danger' ? (
                 <AlertCircle width={14} height={14} strokeWidth={1.75} />
               ) : (
                 <Info width={14} height={14} strokeWidth={1.75} />
               )}
             </span>
             <div className="min-w-0 flex-1">
-              {t.title ? (
-                <p className="text-sm font-medium text-text">{t.title}</p>
+              {item.title ? (
+                <p className="text-sm font-medium text-text">{item.title}</p>
               ) : null}
-              {t.description ? (
-                <p className="mt-0.5 text-xs text-text-muted">{t.description}</p>
+              {item.description ? (
+                <p className="mt-0.5 text-xs text-text-muted">
+                  {item.description}
+                </p>
               ) : null}
-              {t.action ? (
+              {item.action ? (
                 <button
                   type="button"
                   onClick={() => {
-                    t.action?.onClick();
-                    dismiss(t.id);
+                    item.action?.onClick();
+                    dismiss(item.id);
                   }}
                   className="mt-1.5 text-xs font-semibold text-brand underline-offset-2 hover:underline"
                 >
-                  {t.action.label}
+                  {item.action.label}
                 </button>
               ) : null}
             </div>
             <button
               type="button"
-              aria-label="Dismiss"
-              onClick={() => dismiss(t.id)}
+              aria-label={t('common.dismiss')}
+              onClick={() => dismiss(item.id)}
               className="rounded-full p-1 text-text-muted hover:bg-surface-2"
             >
               <X width={14} height={14} strokeWidth={1.75} />

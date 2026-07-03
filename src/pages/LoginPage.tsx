@@ -1,4 +1,3 @@
-import type { AuthLoginResponse } from '@dk/shared/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import * as React from 'react';
@@ -6,26 +5,35 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
+import type { AuthLoginResponse } from '@dk/shared/types';
+
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { postToNative } from '@/lib/nativeBridge';
 import { useAuthStore } from '@/store/auth';
 
-const schema = z.object({
-  email: z.string().email('Enter a valid email'),
-  password: z.string().min(1, 'Enter your password'),
-});
-type FormValues = z.infer<typeof schema>;
+type FormValues = { email: string; password: string };
 
 export function LoginPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const t = useT();
   const login = useAuthStore((s) => s.login);
   const token = useAuthStore((s) => s.token);
 
   React.useEffect(() => {
     if (token) navigate('/chat', { replace: true });
   }, [token, navigate]);
+
+  const schema = React.useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t('auth.emailInvalid')),
+        password: z.string().min(1, t('auth.passwordRequired')),
+      }),
+    [t],
+  );
 
   const {
     register,
@@ -44,12 +52,11 @@ export function LoginPage() {
       navigate('/chat', { replace: true });
     },
     onError: (err) => {
+      // Never leak a raw server/network string — always one warm sentence.
       const msg =
         err instanceof ApiError && err.status === 401
-          ? "That email or password didn't work. Try again or contact support."
-          : err instanceof Error
-            ? err.message
-            : 'Something went wrong. Please try again.';
+          ? t('auth.loginFailed')
+          : t('common.networkError');
       toast.error(msg);
     },
   });
@@ -62,11 +69,9 @@ export function LoginPage() {
             MDG
           </div>
           <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">
-            Welcome back
+            {t('auth.welcome')}
           </h1>
-          <p className="text-sm text-text-muted">
-            Sign in to chat with the MDG team.
-          </p>
+          <p className="text-sm text-text-muted">{t('auth.subtitle')}</p>
         </div>
         <Card>
           <CardContent>
@@ -77,7 +82,7 @@ export function LoginPage() {
             >
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text" htmlFor="email">
-                  Email
+                  {t('auth.email')}
                 </label>
                 <Input
                   id="email"
@@ -85,7 +90,7 @@ export function LoginPage() {
                   autoComplete="email"
                   inputMode="email"
                   invalid={!!errors.email}
-                  placeholder="you@dealership.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   {...register('email')}
                 />
                 {errors.email ? (
@@ -94,7 +99,7 @@ export function LoginPage() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text" htmlFor="password">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <Input
                   id="password"
@@ -116,13 +121,13 @@ export function LoginPage() {
                 fullWidth
                 loading={loginMutation.isPending}
               >
-                Sign in
+                {t('auth.signIn')}
               </Button>
             </form>
           </CardContent>
         </Card>
         <p className="mt-6 text-center text-xs text-text-subtle">
-          Need access? Contact your MDG account manager.
+          {t('auth.needAccess')}
         </p>
       </div>
     </div>

@@ -57,5 +57,10 @@ export const AUDIT_ACTIONS = [
   'KAVACH_ITEM_PAUSE',
   'KAVACH_SOS_FLAG',
   'KAVACH_PROGRAMME_UPDATE',
+  // Staff Points (ADR 0007)
+  'STAFF_EMPLOYEE_ADD',
+  'STAFF_EMPLOYEE_UPDATE',
+  'STAFF_POINTS_AWARD',
+  'STAFF_POINTS_UNDO',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

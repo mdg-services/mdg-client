@@ -9,11 +9,13 @@ import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useMessages } from '@/hooks/api/useMessages';
 import { useMyConversation } from '@/hooks/api/useMyConversation';
 import { useSendMessage } from '@/hooks/api/useSendMessage';
+import { useT } from '@/lib/i18n';
 import { uploadAttachment, type OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useAuthStore } from '@/store/auth';
 
 export function ChatPage() {
   const toast = useToast();
+  const t = useT();
   const user = useAuthStore((s) => s.user);
 
   const convQuery = useMyConversation();
@@ -52,7 +54,7 @@ export function ChatPage() {
 
   const handleSend = async (text: string, files: OutgoingAttachment[]) => {
     if (!conversationId) {
-      toast.error('Still connecting. Please wait a moment and try again.');
+      toast.error(t('chat.stillConnecting'));
       return;
     }
     if (!text && files.length === 0) return;
@@ -66,8 +68,8 @@ export function ChatPage() {
         } catch {
           toast.error(
             item.kind === 'audio'
-              ? "We couldn't send your voice message. Please check your network and try again."
-              : `We couldn't send ${item.file.name}. Please check your network and try again.`,
+              ? t('chat.voiceSendFailed')
+              : t('chat.fileSendFailed', { name: item.file.name }),
           );
         }
       }
@@ -77,9 +79,7 @@ export function ChatPage() {
         attachments,
       });
     } catch {
-      toast.error(
-        "Your message didn't go through. Please check your network and try again.",
-      );
+      toast.error(t('chat.sendFailed'));
     }
   };
 
@@ -95,9 +95,9 @@ export function ChatPage() {
     <div className="flex flex-1 flex-col">
       <div className="flex items-center justify-between border-b border-border bg-surface px-4 py-2.5">
         <div>
-          <p className="text-sm font-semibold text-text">Support</p>
+          <p className="text-sm font-semibold text-text">{t('chat.support')}</p>
           <p className="text-xs text-text-subtle">
-            Real people, real fast replies
+            {t('chat.supportSubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -106,7 +106,9 @@ export function ChatPage() {
             style={{ backgroundColor: 'var(--color-online)' }}
             aria-hidden
           />
-          <span className="text-xs font-medium text-text-muted">Online</span>
+          <span className="text-xs font-medium text-text-muted">
+            {t('chat.online')}
+          </span>
         </div>
       </div>
 

@@ -1,12 +1,15 @@
 import type { KavachItem, KavachItemStatus } from '@dk/shared/types';
 
+import type { MessageKey } from '@/lib/i18n';
+
 /**
  * Dealer-facing status presentation. We NEVER show raw enums (VALID/EXPIRED) or
- * dates-as-jargon — only warm, bilingual pills (spec §4 / uxDesign §1.4).
+ * dates-as-jargon — only warm, translated pills (spec §4 / uxDesign §1.4). The
+ * label is a catalog key resolved via `t()` in the current language (ADR 0008).
  */
 export interface FriendlyStatus {
-  labelEn: string;
-  labelHi: string;
+  /** i18n catalog key for the pill label. */
+  labelKey: MessageKey;
   /** Tailwind classes for a soft semantic pill. */
   pill: string;
   /** Tailwind classes for the icon tile. */
@@ -14,22 +17,19 @@ export interface FriendlyStatus {
 }
 
 export const STATUS_READY: FriendlyStatus = {
-  labelEn: 'Ready',
-  labelHi: 'तैयार',
+  labelKey: 'kavach.statusReady',
   pill: 'bg-success-soft text-success',
   tile: 'bg-success-soft text-success',
 };
 
 export const STATUS_DUE_SOON: FriendlyStatus = {
-  labelEn: 'Due soon',
-  labelHi: 'जल्द',
+  labelKey: 'kavach.statusDueSoon',
   pill: 'bg-warning-soft text-warning',
   tile: 'bg-warning-soft text-warning',
 };
 
 export const STATUS_OVERDUE: FriendlyStatus = {
-  labelEn: 'Overdue',
-  labelHi: 'बाकी है',
+  labelKey: 'kavach.statusOverdue',
   pill: 'bg-danger-soft text-danger',
   tile: 'bg-danger-soft text-danger',
 };
