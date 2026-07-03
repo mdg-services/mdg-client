@@ -12,6 +12,8 @@ export interface User {
   title?: string;
   phone?: string;
   avatarKey?: string | null;
+  /** Preferred UI language for the dealer apps. Defaults to Hindi when unset (ADR 0008). */
+  lang?: 'en' | 'hi';
   status: UserStatus;
   lastLoginAt?: string;
   createdAt: string;

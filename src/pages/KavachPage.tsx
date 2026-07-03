@@ -1,7 +1,8 @@
-import type { KavachItem } from '@dk/shared/types';
 import { MessageCircle, PartyPopper, ShieldCheck } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
+
+import type { KavachItem } from '@dk/shared/types';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
 import { ComplianceTaskCard } from '@/features/kavach/ComplianceTaskCard';
@@ -9,17 +10,19 @@ import { PumpHealthRing } from '@/features/kavach/PumpHealthRing';
 import { byUrgency, isDueToday, isSos } from '@/features/kavach/status';
 import { useKavachMe } from '@/hooks/api/useKavach';
 import { useMyConversation } from '@/hooks/api/useMyConversation';
+import { pick, useLang, useT } from '@/lib/i18n';
 
-function GroupHeader({ en, hi }: { en: string; hi: string }) {
+function GroupHeader({ label }: { label: string }) {
   return (
     <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
-      {en} / {hi}
+      {label}
     </h2>
   );
 }
 
 function HelpFooter() {
   const navigate = useNavigate();
+  const t = useT();
   return (
     <button
       type="button"
@@ -27,7 +30,7 @@ function HelpFooter() {
       className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-brand shadow-sm active:bg-surface-2"
     >
       <MessageCircle width={16} strokeWidth={1.75} />
-      Need help? Message us / मदद चाहिए? हमें लिखें
+      {t('kavach.needHelp')}
     </button>
   );
 }
@@ -35,6 +38,8 @@ function HelpFooter() {
 export function KavachPage() {
   const toast = useToast();
   const navigate = useNavigate();
+  const t = useT();
+  const lang = useLang();
   const meQuery = useKavachMe();
   const conversationQuery = useMyConversation();
 
@@ -54,11 +59,11 @@ export function KavachPage() {
 
   const onDone = React.useCallback(
     (_item: KavachItem) => {
-      toast.success('Done! / हो गया!', {
-        description: 'Your pump health went up. / आपकी पंप हेल्थ बढ़ गई।',
+      toast.success(t('kavach.doneToast'), {
+        description: t('kavach.doneToastDesc'),
       });
     },
-    [toast],
+    [toast, t],
   );
 
   if (meQuery.isLoading) {
@@ -74,8 +79,8 @@ export function KavachPage() {
       <div className="flex flex-1 flex-col gap-4 p-4">
         <EmptyState
           icon={<ShieldCheck width={28} strokeWidth={1.5} />}
-          title="We couldn't load this just now"
-          description="Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help."
+          title={t('kavach.errorTitle')}
+          description={t('common.helpDesc')}
         />
         <HelpFooter />
       </div>
@@ -87,12 +92,12 @@ export function KavachPage() {
     return (
       <div className="flex flex-1 flex-col gap-4 p-4">
         <h1 className="text-lg font-semibold tracking-tight text-text">
-          Pump health / कवच
+          {t('kavach.title')}
         </h1>
         <EmptyState
           icon={<ShieldCheck width={28} strokeWidth={1.5} />}
-          title="Welcome to Kavach / कवच में स्वागत है"
-          description="This is where you'll see what keeps your pump safe and compliant. We'll guide you, one small task at a time. / यहाँ आप देखेंगे कि आपके पंप को सुरक्षित रखने के लिए क्या ज़रूरी है। हम एक-एक करके बताएंगे।"
+          title={t('kavach.welcomeTitle')}
+          description={t('kavach.welcomeDesc')}
         />
         <HelpFooter />
       </div>
@@ -108,9 +113,8 @@ export function KavachPage() {
     <div className="flex flex-1 flex-col gap-5 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight text-text">
-          Pump health
+          {t('kavach.title')}
         </h1>
-        <span className="text-base font-semibold text-text-muted">कवच</span>
       </div>
 
       {/* Headline: the ring, with the ACTION COUNT leading (number secondary). */}
@@ -118,19 +122,17 @@ export function KavachPage() {
         <PumpHealthRing pct={programme.score.overallPct} settling={settling} />
         {settling ? (
           <p className="text-center text-sm text-text-muted">
-            Getting started — nothing to worry about yet.
-            <br />
-            अभी शुरू कर रहे हैं — अभी चिंता की कोई बात नहीं।
+            {t('kavach.settling')}
           </p>
         ) : todoCount > 0 ? (
           <p className="text-center text-sm font-medium text-text">
             {todoCount === 1
-              ? '1 thing to do today / आज 1 काम बाकी है'
-              : `${todoCount} things to do today / आज ${todoCount} काम बाकी हैं`}
+              ? t('kavach.todoOne')
+              : t('kavach.todoMany', { n: todoCount })}
           </p>
         ) : (
           <p className="text-center text-sm font-medium text-success">
-            All done for today / आज सब हो गया
+            {t('kavach.allDone')}
           </p>
         )}
       </div>
@@ -138,7 +140,7 @@ export function KavachPage() {
       {/* Today list */}
       {todoCount > 0 ? (
         <section className="flex flex-col gap-2">
-          <GroupHeader en="Do today" hi="आज करें" />
+          <GroupHeader label={t('kavach.doToday')} />
           <div className="flex flex-col gap-2.5">
             {today.map((item) => (
               <ComplianceTaskCard
@@ -155,8 +157,8 @@ export function KavachPage() {
       ) : (
         <EmptyState
           icon={<PartyPopper width={28} strokeWidth={1.5} />}
-          title="All done for today! / आज सब हो गया!"
-          description="Your pump is in great shape. We'll let you know when something needs you. / आपका पंप बढ़िया स्थिति में है। ज़रूरत होने पर हम आपको बताएंगे।"
+          title={t('kavach.allDoneTitle')}
+          description={t('kavach.allDoneDesc')}
         />
       )}
 
@@ -164,16 +166,13 @@ export function KavachPage() {
       {sos.length > 0 ? (
         <details className="rounded-2xl border border-border bg-surface-2/50 px-4 py-3 text-sm">
           <summary className="cursor-pointer list-none font-medium text-text-muted">
-            When it happens / जब ज़रूरत हो ({sos.length})
+            {t('kavach.sosSummary', { n: sos.length })}
           </summary>
-          <p className="mt-2 text-xs text-text-muted">
-            These happen only when needed — we handle them with you. / ये ज़रूरत
-            पड़ने पर होते हैं — हम आपके साथ इन्हें संभालते हैं।
-          </p>
+          <p className="mt-2 text-xs text-text-muted">{t('kavach.sosDesc')}</p>
           <ul className="mt-2 flex flex-col gap-1">
             {sos.map((item) => (
               <li key={item.id} className="text-xs text-text-subtle">
-                {item.labelEn} / {item.labelHi}
+                {pick(lang, item.labelEn, item.labelHi)}
               </li>
             ))}
           </ul>

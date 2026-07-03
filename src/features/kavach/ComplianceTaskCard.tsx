@@ -1,4 +1,3 @@
-import type { Attachment, KavachItem } from '@dk/shared/types';
 import {
   Camera,
   Check,
@@ -10,12 +9,16 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
+import type { Attachment, KavachItem } from '@dk/shared/types';
+
+import { friendlyStatus } from './status';
+
 import { Button, Spinner, useToast } from '@/components/ui';
 import { useMarkKavachItemDone } from '@/hooks/api/useKavach';
 import { cn } from '@/lib/cn';
+import { pick, useLang, useT } from '@/lib/i18n';
 import { uploadAttachment } from '@/lib/uploadAttachment';
 
-import { friendlyStatus } from './status';
 
 function iconFor(domain: KavachItem['domain']): LucideIcon {
   if (domain === 'safety') return ShieldCheck;
@@ -46,11 +49,20 @@ export function ComplianceTaskCard({
   onDone?: (item: KavachItem) => void;
 }) {
   const toast = useToast();
+  const t = useT();
+  const lang = useLang();
   const status = friendlyStatus(item.status);
   const Icon = iconFor(item.domain);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = React.useState(false);
   const markDone = useMarkKavachItemDone();
+
+  const label = pick(lang, item.labelEn, item.labelHi);
+  const notes = pick(
+    lang,
+    item.notesEn ?? item.notesHi ?? '',
+    item.notesHi ?? item.notesEn ?? '',
+  );
 
   const submit = React.useCallback(
     (proof?: Attachment) => {
@@ -68,10 +80,10 @@ export function ComplianceTaskCard({
       if (conversationLoading) return;
       // Genuinely missing/errored: tell the dealer and offer a way forward.
       if (!conversationId) {
-        toast.error("We couldn't add your photo just now / अभी फोटो नहीं जुड़ी", {
-          description: 'Please message us and we will help. / कृपया हमें लिखें, हम मदद करेंगे।',
+        toast.error(t('kavach.photoAddFailed'), {
+          description: t('kavach.photoAddFailedDesc'),
           action: onNeedChat
-            ? { label: 'Message us / हमें लिखें', onClick: onNeedChat }
+            ? { label: t('kavach.messageUs'), onClick: onNeedChat }
             : undefined,
         });
         return;
@@ -87,10 +99,10 @@ export function ComplianceTaskCard({
     e.target.value = '';
     if (!file) return;
     if (!conversationId) {
-      toast.error("We couldn't add your photo just now / अभी फोटो नहीं जुड़ी", {
-        description: 'Please message us and we will help. / कृपया हमें लिखें, हम मदद करेंगे।',
+      toast.error(t('kavach.photoAddFailed'), {
+        description: t('kavach.photoAddFailedDesc'),
         action: onNeedChat
-          ? { label: 'Message us / हमें लिखें', onClick: onNeedChat }
+          ? { label: t('kavach.messageUs'), onClick: onNeedChat }
           : undefined,
       });
       return;
@@ -105,7 +117,7 @@ export function ComplianceTaskCard({
     } catch {
       // Upload failed — surface it and leave the card in its retry state so
       // the dealer can tap to try again. Never swallow the error.
-      toast.error("Photo didn't upload — please try again / फोटो अपलोड नहीं हुई — फिर से कोशिश करें");
+      toast.error(t('kavach.photoUploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -136,11 +148,8 @@ export function ComplianceTaskCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-[15px] font-semibold leading-snug text-text">
-                {item.labelEn}
-              </p>
-              <p className="truncate text-[13px] text-text-muted">
-                {item.labelHi}
+              <p className="text-[15px] font-semibold leading-snug text-text">
+                {label}
               </p>
             </div>
             <span
@@ -149,12 +158,12 @@ export function ComplianceTaskCard({
                 status.pill,
               )}
             >
-              {status.labelEn} / {status.labelHi}
+              {t(status.labelKey)}
             </span>
           </div>
 
-          {item.notesEn ? (
-            <p className="mt-1 text-xs text-text-muted">{item.notesEn}</p>
+          {notes ? (
+            <p className="mt-1 text-xs text-text-muted">{notes}</p>
           ) : null}
         </div>
       </div>
@@ -168,7 +177,7 @@ export function ComplianceTaskCard({
             className="flex w-full items-center justify-center gap-2 rounded-full bg-danger-soft px-4 py-2.5 text-sm font-medium text-danger"
           >
             <RotateCw width={15} strokeWidth={2} />
-            Didn&apos;t save — tap to try again / फिर से दबाएं
+            {t('kavach.tapRetry')}
           </button>
         ) : (
           <Button
@@ -186,17 +195,17 @@ export function ComplianceTaskCard({
             }
           >
             {preparing
-              ? 'Preparing… / तैयार हो रहा है'
+              ? t('kavach.preparing')
               : item.requiresProof
-                ? 'Add photo & mark done / फोटो डालकर हो गया'
-                : 'Mark done / हो गया'}
+                ? t('kavach.addPhotoMarkDone')
+                : t('kavach.markDone')}
           </Button>
         )}
       </div>
 
       {uploading ? (
         <p className="mt-2 flex items-center justify-center gap-1.5 text-xs text-text-muted">
-          <Spinner size={12} /> Adding your photo / फोटो जोड़ रहे हैं…
+          <Spinner size={12} /> {t('kavach.addingPhoto')}
         </p>
       ) : null}
 

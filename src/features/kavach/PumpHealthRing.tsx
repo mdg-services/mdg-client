@@ -1,41 +1,38 @@
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { useT, type MessageKey } from '@/lib/i18n';
 
 type Band = 'good' | 'few' | 'catchup' | 'settling';
 
 interface BandStyle {
   stroke: string;
   text: string;
-  verdictEn: string;
-  verdictHi: string;
+  /** i18n catalog key for the one-line verdict (resolved via t()). */
+  verdictKey: MessageKey;
 }
 
 const BANDS: Record<Band, BandStyle> = {
   good: {
     stroke: 'text-success',
     text: 'text-success',
-    verdictEn: 'Looking good',
-    verdictHi: 'बढ़िया चल रहा है',
+    verdictKey: 'kavach.bandGood',
   },
   few: {
     stroke: 'text-warning',
     text: 'text-warning',
-    verdictEn: 'A few things to do',
-    verdictHi: 'कुछ काम बाकी हैं',
+    verdictKey: 'kavach.bandFew',
   },
   catchup: {
     // Forward language, not a punitive red "fail" (spec §4).
     stroke: 'text-warning',
     text: 'text-warning',
-    verdictEn: "Let's catch up",
-    verdictHi: 'इन्हें पूरा करें',
+    verdictKey: 'kavach.bandCatchup',
   },
   settling: {
     stroke: 'text-info',
     text: 'text-info',
-    verdictEn: 'Getting started',
-    verdictHi: 'अभी शुरू कर रहे हैं',
+    verdictKey: 'kavach.bandSettling',
   },
 };
 
@@ -58,6 +55,7 @@ export function PumpHealthRing({
   pct: number;
   settling?: boolean;
 }) {
+  const t = useT();
   const band = bandFor(pct, settling);
   const style = BANDS[band];
 
@@ -120,8 +118,9 @@ export function PumpHealthRing({
           </span>
         </div>
       </div>
-      <p className="mt-1 text-sm font-medium text-text">{style.verdictEn}</p>
-      <p className="text-sm text-text-muted">{style.verdictHi}</p>
+      <p className="mt-1 text-sm font-medium text-text">
+        {t(style.verdictKey)}
+      </p>
     </div>
   );
 }

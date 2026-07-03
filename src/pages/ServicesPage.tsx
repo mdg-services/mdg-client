@@ -1,11 +1,13 @@
-import type { DealerService } from '@dk/shared/types';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Clock, Wrench, XCircle } from 'lucide-react';
 import * as React from 'react';
 
+import type { Cadence, DealerService } from '@dk/shared/types';
+
 import { Card, CardContent, EmptyState, Spinner } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { cn } from '@/lib/cn';
+import { useT, type MessageKey, type TFunction } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
 
 function formatDate(iso?: string): string {
@@ -20,7 +22,22 @@ function formatDate(iso?: string): string {
   });
 }
 
-function StatusPill({ status }: { status: DealerService['status'] }) {
+/** Plain-language cadence phrase — never the raw enum (adoption audit §6). */
+const CADENCE_KEY: Record<Cadence, MessageKey> = {
+  DAILY: 'services.runsDaily',
+  WEEKLY: 'services.runsWeekly',
+  MONTHLY: 'services.runsMonthly',
+  YEARLY: 'services.runsYearly',
+  ON_DEMAND: 'services.runsOnDemand',
+};
+
+function StatusPill({
+  status,
+  t,
+}: {
+  status: DealerService['status'];
+  t: TFunction;
+}) {
   const isActive = status === 'ACTIVE';
   return (
     <span
@@ -36,12 +53,13 @@ function StatusPill({ status }: { status: DealerService['status'] }) {
       ) : (
         <XCircle width={12} strokeWidth={2} />
       )}
-      {isActive ? 'Active' : 'Paused'}
+      {isActive ? t('services.active') : t('services.paused')}
     </span>
   );
 }
 
 export function ServicesPage() {
+  const t = useT();
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId ?? undefined;
 
@@ -64,7 +82,7 @@ export function ServicesPage() {
     <div className="flex flex-1 flex-col gap-3 p-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold tracking-tight text-text">
-          Your services
+          {t('services.title')}
         </h1>
       </div>
 
@@ -75,14 +93,14 @@ export function ServicesPage() {
       ) : servicesQuery.isError ? (
         <EmptyState
           icon={<Wrench width={28} strokeWidth={1.5} />}
-          title="We couldn't show your services just now"
-          description="Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help."
+          title={t('services.errorTitle')}
+          description={t('common.helpDesc')}
         />
       ) : !servicesQuery.data || servicesQuery.data.length === 0 ? (
         <EmptyState
           icon={<Wrench width={28} strokeWidth={1.5} />}
-          title="No services yet"
-          description="Your account manager will set these up for you. We'll show them here once they're active."
+          title={t('services.emptyTitle')}
+          description={t('services.emptyDesc')}
         />
       ) : (
         <div className="flex flex-col gap-3">
@@ -95,19 +113,19 @@ export function ServicesPage() {
                       {svc.serviceId}
                     </p>
                     <p className="mt-0.5 text-xs text-text-muted">
-                      Runs {svc.cadence.toLowerCase()}
+                      {t(CADENCE_KEY[svc.cadence])}
                     </p>
                   </div>
-                  <StatusPill status={svc.status} />
+                  <StatusPill status={svc.status} t={t} />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-text-muted">
                   <div className="flex items-center gap-1.5">
                     <Clock width={12} strokeWidth={1.75} />
-                    <span>Last: {formatDate(svc.lastRunAt)}</span>
+                    <span>{t('services.last', { date: formatDate(svc.lastRunAt) })}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Clock width={12} strokeWidth={1.75} />
-                    <span>Next: {formatDate(svc.nextRunAt)}</span>
+                    <span>{t('services.next', { date: formatDate(svc.nextRunAt) })}</span>
                   </div>
                 </div>
               </CardContent>

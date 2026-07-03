@@ -1,12 +1,15 @@
-import type { Message } from '@dk/shared/types';
 import { MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
-import { EmptyState, Spinner } from '@/components/ui';
+import type { Message } from '@dk/shared/types';
 
 import { MessageBubble } from './MessageBubble';
 
-function dayLabel(iso: string): string {
+import { EmptyState, Spinner } from '@/components/ui';
+import { useT, type TFunction } from '@/lib/i18n';
+
+
+function dayLabel(iso: string, t: TFunction): string {
   const d = new Date(iso);
   const today = new Date();
   const yesterday = new Date();
@@ -15,8 +18,8 @@ function dayLabel(iso: string): string {
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
-  if (sameDay(d, today)) return 'Today';
-  if (sameDay(d, yesterday)) return 'Yesterday';
+  if (sameDay(d, today)) return t('chat.today');
+  if (sameDay(d, yesterday)) return t('chat.yesterday');
   return d.toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -45,6 +48,7 @@ export function MessageList({
   typing,
   onQuickAction,
 }: MessageListProps) {
+  const t = useT();
   const containerRef = React.useRef<HTMLDivElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const lastCount = React.useRef(0);
@@ -79,7 +83,7 @@ export function MessageList({
   let lastDay = '';
   let lastMine = false;
   ordered.forEach((m, idx) => {
-    const dl = dayLabel(m.createdAt);
+    const dl = dayLabel(m.createdAt, t);
     if (dl !== lastDay) {
       rendered.push(
         <div
@@ -119,23 +123,23 @@ export function MessageList({
       <div className="flex flex-1 items-center justify-center px-4">
         <EmptyState
           icon={<MessageCircleHeart width={28} strokeWidth={1.5} />}
-          title="How can we help?"
-          description="Send a message and a real person from our support team will reply."
+          title={t('chat.emptyTitle')}
+          description={t('chat.emptyDesc')}
           cta={
             onQuickAction ? (
               <div className="mt-2 flex flex-wrap justify-center gap-2">
                 {[
-                  'Report an issue',
-                  'Request a service',
-                  'Talk to support',
-                ].map((t) => (
+                  t('chat.quickReportIssue'),
+                  t('chat.quickRequestService'),
+                  t('chat.quickTalkSupport'),
+                ].map((label) => (
                   <button
-                    key={t}
+                    key={label}
                     type="button"
-                    onClick={() => onQuickAction(t)}
+                    onClick={() => onQuickAction(label)}
                     className="rounded-full border border-border bg-surface px-3.5 py-1.5 text-sm text-text hover:bg-surface-2"
                   >
-                    {t}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -160,7 +164,7 @@ export function MessageList({
               disabled={loadingMore}
               className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted hover:bg-surface-2 disabled:opacity-60"
             >
-              {loadingMore ? 'Loading…' : 'Load earlier messages'}
+              {loadingMore ? t('common.loading') : t('chat.loadEarlier')}
             </button>
           </div>
         ) : null}
@@ -170,7 +174,9 @@ export function MessageList({
             <div className="flex w-full justify-start">
               <div className="flex items-center gap-1.5 rounded-3xl rounded-bl-md border border-border bg-surface px-4 py-2.5 text-sm text-text-muted shadow-sm">
                 <span className="sr-only">
-                  {typing.userName ?? 'Admin'} is typing
+                  {t('chat.isTyping', {
+                    name: typing.userName ?? t('chat.supportName'),
+                  })}
                 </span>
                 <Dot />
                 <Dot delay={150} />
@@ -184,7 +190,7 @@ export function MessageList({
       {lightbox ? (
         <div
           role="dialog"
-          aria-label="Image preview"
+          aria-label={t('chat.imagePreview')}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightbox(null)}
         >

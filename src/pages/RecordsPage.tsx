@@ -1,17 +1,20 @@
-import type { DealerRecord, RecordType } from '@dk/shared/types';
-import { RECORD_TYPES, RECORD_TYPE_LABELS } from '@dk/shared/types';
 import { FileText } from 'lucide-react';
 import * as React from 'react';
+
+import type { DealerRecord, RecordType } from '@dk/shared/types';
+import { RECORD_TYPES } from '@dk/shared/types';
 
 import { EmptyState, Spinner } from '@/components/ui';
 import { RecordCard } from '@/features/records/RecordCard';
 import { useRecords } from '@/hooks/api/useRecords';
+import { useT } from '@/lib/i18n';
 
 function byNewest(a: DealerRecord, b: DealerRecord): number {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 }
 
 export function RecordsPage() {
+  const t = useT();
   const recordsQuery = useRecords();
 
   const grouped = React.useMemo(() => {
@@ -29,7 +32,9 @@ export function RecordsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4">
-      <h1 className="text-lg font-semibold tracking-tight text-text">Reports</h1>
+      <h1 className="text-lg font-semibold tracking-tight text-text">
+        {t('records.title')}
+      </h1>
 
       {recordsQuery.isLoading ? (
         <div className="flex flex-1 items-center justify-center py-12">
@@ -38,14 +43,14 @@ export function RecordsPage() {
       ) : recordsQuery.isError ? (
         <EmptyState
           icon={<FileText width={28} strokeWidth={1.5} />}
-          title="We couldn't show your reports just now"
-          description="Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help."
+          title={t('records.errorTitle')}
+          description={t('common.helpDesc')}
         />
       ) : total === 0 ? (
         <EmptyState
           icon={<FileText width={28} strokeWidth={1.5} />}
-          title="No reports yet"
-          description="Your reports will appear here. We'll message you when a new one is ready."
+          title={t('records.emptyTitle')}
+          description={t('records.emptyDesc')}
         />
       ) : (
         <div className="flex flex-col gap-6">
@@ -55,7 +60,7 @@ export function RecordsPage() {
             return (
               <section key={type} className="flex flex-col gap-2">
                 <h2 className="px-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
-                  {RECORD_TYPE_LABELS[type]}
+                  {t(`record.type.${type}`)}
                 </h2>
                 <div className="flex flex-col gap-2">
                   {items.map((rec) => (

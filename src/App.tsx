@@ -2,20 +2,23 @@ import { FileText, MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-r
 import * as React from 'react';
 import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { Avatar } from '@/components/ui';
 import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
 import { usePushBridge } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
-import { LoginPage } from '@/pages/LoginPage';
-import { useAuthStore } from '@/store/auth';
-
+import { useT } from '@/lib/i18n';
 import { ChatPage } from '@/pages/ChatPage';
 import { KavachPage } from '@/pages/KavachPage';
+import { LoginPage } from '@/pages/LoginPage';
 import { ProfilePage } from '@/pages/ProfilePage';
 import { RecordsPage } from '@/pages/RecordsPage';
 import { ServicesPage } from '@/pages/ServicesPage';
+import { StaffPage } from '@/pages/StaffPage';
+import { useAuthStore } from '@/store/auth';
+import { useLangStore } from '@/store/lang';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
@@ -31,21 +34,32 @@ function AppShell({ children }: { children: React.ReactNode }) {
   useRecordsSocket(); // refresh Reports + toast on record:new
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
+  const t = useT();
   const user = useAuthStore((s) => s.user);
+  const setLangFromUser = useLangStore((s) => s.setLangFromUser);
+
+  // A returning member lands in their saved language (unless they've already
+  // made an explicit local pick). Guarded inside the store, so this is idempotent.
+  React.useEffect(() => {
+    if (user) setLangFromUser(user);
+  }, [user, setLangFromUser]);
 
   return (
     <div className="flex min-h-full flex-col bg-bg">
       <header className="sticky top-0 z-30 border-b border-border bg-surface/90 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-semibold">
+        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-semibold">
               MDG
             </div>
-            <span className="text-sm font-semibold tracking-tight text-text">
-              Dealer Kavach
+            <span className="truncate text-sm font-semibold tracking-tight text-text">
+              {t('app.brand')}
             </span>
           </div>
-          <Avatar name={user?.name} size={32} />
+          <div className="flex shrink-0 items-center gap-2">
+            <LanguageToggle compact />
+            <Avatar name={user?.name} size={32} />
+          </div>
         </div>
       </header>
 
@@ -60,15 +74,14 @@ function AppShell({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1">
-          <TabLink to="/chat" icon={<MessageCircle width={22} strokeWidth={1.75} />} label="Chat" />
-          <TabLink to="/records" icon={<FileText width={22} strokeWidth={1.75} />} label="Reports" />
+          <TabLink to="/chat" icon={<MessageCircle width={22} strokeWidth={1.75} />} label={t('nav.chat')} />
+          <TabLink to="/records" icon={<FileText width={22} strokeWidth={1.75} />} label={t('nav.reports')} />
           <TabLink
             to="/kavach"
             icon={<ShieldCheck width={22} strokeWidth={1.75} />}
-            label="Kavach"
-            sublabel="कवच"
+            label={t('nav.kavach')}
           />
-          <TabLink to="/profile" icon={<UserIcon width={22} strokeWidth={1.75} />} label="Profile" />
+          <TabLink to="/profile" icon={<UserIcon width={22} strokeWidth={1.75} />} label={t('nav.profile')} />
         </div>
       </nav>
     </div>
@@ -156,6 +169,17 @@ export function App() {
           <ProtectedRoute>
             <AppShell>
               <ServicesPage />
+            </AppShell>
+          </ProtectedRoute>
+        }
+      />
+      {/* Staff Points — owner/manager tool, reached from Profile (not a 5th tab). */}
+      <Route
+        path="/staff"
+        element={
+          <ProtectedRoute>
+            <AppShell>
+              <StaffPage />
             </AppShell>
           </ProtectedRoute>
         }

@@ -1,0 +1,88 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import type {
+  CreateEmployeeInput,
+  EmployeeWithPoints,
+  UpdateEmployeeInput,
+} from '@dk/shared/types';
+
+import { useToast } from '@/components/ui';
+import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
+import { istDate, istMonthStart } from '@/lib/staff';
+
+/** The leaderboard windows offered on the Staff screen. */
+export type PointsWindow = 'today' | 'month';
+
+/** Resolve a window to inclusive IST date bounds. */
+export function windowBounds(window: PointsWindow): { from: string; to: string } {
+  const to = istDate();
+  return { from: window === 'month' ? istMonthStart() : to, to };
+}
+
+/** Prefix key for every employees list, so mutations can invalidate them all. */
+export const employeesQueryKeyRoot = ['staff', 'employees'] as const;
+
+export function employeesQueryKey(
+  dealerId: string | undefined,
+  from: string,
+  to: string,
+) {
+  return ['staff', 'employees', dealerId, from, to] as const;
+}
+
+/**
+ * The roster + each worker's points in the chosen window (default: today). Backs
+ * the leaderboard — one legible list, sorted highest-first by the caller.
+ */
+export function useEmployees(
+  dealerId: string | undefined,
+  window: PointsWindow = 'today',
+) {
+  const { from, to } = windowBounds(window);
+  return useQuery<EmployeeWithPoints[]>({
+    queryKey: employeesQueryKey(dealerId, from, to),
+    enabled: !!dealerId,
+    queryFn: () =>
+      api.get<EmployeeWithPoints[]>(`/v1/dealers/${dealerId}/employees`, {
+        from,
+        to,
+      }),
+  });
+}
+
+/** Add a worker to the roster. */
+export function useAddEmployee(dealerId: string | undefined) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const t = useT();
+  return useMutation({
+    mutationFn: (input: CreateEmployeeInput) =>
+      api.post(`/v1/dealers/${dealerId}/employees`, input),
+    onSuccess: () => {
+      toast.success(t('staff.form.added'));
+      void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
+    },
+    onError: () => {
+      toast.error(t('staff.form.addFailed'));
+    },
+  });
+}
+
+/** Edit a worker or flip their active/inactive status. */
+export function useUpdateEmployee(dealerId: string | undefined) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const t = useT();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateEmployeeInput }) =>
+      api.patch(`/v1/dealers/${dealerId}/employees/${id}`, input),
+    onSuccess: () => {
+      toast.success(t('common.done'));
+      void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
+    },
+    onError: () => {
+      toast.error(t('profile.actionFailed'));
+    },
+  });
+}

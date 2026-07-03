@@ -1,5 +1,3 @@
-import type { RecordType } from '@dk/shared/types';
-import { RECORD_TYPE_LABELS } from '@dk/shared/types';
 import {
   FileBarChart,
   FileCheck2,
@@ -9,7 +7,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import type { RecordType } from '@dk/shared/types';
+
 import { cn } from '@/lib/cn';
+import { useT } from '@/lib/i18n';
 
 interface TypeStyle {
   icon: LucideIcon;
@@ -61,6 +62,7 @@ export function RecordCard({
   url?: string;
   compact?: boolean;
 }) {
+  const t = useT();
   const style = TYPE_STYLES[record.recordType] ?? TYPE_STYLES.other;
   const Icon = style.icon;
 
@@ -99,7 +101,7 @@ export function RecordCard({
               style.chip,
             )}
           >
-            {RECORD_TYPE_LABELS[record.recordType]}
+            {t(`record.type.${record.recordType}`)}
           </span>
         </span>
         <span className="mt-1 block truncate text-[15px] font-semibold leading-snug text-text">
@@ -111,7 +113,7 @@ export function RecordCard({
           </span>
         ) : null}
         <span className="mt-1 block text-xs font-medium text-brand">
-          {url ? 'Tap to view' : 'Preparing…'}
+          {url ? t('records.tapToView') : t('records.preparing')}
         </span>
       </span>
     </button>
