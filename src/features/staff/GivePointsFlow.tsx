@@ -1,11 +1,4 @@
-import {
-  Check,
-  ChevronLeft,
-  Minus,
-  Plus,
-  Search,
-  X,
-} from 'lucide-react';
+import { Check, ChevronLeft, Minus, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 
 import type { EmployeeWithPoints, StaffWorkItem } from '@dk/shared/types';
@@ -21,14 +14,17 @@ import {
   fmtPoints,
   istDate,
   perEmployeePoints,
-  totalAwardPoints,
+  totalAwardPointsForWorks,
+  type WorkSelection,
 } from '@/lib/staff';
 
 type Step = 'worker' | 'work' | 'configure';
 
 /**
- * The core "Give points" flow — a bottom-sheet, one worker/one task/one tap by
- * default. The sheet's split/each/per-unit rules stay hidden until the chosen
+ * The core "Give points" flow — a bottom-sheet. Pick a worker (one tap), then
+ * tick off EVERYTHING they did (multi-select), then confirm. One award action
+ * can cover several works at once and, on the confirm step, several workers who
+ * did them together. The split/each/per-unit rules stay hidden until a chosen
  * task needs them; the raw enum words never appear, only plain bilingual copy.
  */
 export function GivePointsFlow({
@@ -47,16 +43,37 @@ export function GivePointsFlow({
 
   const [step, setStep] = React.useState<Step>('worker');
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
-  const [workItem, setWorkItem] = React.useState<StaffWorkItem | null>(null);
-  const [quantity, setQuantity] = React.useState(1);
+  const [selectedCodes, setSelectedCodes] = React.useState<string[]>([]);
+  const [quantities, setQuantities] = React.useState<Record<string, number>>({});
   const [workDate, setWorkDate] = React.useState(() => istDate());
   const [search, setSearch] = React.useState('');
 
   const today = istDate();
+  const catalog = workItemsQuery.data ?? [];
   const count = selectedIds.length;
-  const multi =
-    !!workItem &&
-    (workItem.distribution === 'SPLIT' || workItem.distribution === 'EACH');
+
+  const qtyFor = React.useCallback(
+    (item: StaffWorkItem) =>
+      item.distribution === 'PER_UNIT' ? (quantities[item.code] ?? 1) : undefined,
+    [quantities],
+  );
+
+  // The chosen works, resolved from the catalog and ordered like the picker.
+  const works: WorkSelection[] = React.useMemo(
+    () =>
+      selectedCodes
+        .map((code) => catalog.find((w) => w.code === code))
+        .filter((w): w is StaffWorkItem => Boolean(w))
+        .sort((a, b) => a.srNo - b.srNo)
+        .map((item) => ({ item, quantity: qtyFor(item) })),
+    [selectedCodes, catalog, qtyFor],
+  );
+
+  const grandTotal = totalAwardPointsForWorks(works, count);
+  // Step 2 has no worker context yet (co-workers are chosen on step 3), so its
+  // summary shows one worker's worth — a stable "face value" that matches the
+  // per-work badges, instead of a total that silently multiplies by worker count.
+  const previewTotal = totalAwardPointsForWorks(works, 1);
 
   const pickWorker = (id: string) => {
     setSelectedIds([id]);
@@ -73,10 +90,34 @@ export function GivePointsFlow({
     });
   };
 
-  const chooseWork = (item: StaffWorkItem) => {
-    setWorkItem(item);
-    setQuantity(1);
-    setStep('configure');
+  const clearQty = (code: string) => {
+    // Forget a work's per-unit quantity so re-adding it later starts fresh at 1.
+    setQuantities((q) => {
+      if (!(code in q)) return q;
+      const next = { ...q };
+      delete next[code];
+      return next;
+    });
+  };
+
+  const toggleWork = (code: string) => {
+    if (selectedCodes.includes(code)) {
+      setSelectedCodes((curr) => curr.filter((c) => c !== code));
+      clearQty(code);
+    } else {
+      setSelectedCodes((curr) => [...curr, code]);
+    }
+  };
+
+  const removeWork = (code: string) => {
+    // Keep at least one work; the × just hides when a single work remains.
+    if (selectedCodes.length <= 1) return;
+    setSelectedCodes((curr) => curr.filter((c) => c !== code));
+    clearQty(code);
+  };
+
+  const setQty = (code: string, n: number) => {
+    setQuantities((q) => ({ ...q, [code]: Math.max(1, n) }));
   };
 
   const goBack = () => {
@@ -85,12 +126,14 @@ export function GivePointsFlow({
   };
 
   const confirm = () => {
-    if (!workItem || count === 0) return;
+    if (works.length === 0 || count === 0) return;
     award.mutate(
       {
         employeeIds: selectedIds,
-        workItemCode: workItem.code,
-        ...(workItem.distribution === 'PER_UNIT' ? { quantity } : {}),
+        items: works.map((w) => ({
+          workItemCode: w.item.code,
+          ...(w.item.distribution === 'PER_UNIT' ? { quantity: w.quantity } : {}),
+        })),
         workDate,
       },
       { onSuccess: onClose },
@@ -147,42 +190,58 @@ export function GivePointsFlow({
             <WorkerPicker employees={employees} onPick={pickWorker} t={t} />
           ) : step === 'work' ? (
             <WorkPicker
-              items={workItemsQuery.data ?? []}
+              items={catalog}
               loading={workItemsQuery.isLoading}
+              selectedCodes={selectedCodes}
               search={search}
               onSearch={setSearch}
-              onChoose={chooseWork}
+              onToggle={toggleWork}
               lang={lang}
               t={t}
             />
-          ) : workItem ? (
+          ) : (
             <Configure
-              workItem={workItem}
+              works={works}
               employees={employees}
               selectedIds={selectedIds}
-              multi={multi}
-              onToggle={toggleWorker}
-              quantity={quantity}
-              onQuantity={setQuantity}
+              count={count}
+              onToggleWorker={toggleWorker}
+              onQty={setQty}
+              onRemoveWork={removeWork}
+              onAddMore={() => setStep('work')}
+              canRemove={works.length > 1}
               workDate={workDate}
               onWorkDate={setWorkDate}
               maxDate={today}
               lang={lang}
               t={t}
             />
-          ) : null}
+          )}
         </div>
 
-        {step === 'configure' && workItem ? (
-          <footer className="border-t border-border p-3">
+        {step === 'work' ? (
+          <footer className="flex flex-col gap-2 border-t border-border p-3">
+            {selectedCodes.length > 0 ? (
+              <p className="px-1 text-center text-xs text-text-muted">
+                {t('staff.give.selectedSummary', {
+                  count: selectedCodes.length,
+                  points: fmtPoints(previewTotal),
+                })}
+              </p>
+            ) : null}
             <Button
               fullWidth
               size="lg"
-              loading={award.isPending}
-              onClick={confirm}
+              disabled={selectedCodes.length === 0}
+              onClick={() => selectedCodes.length > 0 && setStep('configure')}
             >
-              {t('staff.give.confirm')} ·{' '}
-              {fmtPoints(totalAwardPoints(workItem, count, quantity))}
+              {t('staff.give.continue')}
+            </Button>
+          </footer>
+        ) : step === 'configure' ? (
+          <footer className="border-t border-border p-3">
+            <Button fullWidth size="lg" loading={award.isPending} onClick={confirm}>
+              {t('staff.give.confirm')} · {fmtPoints(grandTotal)}
             </Button>
           </footer>
         ) : null}
@@ -236,25 +295,28 @@ function WorkerPicker({
   );
 }
 
-/* ───────────────────────────── step 2: work ───────────────────────────────── */
+/* ───────────────────────────── step 2: work (multi-select) ─────────────────── */
 
 function WorkPicker({
   items,
   loading,
+  selectedCodes,
   search,
   onSearch,
-  onChoose,
+  onToggle,
   lang,
   t,
 }: {
   items: StaffWorkItem[];
   loading: boolean;
+  selectedCodes: string[];
   search: string;
   onSearch: (v: string) => void;
-  onChoose: (item: StaffWorkItem) => void;
+  onToggle: (code: string) => void;
   lang: ReturnType<typeof useLang>;
   t: ReturnType<typeof useT>;
 }) {
+  const selected = new Set(selectedCodes);
   const q = search.trim().toLowerCase();
   const groups = React.useMemo(() => {
     const active = items.filter((w) => w.active);
@@ -289,6 +351,11 @@ function WorkPicker({
             className="pl-9"
           />
         </div>
+        {!q ? (
+          <p className="px-1 pt-2 text-xs text-text-subtle">
+            {t('staff.give.pickWorkHint')}
+          </p>
+        ) : null}
       </div>
 
       {loading ? (
@@ -305,21 +372,40 @@ function WorkPicker({
             <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
               {t(DOMAIN_LABEL_KEY[g.domain])}
             </h3>
-            {g.items.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onChoose(item)}
-                className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2 text-left active:bg-surface-2"
-              >
-                <span className="min-w-0 flex-1 text-sm font-medium text-text">
-                  {pick(lang, item.labelEn, item.labelHi)}
-                </span>
-                <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
-                  {fmtPoints(item.points)}
-                </span>
-              </button>
-            ))}
+            {g.items.map((item) => {
+              const on = selected.has(item.code);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onToggle(item.code)}
+                  aria-pressed={on}
+                  className={cn(
+                    'flex min-h-[52px] w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition-colors',
+                    on
+                      ? 'border-brand bg-brand-soft'
+                      : 'border-border bg-surface active:bg-surface-2',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'flex h-6 w-6 shrink-0 items-center justify-center rounded-full border',
+                      on
+                        ? 'border-brand bg-brand text-text-inverse'
+                        : 'border-border-strong text-transparent',
+                    )}
+                  >
+                    <Check width={14} strokeWidth={2.5} />
+                  </span>
+                  <span className="min-w-0 flex-1 text-sm font-medium text-text">
+                    {pick(lang, item.labelEn, item.labelHi)}
+                  </span>
+                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+                    {fmtPoints(item.points)}
+                  </span>
+                </button>
+              );
+            })}
           </section>
         ))
       )}
@@ -330,75 +416,58 @@ function WorkPicker({
 /* ─────────────────────────── step 3: configure ────────────────────────────── */
 
 function Configure({
-  workItem,
+  works,
   employees,
   selectedIds,
-  multi,
-  onToggle,
-  quantity,
-  onQuantity,
+  count,
+  onToggleWorker,
+  onQty,
+  onRemoveWork,
+  onAddMore,
+  canRemove,
   workDate,
   onWorkDate,
   maxDate,
   lang,
   t,
 }: {
-  workItem: StaffWorkItem;
+  works: WorkSelection[];
   employees: EmployeeWithPoints[];
   selectedIds: string[];
-  multi: boolean;
-  onToggle: (id: string) => void;
-  quantity: number;
-  onQuantity: (n: number) => void;
+  count: number;
+  onToggleWorker: (id: string) => void;
+  onQty: (code: string, n: number) => void;
+  onRemoveWork: (code: string) => void;
+  onAddMore: () => void;
+  canRemove: boolean;
   workDate: string;
   onWorkDate: (d: string) => void;
   maxDate: string;
   lang: ReturnType<typeof useLang>;
   t: ReturnType<typeof useT>;
 }) {
-  const count = selectedIds.length;
-  const per = perEmployeePoints(workItem, count, quantity);
-  const isPerUnit = workItem.distribution === 'PER_UNIT';
-  const isSplit = workItem.distribution === 'SPLIT';
-  const isEach = workItem.distribution === 'EACH';
-
-  const unitLabel =
-    workItem.unitLabelEn || workItem.unitLabelHi
-      ? pick(
-          lang,
-          workItem.unitLabelEn ?? workItem.unitLabelHi ?? '',
-          workItem.unitLabelHi ?? workItem.unitLabelEn ?? '',
-        )
-      : t('staff.give.howMany');
-
-  const selected = employees.filter((e) => selectedIds.includes(e.id));
+  const selectedSet = new Set(selectedIds);
+  const chosen = employees.filter((e) => selectedSet.has(e.id));
+  // Only offer the "who else did it?" checklist when there's more than one worker
+  // to choose from — otherwise a single chip says it all.
+  const canPickWorkers = employees.length > 1;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Chosen work + headline points */}
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface-2 p-3">
-        <span className="min-w-0 text-sm font-medium text-text">
-          {pick(lang, workItem.labelEn, workItem.labelHi)}
-        </span>
-        <span className="shrink-0 rounded-full bg-brand-soft px-3 py-1 text-sm font-semibold text-brand">
-          {fmtPoints(isPerUnit ? per : workItem.points)}
-        </span>
-      </div>
-
-      {/* Who: single chip, or a "who did it together?" multi-select */}
-      {multi ? (
+      {/* Who did it — a single chip, or a checklist to add co-workers */}
+      {canPickWorkers ? (
         <div className="flex flex-col gap-1.5">
           <p className="px-1 text-xs font-semibold text-text-muted">
             {t('staff.give.whoTogether')}
           </p>
           <ul className="flex flex-col gap-1.5">
             {employees.map((e) => {
-              const on = selectedIds.includes(e.id);
+              const on = selectedSet.has(e.id);
               return (
                 <li key={e.id}>
                   <button
                     type="button"
-                    onClick={() => onToggle(e.id)}
+                    onClick={() => onToggleWorker(e.id)}
                     aria-pressed={on}
                     className={cn(
                       'flex min-h-[52px] w-full items-center gap-3 rounded-2xl border px-3 text-left transition-colors',
@@ -429,7 +498,7 @@ function Configure({
         </div>
       ) : (
         <div className="flex flex-wrap gap-2">
-          {selected.map((e) => (
+          {chosen.map((e) => (
             <span
               key={e.id}
               className="inline-flex items-center gap-2 rounded-full bg-surface-2 py-1 pl-1 pr-3"
@@ -441,45 +510,36 @@ function Configure({
         </div>
       )}
 
-      {/* Per-unit quantity stepper */}
-      {isPerUnit ? (
-        <div className="flex items-center justify-between rounded-2xl border border-border p-3">
-          <span className="text-sm font-medium text-text">{unitLabel}</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              aria-label="-"
-              onClick={() => onQuantity(Math.max(1, quantity - 1))}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface-2"
-            >
-              <Minus width={18} strokeWidth={2} />
-            </button>
-            <span className="w-8 text-center text-lg font-semibold text-text">
-              {quantity}
-            </span>
-            <button
-              type="button"
-              aria-label="+"
-              onClick={() => onQuantity(quantity + 1)}
-              className="flex h-11 w-11 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface-2"
-            >
-              <Plus width={18} strokeWidth={2} />
-            </button>
-          </div>
+      {/* The work(s) they did */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs font-semibold text-text-muted">
+            {t('staff.give.worksHeader')}
+          </p>
+          <button
+            type="button"
+            onClick={onAddMore}
+            className="text-xs font-semibold text-brand active:opacity-70"
+          >
+            {t('staff.give.addMoreWork')}
+          </button>
         </div>
-      ) : null}
-
-      {/* Split / each explainer (plain copy — never the enum word) */}
-      {isSplit || isEach ? (
-        <div className="flex items-center justify-between rounded-2xl bg-surface-2 px-3 py-2.5">
-          <span className="text-xs text-text-muted">
-            {isSplit ? t('staff.give.splitInfo') : t('staff.give.eachInfo')}
-          </span>
-          <span className="text-sm font-semibold text-text">
-            {t('staff.give.perEach', { points: fmtPoints(per) })}
-          </span>
-        </div>
-      ) : null}
+        <ul className="flex flex-col gap-1.5">
+          {works.map(({ item, quantity }) => (
+            <WorkRow
+              key={item.code}
+              item={item}
+              quantity={quantity}
+              count={count}
+              canRemove={canRemove}
+              onQty={onQty}
+              onRemove={onRemoveWork}
+              lang={lang}
+              t={t}
+            />
+          ))}
+        </ul>
+      </div>
 
       {/* Day (defaults to today; tap to change to a recent day) */}
       <div className="flex flex-col gap-1.5">
@@ -494,5 +554,99 @@ function Configure({
         />
       </div>
     </div>
+  );
+}
+
+function WorkRow({
+  item,
+  quantity,
+  count,
+  canRemove,
+  onQty,
+  onRemove,
+  lang,
+  t,
+}: {
+  item: StaffWorkItem;
+  quantity?: number;
+  count: number;
+  canRemove: boolean;
+  onQty: (code: string, n: number) => void;
+  onRemove: (code: string) => void;
+  lang: ReturnType<typeof useLang>;
+  t: ReturnType<typeof useT>;
+}) {
+  const isPerUnit = item.distribution === 'PER_UNIT';
+  const isSplit = item.distribution === 'SPLIT';
+  const isEach = item.distribution === 'EACH';
+  const per = perEmployeePoints(item, count, quantity);
+  const qty = quantity ?? 1;
+
+  const unitLabel =
+    item.unitLabelEn || item.unitLabelHi
+      ? pick(
+          lang,
+          item.unitLabelEn ?? item.unitLabelHi ?? '',
+          item.unitLabelHi ?? item.unitLabelEn ?? '',
+        )
+      : t('staff.give.howMany');
+
+  // A plain, one-line explanation of what each worker earns — never the enum word.
+  const hint = isSplit
+    ? t('staff.give.splitInfo')
+    : isEach && count > 1
+      ? t('staff.give.eachInfo')
+      : null;
+
+  return (
+    <li className="rounded-2xl border border-border bg-surface p-3">
+      <div className="flex items-start gap-2">
+        <span className="min-w-0 flex-1 text-sm font-medium text-text">
+          {pick(lang, item.labelEn, item.labelHi)}
+        </span>
+        <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+          {t('staff.give.perEach', { points: fmtPoints(per) })}
+        </span>
+        {canRemove ? (
+          <button
+            type="button"
+            aria-label={t('staff.give.removeWork')}
+            onClick={() => onRemove(item.code)}
+            className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-subtle active:bg-surface-2"
+          >
+            <X width={16} strokeWidth={2} />
+          </button>
+        ) : null}
+      </div>
+
+      {hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
+
+      {isPerUnit ? (
+        <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2">
+          <span className="text-sm font-medium text-text">{unitLabel}</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              aria-label="-"
+              onClick={() => onQty(item.code, qty - 1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface"
+            >
+              <Minus width={18} strokeWidth={2} />
+            </button>
+            <span className="w-8 text-center text-lg font-semibold text-text">
+              {qty}
+            </span>
+            <button
+              type="button"
+              aria-label="+"
+              onClick={() => onQty(item.code, qty + 1)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface"
+            >
+              <Plus width={18} strokeWidth={2} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </li>
   );
 }

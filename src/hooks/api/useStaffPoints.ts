@@ -18,7 +18,13 @@ import { staffWorkItemsQueryKey } from './useStaffWorkItems';
 import { useToast } from '@/components/ui';
 import { api, type ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
-import { fmtPoints, perEmployeePoints, round2 } from '@/lib/staff';
+import {
+  fmtPoints,
+  istDate,
+  perEmployeePointsForWorks,
+  round2,
+  type WorkSelection,
+} from '@/lib/staff';
 
 
 const summaryQueryKeyRoot = ['staff', 'summary'] as const;
@@ -101,10 +107,18 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
 
       const catalog =
         qc.getQueryData<StaffWorkItem[]>(staffWorkItemsQueryKey) ?? [];
-      const item = catalog.find((w) => w.code === input.workItemCode);
-      const per = item
-        ? perEmployeePoints(item, input.employeeIds.length, input.quantity)
-        : 0;
+      const works = input.items
+        .map((sel): WorkSelection | null => {
+          const item = catalog.find((w) => w.code === sel.workItemCode);
+          return item ? { item, quantity: sel.quantity } : null;
+        })
+        .filter((w): w is WorkSelection => w !== null);
+      // Sum of what EACH selected worker earns across all chosen works.
+      const per = perEmployeePointsForWorks(works, input.employeeIds.length);
+      // The day this award lands on (defaults to today, IST). Only leaderboard
+      // windows that contain this day should tick up — otherwise a backdated
+      // award bumps "today" optimistically and then snaps back on refetch.
+      const workDate = input.workDate ?? istDate();
 
       const snapshots = qc.getQueriesData<EmployeeWithPoints[]>({
         queryKey: employeesQueryKeyRoot,
@@ -112,13 +126,20 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
 
       for (const [key, data] of snapshots) {
         if (!data) continue;
+        // Employee query keys are ['staff','employees',dealerId,from,to];
+        // YYYY-MM-DD strings compare correctly, so this is a plain range check.
+        const from = key[3] as string | undefined;
+        const to = key[4] as string | undefined;
+        const inWindow = !from || !to || (workDate >= from && workDate <= to);
         qc.setQueryData<EmployeeWithPoints[]>(
           key,
           data.map((e) =>
             input.employeeIds.includes(e.id)
               ? {
                   ...e,
-                  pointsInWindow: round2(e.pointsInWindow + per),
+                  pointsInWindow: inWindow
+                    ? round2(e.pointsInWindow + per)
+                    : e.pointsInWindow,
                   totalPoints: round2(e.totalPoints + per),
                 }
               : e,
@@ -144,10 +165,14 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
         : undefined;
 
       if (input.employeeIds.length === 1 && first) {
+        // One worker, possibly many works — sum every row for that worker.
+        const points = result.awards
+          .filter((a) => a.employeeId === first.employeeId)
+          .reduce((sum, a) => round2(sum + a.points), 0);
         const name = findEmployeeName(qc, first.employeeId) ?? '';
         toast.success(
           t('staff.award.toastOne', {
-            points: fmtPoints(first.points),
+            points: fmtPoints(points),
             name,
           }),
           { action: undoAction },

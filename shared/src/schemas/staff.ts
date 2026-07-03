@@ -45,17 +45,46 @@ export const updateEmployeeSchema = z
   });
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 
-/** Body for POST /dealers/:dealerId/staff-points — award points. */
-export const awardStaffPointsSchema = z.object({
-  employeeIds: z
-    .array(z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid employee id'))
-    .min(1, 'Select at least one worker')
-    .max(50),
+/** One work inside an award action: a catalog code plus optional PER_UNIT quantity. */
+export const awardWorkSelectionSchema = z.object({
   workItemCode: z.string().trim().min(1).max(120),
   quantity: z.number().positive().max(100000).optional(),
-  workDate: staffDateSchema.optional(),
-  note: z.string().trim().max(1000).optional(),
 });
+
+/**
+ * Body for POST /dealers/:dealerId/staff-points — award points for one or more
+ * works done by the same set of workers.
+ *
+ * The canonical shape is `{ employeeIds, items[] }`. The legacy single-work
+ * fields (`workItemCode` + `quantity`) are still accepted and normalised into
+ * `items`, so a cached older client keeps working through a rollout.
+ */
+export const awardStaffPointsSchema = z
+  .object({
+    employeeIds: z
+      .array(z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid employee id'))
+      .min(1, 'Select at least one worker')
+      .max(50),
+    items: z.array(awardWorkSelectionSchema).min(1).max(30).optional(),
+    // Legacy single-work fields (pre-multi-work clients).
+    workItemCode: z.string().trim().min(1).max(120).optional(),
+    quantity: z.number().positive().max(100000).optional(),
+    workDate: staffDateSchema.optional(),
+    note: z.string().trim().max(1000).optional(),
+  })
+  .refine((v) => (v.items?.length ?? 0) > 0 || Boolean(v.workItemCode), {
+    message: 'Select at least one work',
+    path: ['items'],
+  })
+  .transform((v) => ({
+    employeeIds: v.employeeIds,
+    items:
+      v.items && v.items.length > 0
+        ? v.items
+        : [{ workItemCode: v.workItemCode as string, quantity: v.quantity }],
+    workDate: v.workDate,
+    note: v.note,
+  }));
 export type AwardStaffPointsInput = z.infer<typeof awardStaffPointsSchema>;
 
 /** Parses a query-string boolean ("true"/"false"), matching schemas/kavach.ts. */

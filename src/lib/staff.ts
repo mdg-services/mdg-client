@@ -68,6 +68,32 @@ export function totalAwardPoints(
   return round2(perEmployeePoints(item, count, quantity) * count);
 }
 
+/** A chosen work plus its (optional) PER_UNIT quantity — the unit the multi-work flow works in. */
+export interface WorkSelection {
+  item: StaffWorkItem;
+  quantity?: number;
+}
+
+/** Points a single worker earns across several works — optimistic bump + preview. */
+export function perEmployeePointsForWorks(
+  works: WorkSelection[],
+  count: number,
+): number {
+  return round2(
+    works.reduce((sum, w) => sum + perEmployeePoints(w.item, count, w.quantity), 0),
+  );
+}
+
+/** Ledger sum across several works for the whole worker set — running total + confirm button. */
+export function totalAwardPointsForWorks(
+  works: WorkSelection[],
+  count: number,
+): number {
+  return round2(
+    works.reduce((sum, w) => sum + totalAwardPoints(w.item, count, w.quantity), 0),
+  );
+}
+
 /** i18n label key for each work domain (plain, bilingual group headers). */
 export const DOMAIN_LABEL_KEY: Record<StaffWorkDomain, MessageKey> = {
   cleaning: 'staff.domain.cleaning',

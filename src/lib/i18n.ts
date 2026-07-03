@@ -418,6 +418,18 @@ export const messages = {
   },
   'staff.give.total': { en: 'Total {points}', hi: 'कुल {points}' },
   'staff.give.confirm': { en: 'Give points', hi: 'पॉइंट दें' },
+  'staff.give.continue': { en: 'Continue', hi: 'आगे बढ़ें' },
+  'staff.give.selectedSummary': {
+    en: '{count} selected · {points} points',
+    hi: '{count} चुने · {points} पॉइंट',
+  },
+  'staff.give.worksHeader': { en: 'Work done', hi: 'किया गया काम' },
+  'staff.give.addMoreWork': { en: '+ Add another', hi: '+ और जोड़ें' },
+  'staff.give.removeWork': { en: 'Remove', hi: 'हटाएं' },
+  'staff.give.pickWorkHint': {
+    en: 'Tap everything they did — pick as many as you like',
+    hi: 'उन्होंने जो-जो किया सब चुनें — जितने चाहें उतने',
+  },
 
   'staff.award.toastOne': {
     en: '{points} points given to {name}',

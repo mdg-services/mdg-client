@@ -225,6 +225,13 @@ export interface CreateEmployeeInput {
   designation?: string;
 }
 
+/** One work selected within an award action: a catalog work + optional PER_UNIT quantity. */
+export interface AwardStaffWorkSelection {
+  workItemCode: string;
+  /** PER_UNIT quantity (defaults to 1). Ignored for other distributions. */
+  quantity?: number;
+}
+
 export interface UpdateEmployeeInput {
   name?: string;
   phone?: string;
@@ -233,18 +240,19 @@ export interface UpdateEmployeeInput {
 }
 
 /**
- * Award points. The server looks up `workItemCode`, applies its distribution to
- * the selected employees, and writes one StaffPointAward per employee.
+ * Award points for one OR MORE works done by the same set of workers. The server
+ * looks up each `items[].workItemCode`, applies its distribution to the selected
+ * employees, and writes one StaffPointAward per (employee × work) — all sharing
+ * one `batchId`, so a single Undo reverses the whole action.
  *  - SPLIT    : each of the N employees gets basePoints / N.
  *  - EACH/FLAT: each employee gets basePoints.
  *  - PER_UNIT : each employee gets basePoints × quantity.
  */
 export interface AwardStaffPointsInput {
   employeeIds: string[];
-  workItemCode: string;
-  /** Required-ish for PER_UNIT (defaults to 1). Ignored for other distributions. */
-  quantity?: number;
-  /** YYYY-MM-DD; defaults to today (IST) if omitted. */
+  /** One or more works the selected workers did in this action. */
+  items: AwardStaffWorkSelection[];
+  /** YYYY-MM-DD; defaults to today (IST) if omitted. Applies to every work in this action. */
   workDate?: string;
   note?: string;
 }
