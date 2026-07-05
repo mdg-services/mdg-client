@@ -46,6 +46,16 @@ export const assignConversationSchema = z.object({
 });
 export type AssignConversationInput = z.infer<typeof assignConversationSchema>;
 
+/**
+ * Admin-initiated conversation start. Lets an admin open (or reuse) the private
+ * thread of a dealer member who has never messaged first, so support can reach
+ * out proactively. Idempotent on the server: one thread per member.
+ */
+export const startConversationSchema = z.object({
+  userId: z.string().min(1),
+});
+export type StartConversationInput = z.infer<typeof startConversationSchema>;
+
 export const recordTypeSchema = z.enum(['dsr', 'invoice', 'compliance', 'statement', 'other']);
 
 export const createRecordSchema = z.object({
