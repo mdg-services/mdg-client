@@ -23,6 +23,34 @@ export const TICKET_CATEGORIES: TicketCategory[] = [
   'onboarding',
 ];
 
+/**
+ * Reply-SLA thresholds, in minutes since the client's oldest unanswered message.
+ * A waiting client turns the ticket yellow at WARN and red at URGENT so the whole
+ * support team notices. (The separate 20-minute auto-unassign is server-side.)
+ */
+export const TICKET_FLAG_WARN_MINUTES = 90;
+export const TICKET_FLAG_URGENT_MINUTES = 180;
+
+export type TicketFlagLevel = 'none' | 'warn' | 'urgent';
+
+/**
+ * Derive the escalation level for a waiting ticket from `awaitingReplySince`.
+ * `nowMs` is the current epoch (pass `Date.now()`) so the level advances live
+ * as the client keeps waiting, without needing a server round-trip.
+ */
+export function ticketFlagLevel(
+  awaitingReplySince: string | null | undefined,
+  nowMs: number,
+): TicketFlagLevel {
+  if (!awaitingReplySince) return 'none';
+  const since = new Date(awaitingReplySince).getTime();
+  if (Number.isNaN(since)) return 'none';
+  const mins = (nowMs - since) / 60_000;
+  if (mins >= TICKET_FLAG_URGENT_MINUTES) return 'urgent';
+  if (mins >= TICKET_FLAG_WARN_MINUTES) return 'warn';
+  return 'none';
+}
+
 export interface Conversation {
   id: string;
   dealerId: string;
@@ -41,6 +69,19 @@ export interface Conversation {
   category?: TicketCategory;
   assignedAdminId?: string | null;
   assignedAdminName?: string | null;
+  /**
+   * ISO timestamp of the client's oldest still-unanswered message, or null when
+   * the client isn't waiting on a reply (last message was the support team's, or
+   * the thread is resolved). Drives the reply-SLA flag colour (`ticketFlagLevel`)
+   * and the server-side 20-minute auto-unassign sweep.
+   */
+  awaitingReplySince?: string | null;
+  /**
+   * True when an ASSIGNED ticket was auto-returned to the unassigned pool because
+   * the assigned admin left the client waiting past the auto-unassign SLA.
+   * Cleared on the next pickup, reply, or resolve.
+   */
+  flagged?: boolean;
   lastMessageAt?: string;
   lastMessagePreview?: string;
   unreadByAdmin: boolean;
