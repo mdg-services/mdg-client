@@ -1,4 +1,5 @@
 export * from './common';
+export * from './audit';
 export * from './auth';
 export * from './admin';
 export * from './dealer';

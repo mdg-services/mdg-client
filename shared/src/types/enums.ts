@@ -62,5 +62,44 @@ export const AUDIT_ACTIONS = [
   'STAFF_EMPLOYEE_UPDATE',
   'STAFF_POINTS_AWARD',
   'STAFF_POINTS_UNDO',
+  // Auth (ADR 0009 — user-level audit)
+  'LOGOUT',
+  'LOGIN_FAILED',
+  // Admin management
+  'ADMIN_CREATE',
+  'ADMIN_UPDATE',
+  'ADMIN_PASSWORD_RESET',
+  // Dealer portal credentials (IRAS)
+  'IRAS_CREDENTIALS_SET',
+  'IRAS_CREDENTIALS_CLEAR',
+  // Service execution log
+  'SERVICE_LOGGED',
+  // Dealer documents / artifacts (data access & egress)
+  'RECORD_VIEWED',
+  'ARTIFACT_DOWNLOAD',
+  // Conversation / support-ticket lifecycle
+  'CONVERSATION_STARTED',
+  'CONVERSATION_ASSIGNED',
+  'CONVERSATION_REASSIGNED',
+  'CONVERSATION_TICKET_UPDATED',
+  'CONVERSATION_RESOLVED',
+  'CONVERSATION_REOPENED',
+  'CONVERSATION_AUTO_UNASSIGNED',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+/**
+ * Entities an audit row can be scoped to. Kept broad (string) at the type level
+ * because the set grows with the domain, but these are the canonical names used
+ * so the Activity-log filter can offer a consistent list.
+ */
+export const AUDIT_ENTITIES = [
+  'Dealer',
+  'User',
+  'Admin',
+  'Auth',
+  'DealerService',
+  'Record',
+  'ServiceRun',
+] as const;
+export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
