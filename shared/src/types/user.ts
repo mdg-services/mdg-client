@@ -8,6 +8,11 @@ export interface User {
   role: UserRole;
   /** Required for dealer-* roles; null/undefined for admin. */
   dealerId?: string | null;
+  /**
+   * Elevated admin tier. Only super-admins may view the Activity (audit) log and
+   * manage the admin team. Absent/false for regular admins and all dealer users.
+   */
+  isSuperAdmin?: boolean;
   /** Optional display label for a dealer member, e.g. "Owner" or "Manager". */
   title?: string;
   phone?: string;
