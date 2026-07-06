@@ -354,25 +354,25 @@ export const messages = {
   /* ── staff & points ─────────────────────────────────────────────────── */
   'profile.staffPoints': { en: 'Staff & points', hi: 'स्टाफ और पॉइंट' },
   'profile.staffPointsDesc': {
-    en: 'Reward your workers for their work',
-    hi: 'अपने स्टाफ को उनके काम के लिए इनाम दें',
+    en: 'Reward your warriors for their work',
+    hi: 'अपने योद्धाओं को उनके काम के लिए इनाम दें',
   },
 
   'staff.title': { en: 'Staff & points', hi: 'स्टाफ और पॉइंट' },
   'staff.givePoints': { en: 'Give points', hi: 'पॉइंट दें' },
-  'staff.addWorker': { en: 'Add worker', hi: 'स्टाफ जोड़ें' },
+  'staff.addWorker': { en: 'Add warrior', hi: 'योद्धा जोड़ें' },
   'staff.windowToday': { en: 'Today', hi: 'आज' },
   'staff.windowMonth': { en: 'This month', hi: 'इस महीने' },
   'staff.points': { en: 'points', hi: 'पॉइंट' },
   'staff.targetLegend': {
-    en: 'Each worker aims for 100 points',
-    hi: 'हर स्टाफ को 100 पॉइंट चाहिए',
+    en: 'Each warrior aims for 100 points',
+    hi: 'हर योद्धा को 100 पॉइंट चाहिए',
   },
   'staff.reached': { en: 'Reached 100', hi: '100 पूरे' },
-  'staff.emptyTitle': { en: 'Add your first worker', hi: 'अपना पहला स्टाफ जोड़ें' },
+  'staff.emptyTitle': { en: 'Add your first warrior', hi: 'अपना पहला योद्धा जोड़ें' },
   'staff.emptyDesc': {
-    en: 'Keep a list of your workers and give them points for the work they do.',
-    hi: 'अपने स्टाफ की सूची रखें और उनके काम के लिए पॉइंट दें।',
+    en: 'Keep a list of your warriors and give them points for the work they do.',
+    hi: 'अपने योद्धाओं की सूची रखें और उनके काम के लिए पॉइंट दें।',
   },
   'staff.errorTitle': {
     en: "We couldn't load this just now",
@@ -380,7 +380,7 @@ export const messages = {
   },
   'staff.messageUs': { en: 'Message us', hi: 'हमें लिखें' },
 
-  'staff.form.namePlaceholder': { en: "Worker's name", hi: 'स्टाफ का नाम' },
+  'staff.form.namePlaceholder': { en: "Warrior's name", hi: 'योद्धा का नाम' },
   'staff.form.phonePlaceholder': {
     en: 'Phone (optional)',
     hi: 'फ़ोन (ज़रूरी नहीं)',
@@ -389,12 +389,12 @@ export const messages = {
     en: 'Work / role (optional)',
     hi: 'काम / पद (ज़रूरी नहीं)',
   },
-  'staff.form.save': { en: 'Save worker', hi: 'स्टाफ सेव करें' },
+  'staff.form.save': { en: 'Save warrior', hi: 'योद्धा सेव करें' },
   'staff.form.nameRequired': { en: 'Please enter a name', hi: 'कृपया नाम भरें' },
-  'staff.form.added': { en: 'Worker added', hi: 'स्टाफ जुड़ गया' },
+  'staff.form.added': { en: 'Warrior added', hi: 'योद्धा जुड़ गया' },
   'staff.form.addFailed': {
-    en: "We couldn't add this worker. Please try again, or message us in Chat.",
-    hi: 'स्टाफ नहीं जुड़ पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
+    en: "We couldn't add this warrior. Please try again, or message us in Chat.",
+    hi: 'योद्धा नहीं जुड़ पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
   },
 
   'staff.give.title': { en: 'Give points', hi: 'पॉइंट दें' },
@@ -403,14 +403,14 @@ export const messages = {
   'staff.give.step3': { en: 'Confirm', hi: 'पक्का करें' },
   'staff.give.searchWork': { en: 'Search work…', hi: 'काम खोजें…' },
   'staff.give.noWork': { en: 'No matching work', hi: 'कोई काम नहीं मिला' },
-  'staff.give.noWorkers': { en: 'Add a worker first', hi: 'पहले एक स्टाफ जोड़ें' },
+  'staff.give.noWorkers': { en: 'Add a warrior first', hi: 'पहले एक योद्धा जोड़ें' },
   'staff.give.date': { en: 'Day', hi: 'दिन' },
   'staff.give.howMany': { en: 'How many?', hi: 'कितने?' },
   'staff.give.splitInfo': {
-    en: 'Shared among the workers',
+    en: 'Shared among the warriors',
     hi: 'सबके बीच बँटेगा',
   },
-  'staff.give.eachInfo': { en: 'Each worker gets it', hi: 'हर स्टाफ को मिलेगा' },
+  'staff.give.eachInfo': { en: 'Each warrior gets it', hi: 'हर योद्धा को मिलेगा' },
   'staff.give.perEach': { en: '{points} each', hi: 'हर एक को {points}' },
   'staff.give.whoTogether': {
     en: 'Who did it together?',
@@ -436,8 +436,8 @@ export const messages = {
     hi: '{name} को {points} पॉइंट मिले',
   },
   'staff.award.toastMany': {
-    en: 'Points given to {count} workers',
-    hi: '{count} स्टाफ को पॉइंट मिले',
+    en: 'Points given to {count} warriors',
+    hi: '{count} योद्धाओं को पॉइंट मिले',
   },
   'staff.award.undo': { en: 'Undo', hi: 'वापस लें' },
   'staff.award.undone': { en: 'Removed', hi: 'वापस ले लिया' },
