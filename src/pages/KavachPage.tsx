@@ -9,7 +9,7 @@ import { ComplianceTaskCard } from '@/features/kavach/ComplianceTaskCard';
 import { PumpHealthRing } from '@/features/kavach/PumpHealthRing';
 import { byUrgency, isDueToday, isSos } from '@/features/kavach/status';
 import { useKavachMe } from '@/hooks/api/useKavach';
-import { useMyConversation } from '@/hooks/api/useMyConversation';
+import { useMyPrimaryConversation } from '@/hooks/api/useMyConversations';
 import { pick, useLang, useT } from '@/lib/i18n';
 
 function GroupHeader({ label }: { label: string }) {
@@ -41,7 +41,7 @@ export function KavachPage() {
   const t = useT();
   const lang = useLang();
   const meQuery = useKavachMe();
-  const conversationQuery = useMyConversation();
+  const conversationQuery = useMyPrimaryConversation();
 
   const programme = meQuery.data?.programme;
   const items = meQuery.data?.items ?? [];

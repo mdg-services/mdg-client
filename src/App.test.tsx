@@ -17,6 +17,9 @@ vi.mock('@/AppShell', async () => {
     ),
   };
 });
+vi.mock('@/pages/ChatListPage', () => ({
+  ChatListPage: () => <div>chat-list-page</div>,
+}));
 vi.mock('@/pages/ChatPage', () => ({ ChatPage: () => <div>chat-page</div> }));
 vi.mock('@/pages/LoginPage', async () => {
   const { useLocation } = await import('react-router-dom');
@@ -43,23 +46,23 @@ describe('App routing', () => {
     expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
   });
 
-  it('renders the shell + routed page via the Outlet when authenticated', async () => {
+  it('renders the shell + a per-thread ChatPage via the Outlet when authenticated', async () => {
     signIn();
-    renderWithProviders(<App />, { route: '/chat' });
+    renderWithProviders(<App />, { route: '/chat/c1' });
     expect(await screen.findByTestId('shell')).toBeInTheDocument();
     expect(await screen.findByText('chat-page')).toBeInTheDocument();
   });
 
-  it('maps "/" to ChatPage under the protected layout', async () => {
+  it('maps "/" to the conversation list under the protected layout', async () => {
     signIn();
     renderWithProviders(<App />, { route: '/' });
-    expect(await screen.findByText('chat-page')).toBeInTheDocument();
+    expect(await screen.findByText('chat-list-page')).toBeInTheDocument();
   });
 
-  it('sends unknown paths to /chat via the catch-all', async () => {
+  it('sends unknown paths to /chat (the list) via the catch-all', async () => {
     signIn();
     renderWithProviders(<App />, { route: '/nope-nowhere' });
-    expect(await screen.findByText('chat-page')).toBeInTheDocument();
+    expect(await screen.findByText('chat-list-page')).toBeInTheDocument();
   });
 
   it('serves /login without pulling the shell', async () => {

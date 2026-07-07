@@ -1,4 +1,4 @@
-import { Mic, Paperclip, SendHorizonal, Trash2 } from 'lucide-react';
+import { Camera, Mic, Paperclip, SendHorizonal, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
@@ -7,8 +7,8 @@ import { Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import {
-  attachmentKindFor,
   formatDuration,
+  resolveFileType,
   type OutgoingAttachment,
 } from '@/lib/uploadAttachment';
 import { useVoiceRecorder } from '@/lib/useVoiceRecorder';
@@ -42,6 +42,7 @@ export function Composer({
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
   const recorder = useVoiceRecorder();
   const isRecording = recorder.status === 'recording';
 
@@ -69,23 +70,33 @@ export function Composer({
   const hasContent = text.trim().length > 0 || staged.length > 0;
   const canSend = hasContent && !disabled;
 
-  const handlePickFiles = (files: FileList | null) => {
+  // `fromCamera` items are known to be photos even when the OS hands back a File
+  // with an empty MIME type (common on Android WebView), so classification can
+  // safely assume an image.
+  const handlePickFiles = (
+    files: FileList | null,
+    opts?: { fromCamera?: boolean },
+  ) => {
     if (!files || files.length === 0) return;
     const next: StagedFile[] = [];
     for (let i = 0; i < files.length; i += 1) {
       const f = files[i];
       if (!f) continue;
-      const kind = attachmentKindFor(f.type);
+      const { kind, contentType } = resolveFileType(f, {
+        assumeImage: opts?.fromCamera,
+      });
       const previewUrl = kind === 'image' ? URL.createObjectURL(f) : undefined;
       next.push({
-        id: `${Date.now()}-${i}-${f.name}`,
+        id: `${Date.now()}-${i}-${f.name || 'photo.jpg'}`,
         file: f,
         kind,
+        contentType,
         previewUrl,
       });
     }
     setStaged((curr) => [...curr, ...next].slice(0, 10));
     if (fileRef.current) fileRef.current.value = '';
+    if (cameraRef.current) cameraRef.current.value = '';
   };
 
   const removeStaged = (id: string) => {
@@ -107,6 +118,7 @@ export function Composer({
     const outgoing: OutgoingAttachment[] = items.map((s) => ({
       file: s.file,
       kind: s.kind,
+      contentType: s.contentType,
       durationMs: s.durationMs,
     }));
     staged.forEach((s) => {
@@ -203,6 +215,15 @@ export function Composer({
         <div className="flex items-end gap-2 px-3 py-3">
           <button
             type="button"
+            aria-label={t('chat.takePhoto')}
+            onClick={() => cameraRef.current?.click()}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
+            disabled={disabled}
+          >
+            <Camera width={20} strokeWidth={1.75} />
+          </button>
+          <button
+            type="button"
             aria-label={t('chat.addPhoto')}
             onClick={() => fileRef.current?.click()}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
@@ -217,6 +238,16 @@ export function Composer({
             multiple
             className="hidden"
             onChange={(e) => handlePickFiles(e.target.files)}
+          />
+          {/* Direct camera capture (rear-facing). On desktop the `capture` hint is
+              ignored and this falls back to a normal file chooser. */}
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true })}
           />
           <textarea
             ref={textareaRef}

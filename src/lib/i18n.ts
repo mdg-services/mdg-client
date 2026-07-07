@@ -86,6 +86,11 @@ export const messages = {
     en: 'Add a photo or document',
     hi: 'फोटो या दस्तावेज़ जोड़ें',
   },
+  'chat.takePhoto': {
+    en: 'Take a photo',
+    hi: 'फोटो खींचें',
+  },
+  'chat.closePreview': { en: 'Close preview', hi: 'बंद करें' },
   'chat.recordVoice': {
     en: 'Record voice message',
     hi: 'वॉइस मैसेज रिकॉर्ड करें',
@@ -146,6 +151,20 @@ export const messages = {
   'chat.yesterday': { en: 'Yesterday', hi: 'कल' },
   'chat.isTyping': { en: '{name} is typing', hi: '{name} लिख रहे हैं' },
   'chat.imagePreview': { en: 'Image preview', hi: 'फोटो पूर्वावलोकन' },
+  'chat.chatsTitle': { en: 'Chats', hi: 'बातचीत' },
+  'chat.managerThread': { en: 'Manager chat', hi: 'मैनेजर चैट' },
+  'chat.noConversations': { en: 'No chats yet', hi: 'अभी कोई चैट नहीं' },
+  'chat.noConversationsDesc': {
+    en: 'Your support chats will appear here.',
+    hi: 'आपकी सहायता चैट यहाँ दिखेंगी।',
+  },
+  'chat.backToChats': { en: 'Back to chats', hi: 'चैट सूची पर वापस' },
+  'chat.conversationNotFound': {
+    en: "This chat isn't available.",
+    hi: 'यह चैट उपलब्ध नहीं है।',
+  },
+  'chat.you': { en: 'You', hi: 'आप' },
+  'chat.noMessagesYet': { en: 'No messages yet', hi: 'अभी कोई संदेश नहीं' },
 
   /* ── records / reports ──────────────────────────────────────────────── */
   'records.title': { en: 'Reports', hi: 'रिपोर्ट' },

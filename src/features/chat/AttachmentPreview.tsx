@@ -11,6 +11,8 @@ export interface StagedFile {
   id: string;
   file: File;
   kind: AttachmentKind;
+  /** MIME resolved at pick time (recovers empty Android-WebView File.type). */
+  contentType?: string;
   /** Voice-note length in ms; only set for audio. */
   durationMs?: number;
   previewUrl?: string;

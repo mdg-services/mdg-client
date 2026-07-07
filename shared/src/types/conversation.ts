@@ -2,6 +2,27 @@ import type { UserRole } from './user';
 
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
 
+/**
+ * What kind of thread a conversation is:
+ *  - 'support' : a dealer member's private thread with the MDG admin support
+ *                pool — the classic 1:1 chat; `userId` is that member.
+ *  - 'manager' : the manager's group thread — the manager (`userId`, a
+ *                `dealer-staff`) plus EVERY owner of the dealer, together with the
+ *                admin pool. Owners join as participants, not as the primary member.
+ */
+export type ConversationKind = 'support' | 'manager';
+
+/**
+ * A dealer-side participant of a conversation, decorated for display. The MDG
+ * admin support pool is implicit and never appears in this list.
+ */
+export interface ConversationParticipant {
+  userId: string;
+  name?: string;
+  role?: UserRole;
+  title?: string;
+}
+
 /** Ticket priority for the admin/CRM side. Hidden from dealers. */
 export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
 export const TICKET_PRIORITIES: TicketPriority[] = ['low', 'normal', 'high', 'urgent'];
@@ -55,14 +76,29 @@ export interface Conversation {
   id: string;
   dealerId: string;
   dealerName?: string;
-  /** The organisation member (User) this private thread belongs to. */
+  /**
+   * The PRIMARY member (User) this thread belongs to — the owner for a 'support'
+   * thread, the manager for a 'manager' thread. Exactly one per thread (a unique
+   * index enforces it); additional dealer participants live in `participantUserIds`.
+   */
   userId: string;
-  /** Member display name, populated by the API. */
+  /** Primary member display name, populated by the API. */
   memberName?: string;
-  /** Member role (dealer-owner / dealer-staff), populated by the API. */
+  /** Primary member role (dealer-owner / dealer-staff), populated by the API. */
   memberRole?: UserRole;
-  /** Member display title (e.g. "Owner", "Manager"), populated by the API. */
+  /** Primary member display title (e.g. "Owner", "Manager"), populated by the API. */
   memberTitle?: string;
+  /** Thread kind — a 1:1 support thread or the manager's group thread. Defaults 'support'. */
+  kind?: ConversationKind;
+  /**
+   * Authoritative set of dealer-side participant user ids, INCLUDING the primary
+   * `userId`. A 'support' thread has just `[userId]`; a 'manager' thread has
+   * `[managerId, ...ownerIds]`. The admin pool is implicit and not listed. Backs
+   * "conversations I'm a participant of" and realtime fan-out to every member.
+   */
+  participantUserIds?: string[];
+  /** Decorated participant list (name/role/title), populated by the API for display. */
+  participants?: ConversationParticipant[];
   status: ConversationStatus;
   /** Admin-only triage fields; never surfaced to dealers. */
   priority?: TicketPriority;
@@ -85,7 +121,14 @@ export interface Conversation {
   lastMessageAt?: string;
   lastMessagePreview?: string;
   unreadByAdmin: boolean;
+  /** Coarse "any dealer participant has unread" flag (admin-side display + legacy). */
   unreadByDealer: boolean;
+  /**
+   * Which dealer participants currently have unread messages. Per-participant so a
+   * group thread shows unread for the manager but not an owner who's caught up.
+   * The client computes its own badge from whether this includes the viewer.
+   */
+  unreadDealerUserIds?: string[];
   createdAt: string;
   updatedAt: string;
 }

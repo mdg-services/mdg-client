@@ -16,6 +16,9 @@ const AppShell = lazyWithRetry(() =>
 const LoginPage = lazyWithRetry(() =>
   import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 );
+const ChatListPage = lazyWithRetry(() =>
+  import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
+);
 const ChatPage = lazyWithRetry(() =>
   import('@/pages/ChatPage').then((m) => ({ default: m.ChatPage })),
 );
@@ -64,8 +67,11 @@ export function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route element={<ProtectedLayout />}>
-            <Route path="/" element={<ChatPage />} />
-            <Route path="/chat" element={<ChatPage />} />
+            {/* Chat: a conversation LIST, and a per-thread view. Single-thread
+                members are auto-forwarded from the list straight into their chat. */}
+            <Route path="/" element={<ChatListPage />} />
+            <Route path="/chat" element={<ChatListPage />} />
+            <Route path="/chat/:id" element={<ChatPage />} />
             <Route path="/records" element={<RecordsPage />} />
             <Route path="/kavach" element={<KavachPage />} />
             {/* Services demoted from the bottom bar; still reachable from Profile. */}

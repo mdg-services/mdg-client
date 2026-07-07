@@ -1,4 +1,4 @@
-import { MessageCircleHeart } from 'lucide-react';
+import { MessageCircleHeart, X } from 'lucide-react';
 import * as React from 'react';
 
 import { EmptyState, Spinner } from '@/components/ui';
@@ -199,9 +199,20 @@ export function MessageList({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightbox(null)}
         >
+          <button
+            type="button"
+            aria-label={t('chat.closePreview')}
+            onClick={() => setLightbox(null)}
+            className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 safe-top"
+          >
+            <X width={22} strokeWidth={2} />
+          </button>
+          {/* Stop taps on the image itself from bubbling to the backdrop's
+              close handler — only the backdrop / close button should dismiss. */}
           <img
             src={lightbox}
             alt=""
+            onClick={(e) => e.stopPropagation()}
             className="max-h-full max-w-full rounded-xl object-contain"
           />
         </div>

@@ -4,6 +4,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Avatar, Spinner } from '@/components/ui';
+import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
@@ -28,6 +29,7 @@ import { useLangStore } from '@/store/lang';
 export function AppShell() {
   useMe(); // refresh /me when authed
   useRecordsSocket(); // refresh Reports + toast on record:new
+  useConversationsListSocket(); // keep the chat LIST + unread badges live app-wide
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
   const t = useT();
