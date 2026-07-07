@@ -66,6 +66,11 @@ export function KavachPage() {
     [toast, t],
   );
 
+  // Must stay above the early returns below: a hook called only on some renders
+  // (after the loading/error/no-programme guards) changes the hook count between
+  // renders and crashes the whole tree with "rendered more hooks than…".
+  const goToChat = React.useCallback(() => navigate('/chat'), [navigate]);
+
   if (meQuery.isLoading) {
     return (
       <div className="flex flex-1 items-center justify-center py-12">
@@ -106,7 +111,6 @@ export function KavachPage() {
 
   const conversationId = conversationQuery.data?.id;
   const conversationLoading = conversationQuery.isLoading;
-  const goToChat = React.useCallback(() => navigate('/chat'), [navigate]);
   const todoCount = today.length;
 
   return (
