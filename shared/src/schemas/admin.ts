@@ -22,3 +22,18 @@ export const updateAdminSchema = z
     message: 'At least one field must be provided',
   });
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
+
+/**
+ * Super-admin edit of ANY user (admin or dealer member): change the login email
+ * and/or reset the password. At least one field must be provided. Backs the
+ * centralized "All users" console, which is super-admin only.
+ */
+export const superAdminUpdateUserSchema = z
+  .object({
+    email: z.string().email().toLowerCase().optional(),
+    password: z.string().min(8, 'At least 8 characters').max(200).optional(),
+  })
+  .refine((v) => v.email !== undefined || v.password !== undefined, {
+    message: 'Provide a new email or password',
+  });
+export type SuperAdminUpdateUserInput = z.infer<typeof superAdminUpdateUserSchema>;
