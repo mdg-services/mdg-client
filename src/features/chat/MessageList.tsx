@@ -1,12 +1,12 @@
 import { MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
+import { EmptyState, Spinner } from '@/components/ui';
+import { useT, type TFunction } from '@/lib/i18n';
 import type { Message } from '@dk/shared/types';
 
 import { MessageBubble } from './MessageBubble';
 
-import { EmptyState, Spinner } from '@/components/ui';
-import { useT, type TFunction } from '@/lib/i18n';
 
 
 function dayLabel(iso: string, t: TFunction): string {
@@ -53,6 +53,8 @@ export function MessageList({
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const lastCount = React.useRef(0);
   const [lightbox, setLightbox] = React.useState<string | null>(null);
+  // Stable so the memoized MessageBubble doesn't re-render on every keystroke.
+  const openImage = React.useCallback((url: string) => setLightbox(url), []);
 
   // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
   React.useLayoutEffect(() => {
@@ -78,37 +80,40 @@ export function MessageList({
     [messages],
   );
 
-  // group by day
-  const rendered: React.ReactNode[] = [];
-  let lastDay = '';
-  let lastMine = false;
-  ordered.forEach((m, idx) => {
-    const dl = dayLabel(m.createdAt, t);
-    if (dl !== lastDay) {
-      rendered.push(
-        <div
-          key={`d-${dl}-${idx}`}
-          className="my-2 flex items-center justify-center"
-        >
-          <span className="rounded-full bg-surface-2 px-3 py-0.5 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
-            {dl}
-          </span>
-        </div>,
+  // Group by day. Memoized so the whole list only rebuilds when the messages,
+  // the current user, or the language (t) actually change — not on every parent
+  // re-render (typing indicator, lightbox open, etc.). Keeping `t` in the deps is
+  // required: it changes identity on a language switch so the 'आज'/'कल' dividers
+  // re-localise.
+  const rendered = React.useMemo(() => {
+    const out: React.ReactNode[] = [];
+    let lastDay = '';
+    ordered.forEach((m, idx) => {
+      const dl = dayLabel(m.createdAt, t);
+      if (dl !== lastDay) {
+        out.push(
+          <div
+            key={`d-${dl}-${idx}`}
+            className="my-2 flex items-center justify-center"
+          >
+            <span className="rounded-full bg-surface-2 px-3 py-0.5 text-[11px] font-medium uppercase tracking-wide text-text-subtle">
+              {dl}
+            </span>
+          </div>,
+        );
+        lastDay = dl;
+      }
+      out.push(
+        <MessageBubble
+          key={m.id}
+          message={m}
+          mine={m.senderId === currentUserId}
+          onOpenImage={openImage}
+        />,
       );
-      lastDay = dl;
-    }
-    const mine = m.senderId === currentUserId;
-    rendered.push(
-      <MessageBubble
-        key={m.id}
-        message={m}
-        mine={mine}
-        onOpenImage={(url) => setLightbox(url)}
-      />,
-    );
-    lastMine = mine;
-  });
-  void lastMine;
+    });
+    return out;
+  }, [ordered, currentUserId, t, openImage]);
 
   if (loading && messages.length === 0) {
     return (

@@ -1,9 +1,9 @@
-import type { AttachmentInput } from '@dk/shared/schemas';
-import type { Message } from '@dk/shared/types';
 import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import type { AttachmentInput } from '@dk/shared/schemas';
+import type { Message } from '@dk/shared/types';
 
 import { messagesQueryKey } from './useMessages';
 
@@ -16,6 +16,9 @@ interface SendVars {
 export function useSendMessage() {
   const qc = useQueryClient();
   return useMutation({
+    // Tagged so the socket reconnect backfill can skip a full messages refetch
+    // while a send is in flight (would otherwise race the optimistic update).
+    mutationKey: ['sendMessage'],
     mutationFn: ({ conversationId, body, attachments }: SendVars) =>
       api.post<Message>(`/v1/conversations/${conversationId}/messages`, {
         body,
@@ -65,13 +68,23 @@ export function useSendMessage() {
             pages: old.pages.map((page) => page.filter((m) => m.id !== ctx?.tempId)),
           };
         }
-        // Otherwise replace the temp with the real one in-place.
-        return {
-          ...old,
-          pages: old.pages.map((page) =>
-            page.map((m) => (m.id === ctx?.tempId ? msg : m)),
-          ),
-        };
+        // Replace the temp with the real one in-place if it is still there.
+        const hasTemp = old.pages.some((p) => p.some((m) => m.id === ctx?.tempId));
+        if (hasTemp) {
+          return {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) => (m.id === ctx?.tempId ? msg : m)),
+            ),
+          };
+        }
+        // The temp is gone — a refetch (e.g. the socket reconnect backfill) can
+        // replace the pages mid-send on a flaky link. Prepend the confirmed
+        // message so it appears immediately instead of waiting on the socket
+        // echo; onNewMessage dedupes by real id, so no double-insert.
+        const pages = [...old.pages];
+        pages[0] = [msg, ...(pages[0] ?? [])];
+        return { ...old, pages };
       });
     },
   });

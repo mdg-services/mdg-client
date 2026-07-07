@@ -1,15 +1,20 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
-import type {
-  CreateEmployeeInput,
-  EmployeeWithPoints,
-  UpdateEmployeeInput,
-} from '@dk/shared/types';
 
 import { useToast } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { istDate, istMonthStart } from '@/lib/staff';
+import type {
+  CreateEmployeeInput,
+  EmployeeWithPoints,
+  UpdateEmployeeInput,
+} from '@dk/shared/types';
 
 /** The leaderboard windows offered on the Staff screen. */
 export type PointsWindow = 'today' | 'month';
@@ -43,6 +48,12 @@ export function useEmployees(
   return useQuery<EmployeeWithPoints[]>({
     queryKey: employeesQueryKey(dealerId, from, to),
     enabled: !!dealerId,
+    // The roster is the heaviest list in the app. Cache each window for a minute
+    // and keep the previous window's rows on screen while the new one loads, so
+    // flipping today/month doesn't blank the leaderboard or refetch over 2G every
+    // time. Explicit invalidations (add/edit worker, award points) still refetch.
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
     queryFn: () =>
       api.get<EmployeeWithPoints[]>(`/v1/dealers/${dealerId}/employees`, {
         from,

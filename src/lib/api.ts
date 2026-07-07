@@ -1,6 +1,6 @@
+import { clearAuth, getAuthToken } from '@/store/auth';
 import type { ApiError as ApiErrorEnvelope, ApiResponse } from '@dk/shared/types';
 
-import { clearAuth, getAuthToken } from '@/store/auth';
 
 const BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
@@ -19,6 +19,11 @@ export class ApiError extends Error {
     this.details = details;
   }
 }
+
+/** Abort a stalled GET after this long so react-query can retry instead of the
+ * UI hanging for minutes on a 2G link. Mutations are deliberately NOT timed out
+ * (a write may have already landed server-side). */
+const GET_TIMEOUT_MS = 20_000;
 
 export type QueryValue = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValue>;
@@ -62,20 +67,50 @@ export async function apiFetch<T>(
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
+  // Bound GET reads with a timeout. We use a manual AbortController (not
+  // AbortSignal.timeout/any, which are unavailable on older Android System
+  // WebView) and forward any caller-supplied signal into it.
+  let fetchSignal = signal;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let timedOut = false;
+  if (method === 'GET') {
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, GET_TIMEOUT_MS);
+    if (signal) {
+      if (signal.aborted) controller.abort();
+      else signal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+    fetchSignal = controller.signal;
+  }
+
   let res: Response;
   try {
     res = await fetch(buildUrl(path, query), {
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
+      signal: fetchSignal,
     });
   } catch (err) {
+    // A timeout surfaces as a retryable error so react-query's retry kicks in.
+    if (timedOut) {
+      throw new ApiError(0, 'TIMEOUT', 'Request timed out');
+    }
+    // A caller-initiated cancellation (e.g. react-query aborting on unmount)
+    // must propagate as-is, not be masked as a network failure.
+    if (signal?.aborted) {
+      throw err;
+    }
     throw new ApiError(
       0,
       'NETWORK_ERROR',
       err instanceof Error ? err.message : 'Network error',
     );
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 
   let payload: ApiResponse<T> | null = null;

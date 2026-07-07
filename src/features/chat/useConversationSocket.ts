@@ -1,9 +1,10 @@
-import type { Conversation, Message } from '@dk/shared/types';
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { messagesQueryKey } from '@/hooks/api/useMessages';
 import { getSocket } from '@/lib/socket';
+import { onSocketReconnect } from '@/lib/socketReconnect';
+import type { Conversation, Message } from '@dk/shared/types';
 
 export interface TypingState {
   active: boolean;
@@ -50,9 +51,22 @@ export function useConversationSocket(
     const socket = getSocket();
     if (!socket) return;
 
+    // Join the room on every connect (including reconnects).
     const join = () => socket.emit('conversation:join', conversationId);
     if (socket.connected) join();
     socket.on('connect', join);
+
+    // On a RE-connect (socket dropped and came back — common on flaky 2G), the
+    // server does not replay history, so refetch the loaded messages to backfill
+    // anything missed while we were offline. This is the safety net that lets us
+    // keep refetchOnWindowFocus off in the WebView.
+    const offReconnect = onSocketReconnect(socket, () => {
+      // Skip while a send is in flight: a full refetch could momentarily drop the
+      // just-sent optimistic bubble (it self-heals via the server echo, but this
+      // avoids the flicker on the exact flaky link this backfill targets).
+      if (qc.isMutating({ mutationKey: ['sendMessage'] }) > 0) return;
+      void qc.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+    });
 
     const onNewMessage = (payload: { message: Message; conversation: Conversation }) => {
       if (payload.message.conversationId !== conversationId) return;
@@ -123,6 +137,7 @@ export function useConversationSocket(
     return () => {
       socket.emit('conversation:leave', conversationId);
       socket.off('connect', join);
+      offReconnect();
       socket.off('message:new', onNewMessage);
       socket.off('typing', onTyping);
       socket.off('conversation:updated', onConvUpdated);

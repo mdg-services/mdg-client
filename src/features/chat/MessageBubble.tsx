@@ -1,10 +1,11 @@
-import type { Message } from '@dk/shared/types';
 import { Check, CheckCheck, Clock } from 'lucide-react';
-
-import { useRecord } from '@/hooks/api/useRecords';
-import { cn } from '@/lib/cn';
+import * as React from 'react';
 
 import { RecordCard } from '@/features/records/RecordCard';
+import { useRecord } from '@/hooks/api/useRecords';
+import { cn } from '@/lib/cn';
+import type { Message } from '@dk/shared/types';
+
 import { MessageAttachment } from './AttachmentPreview';
 
 function formatTime(iso: string): string {
@@ -72,7 +73,11 @@ function MessageTicks({ message }: { message: Message }) {
   return <Check width={14} strokeWidth={2} />;
 }
 
-export function MessageBubble({
+// Memoized: message objects are updated immutably in the query cache (see
+// useConversationSocket applyReceipt / onNewMessage), so a typing toggle, a
+// delivery/read receipt, or a new message re-renders only the changed bubble
+// instead of every bubble in the thread.
+export const MessageBubble = React.memo(function MessageBubble({
   message,
   mine,
   onOpenImage,
@@ -137,4 +142,4 @@ export function MessageBubble({
       </div>
     </div>
   );
-}
+});

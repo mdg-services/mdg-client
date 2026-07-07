@@ -1,11 +1,13 @@
+import { io, type Socket } from 'socket.io-client';
+
+import { useAuthStore } from '@/store/auth';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@dk/shared/types';
-import { io, type Socket } from 'socket.io-client';
 
 import { getApiBaseUrl } from './api';
-import { useAuthStore } from '@/store/auth';
+
 
 export type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -45,7 +47,10 @@ export function getSocket(): TypedSocket | null {
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
+    // Cap backoff at 30s (was 5s): a quick blip still recovers in ~1s, but a
+    // sustained 2G outage stops storming a reconnect every 5s — ~6x fewer
+    // handshake round-trips, saving background data + battery on flaky links.
+    reconnectionDelayMax: 30_000,
     autoConnect: true,
   }) as TypedSocket;
   connectedToken = token;

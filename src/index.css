@@ -54,7 +54,6 @@
   }
   body {
     @apply bg-bg text-text font-sans;
-    font-feature-settings: 'cv11', 'ss01';
     /* Respect mobile safe areas (Expo WebView, iOS Safari) */
     padding-top: env(safe-area-inset-top);
     padding-bottom: 0; /* composer handles its own safe-area */

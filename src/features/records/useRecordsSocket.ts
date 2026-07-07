@@ -1,10 +1,11 @@
-import type { DealerRecord } from '@dk/shared/types';
 import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { useToast } from '@/components/ui';
 import { getSocket } from '@/lib/socket';
+import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
+import type { DealerRecord } from '@dk/shared/types';
 
 /**
  * Listens for `record:new` socket events and refreshes the records shelf.
@@ -27,9 +28,18 @@ export function useRecordsSocket() {
       });
     };
 
+    // On a RE-connect, refresh the shelf to catch any record:new events that
+    // fired while the socket was down. Skipped on the first connect (the initial
+    // query covers it). Backs up refetchOnReconnect for socket-only drops where
+    // the network never went offline.
+    const offReconnect = onSocketReconnect(socket, () => {
+      void qc.invalidateQueries({ queryKey: ['records'] });
+    });
+
     socket.on('record:new', onNewRecord);
     return () => {
       socket.off('record:new', onNewRecord);
+      offReconnect();
     };
   }, [token, qc, toast]);
 }

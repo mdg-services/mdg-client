@@ -34,8 +34,19 @@ export default {
         lg: '0 16px 40px rgba(15,23,42,0.16)',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+        // Native system stack — zero webfont download. On the target low-end
+        // Android phones this resolves to Roboto (highly legible); iOS uses SF.
+        // Devanagari (Hindi) falls through to the on-device Noto, which is free.
+        sans: [
+          'system-ui',
+          '-apple-system',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
     },
   },
