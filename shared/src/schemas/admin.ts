@@ -24,16 +24,27 @@ export const updateAdminSchema = z
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
 
 /**
- * Super-admin edit of ANY user (admin or dealer member): change the login email
- * and/or reset the password. At least one field must be provided. Backs the
- * centralized "All users" console, which is super-admin only.
+ * Super-admin edit of ANY user (admin or dealer member): change the login email,
+ * reset the password, suspend/reactivate, switch a dealer member's role, or
+ * grant/revoke the super-admin tier. At least one field must be provided. Backs
+ * the centralized "All users" console, which is super-admin only.
  */
 export const superAdminUpdateUserSchema = z
   .object({
     email: z.string().email().toLowerCase().optional(),
     password: z.string().min(8, 'At least 8 characters').max(200).optional(),
+    /** Suspend (block login) or reactivate any user. */
+    status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
+    /**
+     * Switch a dealer member between owner and manager. Cross-boundary changes
+     * (admin ⇄ dealer) are rejected by the API — role is only meaningful within a
+     * dealer here, and one active manager per dealer is enforced.
+     */
+    role: z.enum(['dealer-owner', 'dealer-staff']).optional(),
+    /** Grant or revoke the elevated admin tier (platform admins only). */
+    isSuperAdmin: z.boolean().optional(),
   })
-  .refine((v) => v.email !== undefined || v.password !== undefined, {
-    message: 'Provide a new email or password',
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
+    message: 'Provide at least one field to update',
   });
 export type SuperAdminUpdateUserInput = z.infer<typeof superAdminUpdateUserSchema>;

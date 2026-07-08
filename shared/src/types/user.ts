@@ -20,6 +20,12 @@ export interface User {
   /** Preferred UI language for the dealer apps. Defaults to Hindi when unset (ADR 0008). */
   lang?: 'en' | 'hi';
   status: UserStatus;
+  /**
+   * Set (ISO timestamp) when a super-admin archives (soft-deletes) the user: login
+   * is blocked and they're hidden from the default roster, but the record + history
+   * are retained and it's reversible via restore. Null/absent for live users.
+   */
+  archivedAt?: string | null;
   lastLoginAt?: string;
   createdAt: string;
   updatedAt: string;
