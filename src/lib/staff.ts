@@ -1,4 +1,11 @@
-import type { StaffWorkDomain, StaffWorkItem } from '@dk/shared/types';
+import type {
+  EffectiveWorkItem,
+  StaffPointDistribution,
+  StaffPointDraftEntry,
+  StaffPointDraftLineItem,
+  StaffWorkDomain,
+  StaffWorkUnit,
+} from '@dk/shared/types';
 
 import type { MessageKey } from '@/lib/i18n';
 
@@ -34,12 +41,29 @@ export function fmtPoints(n: number): string {
 }
 
 /**
+ * The minimal shape the point-maths needs. Both the global `StaffWorkItem` and a
+ * dealer's `EffectiveWorkItem` satisfy it, so the same helpers drive the wizard
+ * preview, the pending-submission panel, and (historically) the optimistic bump.
+ */
+export interface PointWork {
+  points: number;
+  distribution: StaffPointDistribution;
+  unit?: StaffWorkUnit;
+}
+
+/** A `rupee-1000` work is entered as an actual ₹ amount, not a ± unit count. */
+export function isRupeeWork(work: Pick<PointWork, 'unit'>): boolean {
+  return work.unit === 'rupee-1000';
+}
+
+/**
  * Points a single selected worker earns — mirrors the server's distribution
  * rules (ADR 0007 §Decision 3). Client input never overrides the server; this is
- * only for the live preview and the optimistic leaderboard bump.
+ * only for the live preview and the pending-panel totals. For a `rupee-1000`
+ * work pass `quantity = amountRupees / 1000`.
  */
 export function perEmployeePoints(
-  item: StaffWorkItem,
+  item: PointWork,
   count: number,
   quantity?: number,
 ): number {
@@ -61,26 +85,47 @@ export function perEmployeePoints(
  * for EACH/PER_UNIT/FLAT it's each worker's points × count.
  */
 export function totalAwardPoints(
-  item: StaffWorkItem,
+  item: PointWork,
   count: number,
   quantity?: number,
 ): number {
   return round2(perEmployeePoints(item, count, quantity) * count);
 }
 
-/** A chosen work plus its (optional) PER_UNIT quantity — the unit the multi-work flow works in. */
+/**
+ * A chosen work plus its (optional) PER_UNIT quantity OR raw rupee amount (for
+ * `rupee-1000` works). The wizard/pending panel work in this unit; the server
+ * recomputes points from the effective work list, so this is preview-only.
+ */
 export interface WorkSelection {
-  item: StaffWorkItem;
+  item: PointWork;
   quantity?: number;
+  /** Raw ₹ amount for a `rupee-1000` work; `quantity = amountRupees / 1000`. */
+  amountRupees?: number;
 }
 
-/** Points a single worker earns across several works — optimistic bump + preview. */
+/**
+ * The effective PER_UNIT quantity for a selection: an explicit `amountRupees`
+ * for a `rupee-1000` work becomes `amountRupees / 1000`, otherwise the plain
+ * `quantity`. Used everywhere the preview maths needs a single "how many".
+ */
+export function effectiveQuantity(sel: WorkSelection): number | undefined {
+  if (isRupeeWork(sel.item)) {
+    return sel.amountRupees != null ? sel.amountRupees / 1000 : undefined;
+  }
+  return sel.quantity;
+}
+
+/** Points a single worker earns across several works — preview + panel totals. */
 export function perEmployeePointsForWorks(
   works: WorkSelection[],
   count: number,
 ): number {
   return round2(
-    works.reduce((sum, w) => sum + perEmployeePoints(w.item, count, w.quantity), 0),
+    works.reduce(
+      (sum, w) => sum + perEmployeePoints(w.item, count, effectiveQuantity(w)),
+      0,
+    ),
   );
 }
 
@@ -90,8 +135,129 @@ export function totalAwardPointsForWorks(
   count: number,
 ): number {
   return round2(
-    works.reduce((sum, w) => sum + totalAwardPoints(w.item, count, w.quantity), 0),
+    works.reduce(
+      (sum, w) => sum + totalAwardPoints(w.item, count, effectiveQuantity(w)),
+      0,
+    ),
   );
+}
+
+/* ─────────────────────────── Draft line resolution ──────────────────────────── */
+
+/** A draft entry resolved for display: worker + work + computed points. */
+export interface DraftLine {
+  employeeId: string;
+  employeeName: string;
+  workItemCode: string;
+  labelEn: string;
+  labelHi: string;
+  distribution: StaffPointDistribution;
+  unit?: StaffWorkUnit;
+  quantity?: number;
+  amountRupees?: number;
+  /** SPLIT divisor — distinct workers sharing this work across the whole draft. */
+  splitAmong?: number;
+  points: number;
+}
+
+/** Minimal roster shape the resolver needs (id → name). */
+export interface NamedEmployee {
+  id: string;
+  name: string;
+}
+
+const lineKey = (employeeId: string, workItemCode: string): string =>
+  `${employeeId}::${workItemCode}`;
+
+/**
+ * Resolve the persisted draft `entries` against the dealer's effective work list
+ * and roster into display lines with client-computed points — instant and
+ * offline-safe, mirroring the server's distribution maths. When a work item or
+ * name can't be resolved locally (e.g. offline after a reload before the
+ * catalog/roster refetch), the last server-resolved `fallback` lines fill in.
+ * The server stays authoritative: these numbers are recomputed on finalize.
+ */
+export function buildDraftLines(
+  entries: StaffPointDraftEntry[],
+  workItems: EffectiveWorkItem[],
+  employees: NamedEmployee[],
+  fallback?: StaffPointDraftLineItem[],
+): DraftLine[] {
+  const workByCode = new Map(workItems.map((w) => [w.code, w]));
+  const nameById = new Map(employees.map((e) => [e.id, e.name]));
+  const fallbackByKey = new Map(
+    (fallback ?? []).map((l) => [lineKey(l.employeeId, l.workItemCode), l]),
+  );
+
+  // Distinct workers sharing each SPLIT work across the whole draft = the divisor.
+  const splitWorkers = new Map<string, Set<string>>();
+  for (const e of entries) {
+    const w = workByCode.get(e.workItemCode);
+    if (w?.distribution !== 'SPLIT') continue;
+    const set = splitWorkers.get(e.workItemCode) ?? new Set<string>();
+    set.add(e.employeeId);
+    splitWorkers.set(e.workItemCode, set);
+  }
+
+  return entries.map((e) => {
+    const w = workByCode.get(e.workItemCode);
+    const fb = fallbackByKey.get(lineKey(e.employeeId, e.workItemCode));
+    const employeeName = nameById.get(e.employeeId) ?? fb?.employeeName ?? '';
+
+    if (!w) {
+      // Fall back to the last server-resolved line, else a bare placeholder.
+      return {
+        employeeId: e.employeeId,
+        employeeName,
+        workItemCode: e.workItemCode,
+        labelEn: fb?.workLabelEn ?? e.workItemCode,
+        labelHi: fb?.workLabelHi ?? e.workItemCode,
+        distribution: fb?.distribution ?? 'FLAT',
+        unit: fb?.unit,
+        quantity: e.quantity ?? fb?.quantity,
+        amountRupees: e.amountRupees ?? fb?.amountRupees,
+        splitAmong: fb?.splitAmong,
+        points: fb?.points ?? 0,
+      };
+    }
+
+    const isRupee = isRupeeWork(w);
+    const effQty = isRupee
+      ? (e.amountRupees ?? 0) / 1000
+      : e.quantity ?? 1;
+    let splitAmong: number | undefined;
+    let points: number;
+    switch (w.distribution) {
+      case 'SPLIT':
+        splitAmong = splitWorkers.get(e.workItemCode)?.size ?? 1;
+        points = round2(w.points / Math.max(1, splitAmong));
+        break;
+      case 'PER_UNIT':
+        points = round2(w.points * effQty);
+        break;
+      default:
+        points = w.points;
+    }
+
+    return {
+      employeeId: e.employeeId,
+      employeeName,
+      workItemCode: e.workItemCode,
+      labelEn: w.labelEn,
+      labelHi: w.labelHi,
+      distribution: w.distribution,
+      unit: w.unit,
+      quantity: e.quantity,
+      amountRupees: e.amountRupees,
+      splitAmong,
+      points,
+    };
+  });
+}
+
+/** Running total across all draft lines (client preview; server recomputes). */
+export function draftLinesTotal(lines: DraftLine[]): number {
+  return round2(lines.reduce((sum, l) => sum + l.points, 0));
 }
 
 /** i18n label key for each work domain (plain, bilingual group headers). */

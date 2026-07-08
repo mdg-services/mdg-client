@@ -6,6 +6,7 @@ import type { Attachment, AttachmentKind } from '@dk/shared/types';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
+import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
 
 export interface StagedFile {
   id: string;
@@ -15,7 +16,66 @@ export interface StagedFile {
   contentType?: string;
   /** Voice-note length in ms; only set for audio. */
   durationMs?: number;
+  /** Captured 0..1 waveform peaks for a recorded voice note (local preview). */
+  peaks?: number[];
   previewUrl?: string;
+}
+
+/**
+ * Static waveform: a row of bars whose heights come from `peaks`. Bars before
+ * `progress` (0..1) render in the accent colour (played), the rest are muted.
+ * When `onSeek` is provided, clicking scrubs to that fraction.
+ */
+function Waveform({
+  peaks,
+  progress,
+  mine,
+  onSeek,
+}: {
+  peaks: number[];
+  progress: number;
+  mine?: boolean;
+  onSeek?: (fraction: number) => void;
+}) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const playedIdx = Math.round(progress * peaks.length);
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!onSeek) return;
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+    onSeek(frac);
+  };
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      onClick={handleClick}
+      className={cn(
+        'flex h-6 flex-1 items-center gap-[2px]',
+        onSeek ? 'cursor-pointer' : undefined,
+      )}
+    >
+      {peaks.map((p, i) => (
+        <span
+          key={i}
+          className={cn(
+            'w-[2px] shrink-0 rounded-full',
+            i < playedIdx
+              ? mine
+                ? 'bg-white'
+                : 'bg-brand'
+              : mine
+                ? 'bg-white/35'
+                : 'bg-surface-2',
+          )}
+          style={{ height: `${Math.max(12, Math.round(p * 100))}%` }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export function StagedAttachmentChip({
@@ -27,15 +87,21 @@ export function StagedAttachmentChip({
 }) {
   const t = useT();
   if (staged.kind === 'audio') {
+    // Prefer the peaks captured live while recording; otherwise a stable
+    // pseudo-waveform seeded from the clip id so it never flickers.
+    const peaks =
+      staged.peaks && staged.peaks.length > 0
+        ? staged.peaks
+        : pseudoPeaks(staged.id, WAVEFORM_BARS);
     return (
       <div className="group relative flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-2 pr-8 shadow-sm">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10 text-brand">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
           <Mic width={18} strokeWidth={1.75} />
         </span>
-        <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-text">
-            {t('chat.voiceMessage')}
-          </p>
+        <div className="flex min-w-0 flex-col gap-1">
+          <div className="w-[132px]">
+            <Waveform peaks={peaks} progress={1} />
+          </div>
           <p className="text-[11px] text-text-subtle">
             {staged.durationMs
               ? formatDuration(staged.durationMs)
@@ -61,6 +127,7 @@ export function StagedAttachmentChip({
         <img
           src={staged.previewUrl}
           alt={staged.file.name}
+          decoding="async"
           className="h-10 w-10 rounded-lg object-cover"
         />
       ) : (
@@ -104,7 +171,14 @@ export function VoiceMessage({
 
   // Prefer the duration we recorded; fall back to the media element's metadata.
   const totalMs = attachment.durationMs ?? loadedMs ?? 0;
-  const progress = totalMs > 0 ? Math.min(100, (currentMs / totalMs) * 100) : 0;
+  const progress = totalMs > 0 ? Math.min(1, currentMs / totalMs) : 0;
+
+  // The wire Attachment carries no waveform peaks, so sent notes render a stable
+  // pseudo-waveform seeded from the storageKey (deterministic — no flicker).
+  const peaks = React.useMemo(
+    () => pseudoPeaks(attachment.storageKey || attachment.filename, WAVEFORM_BARS),
+    [attachment.storageKey, attachment.filename],
+  );
 
   const toggle = () => {
     const el = audioRef.current;
@@ -114,6 +188,13 @@ export function VoiceMessage({
     } else {
       el.pause();
     }
+  };
+
+  const seek = (fraction: number) => {
+    const el = audioRef.current;
+    if (!el || totalMs <= 0) return;
+    el.currentTime = (fraction * totalMs) / 1000;
+    setCurrentMs(fraction * totalMs);
   };
 
   return (
@@ -140,18 +221,8 @@ export function VoiceMessage({
           <Play width={16} strokeWidth={2} className="translate-x-[1px]" />
         )}
       </button>
-      <div className="flex min-w-[120px] flex-1 flex-col gap-1">
-        <div
-          className={cn(
-            'h-1.5 w-full overflow-hidden rounded-full',
-            mine ? 'bg-white/25' : 'bg-surface-2',
-          )}
-        >
-          <div
-            className={cn('h-full rounded-full', mine ? 'bg-white' : 'bg-brand')}
-            style={{ width: `${progress}%` }}
-          />
-        </div>
+      <div className="flex min-w-[132px] flex-1 flex-col gap-1">
+        <Waveform peaks={peaks} progress={progress} mine={mine} onSeek={seek} />
         <span
           className={cn(
             'text-[11px] tabular-nums',
@@ -199,12 +270,17 @@ export function MessageAttachment({
       <button
         type="button"
         onClick={() => onOpenImage?.(attachment.url!)}
-        className="block overflow-hidden rounded-xl border border-border"
+        className="block overflow-hidden rounded-xl border border-border bg-surface-2"
       >
+        {/* lazy + async decode keeps image-heavy threads from janking / spiking
+            memory; min height reserves space so late-loading images don't shift
+            the scroll position. */}
         <img
           src={attachment.url}
           alt={attachment.filename}
-          className="max-h-72 w-auto max-w-full object-cover"
+          loading="lazy"
+          decoding="async"
+          className="max-h-72 min-h-[6rem] w-auto max-w-full object-cover"
         />
       </button>
     );

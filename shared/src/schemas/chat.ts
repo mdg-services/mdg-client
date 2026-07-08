@@ -36,8 +36,10 @@ export const presignUploadSchema = z.object({
     .int()
     .positive()
     .max(25 * 1024 * 1024),
-  scope: z.enum(['chat', 'avatar']).default('chat'),
+  scope: z.enum(['chat', 'avatar', 'staff']).default('chat'),
   conversationId: z.string().optional(),
+  /** Required for the `staff` scope: the dealer the hardcopy photo belongs to. */
+  dealerId: z.string().optional(),
 });
 export type PresignUploadInput = z.infer<typeof presignUploadSchema>;
 

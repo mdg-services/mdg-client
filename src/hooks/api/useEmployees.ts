@@ -38,15 +38,19 @@ export function employeesQueryKey(
 
 /**
  * The roster + each worker's points in the chosen window (default: today). Backs
- * the leaderboard — one legible list, sorted highest-first by the caller.
+ * the leaderboard — one legible list, sorted highest-first by the caller. Pass
+ * `includeInactive` to also return removed (soft-deleted) workers so the roster's
+ * "Show removed" toggle can list and reactivate them; the caller splits the list
+ * by `status`.
  */
 export function useEmployees(
   dealerId: string | undefined,
   window: PointsWindow = 'today',
+  includeInactive = false,
 ) {
   const { from, to } = windowBounds(window);
   return useQuery<EmployeeWithPoints[]>({
-    queryKey: employeesQueryKey(dealerId, from, to),
+    queryKey: [...employeesQueryKey(dealerId, from, to), includeInactive],
     enabled: !!dealerId,
     // The roster is the heaviest list in the app. Cache each window for a minute
     // and keep the previous window's rows on screen while the new one loads, so
@@ -58,6 +62,7 @@ export function useEmployees(
       api.get<EmployeeWithPoints[]>(`/v1/dealers/${dealerId}/employees`, {
         from,
         to,
+        includeInactive: includeInactive ? 'true' : undefined,
       }),
   });
 }
@@ -80,7 +85,12 @@ export function useAddEmployee(dealerId: string | undefined) {
   });
 }
 
-/** Edit a worker or flip their active/inactive status. */
+/**
+ * Edit a worker or flip their active/inactive status (rename / soft-remove /
+ * reactivate). The generic failure toast is centralized here; callers supply
+ * their own specific success toast (renamed / removed / brought back) via the
+ * per-call `onSuccess`, so there's exactly one, meaningful message.
+ */
 export function useUpdateEmployee(dealerId: string | undefined) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -89,7 +99,6 @@ export function useUpdateEmployee(dealerId: string | undefined) {
     mutationFn: ({ id, input }: { id: string; input: UpdateEmployeeInput }) =>
       api.patch(`/v1/dealers/${dealerId}/employees/${id}`, input),
     onSuccess: () => {
-      toast.success(t('common.done'));
       void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
     },
     onError: () => {

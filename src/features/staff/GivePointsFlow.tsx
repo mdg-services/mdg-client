@@ -1,31 +1,48 @@
 import { Check, ChevronLeft, Minus, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 
-import type { EmployeeWithPoints, StaffWorkItem } from '@dk/shared/types';
 import { STAFF_WORK_DOMAINS } from '@dk/shared/types';
+import type {
+  EffectiveWorkItem,
+  EmployeeWithPoints,
+  StaffPointDraftEntry,
+} from '@dk/shared/types';
 
-import { Avatar, Button, Input, Spinner } from '@/components/ui';
-import { useAwardStaffPoints } from '@/hooks/api/useStaffPoints';
-import { useStaffWorkItems } from '@/hooks/api/useStaffWorkItems';
+import { Avatar, Button, Input, Spinner, useToast } from '@/components/ui';
+import { useDealerWorkItems } from '@/hooks/api/useDealerWorkItems';
 import { cn } from '@/lib/cn';
 import { pick, useLang, useT } from '@/lib/i18n';
 import {
   DOMAIN_LABEL_KEY,
+  effectiveQuantity,
   fmtPoints,
+  isRupeeWork,
   istDate,
   perEmployeePoints,
   totalAwardPointsForWorks,
-  type WorkSelection,
 } from '@/lib/staff';
+import { useStaffDraftStore } from '@/store/staffDraft';
 
 type Step = 'worker' | 'work' | 'configure';
 
+/** A chosen work plus how it was quantified (unit count OR raw rupee amount). */
+interface ChosenWork {
+  item: EffectiveWorkItem;
+  quantity?: number;
+  amountRupees?: number;
+}
+
+/** A rupee work needs a positive amount before it can join the submission. */
+function rupeeInvalid(w: ChosenWork): boolean {
+  return isRupeeWork(w.item) && (w.amountRupees == null || w.amountRupees <= 0);
+}
+
 /**
  * The core "Give points" flow — a bottom-sheet. Pick a worker (one tap), then
- * tick off EVERYTHING they did (multi-select), then confirm. One award action
- * can cover several works at once and, on the confirm step, several workers who
- * did them together. The split/each/per-unit rules stay hidden until a chosen
- * task needs them; the raw enum words never appear, only plain bilingual copy.
+ * tick off EVERYTHING they did (multi-select), then confirm. Instead of awarding
+ * immediately, the chosen work is APPENDED to the dealer's pending submission
+ * (the draft); the leaderboard only moves on final submit. HSD/MS "per ₹1000"
+ * works take a real rupee amount; other per-unit works keep the ± counter.
  */
 export function GivePointsFlow({
   dealerId,
@@ -38,35 +55,45 @@ export function GivePointsFlow({
 }) {
   const t = useT();
   const lang = useLang();
-  const workItemsQuery = useStaffWorkItems();
-  const award = useAwardStaffPoints(dealerId);
+  const toast = useToast();
+  const workItemsQuery = useDealerWorkItems(dealerId);
+  const addEntries = useStaffDraftStore((s) => s.addEntries);
 
   const [step, setStep] = React.useState<Step>('worker');
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [selectedCodes, setSelectedCodes] = React.useState<string[]>([]);
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
+  const [amounts, setAmounts] = React.useState<Record<string, string>>({});
   const [workDate, setWorkDate] = React.useState(() => istDate());
   const [search, setSearch] = React.useState('');
+  const [attempted, setAttempted] = React.useState(false);
 
   const today = istDate();
   const catalog = workItemsQuery.data ?? [];
   const count = selectedIds.length;
 
-  const qtyFor = React.useCallback(
-    (item: StaffWorkItem) =>
-      item.distribution === 'PER_UNIT' ? (quantities[item.code] ?? 1) : undefined,
-    [quantities],
-  );
-
-  // The chosen works, resolved from the catalog and ordered like the picker.
-  const works: WorkSelection[] = React.useMemo(
+  // The chosen works, resolved from the effective list and ordered like the picker.
+  const works: ChosenWork[] = React.useMemo(
     () =>
       selectedCodes
         .map((code) => catalog.find((w) => w.code === code))
-        .filter((w): w is StaffWorkItem => Boolean(w))
+        .filter((w): w is EffectiveWorkItem => Boolean(w))
         .sort((a, b) => a.srNo - b.srNo)
-        .map((item) => ({ item, quantity: qtyFor(item) })),
-    [selectedCodes, catalog, qtyFor],
+        .map((item) => {
+          if (isRupeeWork(item)) {
+            const raw = (amounts[item.code] ?? '').trim();
+            const amt = raw === '' ? NaN : Number(raw);
+            return {
+              item,
+              amountRupees: Number.isFinite(amt) && amt > 0 ? amt : undefined,
+            };
+          }
+          if (item.distribution === 'PER_UNIT') {
+            return { item, quantity: quantities[item.code] ?? 1 };
+          }
+          return { item };
+        }),
+    [selectedCodes, catalog, quantities, amounts],
   );
 
   const grandTotal = totalAwardPointsForWorks(works, count);
@@ -74,6 +101,7 @@ export function GivePointsFlow({
   // summary shows one worker's worth — a stable "face value" that matches the
   // per-work badges, instead of a total that silently multiplies by worker count.
   const previewTotal = totalAwardPointsForWorks(works, 1);
+  const hasInvalidAmount = works.some(rupeeInvalid);
 
   const pickWorker = (id: string) => {
     setSelectedIds([id]);
@@ -90,11 +118,16 @@ export function GivePointsFlow({
     });
   };
 
-  const clearQty = (code: string) => {
-    // Forget a work's per-unit quantity so re-adding it later starts fresh at 1.
+  const forgetInputs = (code: string) => {
     setQuantities((q) => {
       if (!(code in q)) return q;
       const next = { ...q };
+      delete next[code];
+      return next;
+    });
+    setAmounts((a) => {
+      if (!(code in a)) return a;
+      const next = { ...a };
       delete next[code];
       return next;
     });
@@ -103,7 +136,7 @@ export function GivePointsFlow({
   const toggleWork = (code: string) => {
     if (selectedCodes.includes(code)) {
       setSelectedCodes((curr) => curr.filter((c) => c !== code));
-      clearQty(code);
+      forgetInputs(code);
     } else {
       setSelectedCodes((curr) => [...curr, code]);
     }
@@ -113,11 +146,17 @@ export function GivePointsFlow({
     // Keep at least one work; the × just hides when a single work remains.
     if (selectedCodes.length <= 1) return;
     setSelectedCodes((curr) => curr.filter((c) => c !== code));
-    clearQty(code);
+    forgetInputs(code);
   };
 
   const setQty = (code: string, n: number) => {
     setQuantities((q) => ({ ...q, [code]: Math.max(1, n) }));
+  };
+
+  const setAmount = (code: string, value: string) => {
+    // Keep digits + one decimal point only — a plain rupee amount.
+    const cleaned = value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+    setAmounts((a) => ({ ...a, [code]: cleaned }));
   };
 
   const goBack = () => {
@@ -126,18 +165,26 @@ export function GivePointsFlow({
   };
 
   const confirm = () => {
-    if (works.length === 0 || count === 0) return;
-    award.mutate(
-      {
-        employeeIds: selectedIds,
-        items: works.map((w) => ({
+    if (!dealerId || works.length === 0 || count === 0) return;
+    if (hasInvalidAmount) {
+      setAttempted(true);
+      return;
+    }
+    const entries: StaffPointDraftEntry[] = [];
+    for (const id of selectedIds) {
+      for (const w of works) {
+        const entry: StaffPointDraftEntry = {
+          employeeId: id,
           workItemCode: w.item.code,
-          ...(w.item.distribution === 'PER_UNIT' ? { quantity: w.quantity } : {}),
-        })),
-        workDate,
-      },
-      { onSuccess: onClose },
-    );
+        };
+        if (isRupeeWork(w.item)) entry.amountRupees = w.amountRupees;
+        else if (w.item.distribution === 'PER_UNIT') entry.quantity = w.quantity;
+        entries.push(entry);
+      }
+    }
+    addEntries(dealerId, entries, workDate);
+    toast.success(t('staff.addedToSubmission'));
+    onClose();
   };
 
   const title =
@@ -205,8 +252,11 @@ export function GivePointsFlow({
               employees={employees}
               selectedIds={selectedIds}
               count={count}
+              amounts={amounts}
+              attempted={attempted}
               onToggleWorker={toggleWorker}
               onQty={setQty}
+              onAmount={setAmount}
               onRemoveWork={removeWork}
               onAddMore={() => setStep('work')}
               canRemove={works.length > 1}
@@ -240,8 +290,13 @@ export function GivePointsFlow({
           </footer>
         ) : step === 'configure' ? (
           <footer className="border-t border-border p-3">
-            <Button fullWidth size="lg" loading={award.isPending} onClick={confirm}>
-              {t('staff.give.confirm')} · {fmtPoints(grandTotal)}
+            <Button
+              fullWidth
+              size="lg"
+              disabled={hasInvalidAmount}
+              onClick={confirm}
+            >
+              {t('staff.addToSubmission')} · {fmtPoints(grandTotal)}
             </Button>
           </footer>
         ) : null}
@@ -307,7 +362,7 @@ function WorkPicker({
   lang,
   t,
 }: {
-  items: StaffWorkItem[];
+  items: EffectiveWorkItem[];
   loading: boolean;
   selectedCodes: string[];
   search: string;
@@ -376,7 +431,7 @@ function WorkPicker({
               const on = selected.has(item.code);
               return (
                 <button
-                  key={item.id}
+                  key={item.code}
                   type="button"
                   onClick={() => onToggle(item.code)}
                   aria-pressed={on}
@@ -420,8 +475,11 @@ function Configure({
   employees,
   selectedIds,
   count,
+  amounts,
+  attempted,
   onToggleWorker,
   onQty,
+  onAmount,
   onRemoveWork,
   onAddMore,
   canRemove,
@@ -431,12 +489,15 @@ function Configure({
   lang,
   t,
 }: {
-  works: WorkSelection[];
+  works: ChosenWork[];
   employees: EmployeeWithPoints[];
   selectedIds: string[];
   count: number;
+  amounts: Record<string, string>;
+  attempted: boolean;
   onToggleWorker: (id: string) => void;
   onQty: (code: string, n: number) => void;
+  onAmount: (code: string, value: string) => void;
   onRemoveWork: (code: string) => void;
   onAddMore: () => void;
   canRemove: boolean;
@@ -525,14 +586,16 @@ function Configure({
           </button>
         </div>
         <ul className="flex flex-col gap-1.5">
-          {works.map(({ item, quantity }) => (
+          {works.map((w) => (
             <WorkRow
-              key={item.code}
-              item={item}
-              quantity={quantity}
+              key={w.item.code}
+              work={w}
               count={count}
               canRemove={canRemove}
+              amount={amounts[w.item.code] ?? ''}
+              showError={attempted && rupeeInvalid(w)}
               onQty={onQty}
+              onAmount={onAmount}
               onRemove={onRemoveWork}
               lang={lang}
               t={t}
@@ -558,29 +621,35 @@ function Configure({
 }
 
 function WorkRow({
-  item,
-  quantity,
+  work,
   count,
   canRemove,
+  amount,
+  showError,
   onQty,
+  onAmount,
   onRemove,
   lang,
   t,
 }: {
-  item: StaffWorkItem;
-  quantity?: number;
+  work: ChosenWork;
   count: number;
   canRemove: boolean;
+  amount: string;
+  showError: boolean;
   onQty: (code: string, n: number) => void;
+  onAmount: (code: string, value: string) => void;
   onRemove: (code: string) => void;
   lang: ReturnType<typeof useLang>;
   t: ReturnType<typeof useT>;
 }) {
-  const isPerUnit = item.distribution === 'PER_UNIT';
+  const { item } = work;
+  const isRupee = isRupeeWork(item);
+  const isPerUnit = item.distribution === 'PER_UNIT' && !isRupee;
   const isSplit = item.distribution === 'SPLIT';
   const isEach = item.distribution === 'EACH';
-  const per = perEmployeePoints(item, count, quantity);
-  const qty = quantity ?? 1;
+  const per = perEmployeePoints(item, count, effectiveQuantity(work));
+  const qty = work.quantity ?? 1;
 
   const unitLabel =
     item.unitLabelEn || item.unitLabelHi
@@ -621,7 +690,31 @@ function WorkRow({
 
       {hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
 
-      {isPerUnit ? (
+      {isRupee ? (
+        <div className="mt-2">
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-xl border bg-surface-2 px-3',
+              showError ? 'border-danger' : 'border-border-strong',
+            )}
+          >
+            <span className="text-base font-semibold text-text-muted">₹</span>
+            <input
+              value={amount}
+              onChange={(e) => onAmount(item.code, e.target.value)}
+              inputMode="decimal"
+              placeholder={t('staff.enterAmount')}
+              aria-label={t('staff.amountRupees')}
+              className="h-11 w-full bg-transparent text-[15px] text-text outline-none placeholder:text-text-subtle"
+            />
+          </div>
+          {showError ? (
+            <p className="mt-1 px-1 text-xs text-danger">
+              {t('staff.amountRequired')}
+            </p>
+          ) : null}
+        </div>
+      ) : isPerUnit ? (
         <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2">
           <span className="text-sm font-medium text-text">{unitLabel}</span>
           <div className="flex items-center gap-3">

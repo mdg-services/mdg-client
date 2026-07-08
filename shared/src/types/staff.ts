@@ -179,8 +179,14 @@ export interface StaffPointAward {
   /* Point math */
   /** Catalog base (per-unit value for PER_UNIT). */
   basePoints: number;
-  /** PER_UNIT quantity (default 1); absent otherwise. */
+  /** PER_UNIT quantity (default 1, fractional allowed); absent otherwise. */
   quantity?: number;
+  /**
+   * Raw rupee amount denormalised for `rupee-1000` unit works, when the award
+   * was entered as an amount (`quantity = amountRupees / 1000`). Nullable; kept
+   * for hardcopy reconciliation/display. Absent for other works.
+   */
+  amountRupees?: number;
   /** SPLIT divisor — how many workers shared the job; absent otherwise. */
   splitAmong?: number;
   /** The points THIS employee earned (after split/unit math), rounded to 2 dp. */
@@ -228,8 +234,15 @@ export interface CreateEmployeeInput {
 /** One work selected within an award action: a catalog work + optional PER_UNIT quantity. */
 export interface AwardStaffWorkSelection {
   workItemCode: string;
-  /** PER_UNIT quantity (defaults to 1). Ignored for other distributions. */
+  /** PER_UNIT quantity (defaults to 1). Fractional allowed. Ignored for other distributions. */
   quantity?: number;
+  /**
+   * Raw rupee amount for a `rupee-1000` unit work (e.g. HSD / MS sales). When
+   * present the server computes `quantity = amountRupees / 1000` (fractional
+   * allowed) and IGNORES any client `quantity`. Persisted denormalised on the
+   * award for hardcopy reconciliation. Ignored for non-`rupee-1000` works.
+   */
+  amountRupees?: number;
 }
 
 export interface UpdateEmployeeInput {
@@ -268,4 +281,165 @@ export interface StaffPointsQuery {
   /** Inclusive window (YYYY-MM-DD). */
   from?: string;
   to?: string;
+}
+
+/* ─────────────────────── Draft → Finalize (server-synced) ─────────────────────────────────── */
+
+/**
+ * One line of a server-synced draft: a worker did a work, optionally with a
+ * PER_UNIT quantity or a raw rupee amount. Points are NOT stored on the entry —
+ * they are always recomputed server-side against the dealer's EFFECTIVE work list.
+ */
+export interface StaffPointDraftEntry {
+  employeeId: string;
+  workItemCode: string;
+  /** PER_UNIT quantity (fractional allowed). Ignored for other distributions. */
+  quantity?: number;
+  /** Raw rupees for `rupee-1000` works; `quantity = amountRupees / 1000` server-side. */
+  amountRupees?: number;
+}
+
+/**
+ * The single active, server-synced draft for a dealer (at most one — unique on
+ * dealerId). The owner/manager builds it up over a shift (autosaved), then
+ * finalises it with a hardcopy photo, which writes the immutable award ledger.
+ */
+export interface StaffPointDraft {
+  id: string;
+  dealerId: string;
+  entries: StaffPointDraftEntry[];
+  /** Calendar day the work was done (YYYY-MM-DD, IST). Defaults to today. */
+  workDate: string;
+  note?: string;
+  updatedByUserId: string;
+  updatedByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A draft entry resolved against the dealer's effective work list: the raw entry
+ * plus the snapshotted work definition and the server-computed points. `source`
+ * says whether the work came from the global default catalog or a dealer custom.
+ */
+export interface StaffPointDraftLineItem {
+  employeeId: string;
+  employeeName: string;
+  workItemCode: string;
+  workLabelEn: string;
+  workLabelHi: string;
+  distribution: StaffPointDistribution;
+  unit?: StaffWorkUnit;
+  /** Catalog base (per-unit value for PER_UNIT). */
+  basePoints: number;
+  /** Effective PER_UNIT quantity (from `quantity` or `amountRupees / 1000`). */
+  quantity?: number;
+  /** Raw rupees, echoed back for `rupee-1000` works entered as an amount. */
+  amountRupees?: number;
+  /** SPLIT divisor (# distinct workers sharing this work in the draft). */
+  splitAmong?: number;
+  /** Server-computed points this line awards, rounded to 2 dp. */
+  points: number;
+  source: 'default' | 'custom';
+}
+
+/** A draft plus its resolved line items and running total — what GET /draft returns. */
+export interface StaffPointDraftView {
+  /** Draft document id, or null when no draft exists yet. */
+  id: string | null;
+  dealerId: string;
+  entries: StaffPointDraftEntry[];
+  /** Each entry resolved against the effective work list, with computed points. */
+  lineItems: StaffPointDraftLineItem[];
+  workDate: string;
+  note?: string;
+  totalPoints: number;
+  updatedByUserId?: string;
+  updatedByName?: string;
+  updatedAt?: string;
+}
+
+/**
+ * A FINALIZED submission: created only on `POST /draft/finalize`. Groups the
+ * award rows it wrote (shared `batchId`) and pins the mandatory hardcopy photo
+ * for reconciliation. `hardCopyImageUrl` is signed on read.
+ */
+export interface StaffPointBatch {
+  id: string;
+  dealerId: string;
+  /** The shared batchId stamped onto every StaffPointAward row this batch wrote. */
+  batchId: string;
+  workDate: string;
+  note?: string;
+  hardCopyImageKey: string;
+  /** Signed download URL for the hardcopy photo; present on read when signable. */
+  hardCopyImageUrl?: string;
+  totalPoints: number;
+  /** Number of award rows written (one per employee × work entry). */
+  entryCount: number;
+  /** Distinct employees in the batch. */
+  employeeCount: number;
+  awardedByUserId: string;
+  awardedByName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/* ───────────────── Per-dealer customizable work list + effective list ─────────────────────── */
+
+/**
+ * A dealer-authored custom work item overlaid on the global catalog. Awardable
+ * exactly like a default item; its label/points are snapshotted onto award rows.
+ */
+export interface DealerCustomWorkItem {
+  /** Dealer-unique code (server-generated, e.g. `custom-<slug>-<short>`). */
+  code: string;
+  labelEn: string;
+  labelHi: string;
+  points: number;
+  distribution: StaffPointDistribution;
+  unit?: StaffWorkUnit;
+  unitLabelEn?: string;
+  unitLabelHi?: string;
+  domain: StaffWorkDomain;
+  active: boolean;
+}
+
+/**
+ * A dealer's overlay on the global catalog: which default codes are hidden and
+ * which custom items are added. One per dealer (unique dealerId).
+ */
+export interface DealerWorkList {
+  id: string;
+  dealerId: string;
+  /** Global catalog codes hidden for this dealer. */
+  hiddenCodes: string[];
+  customItems: DealerCustomWorkItem[];
+  updatedByUserId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * The unified item a client renders for a dealer: the global active catalog
+ * (current version) minus hidden codes, plus active custom items. Same
+ * render-projection as a StaffWorkItem, tagged with its `source`.
+ */
+export interface EffectiveWorkItem {
+  code: string;
+  /** Sort order. Defaults keep their catalog srNo; customs are ordered after. */
+  srNo: number;
+  labelEn: string;
+  labelHi: string;
+  points: number;
+  distribution: StaffPointDistribution;
+  unit?: StaffWorkUnit;
+  unitLabelEn?: string;
+  unitLabelHi?: string;
+  domain: StaffWorkDomain;
+  requiresApproval: boolean;
+  notesEn?: string;
+  notesHi?: string;
+  active: boolean;
+  source: 'default' | 'custom';
 }

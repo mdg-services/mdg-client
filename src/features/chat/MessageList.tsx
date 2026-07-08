@@ -212,6 +212,7 @@ export function MessageList({
           <img
             src={lightbox}
             alt=""
+            decoding="async"
             onClick={(e) => e.stopPropagation()}
             className="max-h-full max-w-full rounded-xl object-contain"
           />

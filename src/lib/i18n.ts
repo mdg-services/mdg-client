@@ -110,6 +110,15 @@ export const messages = {
   'chat.removeAttachment': { en: 'Remove attachment', hi: 'अटैचमेंट हटाएं' },
   'chat.playVoice': { en: 'Play voice message', hi: 'वॉइस मैसेज चलाएं' },
   'chat.pauseVoice': { en: 'Pause voice message', hi: 'वॉइस मैसेज रोकें' },
+  'chat.slideToCancel': { en: 'Slide to cancel', hi: 'रद्द करने के लिए खिसकाएं' },
+  'chat.releaseToCancel': {
+    en: 'Release to cancel',
+    hi: 'छोड़ें, रद्द हो जाएगा',
+  },
+  'chat.recordingLocked': {
+    en: 'Recording — tap send when done',
+    hi: 'रिकॉर्ड हो रहा है — हो जाए तो भेजें दबाएं',
+  },
   'chat.stillConnecting': {
     en: 'Still connecting. Please wait a moment and try again.',
     hi: 'अभी जुड़ रहे हैं। कृपया थोड़ी देर रुककर फिर कोशिश करें।',
@@ -474,6 +483,117 @@ export const messages = {
   'staff.domain.office': { en: 'Office', hi: 'ऑफिस' },
   'staff.domain.customer': { en: 'Customer', hi: 'ग्राहक' },
   'staff.domain.misc': { en: 'Other', hi: 'अन्य' },
+
+  /* ── rupee-amount work input ─────────────────────────────────────────── */
+  'staff.amountRupees': { en: 'Amount (₹)', hi: 'रकम (₹)' },
+  'staff.enterAmount': { en: 'Enter amount', hi: 'रकम भरें' },
+  'staff.amountRequired': {
+    en: 'Enter the sale amount to add this',
+    hi: 'इसे जोड़ने के लिए बिक्री की रकम भरें',
+  },
+
+  /* ── draft: build up a submission ───────────────────────────────────── */
+  'staff.addToSubmission': { en: 'Add to submission', hi: 'सूची में जोड़ें' },
+  'staff.addedToSubmission': {
+    en: 'Added to submission',
+    hi: 'सूची में जुड़ गया',
+  },
+  'staff.pendingSubmission': {
+    en: 'Pending submission',
+    hi: 'जमा करना बाकी',
+  },
+  'staff.pendingHint': {
+    en: 'Review the work, then submit with a hardcopy photo.',
+    hi: 'काम जाँच लें, फिर हार्डकॉपी फोटो के साथ जमा करें।',
+  },
+  'staff.pendingTotal': { en: 'Total {points} points', hi: 'कुल {points} पॉइंट' },
+  'staff.removeLine': { en: 'Remove', hi: 'हटाएं' },
+  'staff.clearDraft': { en: 'Clear all', hi: 'सब हटाएं' },
+  'staff.clearDraftConfirm': {
+    en: 'Clear the whole pending submission?',
+    hi: 'पूरी बाकी सूची हटा दें?',
+  },
+  'staff.draftCleared': { en: 'Submission cleared', hi: 'सूची हटा दी गई' },
+
+  'staff.savingDraft': { en: 'Saving…', hi: 'सेव हो रहा है…' },
+  'staff.draftSaved': { en: 'Saved', hi: 'सेव हो गया' },
+  'staff.draftOffline': {
+    en: 'Offline — will sync',
+    hi: 'ऑफलाइन — बाद में सिंक होगा',
+  },
+
+  /* ── final submit + hardcopy photo ──────────────────────────────────── */
+  'staff.finalSubmit': { en: 'Final submit', hi: 'फ़ाइनल जमा करें' },
+  'staff.finalizeTitle': { en: 'Submit points', hi: 'पॉइंट जमा करें' },
+  'staff.hardcopyPhoto': { en: 'Hardcopy photo', hi: 'हार्डकॉपी फोटो' },
+  'staff.hardcopyHint': {
+    en: 'Take a photo of the paper record at the pump so hard and soft copies match.',
+    hi: 'पंप पर रखे कागज़ी रिकॉर्ड की फोटो लें ताकि हार्ड और सॉफ्ट कॉपी मेल खाएं।',
+  },
+  'staff.takePhoto': { en: 'Take photo', hi: 'फोटो खींचें' },
+  'staff.choosePhoto': { en: 'Choose photo', hi: 'फोटो चुनें' },
+  'staff.retakePhoto': { en: 'Change photo', hi: 'फोटो बदलें' },
+  'staff.photoRequired': {
+    en: 'A hardcopy photo is required to submit',
+    hi: 'जमा करने के लिए हार्डकॉपी फोटो ज़रूरी है',
+  },
+  'staff.confirmSubmit': { en: 'Submit {points} points', hi: '{points} पॉइंट जमा करें' },
+  'staff.submitting': { en: 'Submitting…', hi: 'जमा हो रहा है…' },
+  'staff.finalizeSuccess': {
+    en: '{points} points submitted',
+    hi: '{points} पॉइंट जमा हो गए',
+  },
+  'staff.finalizeFailed': {
+    en: "That didn't submit. Nothing was lost — please try again.",
+    hi: 'जमा नहीं हुआ। कुछ खोया नहीं — कृपया फिर कोशिश करें।',
+  },
+  'staff.finalizeEmpty': {
+    en: 'Add some work before submitting.',
+    hi: 'जमा करने से पहले कुछ काम जोड़ें।',
+  },
+  'staff.draftChanged': {
+    en: 'Your submission changed — please review and submit again.',
+    hi: 'आपकी सूची बदल गई — कृपया दोबारा देखकर जमा करें।',
+  },
+  'staff.offlineSubmit': {
+    en: "You're offline — reconnect to submit.",
+    hi: 'आप ऑफलाइन हैं — जमा करने के लिए दोबारा कनेक्ट करें।',
+  },
+  'staff.waitSaving': {
+    en: 'Saving your changes…',
+    hi: 'आपके बदलाव सेव हो रहे हैं…',
+  },
+  'staff.finalizeNote': { en: 'Note (optional)', hi: 'नोट (ज़रूरी नहीं)' },
+  'staff.notePlaceholder': { en: 'Add a note…', hi: 'नोट लिखें…' },
+
+  /* ── editable roster ─────────────────────────────────────────────────── */
+  'staff.editWorker': { en: 'Edit warrior', hi: 'योद्धा बदलें' },
+  'staff.renameWorker': { en: 'Edit warrior', hi: 'योद्धा बदलें' },
+  'staff.workerName': { en: 'Name', hi: 'नाम' },
+  'staff.workerDesignation': { en: 'Work / role', hi: 'काम / पद' },
+  'staff.workerPhone': { en: 'Phone', hi: 'फ़ोन' },
+  'staff.saveChanges': { en: 'Save changes', hi: 'बदलाव सेव करें' },
+  'staff.workerUpdated': { en: 'Warrior updated', hi: 'योद्धा अपडेट हुआ' },
+  'staff.removeWorker': { en: 'Remove warrior', hi: 'योद्धा हटाएं' },
+  'staff.removeWorkerConfirm': {
+    en: 'Remove {name}? Their points history stays.',
+    hi: '{name} को हटाएं? उनके पॉइंट का रिकॉर्ड बना रहेगा।',
+  },
+  'staff.workerRemoved': { en: 'Warrior removed', hi: 'योद्धा हटा दिया' },
+  'staff.showRemoved': { en: 'Show removed ({n})', hi: 'हटाए गए देखें ({n})' },
+  'staff.hideRemoved': { en: 'Hide removed', hi: 'हटाए गए छिपाएं' },
+  'staff.removedSection': { en: 'Removed warriors', hi: 'हटाए गए योद्धा' },
+  'staff.reactivate': { en: 'Bring back', hi: 'वापस लाएं' },
+  'staff.reactivated': { en: 'Warrior brought back', hi: 'योद्धा वापस आ गया' },
+
+  /* ── past submissions ────────────────────────────────────────────────── */
+  'staff.pastSubmissions': { en: 'Past submissions', hi: 'पिछली जमा' },
+  'staff.pastEmpty': { en: 'No submissions yet', hi: 'अभी कोई जमा नहीं' },
+  'staff.viewHardcopy': { en: 'View hardcopy', hi: 'हार्डकॉपी देखें' },
+  'staff.batchSummary': {
+    en: '{points} points · {workers} warriors',
+    hi: '{points} पॉइंट · {workers} योद्धा',
+  },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

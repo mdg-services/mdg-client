@@ -45,7 +45,7 @@ export function AppShell() {
   return (
     <div className="flex min-h-full flex-col bg-bg">
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
-        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4">
+        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-semibold">
               MDG
@@ -61,7 +61,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20">
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20 md:max-w-2xl lg:max-w-3xl">
         {/* The shell stays painted while the next page's chunk streams in. */}
         <React.Suspense
           fallback={
@@ -80,7 +80,7 @@ export function AppShell() {
           'pb-[max(0.5rem,env(safe-area-inset-bottom))]',
         )}
       >
-        <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1">
+        <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1 md:max-w-2xl lg:max-w-3xl">
           <TabLink to="/chat" icon={<MessageCircle width={22} strokeWidth={1.75} />} label={t('nav.chat')} />
           <TabLink to="/records" icon={<FileText width={22} strokeWidth={1.75} />} label={t('nav.reports')} />
           <TabLink

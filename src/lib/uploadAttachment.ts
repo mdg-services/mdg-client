@@ -1,6 +1,7 @@
 import type { Attachment, AttachmentKind, PresignUploadResponse } from '@dk/shared/types';
 
 import { api } from './api';
+import { compressImage } from './compressImage';
 
 /** A locally-prepared attachment, ready to upload and attach to a message. */
 export interface OutgoingAttachment {
@@ -14,6 +15,12 @@ export interface OutgoingAttachment {
   contentType?: string;
   /** Voice-note length in ms; only set for audio. */
   durationMs?: number;
+  /**
+   * Downsampled 0..1 waveform peaks for a recorded voice note. FRONTEND-ONLY:
+   * the wire `Attachment` has no field for these, so they are used for the local
+   * staged preview and dropped before upload. Sent notes render a pseudo-waveform.
+   */
+  peaks?: number[];
 }
 
 export function attachmentKindFor(contentType: string): AttachmentKind {
@@ -82,10 +89,22 @@ export async function uploadAttachment(
   item: OutgoingAttachment,
   conversationId: string,
 ): Promise<Attachment> {
-  const { file, durationMs } = item;
-  // Prefer the MIME resolved at pick time (recovers empty Android-WebView types);
-  // fall back to the live File.type, then a generic binary type.
-  const contentType = item.contentType || file.type || 'application/octet-stream';
+  const { durationMs } = item;
+
+  // Downscale + recompress photos before the presign so we upload (and later
+  // download) a few hundred KB instead of a multi-megabyte camera JPEG. Returns
+  // null when it's not worth it or could go wrong → keep the original file, so
+  // the presign Content-Type always matches what we actually PUT.
+  let file = item.file;
+  let contentType = item.contentType || file.type || 'application/octet-stream';
+  if (item.kind === 'image') {
+    const compressed = await compressImage(file, { contentType });
+    if (compressed) {
+      file = compressed;
+      contentType = compressed.type || contentType;
+    }
+  }
+
   const presign = await api.post<PresignUploadResponse>('/v1/uploads/sign', {
     filename: file.name,
     contentType,
