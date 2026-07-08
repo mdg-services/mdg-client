@@ -130,8 +130,8 @@ export function ChatPage() {
     t('chat.supportSubtitle');
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="flex items-center gap-1 border-b border-border bg-surface px-2 py-2.5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-1 border-b border-border bg-surface px-2 py-2.5">
         {showBack ? (
           <button
             type="button"

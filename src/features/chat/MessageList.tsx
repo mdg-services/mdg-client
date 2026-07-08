@@ -52,9 +52,18 @@ export function MessageList({
   const containerRef = React.useRef<HTMLDivElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
   const lastCount = React.useRef(0);
+  // Whether the user is parked at the bottom of the thread. Kept current on
+  // scroll so we know whether to re-pin when the viewport shrinks.
+  const stick = React.useRef(true);
   const [lightbox, setLightbox] = React.useState<string | null>(null);
   // Stable so the memoized MessageBubble doesn't re-render on every keystroke.
   const openImage = React.useCallback((url: string) => setLightbox(url), []);
+
+  const onScroll = React.useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive (only if user is near bottom)
   React.useLayoutEffect(() => {
@@ -67,6 +76,20 @@ export function MessageList({
     if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     lastCount.current = messages.length;
   }, [messages.length]);
+
+  // Keep the newest message visible when the scroll area itself resizes — the
+  // keyboard opening (shrinks the viewport) or the composer growing to multiple
+  // lines. Without this, opening the keyboard would leave the last message
+  // scrolled out of view above the fold.
+  React.useEffect(() => {
+    const el = containerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // Display oldest -> newest. Each API page is oldest-first, but pages arrive
   // newest-batch-first and realtime/optimistic messages are prepended, so sort
@@ -159,7 +182,8 @@ export function MessageList({
     <>
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin"
+        onScroll={onScroll}
+        className="min-h-0 flex-1 overflow-y-auto px-3 py-4 scrollbar-thin"
       >
         {hasMore ? (
           <div className="mb-3 flex justify-center">

@@ -1,6 +1,6 @@
 import { FileText, MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
 import * as React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useMatch } from 'react-router-dom';
 
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Avatar, Spinner } from '@/components/ui';
@@ -11,6 +11,7 @@ import { useDeliveryAck } from '@/hooks/useDeliveryAck';
 import { usePushBridge } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import { useKeyboardViewport } from '@/lib/useKeyboardViewport';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
 
@@ -32,9 +33,18 @@ export function AppShell() {
   useConversationsListSocket(); // keep the chat LIST + unread badges live app-wide
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
+  const { keyboardOpen } = useKeyboardViewport(); // track keyboard/visual viewport
   const t = useT();
   const user = useAuthStore((s) => s.user);
   const setLangFromUser = useLangStore((s) => s.setLangFromUser);
+
+  // An open conversation (/chat/:id) is a full-height messaging screen with its
+  // own composer pinned to the bottom. On that route we bind the frame to the
+  // *visible* viewport height (--vvh) instead of the layout `100%`, so the
+  // composer stays above the keyboard even on devices/keyboards where the native
+  // window doesn't resize (many tablets, split/floating keyboards). Other routes
+  // keep normal document flow + scrolling.
+  const inConversation = !!useMatch('/chat/:id');
 
   // A returning member lands in their saved language (unless they've already
   // made an explicit local pick). Guarded inside the store, so this is idempotent.
@@ -43,7 +53,10 @@ export function AppShell() {
   }, [user, setLangFromUser]);
 
   return (
-    <div className="flex min-h-full flex-col bg-bg">
+    <div
+      className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
+      style={inConversation ? { height: 'var(--vvh, 100vh)' } : undefined}
+    >
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">
           <div className="flex min-w-0 items-center gap-2">
@@ -61,7 +74,17 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-md flex-1 flex-col pb-20 md:max-w-2xl lg:max-w-3xl">
+      <main
+        className={cn(
+          'mx-auto flex w-full max-w-md flex-col md:max-w-2xl lg:max-w-3xl',
+          // In a conversation the frame is a fixed height (--vvh): clip here and
+          // let the message list scroll internally, so the composer stays pinned
+          // to the bottom. Reserve tab-bar space only while the bar is visible.
+          inConversation
+            ? cn('min-h-0 flex-1 overflow-hidden', !keyboardOpen && 'pb-20')
+            : 'flex-1 pb-20',
+        )}
+      >
         {/* The shell stays painted while the next page's chunk streams in. */}
         <React.Suspense
           fallback={
@@ -74,10 +97,15 @@ export function AppShell() {
         </React.Suspense>
       </main>
 
+      {/* Slide the tab bar out of the way while the keyboard is up so it never
+          sits between the composer and the keyboard (and the composer can take
+          the very bottom of the visible viewport). It returns on blur. */}
       <nav
+        aria-hidden={keyboardOpen}
         className={cn(
           'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface',
-          'pb-[max(0.5rem,env(safe-area-inset-bottom))]',
+          'pb-[max(0.5rem,env(safe-area-inset-bottom))] transition-transform duration-200',
+          keyboardOpen && 'pointer-events-none translate-y-full',
         )}
       >
         <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1 md:max-w-2xl lg:max-w-3xl">
