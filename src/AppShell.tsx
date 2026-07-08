@@ -61,7 +61,7 @@ export function AppShell() {
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">
           <div className="flex min-w-0 items-center gap-2">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-semibold">
-              MDG
+              DK
             </div>
             <span className="truncate text-sm font-semibold tracking-tight text-text">
               {t('app.brand')}

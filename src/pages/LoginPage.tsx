@@ -66,7 +66,7 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-1">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-text-inverse text-lg font-semibold tracking-tight">
-            MDG
+            DK
           </div>
           <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">
             {t('auth.welcome')}
