@@ -40,10 +40,16 @@ export function AppShell() {
 
   // An open conversation (/chat/:id) is a full-height messaging screen with its
   // own composer pinned to the bottom. On that route we bind the frame to the
-  // *visible* viewport height (--vvh) instead of the layout `100%`, so the
-  // composer stays above the keyboard even on devices/keyboards where the native
-  // window doesn't resize (many tablets, split/floating keyboards). Other routes
-  // keep normal document flow + scrolling.
+  // *visible* viewport height so the composer stays above the keyboard even on
+  // devices/keyboards where the native window doesn't resize (many tablets,
+  // split/floating keyboards). Height resolves in order of reliability:
+  //   1. --vvh   — JS-measured visual-viewport height (covers iOS Safari / any
+  //                WebView that doesn't honour interactive-widget).
+  //   2. 100dvh  — the dynamic viewport unit. With `interactive-widget=
+  //                resizes-content` (see index.html) the keyboard shrinks the
+  //                layout viewport, so dvh already excludes the keyboard even
+  //                before JS runs and regardless of visualViewport quirks.
+  // Other routes keep normal document flow + scrolling.
   const inConversation = !!useMatch('/chat/:id');
 
   // A returning member lands in their saved language (unless they've already
@@ -55,7 +61,7 @@ export function AppShell() {
   return (
     <div
       className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
-      style={inConversation ? { height: 'var(--vvh, 100vh)' } : undefined}
+      style={inConversation ? { height: 'var(--vvh, 100dvh)' } : undefined}
     >
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">

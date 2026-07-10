@@ -128,6 +128,7 @@ export function StagedAttachmentChip({
           src={staged.previewUrl}
           alt={staged.file.name}
           decoding="async"
+          draggable={false}
           className="h-10 w-10 rounded-lg object-cover"
         />
       ) : (
@@ -179,6 +180,19 @@ export function VoiceMessage({
     () => pseudoPeaks(attachment.storageKey || attachment.filename, WAVEFORM_BARS),
     [attachment.storageKey, attachment.filename],
   );
+
+  // Strip the OS "cast / AirPlay" route from this hidden <audio> so a private
+  // voice note can't surface a Now-Playing tile or be sent to a nearby device.
+  // Done imperatively (not via native controls, which would re-expose a
+  // download / context menu on the element).
+  React.useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    (el as HTMLAudioElement & { disableRemotePlayback?: boolean }).disableRemotePlayback =
+      true;
+    el.setAttribute('x-webkit-airplay', 'deny');
+    if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+  }, []);
 
   const toggle = () => {
     const el = audioRef.current;
@@ -280,6 +294,8 @@ export function MessageAttachment({
           alt={attachment.filename}
           loading="lazy"
           decoding="async"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
           className="max-h-72 min-h-[6rem] w-auto max-w-full object-cover"
         />
       </button>

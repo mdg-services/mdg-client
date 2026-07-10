@@ -298,7 +298,7 @@ function PendingLineRow({
             disabled={disabled}
             inputMode="decimal"
             aria-label={t('staff.amountRupees')}
-            className="h-8 w-16 bg-transparent text-right text-sm text-text outline-none disabled:opacity-60"
+            className="h-8 w-20 bg-transparent text-right text-base text-text outline-none disabled:opacity-60"
           />
         </div>
       ) : isPerUnit ? (

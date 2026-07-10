@@ -121,7 +121,9 @@ export const MessageBubble = React.memo(function MessageBubble({
         {message.body ? (
           <div
             className={cn(
-              'whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] leading-snug shadow-sm',
+              // Re-enable selection + long-press callout on the message BODY only
+              // (chrome is user-select:none via #root) so copy-a-message survives.
+              'select-text [-webkit-touch-callout:default] whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] leading-snug shadow-sm',
               mine
                 ? 'bg-brand text-text-inverse rounded-br-md'
                 : 'bg-surface text-text border border-border rounded-bl-md',

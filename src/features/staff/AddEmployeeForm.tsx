@@ -73,6 +73,9 @@ export function AddEmployeeForm({
       <Input
         placeholder={t('staff.form.namePlaceholder')}
         autoFocus
+        autoCapitalize="words"
+        autoComplete="off"
+        spellCheck={false}
         invalid={!!errors.name}
         {...register('name')}
       />
@@ -91,6 +94,8 @@ export function AddEmployeeForm({
 
       <Input
         placeholder={t('staff.form.designationPlaceholder')}
+        autoCapitalize="words"
+        spellCheck={false}
         {...register('designation')}
       />
 

@@ -13,7 +13,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         ref={ref}
         className={cn(
-          'h-11 w-full rounded-xl border bg-surface px-4 text-[15px] text-text',
+          'h-11 w-full rounded-xl border bg-surface px-4 text-base text-text',
           'placeholder:text-text-subtle',
           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring',
           invalid ? 'border-danger' : 'border-border-strong',

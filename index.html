@@ -2,7 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
+    <!-- interactive-widget=resizes-content: when the on-screen keyboard opens,
+         shrink the LAYOUT viewport (not just the visual one). This makes 100dvh /
+         100% / innerHeight reflect the space above the keyboard on every device —
+         including tablets & split/floating keyboards where the native window does
+         NOT resize (the default `resizes-visual` leaves the layout full-height, so
+         a bottom-pinned composer ends up hidden behind the keyboard). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#0f172a" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

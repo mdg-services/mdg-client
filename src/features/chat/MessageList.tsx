@@ -183,7 +183,7 @@ export function MessageList({
       <div
         ref={containerRef}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-y-auto px-3 py-4 scrollbar-thin"
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 scrollbar-thin"
       >
         {hasMore ? (
           <div className="mb-3 flex justify-center">
@@ -237,6 +237,8 @@ export function MessageList({
             src={lightbox}
             alt=""
             decoding="async"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             onClick={(e) => e.stopPropagation()}
             className="max-h-full max-w-full rounded-xl object-contain"
           />

@@ -12,6 +12,7 @@ import { useT } from '@/lib/i18n';
 import { queryClient } from '@/lib/queryClient';
 import { fmtPoints, istDate } from '@/lib/staff';
 import { uploadStaffHardcopy } from '@/lib/uploadStaffHardcopy';
+import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore, type DraftSyncState } from '@/store/staffDraft';
 
 /**
@@ -55,6 +56,9 @@ export function FinalizeSubmitSheet({
   const toast = useToast();
   const finalize = useFinalizeStaffDraft(dealerId);
   const clearDraft = useStaffDraftStore((s) => s.clearDraft);
+  // Lock the StaffPage behind the sheet so dragging the backdrop / overscrolling
+  // the sheet body doesn't scroll the page underneath.
+  useScrollLock();
 
   const [file, setFile] = React.useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -173,7 +177,7 @@ export function FinalizeSubmitSheet({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="flex flex-col gap-4">
             <div className="rounded-2xl bg-brand-soft px-4 py-3 text-center">
               <p className="text-2xl font-bold tabular-nums text-brand">
@@ -212,6 +216,7 @@ export function FinalizeSubmitSheet({
                   <img
                     src={previewUrl}
                     alt={t('staff.hardcopyPhoto')}
+                    draggable={false}
                     className="max-h-64 w-full bg-surface-2 object-contain"
                   />
                   <button

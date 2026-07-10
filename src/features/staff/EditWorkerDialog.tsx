@@ -9,6 +9,7 @@ import type { EmployeeWithPoints } from '@dk/shared/types';
 import { Button, Input, useToast } from '@/components/ui';
 import { useUpdateEmployee } from '@/hooks/api/useEmployees';
 import { useT } from '@/lib/i18n';
+import { useScrollLock } from '@/lib/useScrollLock';
 
 interface EditWorkerValues {
   name: string;
@@ -33,6 +34,8 @@ export function EditWorkerDialog({
   const toast = useToast();
   const update = useUpdateEmployee(dealerId);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
+  // Lock the StaffPage behind the dialog so its backdrop doesn't scroll the page.
+  useScrollLock();
 
   const {
     register,
@@ -108,6 +111,9 @@ export function EditWorkerDialog({
           </label>
           <Input
             autoFocus
+            autoCapitalize="words"
+            autoComplete="off"
+            spellCheck={false}
             invalid={!!errors.name}
             placeholder={t('staff.form.namePlaceholder')}
             {...register('name')}
@@ -123,6 +129,8 @@ export function EditWorkerDialog({
           </label>
           <Input
             placeholder={t('staff.form.designationPlaceholder')}
+            autoCapitalize="words"
+            spellCheck={false}
             {...register('designation')}
           />
 

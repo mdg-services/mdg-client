@@ -7,13 +7,15 @@ import { Spinner } from './Spinner';
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg' | 'icon';
 
+// `hover:` is gated to real pointers (tailwind hoverOnlyWhenSupported), so each
+// variant carries a matching `active:` state to give a press flash on touch.
 const VARIANTS: Record<Variant, string> = {
   primary:
-    'bg-brand text-text-inverse hover:bg-brand-hover disabled:bg-brand/60',
+    'bg-brand text-text-inverse hover:bg-brand-hover active:bg-brand-hover disabled:bg-brand/60',
   secondary:
-    'bg-surface text-text border border-border-strong hover:bg-surface-2',
-  ghost: 'bg-transparent text-text hover:bg-surface-2',
-  danger: 'bg-danger text-white hover:bg-danger/90',
+    'bg-surface text-text border border-border-strong hover:bg-surface-2 active:bg-surface-2',
+  ghost: 'bg-transparent text-text hover:bg-surface-2 active:bg-surface-2',
+  danger: 'bg-danger text-white hover:bg-danger/90 active:bg-danger/90',
 };
 
 const SIZES: Record<Size, string> = {

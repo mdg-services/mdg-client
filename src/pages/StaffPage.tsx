@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Trophy,
   UserPlus,
+  X,
 } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -181,6 +182,9 @@ function RemovedRoster({
 function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
   const t = useT();
   const [open, setOpen] = React.useState(false);
+  // View the hardcopy in an in-app lightbox (matching chat) rather than a
+  // target=_blank that would bounce the user out to the OS browser.
+  const [lightbox, setLightbox] = React.useState<string | null>(null);
   const batchesQuery = useStaffBatches(dealerId, open);
   const batches = batchesQuery.data ?? [];
 
@@ -224,20 +228,46 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
                   </p>
                 </div>
                 {b.hardCopyImageUrl ? (
-                  <a
-                    href={b.hardCopyImageUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setLightbox(b.hardCopyImageUrl!)}
                     className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text active:opacity-70"
                   >
                     <ImageIcon width={14} strokeWidth={1.75} />
                     {t('staff.viewHardcopy')}
-                  </a>
+                  </button>
                 ) : null}
               </li>
             ))}
           </ul>
         )
+      ) : null}
+
+      {lightbox ? (
+        <div
+          role="dialog"
+          aria-label={t('staff.viewHardcopy')}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            type="button"
+            aria-label={t('common.cancel')}
+            onClick={() => setLightbox(null)}
+            className="safe-top absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20"
+          >
+            <X width={22} strokeWidth={2} />
+          </button>
+          <img
+            src={lightbox}
+            alt=""
+            decoding="async"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-full max-w-full rounded-xl object-contain"
+          />
+        </div>
       ) : null}
     </div>
   );

@@ -27,7 +27,12 @@ export function Avatar({ name, src, size = 36, className }: AvatarProps) {
     >
       {src ? (
         // eslint-disable-next-line jsx-a11y/alt-text
-        <img src={src} className="h-full w-full object-cover" />
+        <img
+          src={src}
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          className="h-full w-full object-cover"
+        />
       ) : (
         <span>{initials(name)}</span>
       )}

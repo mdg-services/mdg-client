@@ -89,6 +89,9 @@ export function LoginPage() {
                   type="email"
                   autoComplete="email"
                   inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   invalid={!!errors.email}
                   placeholder={t('auth.emailPlaceholder')}
                   {...register('email')}

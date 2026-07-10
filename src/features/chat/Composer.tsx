@@ -438,7 +438,7 @@ export function Composer({
   return (
     <div className="border-t border-border bg-surface safe-bottom">
       {staged.length > 0 && recMode === 'idle' ? (
-        <div className="flex gap-2 overflow-x-auto px-3 pt-3 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
           {staged.map((s) => (
             <StagedAttachmentChip
               key={s.id}
@@ -530,7 +530,7 @@ export function Composer({
             placeholder={t('chat.placeholder')}
             className={cn(
               'min-h-[40px] max-h-[140px] flex-1 resize-none rounded-2xl border border-border bg-surface-2 px-4 py-2.5',
-              'text-[15px] text-text placeholder:text-text-subtle',
+              'text-base text-text placeholder:text-text-subtle',
               'focus:outline-none focus:ring-2 focus:ring-focus-ring',
             )}
             disabled={disabled}

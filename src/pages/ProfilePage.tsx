@@ -271,6 +271,9 @@ function TeamSection() {
           >
             <Input
               placeholder={t('profile.fullName')}
+              autoCapitalize="words"
+              autoComplete="off"
+              spellCheck={false}
               invalid={!!errors.name}
               {...register('name')}
             />
@@ -280,6 +283,11 @@ function TeamSection() {
             <Input
               type="email"
               placeholder={t('auth.email')}
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
               invalid={!!errors.email}
               {...register('email')}
             />
@@ -289,6 +297,9 @@ function TeamSection() {
             <Input
               type="password"
               placeholder={t('profile.tempPassword')}
+              // Teammate's temp password — signal a NEW credential so the OS
+              // manager doesn't autofill the owner's own login here.
+              autoComplete="new-password"
               invalid={!!errors.password}
               {...register('password')}
             />

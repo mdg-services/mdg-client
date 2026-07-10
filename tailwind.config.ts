@@ -1,6 +1,11 @@
 import type { Config } from 'tailwindcss';
 
 export default {
+  // Gate every `hover:` utility behind @media (hover: hover). Touch devices
+  // latch :hover after a tap, so without this a tapped button stays visually
+  // highlighted; the matching active: press states (see Button.tsx) give the
+  // real touch feedback instead.
+  future: { hoverOnlyWhenSupported: true },
   darkMode: 'class',
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {

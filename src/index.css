@@ -58,6 +58,69 @@
     padding-top: env(safe-area-inset-top);
     padding-bottom: 0; /* composer handles its own safe-area */
   }
+
+  /* ---- WebView touch hardening (native-app feel) --------------------------
+     This app only ever runs inside a WebView (WKWebView / Android System
+     WebView), touch-only. These rules strip the browser affordances that read
+     as "this is a web page" or, worse, hang the shell — the image press-hold
+     drag ghost being the headline bug. Selection is suppressed on chrome ONLY
+     (scoped to #root) and explicitly re-enabled on inputs and message text so
+     typing/paste and copy-a-message survive. Overscroll is intentionally NOT
+     set on html/body — that would risk the shell's native pull-to-refresh; it
+     is applied as `contain` on the individual inner scrollers instead. */
+  html {
+    -webkit-tap-highlight-color: transparent; /* no grey/blue flash on tap */
+    -webkit-touch-callout: none; /* no iOS long-press Save/Copy callout */
+  }
+  /* Kill the native drag ghost + iOS long-press callout on media & links. */
+  img,
+  a,
+  svg,
+  video,
+  [role='img'] {
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+  /* Suppress selection on app chrome; re-enabled per-surface below. */
+  #root {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  /* Editable fields keep selection, caret drag, and the paste callout. */
+  input,
+  textarea,
+  [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+  /* Immediate single-tap on leaf controls: no double-tap zoom / 300ms delay.
+     Deliberately excludes textarea and scroll containers. */
+  button,
+  a,
+  [role='button'],
+  input,
+  select,
+  label {
+    touch-action: manipulation;
+  }
+  /* Backstop against iOS focus-zoom: no focusable field below 16px. Tailwind
+     text-* classes out-specify this, so the class fixes on each field still
+     win; this only catches anything that slips through. */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  /* Themed selection highlight for the re-enabled message text (translucent,
+     no explicit color so text stays legible on brand bubbles in both themes). */
+  ::selection {
+    background: color-mix(in srgb, var(--color-online) 32%, transparent);
+  }
+  ::-moz-selection {
+    background: color-mix(in srgb, var(--color-online) 32%, transparent);
+  }
+
   *:focus-visible {
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;

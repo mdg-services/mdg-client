@@ -21,6 +21,7 @@ import {
   perEmployeePoints,
   totalAwardPointsForWorks,
 } from '@/lib/staff';
+import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore } from '@/store/staffDraft';
 
 type Step = 'worker' | 'work' | 'configure';
@@ -58,6 +59,8 @@ export function GivePointsFlow({
   const toast = useToast();
   const workItemsQuery = useDealerWorkItems(dealerId);
   const addEntries = useStaffDraftStore((s) => s.addEntries);
+  // Lock the StaffPage behind this full-screen flow so its scroll doesn't leak.
+  useScrollLock();
 
   const [step, setStep] = React.useState<Step>('worker');
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
@@ -232,7 +235,7 @@ export function GivePointsFlow({
           </button>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-3">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
           {step === 'worker' ? (
             <WorkerPicker employees={employees} onPick={pickWorker} t={t} />
           ) : step === 'work' ? (
@@ -403,6 +406,12 @@ function WorkPicker({
             value={search}
             onChange={(e) => onSearch(e.target.value)}
             placeholder={t('staff.give.searchWork')}
+            inputMode="search"
+            enterKeyHint="search"
+            autoCorrect="off"
+            autoCapitalize="none"
+            autoComplete="off"
+            spellCheck={false}
             className="pl-9"
           />
         </div>
@@ -705,7 +714,7 @@ function WorkRow({
               inputMode="decimal"
               placeholder={t('staff.enterAmount')}
               aria-label={t('staff.amountRupees')}
-              className="h-11 w-full bg-transparent text-[15px] text-text outline-none placeholder:text-text-subtle"
+              className="h-11 w-full bg-transparent text-base text-text outline-none placeholder:text-text-subtle"
             />
           </div>
           {showError ? (
