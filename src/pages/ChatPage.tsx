@@ -1,23 +1,34 @@
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Images } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import type { AttachmentInput } from '@dk/shared/schemas';
 
 import { Spinner, useToast } from '@/components/ui';
-import { Composer } from '@/features/chat/Composer';
+import { Composer, type ComposerReplyPreview } from '@/features/chat/Composer';
 import {
   conversationTitle,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
+import { MessageActionsSheet } from '@/features/chat/MessageActionsSheet';
+import { MessageInfoSheet } from '@/features/chat/MessageInfoSheet';
 import { MessageList } from '@/features/chat/MessageList';
+import { ReactionsSheet } from '@/features/chat/ReactionsSheet';
+import {
+  buildReplyContext,
+  replyPreview,
+  replySenderLabel,
+} from '@/features/chat/replyContext';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useMessages } from '@/hooks/api/useMessages';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
+import { useReactToMessage } from '@/hooks/api/useReactToMessage';
 import { useSendMessage } from '@/hooks/api/useSendMessage';
+import { useAttachmentDownload } from '@/lib/downloadAttachment';
 import { useT } from '@/lib/i18n';
 import { uploadAttachment, type OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useAuthStore } from '@/store/auth';
+import type { AttachmentInput } from '@dk/shared/schemas';
+import type { Message } from '@dk/shared/types';
 
 export function ChatPage() {
   const toast = useToast();
@@ -25,6 +36,7 @@ export function ChatPage() {
   const navigate = useNavigate();
   const { id: conversationId } = useParams<{ id: string }>();
   const user = useAuthStore((s) => s.user);
+  const userId = user?.id;
 
   const listQuery = useMyConversations();
   const conversation = React.useMemo(
@@ -37,13 +49,62 @@ export function ChatPage() {
 
   const messagesQuery = useMessages(conversationId);
   const sendMutation = useSendMessage();
+  const { mutate: reactMutate } = useReactToMessage();
+  const download = useAttachmentDownload();
   const { typing, emitTyping, markRead } = useConversationSocket(
     conversationId,
-    user?.id,
+    userId,
   );
 
   const [composerSeed, setComposerSeed] = React.useState<string | undefined>(
     undefined,
+  );
+
+  // WhatsApp-style interactions, all owned here so MessageList/MessageBubble
+  // get a single stable callback each (both are memo-sensitive).
+  const [replyTo, setReplyTo] = React.useState<Message | null>(null);
+  const [actionMessage, setActionMessage] = React.useState<Message | null>(null);
+  const [reactionsMessage, setReactionsMessage] = React.useState<Message | null>(null);
+  const [infoMessage, setInfoMessage] = React.useState<Message | null>(null);
+
+  // Leaving for another thread drops any half-done interaction state.
+  React.useEffect(() => {
+    setReplyTo(null);
+    setActionMessage(null);
+    setReactionsMessage(null);
+    setInfoMessage(null);
+  }, [conversationId]);
+
+  const handleAction = React.useCallback((message: Message) => {
+    setActionMessage(message);
+  }, []);
+
+  const handleOpenReactions = React.useCallback((message: Message) => {
+    setReactionsMessage(message);
+  }, []);
+
+  const handleReply = React.useCallback((message: Message) => {
+    setReplyTo(message);
+  }, []);
+
+  const cancelReply = React.useCallback(() => setReplyTo(null), []);
+
+  const handleInfo = React.useCallback((message: Message) => {
+    setInfoMessage(message);
+  }, []);
+
+  const handleToggleReaction = React.useCallback(
+    (message: Message, emoji: string) => {
+      if (!message.conversationId || message.id.startsWith('temp-')) return;
+      const mine = message.reactions?.find((r) => r.userId === userId);
+      reactMutate({
+        conversationId: message.conversationId,
+        messageId: message.id,
+        emoji,
+        op: mine?.emoji === emoji ? 'remove' : 'add',
+      });
+    },
+    [reactMutate, userId],
   );
 
   const messages = React.useMemo(
@@ -51,20 +112,51 @@ export function ChatPage() {
     [messagesQuery.data],
   );
 
+  // Sheets hold a message SNAPSHOT; keep them live against the cache so e.g.
+  // the who-reacted list updates in place as reactions land.
+  const liveReactionsMessage = React.useMemo(
+    () =>
+      reactionsMessage
+        ? (messages.find((m) => m.id === reactionsMessage.id) ?? reactionsMessage)
+        : null,
+    [messages, reactionsMessage],
+  );
+  const liveInfoMessage = React.useMemo(
+    () =>
+      infoMessage
+        ? (messages.find((m) => m.id === infoMessage.id) ?? infoMessage)
+        : null,
+    [messages, infoMessage],
+  );
+
+  // Memoized so its identity only changes when the reply target (or language)
+  // does — the Composer focuses the textarea on identity change, and a fresh
+  // object every render would re-summon the keyboard on unrelated re-renders.
+  const replyingTo = React.useMemo<ComposerReplyPreview | null>(() => {
+    if (!replyTo) return null;
+    const rc = buildReplyContext(replyTo);
+    const preview = replyPreview(rc, t);
+    return {
+      senderLabel: replySenderLabel(rc, userId, t),
+      text: preview.text,
+      icon: preview.icon,
+    };
+  }, [replyTo, userId, t]);
+
   // Mark the other party's messages read once they're on screen. Covers
   // messages loaded over HTTP (history) as well as anything realtime missed.
   React.useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
     const unread = messages
       .filter(
         (m) =>
           !m.id.startsWith('temp-') &&
-          m.senderId !== user.id &&
-          !m.readBy.includes(user.id),
+          m.senderId !== userId &&
+          !m.readBy.includes(userId),
       )
       .map((m) => m.id);
     if (unread.length > 0) markRead(unread);
-  }, [messages, user?.id, markRead]);
+  }, [messages, userId, markRead]);
 
   const handleSend = async (text: string, files: OutgoingAttachment[]) => {
     if (!conversationId) {
@@ -72,6 +164,10 @@ export function ChatPage() {
       return;
     }
     if (!text && files.length === 0) return;
+
+    // Capture + clear the reply target up front so the strip resets instantly.
+    const replyTarget = replyTo;
+    setReplyTo(null);
 
     try {
       const attachments: AttachmentInput[] = [];
@@ -91,6 +187,12 @@ export function ChatPage() {
         conversationId,
         body: text || undefined,
         attachments,
+        ...(replyTarget
+          ? {
+              replyToMessageId: replyTarget.id,
+              replyTo: buildReplyContext(replyTarget),
+            }
+          : {}),
       });
     } catch {
       toast.error(t('chat.sendFailed'));
@@ -126,7 +228,7 @@ export function ChatPage() {
     ? conversationTitle(conversation, t)
     : t('chat.support');
   const subtitle =
-    (conversation && participantSubtitle(conversation, user?.id)) ??
+    (conversation && participantSubtitle(conversation, userId)) ??
     t('chat.supportSubtitle');
 
   return (
@@ -147,6 +249,14 @@ export function ChatPage() {
           <p className="truncate text-xs text-text-subtle">{subtitle}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 pr-2">
+          <button
+            type="button"
+            aria-label={t('chat.mediaTitle')}
+            onClick={() => navigate(`/chat/${conversationId}/media`)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2 active:bg-surface-2"
+          >
+            <Images width={20} strokeWidth={1.75} />
+          </button>
           <span
             className="inline-block h-2 w-2 rounded-full"
             style={{ backgroundColor: 'var(--color-online)' }}
@@ -160,13 +270,19 @@ export function ChatPage() {
 
       <MessageList
         messages={messages}
-        currentUserId={user?.id ?? ''}
+        currentUserId={userId ?? ''}
+        conversationId={conversationId}
         loading={messagesQuery.isLoading}
         hasMore={!!messagesQuery.hasNextPage}
         loadingMore={messagesQuery.isFetchingNextPage}
         onLoadMore={() => void messagesQuery.fetchNextPage()}
+        onFetchOlder={messagesQuery.fetchNextPage}
         typing={typing}
         onQuickAction={(quick) => setComposerSeed(quick)}
+        showSenderNames={conversation?.kind === 'manager'}
+        onAction={handleAction}
+        onOpenReactions={handleOpenReactions}
+        onReply={handleReply}
       />
 
       <Composer
@@ -175,7 +291,40 @@ export function ChatPage() {
         sending={sendMutation.isPending}
         initialText={composerSeed}
         disabled={!conversationId}
+        replyingTo={replyingTo}
+        onCancelReply={cancelReply}
       />
+
+      {actionMessage ? (
+        <MessageActionsSheet
+          message={actionMessage}
+          mine={actionMessage.senderId === userId}
+          currentUserId={userId}
+          onClose={() => setActionMessage(null)}
+          onReply={handleReply}
+          onToggleReaction={handleToggleReaction}
+          onDownload={download}
+          onInfo={handleInfo}
+        />
+      ) : null}
+
+      {liveReactionsMessage ? (
+        <ReactionsSheet
+          message={liveReactionsMessage}
+          conversation={conversation}
+          currentUserId={userId}
+          onToggleReaction={handleToggleReaction}
+          onClose={() => setReactionsMessage(null)}
+        />
+      ) : null}
+
+      {liveInfoMessage ? (
+        <MessageInfoSheet
+          message={liveInfoMessage}
+          conversation={conversation}
+          onClose={() => setInfoMessage(null)}
+        />
+      ) : null}
     </div>
   );
 }

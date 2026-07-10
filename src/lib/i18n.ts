@@ -187,6 +187,68 @@ export const messages = {
   'chat.you': { en: 'You', hi: 'आप' },
   'chat.noMessagesYet': { en: 'No messages yet', hi: 'अभी कोई संदेश नहीं' },
 
+  /* ── message actions / reactions / replies ──────────────────────────── */
+  'chat.reply': { en: 'Reply', hi: 'जवाब दें' },
+  'chat.copy': { en: 'Copy', hi: 'कॉपी करें' },
+  'chat.copied': { en: 'Copied', hi: 'कॉपी हो गया' },
+  'chat.copyFailed': {
+    en: "Couldn't copy the message",
+    hi: 'संदेश कॉपी नहीं हो पाया',
+  },
+  'chat.download': { en: 'Download', hi: 'डाउनलोड करें' },
+  'chat.downloadFile': { en: 'Download {name}', hi: '{name} डाउनलोड करें' },
+  'chat.saving': { en: 'Saving…', hi: 'सेव हो रहा है…' },
+  'chat.savedToGallery': {
+    en: 'Saved to your gallery',
+    hi: 'आपकी गैलरी में सेव हो गया',
+  },
+  'chat.downloadingInBrowser': {
+    en: 'Download started in your browser',
+    hi: 'ब्राउज़र में डाउनलोड शुरू हो गया',
+  },
+  'chat.downloadFailed': {
+    en: "Couldn't download. Please check your network and try again.",
+    hi: 'डाउनलोड नहीं हो पाया। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+  'chat.messageInfo': { en: 'Message info', hi: 'संदेश की जानकारी' },
+  'chat.readBy': { en: 'Read by', hi: 'इन्होंने पढ़ा' },
+  'chat.deliveredTo': { en: 'Delivered to', hi: 'इन तक पहुंचा' },
+  'chat.sentLabel': { en: 'Sent', hi: 'भेजा गया' },
+  'chat.reactions': { en: 'Reactions', hi: 'रिएक्शन' },
+  'chat.tapToRemove': { en: 'Tap to remove', hi: 'हटाने के लिए दबाएं' },
+  'chat.reactionFailed': {
+    en: "Your reaction didn't save. Please try again.",
+    hi: 'आपका रिएक्शन सेव नहीं हुआ। कृपया फिर कोशिश करें।',
+  },
+  'chat.replyingTo': { en: 'Replying to {name}', hi: '{name} को जवाब' },
+  'chat.cancelReply': { en: 'Cancel reply', hi: 'जवाब रद्द करें' },
+  'chat.replyPhoto': { en: 'Photo', hi: 'फोटो' },
+  'chat.replyVoice': { en: 'Voice message', hi: 'वॉइस मैसेज' },
+  'chat.replyFile': { en: 'File', hi: 'फ़ाइल' },
+  'chat.originalNotFound': {
+    en: 'That message is no longer available',
+    hi: 'वह संदेश अब उपलब्ध नहीं है',
+  },
+  'chat.newMessages': { en: '{n} new messages', hi: '{n} नए संदेश' },
+  'chat.scrollToBottom': {
+    en: 'Go to the latest message',
+    hi: 'सबसे नए संदेश पर जाएं',
+  },
+  'chat.supportFallbackName': { en: 'MDG Support', hi: 'MDG सहायता' },
+
+  /* ── media / docs / links gallery ───────────────────────────────────── */
+  'chat.mediaTitle': {
+    en: 'Media, docs and links',
+    hi: 'मीडिया, दस्तावेज़ और लिंक',
+  },
+  'chat.tabMedia': { en: 'Media', hi: 'मीडिया' },
+  'chat.tabDocs': { en: 'Docs', hi: 'दस्तावेज़' },
+  'chat.tabLinks': { en: 'Links', hi: 'लिंक' },
+  'chat.noMedia': { en: 'No photos yet', hi: 'अभी कोई फोटो नहीं' },
+  'chat.noDocs': { en: 'No documents yet', hi: 'अभी कोई दस्तावेज़ नहीं' },
+  'chat.noLinks': { en: 'No links yet', hi: 'अभी कोई लिंक नहीं' },
+  'chat.loadMore': { en: 'Load more', hi: 'और देखें' },
+
   /* ── records / reports ──────────────────────────────────────────────── */
   'records.title': { en: 'Reports', hi: 'रिपोर्ट' },
   'records.errorTitle': {

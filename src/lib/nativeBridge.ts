@@ -101,6 +101,151 @@ export function requestNativeMicPermission(timeoutMs = 5000): Promise<boolean> {
   return micRequestInFlight;
 }
 
+/** What the shell did with a requested media download. */
+export interface NativeDownloadResult {
+  ok: boolean;
+  /** 'gallery' = saved via the media library; 'browser' = handed to Chrome. */
+  mode?: 'gallery' | 'browser';
+  error?: string;
+  /**
+   * True when the shell never ACKNOWLEDGED the request — an old binary without
+   * the 'media:download' handler (version skew during a Play rollout). The
+   * caller should fall back to a plain browser download. A shell that acked
+   * but then went silent is a FAILURE (no `timedOut`), not a fallback: the
+   * shell may still be downloading, and opening the browser too would fetch
+   * the file twice over the same 2G link.
+   */
+  timedOut?: boolean;
+}
+
+export interface NativeDownloadRequest {
+  /** Correlation id — echoed back in the started + result events. */
+  id: string;
+  url: string;
+  filename: string;
+  contentType?: string;
+  kind?: 'image' | 'file' | 'audio';
+}
+
+/**
+ * How long to wait for the shell's 'native-media-download-started' ack. A new
+ * shell injects it immediately after validating the request — before any slow
+ * download/permission work — so silence this long means an old binary without
+ * the handler.
+ */
+const DOWNLOAD_ACK_TIMEOUT_MS = 3000;
+/**
+ * Completion cap once the shell HAS acked: a chat photo over 2G plus a human
+ * answering the gallery-permission prompt is slow, but not endless.
+ */
+const DOWNLOAD_RESULT_TIMEOUT_MS = 120_000;
+
+interface PendingDownload {
+  /** Settle with the shell's final result (clears whichever timer is armed). */
+  settle: (result: NativeDownloadResult) => void;
+  /** The shell acked: swap the short old-shell timer for the completion cap. */
+  onStarted: () => void;
+}
+
+// Unlike the mic request (one prompt at a time), downloads can overlap, so each
+// request is keyed by a correlation id and ONE shared pair of listeners
+// dispatches the 'native-media-download(-started)' events to whichever request
+// they belong to. Both listeners detach again once no request is pending.
+const pendingDownloads = new Map<string, PendingDownload>();
+let downloadListenersAttached = false;
+
+const onDownloadResult = (e: Event) => {
+  const detail = (
+    e as CustomEvent<{
+      id?: string;
+      ok?: boolean;
+      mode?: 'gallery' | 'browser';
+      error?: string;
+    }>
+  ).detail;
+  if (!detail?.id) return;
+  const pending = pendingDownloads.get(detail.id);
+  if (!pending) return; // stale/duplicate result — already timed out or settled
+  pendingDownloads.delete(detail.id);
+  pending.settle({ ok: !!detail.ok, mode: detail.mode, error: detail.error });
+  detachDownloadListenersIfIdle();
+};
+
+// The started ack must NOT consume the pending entry — only the completion
+// event or a timeout settles a request. It merely re-arms the timers.
+const onDownloadStarted = (e: Event) => {
+  const detail = (e as CustomEvent<{ id?: string }>).detail;
+  if (!detail?.id) return;
+  pendingDownloads.get(detail.id)?.onStarted();
+};
+
+function attachDownloadListeners(): void {
+  if (downloadListenersAttached || typeof window === 'undefined') return;
+  downloadListenersAttached = true;
+  window.addEventListener('native-media-download', onDownloadResult as EventListener);
+  window.addEventListener(
+    'native-media-download-started',
+    onDownloadStarted as EventListener,
+  );
+}
+
+function detachDownloadListenersIfIdle(): void {
+  if (!downloadListenersAttached || pendingDownloads.size > 0) return;
+  downloadListenersAttached = false;
+  window.removeEventListener('native-media-download', onDownloadResult as EventListener);
+  window.removeEventListener(
+    'native-media-download-started',
+    onDownloadStarted as EventListener,
+  );
+}
+
+/**
+ * Ask the native shell to download a file (save an image to the gallery, or
+ * hand anything else to the system browser). Two-phase protocol: the shell
+ * acks with 'native-media-download-started' as soon as it takes the job, then
+ * reports the outcome via 'native-media-download'.
+ *
+ * Resolves `{ ok: false, timedOut: true }` in a plain browser or when the
+ * shell never acks within `ackTimeoutMs` (old binary — caller falls back to a
+ * browser download). Once acked, a missing result within `resultTimeoutMs`
+ * resolves `{ ok: false, error: 'timeout' }` WITHOUT `timedOut`, so the caller
+ * reports failure instead of double-downloading via the browser.
+ */
+export function requestNativeDownload(
+  req: NativeDownloadRequest,
+  ackTimeoutMs = DOWNLOAD_ACK_TIMEOUT_MS,
+  resultTimeoutMs = DOWNLOAD_RESULT_TIMEOUT_MS,
+): Promise<NativeDownloadResult> {
+  if (!isNativeShell() || typeof window === 'undefined') {
+    return Promise.resolve({ ok: false, timedOut: true });
+  }
+  attachDownloadListeners();
+  return new Promise<NativeDownloadResult>((resolve) => {
+    let timer = window.setTimeout(() => {
+      if (pendingDownloads.delete(req.id)) {
+        resolve({ ok: false, timedOut: true });
+        detachDownloadListenersIfIdle();
+      }
+    }, ackTimeoutMs);
+    pendingDownloads.set(req.id, {
+      settle: (result) => {
+        window.clearTimeout(timer);
+        resolve(result);
+      },
+      onStarted: () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          if (pendingDownloads.delete(req.id)) {
+            resolve({ ok: false, error: 'timeout' });
+            detachDownloadListenersIfIdle();
+          }
+        }, resultTimeoutMs);
+      },
+    });
+    postToNative({ type: 'media:download', ...req });
+  });
+}
+
 /**
  * Best-effort platform detection from the user-agent. Defaults to 'web'.
  */

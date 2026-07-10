@@ -22,6 +22,9 @@ const ChatListPage = lazyWithRetry(() =>
 const ChatPage = lazyWithRetry(() =>
   import('@/pages/ChatPage').then((m) => ({ default: m.ChatPage })),
 );
+const ChatMediaPage = lazyWithRetry(() =>
+  import('@/pages/ChatMediaPage').then((m) => ({ default: m.ChatMediaPage })),
+);
 const RecordsPage = lazyWithRetry(() =>
   import('@/pages/RecordsPage').then((m) => ({ default: m.RecordsPage })),
 );
@@ -72,6 +75,8 @@ export function App() {
             <Route path="/" element={<ChatListPage />} />
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatPage />} />
+            {/* Everything ever shared in a thread: media / docs / links. */}
+            <Route path="/chat/:id/media" element={<ChatMediaPage />} />
             <Route path="/records" element={<RecordsPage />} />
             <Route path="/kavach" element={<KavachPage />} />
             {/* Services demoted from the bottom bar; still reachable from Profile. */}

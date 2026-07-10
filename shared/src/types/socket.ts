@@ -1,8 +1,14 @@
-import type { Conversation, Message } from './conversation';
+import type { Conversation, Message, MessageReaction } from './conversation';
 import type { DealerRecord } from './record';
 
 export interface ServerToClientEvents {
   'message:new': (payload: { message: Message; conversation: Conversation }) => void;
+  /** A message's reaction set changed; payload carries the full authoritative array. */
+  'message:reaction': (payload: {
+    conversationId: string;
+    messageId: string;
+    reactions: MessageReaction[];
+  }) => void;
   'conversation:updated': (payload: { conversation: Conversation }) => void;
   'record:new': (payload: { record: DealerRecord }) => void;
   typing: (payload: { conversationId: string; userId: string; userName: string }) => void;

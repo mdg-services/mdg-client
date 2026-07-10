@@ -1,12 +1,12 @@
 import { FileText, Mic, Pause, Play, X } from 'lucide-react';
 import * as React from 'react';
 
-import type { Attachment, AttachmentKind } from '@dk/shared/types';
 
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
 import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
+import type { Attachment, AttachmentKind } from '@dk/shared/types';
 
 export interface StagedFile {
   id: string;
@@ -235,7 +235,9 @@ export function VoiceMessage({
           <Play width={16} strokeWidth={2} className="translate-x-[1px]" />
         )}
       </button>
-      <div className="flex min-w-[132px] flex-1 flex-col gap-1">
+      {/* data-no-swipe: dragging the seek scrubber must never engage the
+          swipe-to-reply gesture on the row. */}
+      <div data-no-swipe className="flex min-w-[132px] flex-1 flex-col gap-1">
         <Waveform peaks={peaks} progress={progress} mine={mine} onSeek={seek} />
         <span
           className={cn(
@@ -274,7 +276,7 @@ export function MessageAttachment({
 }: {
   attachment: Attachment;
   mine?: boolean;
-  onOpenImage?: (url: string) => void;
+  onOpenImage?: (attachment: Attachment) => void;
 }) {
   if (attachment.kind === 'audio' && attachment.url) {
     return <VoiceMessage attachment={attachment} mine={mine} />;
@@ -283,7 +285,7 @@ export function MessageAttachment({
     return (
       <button
         type="button"
-        onClick={() => onOpenImage?.(attachment.url!)}
+        onClick={() => onOpenImage?.(attachment)}
         className="block overflow-hidden rounded-xl border border-border bg-surface-2"
       >
         {/* lazy + async decode keeps image-heavy threads from janking / spiking

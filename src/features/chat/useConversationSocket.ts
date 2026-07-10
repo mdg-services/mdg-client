@@ -2,9 +2,10 @@ import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { messagesQueryKey } from '@/hooks/api/useMessages';
+import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
-import type { Conversation, Message } from '@dk/shared/types';
+import type { Conversation, Message, MessageReaction } from '@dk/shared/types';
 
 export interface TypingState {
   active: boolean;
@@ -129,10 +130,43 @@ export function useConversationSocket(
       applyReceipt('readBy', payload.userId, payload.messageIds);
     };
 
+    // A message's reaction set changed. The payload carries the FULL
+    // authoritative array, so replacing wholesale is idempotent — safe against
+    // duplicate deliveries and it reconciles any optimistic local toggle.
+    const onReaction = (payload: {
+      conversationId: string;
+      messageId: string;
+      reactions: MessageReaction[];
+    }) => {
+      if (payload.conversationId !== conversationId) return;
+      // Skip while one of OUR toggles for this message is still in flight —
+      // this echo may be the older request's snapshot, and applying it would
+      // transiently resurrect state the newer optimistic toggle changed. The
+      // last mutation's onSuccess reconciles to server truth.
+      if (reactionMutationsPending(qc, payload.messageId) > 0) return;
+      qc.setQueryData<InfiniteData<Message[]>>(
+        messagesQueryKey(conversationId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === payload.messageId
+                  ? { ...m, reactions: payload.reactions }
+                  : m,
+              ),
+            ),
+          };
+        },
+      );
+    };
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('delivered', onDelivered);
     socket.on('read', onRead);
+    socket.on('message:reaction', onReaction);
 
     return () => {
       socket.emit('conversation:leave', conversationId);
@@ -142,6 +176,7 @@ export function useConversationSocket(
       socket.off('typing', onTyping);
       socket.off('delivered', onDelivered);
       socket.off('read', onRead);
+      socket.off('message:reaction', onReaction);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
     };
   }, [conversationId, currentUserId, qc, applyReceipt]);

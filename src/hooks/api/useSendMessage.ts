@@ -3,7 +3,7 @@ import { useMutation, useQueryClient, type InfiniteData } from '@tanstack/react-
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { AttachmentInput } from '@dk/shared/schemas';
-import type { Message } from '@dk/shared/types';
+import type { Message, MessageReplyContext } from '@dk/shared/types';
 
 import { messagesQueryKey } from './useMessages';
 
@@ -11,6 +11,10 @@ interface SendVars {
   conversationId: string;
   body?: string;
   attachments?: AttachmentInput[];
+  /** Message being replied to (server embeds the authoritative snapshot). */
+  replyToMessageId?: string;
+  /** Client-built snapshot so the optimistic bubble renders its quote instantly. */
+  replyTo?: MessageReplyContext;
 }
 
 export function useSendMessage() {
@@ -19,10 +23,11 @@ export function useSendMessage() {
     // Tagged so the socket reconnect backfill can skip a full messages refetch
     // while a send is in flight (would otherwise race the optimistic update).
     mutationKey: ['sendMessage'],
-    mutationFn: ({ conversationId, body, attachments }: SendVars) =>
+    mutationFn: ({ conversationId, body, attachments, replyToMessageId }: SendVars) =>
       api.post<Message>(`/v1/conversations/${conversationId}/messages`, {
         body,
         attachments: attachments ?? [],
+        ...(replyToMessageId ? { replyToMessageId } : {}),
       }),
     onMutate: async (vars) => {
       const key = messagesQueryKey(vars.conversationId);
@@ -41,6 +46,7 @@ export function useSendMessage() {
         attachments: (vars.attachments ?? []).map((a) => ({ ...a })),
         deliveredTo: [],
         readBy: [],
+        ...(vars.replyTo ? { replyTo: vars.replyTo } : {}),
         createdAt: new Date().toISOString(),
       };
       qc.setQueryData<InfiniteData<Message[]>>(key, (old) => {

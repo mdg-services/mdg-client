@@ -1,7 +1,22 @@
 import { z } from 'zod';
 
+import { QUICK_REACTIONS } from '../types/conversation';
+
 /** Hard cap on a single voice note: 10 minutes. */
 export const MAX_VOICE_DURATION_MS = 10 * 60 * 1000;
+
+/** Max chars of the original body snapshotted into a reply quote. */
+export const REPLY_SNIPPET_MAX = 140;
+
+/**
+ * Build the reply-quote snippet from the original body. Slices by code point
+ * (not UTF-16 unit) so a cut at the limit can never split an emoji's surrogate
+ * pair into a corrupted "�" tail. Used by the server snapshot and by both web
+ * clients' optimistic mirrors — keep them byte-identical.
+ */
+export function replySnippet(body: string): string {
+  return Array.from(body).slice(0, REPLY_SNIPPET_MAX).join('');
+}
 
 export const attachmentSchema = z.object({
   storageKey: z.string().min(1).max(512),
@@ -22,11 +37,28 @@ export const sendMessageSchema = z
   .object({
     body: z.string().trim().max(4000).optional(),
     attachments: z.array(attachmentSchema).max(10).optional().default([]),
+    /** Id of the message this one replies to; must belong to the same conversation. */
+    replyToMessageId: z.string().min(1).max(64).optional(),
   })
   .refine((d) => (d.body && d.body.length > 0) || (d.attachments && d.attachments.length > 0), {
     message: 'Message must have a body or at least one attachment',
   });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/** Set (or replace) the caller's reaction on a message. */
+export const reactToMessageSchema = z.object({
+  emoji: z.enum(QUICK_REACTIONS),
+});
+export type ReactToMessageInput = z.infer<typeof reactToMessageSchema>;
+
+/** Query params for the per-conversation media/docs/links gallery. */
+export const conversationMediaQuerySchema = z.object({
+  tab: z.enum(['media', 'docs', 'links']).default('media'),
+  /** ISO createdAt cursor: return items strictly older than this. */
+  before: z.string().datetime().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(30),
+});
+export type ConversationMediaQuery = z.infer<typeof conversationMediaQuerySchema>;
 
 export const presignUploadSchema = z.object({
   filename: z.string().min(1).max(255),

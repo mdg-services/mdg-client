@@ -147,6 +147,9 @@
   .safe-bottom {
     padding-bottom: max(env(safe-area-inset-bottom), 0.5rem);
   }
+  .safe-top {
+    padding-top: max(env(safe-area-inset-top), 0.5rem);
+  }
   .animate-in {
     animation: fade-in 180ms ease-out both;
   }
@@ -163,5 +166,21 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Jump-to-quoted-message: a 2s background pulse on the landed-on bubble row.
+   Applied imperatively (classList) by MessageList so only that row repaints. */
+.flash-highlight {
+  border-radius: 12px;
+  animation: flash-highlight 2s ease-out both;
+}
+@keyframes flash-highlight {
+  0%,
+  35% {
+    background-color: color-mix(in srgb, var(--color-online) 22%, transparent);
+  }
+  100% {
+    background-color: transparent;
   }
 }

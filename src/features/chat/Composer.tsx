@@ -1,15 +1,16 @@
 import {
   Camera,
   ChevronLeft,
+  FileText,
   Lock,
   Mic,
   Paperclip,
   SendHorizonal,
   Trash2,
+  X,
 } from 'lucide-react';
 import * as React from 'react';
 
-import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
@@ -22,12 +23,25 @@ import {
 } from '@/lib/uploadAttachment';
 import { useVoiceRecorder } from '@/lib/useVoiceRecorder';
 
+import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
+import { type ReplyPreviewIcon } from './replyContext';
+
+/** What the reply strip above the textarea shows (built by the chat screen). */
+export interface ComposerReplyPreview {
+  senderLabel: string;
+  text: string;
+  icon: ReplyPreviewIcon;
+}
+
 export interface ComposerProps {
   onSend: (text: string, attachments: OutgoingAttachment[]) => Promise<void> | void;
   onTyping?: () => void;
   disabled?: boolean;
   sending?: boolean;
   initialText?: string;
+  /** When set, a quote strip renders above the input (replying to a message). */
+  replyingTo?: ComposerReplyPreview | null;
+  onCancelReply?: () => void;
 }
 
 const ACCEPT = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt';
@@ -140,12 +154,21 @@ function LiveWaveform({
   );
 }
 
+const REPLY_ICONS: Record<Exclude<ReplyPreviewIcon, null>, typeof Camera> = {
+  image: Camera,
+  audio: Mic,
+  file: FileText,
+  card: FileText,
+};
+
 export function Composer({
   onSend,
   onTyping,
   disabled,
   sending,
   initialText,
+  replyingTo,
+  onCancelReply,
 }: ComposerProps) {
   const t = useT();
   const toast = useToast();
@@ -181,6 +204,11 @@ export function Composer({
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [text]);
+
+  // Starting a reply focuses the input (WhatsApp behaviour: swipe → type).
+  React.useEffect(() => {
+    if (replyingTo) textareaRef.current?.focus();
+  }, [replyingTo]);
 
   React.useEffect(() => {
     return () => {
@@ -455,8 +483,41 @@ export function Composer({
     void stopAndSend();
   };
 
+  const ReplyIcon = replyingTo?.icon ? REPLY_ICONS[replyingTo.icon] : null;
+
   return (
     <div className="border-t border-border bg-surface safe-bottom">
+      {replyingTo && recMode === 'idle' ? (
+        // Same strip pattern as the staged attachments: a dismissible preview
+        // row pinned above the input while composing.
+        <div
+          aria-label={t('chat.replyingTo', { name: replyingTo.senderLabel })}
+          className="flex items-center gap-2 px-3 pt-3"
+        >
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border-l-[3px] border-brand bg-surface-2 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-text">
+                {replyingTo.senderLabel}
+              </p>
+              <p className="flex items-center gap-1 text-xs text-text-muted">
+                {ReplyIcon ? (
+                  <ReplyIcon width={12} strokeWidth={1.75} className="shrink-0" />
+                ) : null}
+                <span className="truncate">{replyingTo.text}</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={t('chat.cancelReply')}
+              onClick={onCancelReply}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface active:bg-surface"
+            >
+              <X width={16} strokeWidth={1.75} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {staged.length > 0 && recMode === 'idle' ? (
         <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
           {staged.map((s) => (

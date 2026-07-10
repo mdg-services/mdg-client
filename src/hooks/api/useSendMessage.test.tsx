@@ -3,15 +3,17 @@ import { act, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '@/lib/api';
+import type * as ApiModule from '@/lib/api';
 import { makeMessage, makeTestQueryClient, renderHookWithProviders, signIn } from '@/test/utils';
 import type { Message } from '@dk/shared/types';
+
 
 import { messagesQueryKey } from './useMessages';
 import { useSendMessage } from './useSendMessage';
 
 // Keep every real export; only stub the network call the mutation makes.
 vi.mock('@/lib/api', async (orig) => {
-  const actual = await orig<typeof import('@/lib/api')>();
+  const actual = await orig<typeof ApiModule>();
   return { ...actual, api: { ...actual.api, post: vi.fn() } };
 });
 

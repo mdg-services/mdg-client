@@ -135,6 +135,71 @@ export interface Conversation {
 
 export type AttachmentKind = 'image' | 'file' | 'audio';
 
+/**
+ * The fixed quick-reaction set offered by every chat UI and accepted by the
+ * API (server validates against this list). One reaction per user per message.
+ */
+export const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'] as const;
+export type QuickReaction = (typeof QUICK_REACTIONS)[number];
+
+/** One user's emoji reaction to a message. */
+export interface MessageReaction {
+  userId: string;
+  /** Display name, decorated by the API at read time. */
+  userName?: string;
+  /** Typed as string (not QuickReaction) so future emoji don't break old clients. */
+  emoji: string;
+  createdAt: string;
+}
+
+/**
+ * Denormalized snapshot of the message a reply quotes, embedded on the reply
+ * at send time (server-built) so the quote renders without a second fetch and
+ * survives the original paging out.
+ */
+export interface MessageReplyContext {
+  messageId: string;
+  senderId: string;
+  senderName?: string;
+  /** Original body, truncated server-side to REPLY_SNIPPET_MAX chars. */
+  body?: string;
+  /** Kind of the original's first attachment, so the quote can show an icon. */
+  attachmentKind?: AttachmentKind;
+  /** Filename of the original's first attachment (file quotes). */
+  attachmentName?: string;
+  /** Voice-note length of the original, for a "0:42" quote label. */
+  durationMs?: number;
+  /** Storage key of the original's first image, for the quote thumbnail. */
+  imageStorageKey?: string;
+  /** Signed thumbnail URL, populated by the API at read time. */
+  imageUrl?: string;
+  /** True when the original was a record card. */
+  card?: boolean;
+  /** Card title when the original was a record card. */
+  cardTitle?: string;
+}
+
+/** Tabs of the per-conversation media gallery. */
+export type ConversationMediaTab = 'media' | 'docs' | 'links';
+export const CONVERSATION_MEDIA_TABS: ConversationMediaTab[] = ['media', 'docs', 'links'];
+
+/**
+ * One gallery item: an attachment (media/docs tabs) or the links extracted
+ * from one message's body (links tab).
+ */
+export interface ConversationMediaItem {
+  messageId: string;
+  senderId: string;
+  senderName?: string;
+  createdAt: string;
+  /** Present for 'media' and 'docs' items. */
+  attachment?: Attachment;
+  /** Present for 'links' items: URLs extracted from the message body. */
+  urls?: string[];
+  /** Short body excerpt giving the link some context. */
+  bodySnippet?: string;
+}
+
 export interface Attachment {
   storageKey: string;
   filename: string;
@@ -166,6 +231,10 @@ export interface Message {
   deliveredTo?: string[];
   /** User ids that have read the message (drives the blue ✓✓ "seen" tick). Includes the sender. */
   readBy: string[];
+  /** Emoji reactions; at most one per user (server-enforced). */
+  reactions?: MessageReaction[];
+  /** Set when this message replies to (quotes) another message in the thread. */
+  replyTo?: MessageReplyContext;
   createdAt: string;
 }
 

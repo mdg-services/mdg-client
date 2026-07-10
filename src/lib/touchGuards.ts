@@ -13,8 +13,9 @@
  * The contextmenu guard suppresses the Android long-press "Save image / Copy
  * link" menu (which CSS callout suppression does not cover on Android) but
  * EXEMPTS editable fields, so long-press Paste/Select still works in the composer
- * and forms. Text selection itself is left untouched here — chat message text is
- * intentionally copyable (handled in CSS, scoped to the message body).
+ * and forms. Chat message text is NOT exempt: long-press there opens the app's
+ * own message action menu (Copy lives in it), which must never race the
+ * browser's selection UI.
  */
 export function installTouchGuards(): void {
   const stop = (e: Event) => e.preventDefault();
@@ -28,10 +29,10 @@ export function installTouchGuards(): void {
   document.addEventListener('gesturestart', stop, true);
 
   // Long-press context menu — everywhere except (a) editable fields, so paste
-  // and native selection survive, and (b) .select-text (the chat message body),
-  // so long-press-to-copy a message is never suppressed on Android WebView
-  // builds that route text long-press through contextmenu. Images/links/chrome
-  // still lose their "Save image / Open link" menu.
+  // and native selection survive, and (b) any opt-in .select-text surface.
+  // Chat bubbles no longer use .select-text: their long-press opens the message
+  // action menu instead (Copy moved there). Images/links/chrome still lose
+  // their "Save image / Open link" menu.
   document.addEventListener(
     'contextmenu',
     (e) => {
