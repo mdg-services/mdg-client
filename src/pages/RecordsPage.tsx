@@ -1,13 +1,13 @@
 import { FileText } from 'lucide-react';
 import * as React from 'react';
 
-import type { DealerRecord, RecordType } from '@dk/shared/types';
-import { RECORD_TYPES } from '@dk/shared/types';
 
 import { EmptyState, Spinner } from '@/components/ui';
 import { RecordCard } from '@/features/records/RecordCard';
 import { useRecords } from '@/hooks/api/useRecords';
 import { useT } from '@/lib/i18n';
+import { RECORD_TYPES } from '@dk/shared/types';
+import type { DealerRecord, RecordType } from '@dk/shared/types';
 
 function byNewest(a: DealerRecord, b: DealerRecord): number {
   return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();

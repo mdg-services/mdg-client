@@ -1,7 +1,7 @@
-import type { Message } from '@dk/shared/types';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
+import type { Message } from '@dk/shared/types';
 
 const PAGE_SIZE = 30;
 

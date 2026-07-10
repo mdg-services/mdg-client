@@ -2,7 +2,6 @@ import { MessageCircle, PartyPopper, ShieldCheck } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import type { KavachItem } from '@dk/shared/types';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
 import { ComplianceTaskCard } from '@/features/kavach/ComplianceTaskCard';
@@ -11,6 +10,7 @@ import { byUrgency, isDueToday, isSos } from '@/features/kavach/status';
 import { useKavachMe } from '@/hooks/api/useKavach';
 import { useMyPrimaryConversation } from '@/hooks/api/useMyConversations';
 import { pick, useLang, useT } from '@/lib/i18n';
+import type { KavachItem } from '@dk/shared/types';
 
 function GroupHeader({ label }: { label: string }) {
   return (

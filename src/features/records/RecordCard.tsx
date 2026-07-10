@@ -7,10 +7,10 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import type { RecordType } from '@dk/shared/types';
 
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import type { RecordType } from '@dk/shared/types';
 
 interface TypeStyle {
   icon: LucideIcon;

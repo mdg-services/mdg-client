@@ -2,16 +2,18 @@ import { waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '@/lib/api';
+import type * as ApiModule from '@/lib/api';
+import type * as StaffModule from '@/lib/staff';
 import { renderHookWithProviders, resetStores } from '@/test/utils';
 
 import { employeesQueryKey, useEmployees, windowBounds, type PointsWindow } from './useEmployees';
 
 vi.mock('@/lib/staff', async (orig) => {
-  const actual = await orig<typeof import('@/lib/staff')>();
+  const actual = await orig<typeof StaffModule>();
   return { ...actual, istDate: () => '2026-07-07', istMonthStart: () => '2026-07-01' };
 });
 vi.mock('@/lib/api', async (orig) => {
-  const actual = await orig<typeof import('@/lib/api')>();
+  const actual = await orig<typeof ApiModule>();
   return { ...actual, api: { ...actual.api, get: vi.fn() } };
 });
 

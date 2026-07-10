@@ -1,9 +1,9 @@
 import { fireEvent, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import { useLangStore } from '@/store/lang';
+import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type { Conversation } from '@dk/shared/types';
 
 const h = vi.hoisted(() => ({

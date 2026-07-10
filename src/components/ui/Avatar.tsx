@@ -26,9 +26,10 @@ export function Avatar({ name, src, size = 36, className }: AvatarProps) {
       aria-label={name}
     >
       {src ? (
-        // eslint-disable-next-line jsx-a11y/alt-text
+        // Decorative: the wrapping span already carries the name as aria-label.
         <img
           src={src}
+          alt=""
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
           className="h-full w-full object-cover"

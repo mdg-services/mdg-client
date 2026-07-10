@@ -1,8 +1,10 @@
 import { act } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as UiModule from '@/components/ui';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
 import { renderHookWithProviders, resetStores, signIn } from '@/test/utils';
+
 
 import { useRecordsSocket } from './useRecordsSocket';
 
@@ -13,7 +15,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/lib/socket', () => ({ getSocket: () => h.socket }));
 vi.mock('@/components/ui', async (orig) => {
-  const actual = await orig<typeof import('@/components/ui')>();
+  const actual = await orig<typeof UiModule>();
   const toast = { info: h.toastInfo, success: vi.fn(), error: vi.fn() };
   return { ...actual, useToast: () => toast };
 });

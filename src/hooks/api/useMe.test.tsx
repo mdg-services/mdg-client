@@ -2,6 +2,7 @@ import { waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { api } from '@/lib/api';
+import type * as ApiModule from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import {
   makeTestQueryClient,
@@ -11,10 +12,11 @@ import {
   signIn,
 } from '@/test/utils';
 
+
 import { useMe } from './useMe';
 
 vi.mock('@/lib/api', async (orig) => {
-  const actual = await orig<typeof import('@/lib/api')>();
+  const actual = await orig<typeof ApiModule>();
   return { ...actual, api: { ...actual.api, get: vi.fn() } };
 });
 

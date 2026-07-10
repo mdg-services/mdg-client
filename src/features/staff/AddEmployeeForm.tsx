@@ -2,11 +2,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
-import { createEmployeeSchema } from '@dk/shared/schemas';
 
 import { Button, Input } from '@/components/ui';
 import { useAddEmployee } from '@/hooks/api/useEmployees';
 import { useT } from '@/lib/i18n';
+import { createEmployeeSchema } from '@dk/shared/schemas';
 
 type AddEmployeeValues = {
   name: string;

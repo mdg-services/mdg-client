@@ -1,6 +1,6 @@
+import type { MessageKey } from '@/lib/i18n';
 import type { KavachItem, KavachItemStatus } from '@dk/shared/types';
 
-import type { MessageKey } from '@/lib/i18n';
 
 /**
  * Dealer-facing status presentation. We NEVER show raw enums (VALID/EXPIRED) or

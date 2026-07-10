@@ -6,7 +6,6 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
-import type { User } from '@dk/shared/types';
 
 import { LanguageToggle } from '@/components/LanguageToggle';
 import {
@@ -23,6 +22,7 @@ import { ApiError, api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
+import type { User } from '@dk/shared/types';
 
 type PasswordValues = {
   currentPassword: string;

@@ -1,6 +1,6 @@
+import type { TFunction } from '@/lib/i18n';
 import type { Conversation } from '@dk/shared/types';
 
-import type { TFunction } from '@/lib/i18n';
 
 /** A human title for a dealer-side conversation row/header. */
 export function conversationTitle(conv: Conversation, t: TFunction): string {

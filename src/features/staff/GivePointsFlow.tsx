@@ -1,12 +1,6 @@
 import { Check, ChevronLeft, Minus, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 
-import { STAFF_WORK_DOMAINS } from '@dk/shared/types';
-import type {
-  EffectiveWorkItem,
-  EmployeeWithPoints,
-  StaffPointDraftEntry,
-} from '@dk/shared/types';
 
 import { Avatar, Button, Input, Spinner, useToast } from '@/components/ui';
 import { useDealerWorkItems } from '@/hooks/api/useDealerWorkItems';
@@ -23,6 +17,12 @@ import {
 } from '@/lib/staff';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore } from '@/store/staffDraft';
+import type {
+  EffectiveWorkItem,
+  EmployeeWithPoints,
+  StaffPointDraftEntry,
+} from '@dk/shared/types';
+import { STAFF_WORK_DOMAINS } from '@dk/shared/types';
 
 type Step = 'worker' | 'work' | 'configure';
 

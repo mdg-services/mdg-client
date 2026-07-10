@@ -1,8 +1,8 @@
 import { screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import { useLangStore } from '@/store/lang';
+import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type { KavachProgramme } from '@dk/shared/types';
 
 // Mutable results the mocked hooks read from, so a single test can drive the

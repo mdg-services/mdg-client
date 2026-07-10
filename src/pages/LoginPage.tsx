@@ -5,13 +5,13 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
-import type { AuthLoginResponse } from '@dk/shared/types';
 
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { postToNative } from '@/lib/nativeBridge';
 import { useAuthStore } from '@/store/auth';
+import type { AuthLoginResponse } from '@dk/shared/types';
 
 type FormValues = { email: string; password: string };
 

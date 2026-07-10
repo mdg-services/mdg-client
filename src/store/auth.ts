@@ -1,9 +1,9 @@
-import type { User } from '@dk/shared/types';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import { postToNative } from '@/lib/nativeBridge';
 import { queryClient } from '@/lib/queryClient';
+import type { User } from '@dk/shared/types';
 
 interface AuthState {
   token: string | null;

@@ -3,13 +3,13 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
-import { createEmployeeSchema } from '@dk/shared/schemas';
-import type { EmployeeWithPoints } from '@dk/shared/types';
 
 import { Button, Input, useToast } from '@/components/ui';
 import { useUpdateEmployee } from '@/hooks/api/useEmployees';
 import { useT } from '@/lib/i18n';
 import { useScrollLock } from '@/lib/useScrollLock';
+import { createEmployeeSchema } from '@dk/shared/schemas';
+import type { EmployeeWithPoints } from '@dk/shared/types';
 
 interface EditWorkerValues {
   name: string;

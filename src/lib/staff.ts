@@ -1,3 +1,4 @@
+import type { MessageKey } from '@/lib/i18n';
 import type {
   EffectiveWorkItem,
   StaffPointDistribution,
@@ -7,7 +8,6 @@ import type {
   StaffWorkUnit,
 } from '@dk/shared/types';
 
-import type { MessageKey } from '@/lib/i18n';
 
 /**
  * Client-side helpers for the Staff Points feature: IST calendar dates for the

@@ -13,8 +13,6 @@ import {
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
-import type { EmployeeWithPoints } from '@dk/shared/types';
 
 import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
@@ -34,6 +32,8 @@ import { useT } from '@/lib/i18n';
 import { fmtPoints } from '@/lib/staff';
 import { useAuthStore } from '@/store/auth';
 import { useStaffDraftStore } from '@/store/staffDraft';
+import type { EmployeeWithPoints } from '@dk/shared/types';
+import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
 
 function WindowToggle({
   value,

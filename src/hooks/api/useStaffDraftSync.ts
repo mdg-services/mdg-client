@@ -1,14 +1,14 @@
 import * as React from 'react';
 
-import type { StaffPointDraftView } from '@dk/shared/types';
-
-import { useSaveStaffDraft } from './useStaffDraft';
-
 import {
   draftSignature,
   useStaffDraftStore,
   type DraftSyncState,
 } from '@/store/staffDraft';
+import type { StaffPointDraftView } from '@dk/shared/types';
+
+import { useSaveStaffDraft } from './useStaffDraft';
+
 
 /** Debounce window for the autosave PUT — long enough to batch rapid edits. */
 const AUTOSAVE_DELAY_MS = 600;

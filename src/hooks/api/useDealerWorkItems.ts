@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
+import { api } from '@/lib/api';
 import type { EffectiveWorkItem } from '@dk/shared/types';
 
-import { api } from '@/lib/api';
 
 /** Query key for a dealer's effective work list (defaults − hidden + custom). */
 export function dealerWorkItemsQueryKey(dealerId: string | undefined) {

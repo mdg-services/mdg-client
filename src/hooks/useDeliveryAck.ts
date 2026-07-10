@@ -1,8 +1,8 @@
-import type { Conversation, Message } from '@dk/shared/types';
 import * as React from 'react';
 
 import { getSocket } from '@/lib/socket';
 import { useAuthStore } from '@/store/auth';
+import type { Conversation, Message } from '@dk/shared/types';
 
 /**
  * App-level delivery acknowledgement. The member's socket is always joined to

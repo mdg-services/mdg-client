@@ -9,15 +9,16 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
-import type { Attachment, KavachItem } from '@dk/shared/types';
 
-import { friendlyStatus } from './status';
 
 import { Button, Spinner, useToast } from '@/components/ui';
 import { useMarkKavachItemDone } from '@/hooks/api/useKavach';
 import { cn } from '@/lib/cn';
 import { pick, useLang, useT } from '@/lib/i18n';
 import { uploadAttachment } from '@/lib/uploadAttachment';
+import type { Attachment, KavachItem } from '@dk/shared/types';
+
+import { friendlyStatus } from './status';
 
 
 function iconFor(domain: KavachItem['domain']): LucideIcon {

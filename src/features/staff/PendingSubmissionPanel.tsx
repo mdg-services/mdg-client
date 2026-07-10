@@ -1,9 +1,7 @@
 import { Check, CloudOff, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
-import type { EffectiveWorkItem } from '@dk/shared/types';
 
-import { FinalizeSubmitSheet } from './FinalizeSubmitSheet';
 
 import { Avatar, Button } from '@/components/ui';
 import { useClearStaffDraft } from '@/hooks/api/useStaffDraft';
@@ -19,6 +17,9 @@ import {
   type NamedEmployee,
 } from '@/lib/staff';
 import { useStaffDraftStore, type DraftSyncState } from '@/store/staffDraft';
+import type { EffectiveWorkItem } from '@dk/shared/types';
+
+import { FinalizeSubmitSheet } from './FinalizeSubmitSheet';
 
 interface WorkerGroup {
   employeeId: string;

@@ -1,9 +1,9 @@
-import type { Conversation } from '@dk/shared/types';
 import { useQuery } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import type { Conversation } from '@dk/shared/types';
 
 /** Cache key for the dealer's own conversation LIST. */
 export const myConversationsKey = ['conversations', 'mine'] as const;

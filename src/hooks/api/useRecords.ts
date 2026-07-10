@@ -1,8 +1,8 @@
-import type { DealerRecord, RecordType } from '@dk/shared/types';
 import { useQuery } from '@tanstack/react-query';
 
 import { ApiError, api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import type { DealerRecord, RecordType } from '@dk/shared/types';
 
 export const recordsQueryKey = (type?: RecordType) =>
   type ? (['records', { type }] as const) : (['records'] as const);

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
-import type { StaffWorkItem } from '@dk/shared/types';
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import type { StaffWorkItem } from '@dk/shared/types';
 
 export const staffWorkItemsQueryKey = ['staff', 'work-items'] as const;
 
