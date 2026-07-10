@@ -111,6 +111,14 @@ export const messages = {
   'chat.playVoice': { en: 'Play voice message', hi: 'वॉइस मैसेज चलाएं' },
   'chat.pauseVoice': { en: 'Pause voice message', hi: 'वॉइस मैसेज रोकें' },
   'chat.slideToCancel': { en: 'Slide to cancel', hi: 'रद्द करने के लिए खिसकाएं' },
+  'chat.micBlocked': {
+    en: "Can't access the microphone",
+    hi: 'माइक्रोफ़ोन एक्सेस नहीं हो पा रहा',
+  },
+  'chat.micBlockedHint': {
+    en: 'Allow microphone access for Dealer Kavach in your phone Settings, then try again.',
+    hi: 'फ़ोन की सेटिंग में Dealer Kavach को माइक्रोफ़ोन की अनुमति दें, फिर दोबारा कोशिश करें।',
+  },
   'chat.releaseToCancel': {
     en: 'Release to cancel',
     hi: 'छोड़ें, रद्द हो जाएगा',

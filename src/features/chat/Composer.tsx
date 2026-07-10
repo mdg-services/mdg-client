@@ -11,7 +11,7 @@ import * as React from 'react';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 
-import { Spinner } from '@/components/ui';
+import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import {
@@ -147,6 +147,7 @@ export function Composer({
   initialText,
 }: ComposerProps) {
   const t = useT();
+  const toast = useToast();
   const [text, setText] = React.useState(initialText ?? '');
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
@@ -311,18 +312,25 @@ export function Composer({
     void stopAndSend();
   };
 
+  // The mic couldn't start (permission denied / unsupported). Tell the user how
+  // to fix it instead of silently opening the image/file picker — whose accept
+  // list isn't even audio, so it just read as "why is the camera opening?".
+  const notifyMicBlocked = () => {
+    toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
+  };
+
   const beginRecorder = async () => {
     recStartedRef.current = false;
     const ok = await recorder.start();
     const g = gestureRef.current;
     if (!ok) {
-      // Permission denied / unsupported — reset and fall back to the file
-      // picker so the user can still attach an audio file.
+      // Mic blocked (permission denied / unsupported) — reset and tell the user
+      // how to enable it, rather than silently opening the image/file picker.
       gestureRef.current = null;
       recStartedRef.current = false;
       setRecMode('idle');
       setCancelArmed(false);
-      fileRef.current?.click();
+      notifyMicBlocked();
       return;
     }
     recStartedRef.current = true;
@@ -413,7 +421,7 @@ export function Composer({
   const startLockedRecording = async () => {
     const ok = await recorder.start();
     if (!ok) {
-      fileRef.current?.click();
+      notifyMicBlocked();
       return;
     }
     recStartedRef.current = true;
