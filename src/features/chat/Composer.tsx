@@ -14,6 +14,7 @@ import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import { isNativeShell, requestNativeMicPermission } from '@/lib/nativeBridge';
 import {
   formatDuration,
   resolveFileType,
@@ -312,10 +313,21 @@ export function Composer({
     void stopAndSend();
   };
 
-  // The mic couldn't start (permission denied / unsupported). Tell the user how
-  // to fix it instead of silently opening the image/file picker — whose accept
-  // list isn't even audio, so it just read as "why is the camera opening?".
-  const notifyMicBlocked = () => {
+  // The mic couldn't start (permission denied / unsupported). Instead of silently
+  // opening the image/file picker (which read as "why is the camera opening?"),
+  // try a just-in-time OS permission re-request inside the native shell — the
+  // WebView's getUserMedia can't trigger the Android runtime prompt itself. If
+  // the user grants it, prompt them to try again; otherwise guide them to
+  // Settings. In a plain browser, requestNativeMicPermission resolves false, so
+  // it goes straight to the Settings hint.
+  const notifyMicBlocked = async () => {
+    if (isNativeShell()) {
+      const granted = await requestNativeMicPermission();
+      if (granted) {
+        toast.success(t('chat.micEnabled'));
+        return;
+      }
+    }
     toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
   };
 
@@ -330,7 +342,7 @@ export function Composer({
       recStartedRef.current = false;
       setRecMode('idle');
       setCancelArmed(false);
-      notifyMicBlocked();
+      void notifyMicBlocked();
       return;
     }
     recStartedRef.current = true;
@@ -421,7 +433,7 @@ export function Composer({
   const startLockedRecording = async () => {
     const ok = await recorder.start();
     if (!ok) {
-      notifyMicBlocked();
+      void notifyMicBlocked();
       return;
     }
     recStartedRef.current = true;

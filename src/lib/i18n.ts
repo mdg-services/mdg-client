@@ -119,6 +119,10 @@ export const messages = {
     en: 'Allow microphone access for Dealer Kavach in your phone Settings, then try again.',
     hi: 'फ़ोन की सेटिंग में Dealer Kavach को माइक्रोफ़ोन की अनुमति दें, फिर दोबारा कोशिश करें।',
   },
+  'chat.micEnabled': {
+    en: 'Microphone enabled — tap and hold to record',
+    hi: 'माइक्रोफ़ोन चालू हो गया — रिकॉर्ड करने के लिए दबाकर रखें',
+  },
   'chat.releaseToCancel': {
     en: 'Release to cancel',
     hi: 'छोड़ें, रद्द हो जाएगा',
