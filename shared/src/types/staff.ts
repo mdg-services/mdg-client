@@ -53,6 +53,16 @@ export const STAFF_WORK_UNITS = [
 ] as const;
 export type StaffWorkUnit = (typeof STAFF_WORK_UNITS)[number];
 
+/**
+ * How a work item's base points are SET.
+ *  - 'labour'   : points are DERIVED from the work's factors (time + skill +
+ *                 effort + responsibility) via `deriveBasePoints()`. Never typed.
+ *  - 'incentive': points are a typed business/policy value (sales & acquisition
+ *                 rewards, e.g. per-₹1000 fuel sales). The factor formula does not apply.
+ */
+export const STAFF_PRICING_MODES = ['labour', 'incentive'] as const;
+export type StaffPricingMode = (typeof STAFF_PRICING_MODES)[number];
+
 /** Employee roster lifecycle. INACTIVE = left the pump; kept for award history. */
 export const EMPLOYEE_STATUSES = ['ACTIVE', 'INACTIVE'] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
@@ -87,9 +97,19 @@ export interface StaffWorkItem {
   labelEn: string;
   /** Clean, short, dealer-facing label (Hindi/Devanagari). */
   labelHi: string;
-  /** Base points from the sheet. For PER_UNIT this is the per-unit value. May be fractional (e.g. 0.5). */
+  /** Base points. Derived from the factors below for labour works; a typed policy value for incentive works. May be fractional (e.g. 0.5). */
   points: number;
   distribution: StaffPointDistribution;
+  /** Whether `points` is derived from factors ('labour') or a typed policy value ('incentive'). */
+  pricingMode: StaffPricingMode;
+  /** Estimated hands-on minutes — whole-job for FLAT/SPLIT/EACH, per-unit for PER_UNIT. Labour works only. */
+  timeMin?: number;
+  /** Skill required, 0–100. Labour works only. */
+  skill?: number;
+  /** Physical effort / hardship, 0–100. Labour works only. */
+  effort?: number;
+  /** Responsibility — consequence of error (money, safety, trust), 0–100. Labour works only. */
+  responsibility?: number;
   /** Present iff distribution === 'PER_UNIT'. */
   unit?: StaffWorkUnit;
   unitLabelEn?: string;
@@ -115,8 +135,15 @@ export interface StaffWorkItemSeedItem {
   titleHi: string;
   labelEn: string;
   labelHi: string;
-  points: number;
+  /** Typed policy value for incentive works; OMITTED for labour works (derived from the factors). */
+  points?: number;
   distribution: StaffPointDistribution;
+  pricingMode: StaffPricingMode;
+  /** Whole-job minutes (FLAT/SPLIT/EACH) or per-unit minutes (PER_UNIT). Required for labour works. */
+  timeMin?: number;
+  skill?: number;
+  effort?: number;
+  responsibility?: number;
   unit?: StaffWorkUnit;
   unitLabelEn?: string;
   unitLabelHi?: string;
@@ -396,8 +423,14 @@ export interface DealerCustomWorkItem {
   code: string;
   labelEn: string;
   labelHi: string;
+  /** Derived from the factors for labour works; a typed policy value for incentive works. */
   points: number;
   distribution: StaffPointDistribution;
+  pricingMode: StaffPricingMode;
+  timeMin?: number;
+  skill?: number;
+  effort?: number;
+  responsibility?: number;
   unit?: StaffWorkUnit;
   unitLabelEn?: string;
   unitLabelHi?: string;
@@ -433,6 +466,11 @@ export interface EffectiveWorkItem {
   labelHi: string;
   points: number;
   distribution: StaffPointDistribution;
+  pricingMode: StaffPricingMode;
+  timeMin?: number;
+  skill?: number;
+  effort?: number;
+  responsibility?: number;
   unit?: StaffWorkUnit;
   unitLabelEn?: string;
   unitLabelHi?: string;

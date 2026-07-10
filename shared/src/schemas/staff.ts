@@ -36,6 +36,49 @@ export const staffWorkUnitSchema = z.enum([
   'photo',
 ]);
 
+/** Mirrors STAFF_PRICING_MODES in types/staff.ts. */
+export const staffPricingModeSchema = z.enum(['labour', 'incentive']);
+
+/** Reusable factor field validators. */
+const factor100Schema = z.number().min(0).max(100);
+const timeMinSchema = z.number().positive().max(100_000);
+
+/**
+ * Enforces the labour/incentive contract on a work-item body: a labour work must
+ * carry the four factors (its `points` is derived server-side, never trusted); an
+ * incentive work must carry a typed `points`. Applied via `.superRefine`.
+ */
+function refineWorkItemPricing(
+  v: {
+    pricingMode?: 'labour' | 'incentive';
+    points?: number;
+    timeMin?: number;
+    skill?: number;
+    effort?: number;
+    responsibility?: number;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  const mode = v.pricingMode ?? 'labour';
+  if (mode === 'labour') {
+    (['timeMin', 'skill', 'effort', 'responsibility'] as const).forEach((f) => {
+      if (v[f] === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [f],
+          message: `${f} is required for a labour work`,
+        });
+      }
+    });
+  } else if (v.points === undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['points'],
+      message: 'points is required for an incentive work',
+    });
+  }
+}
+
 /** A YYYY-MM-DD calendar date (IST). */
 export const staffDateSchema = z
   .string()
@@ -203,18 +246,26 @@ export type FinalizeStaffDraftInput = z.infer<typeof finalizeStaffDraftSchema>;
  * A dealer custom work item. `code` is optional on input — the server generates
  * a dealer-unique code when absent (or keeps the provided one on edit).
  */
-export const dealerCustomWorkItemSchema = z.object({
-  code: z.string().trim().min(1).max(120).optional(),
-  labelEn: z.string().trim().min(1).max(200),
-  labelHi: z.string().trim().min(1).max(200),
-  points: z.number().min(0).max(100_000),
-  distribution: staffPointDistributionSchema,
-  unit: staffWorkUnitSchema.optional(),
-  unitLabelEn: z.string().trim().max(80).optional(),
-  unitLabelHi: z.string().trim().max(80).optional(),
-  domain: staffWorkDomainSchema,
-  active: z.boolean().optional().default(true),
-});
+export const dealerCustomWorkItemSchema = z
+  .object({
+    code: z.string().trim().min(1).max(120).optional(),
+    labelEn: z.string().trim().min(1).max(200),
+    labelHi: z.string().trim().min(1).max(200),
+    /** Typed for incentive works; server-derived from the factors for labour works. */
+    points: z.number().min(0).max(100_000).optional(),
+    distribution: staffPointDistributionSchema,
+    pricingMode: staffPricingModeSchema.default('labour'),
+    timeMin: timeMinSchema.optional(),
+    skill: factor100Schema.optional(),
+    effort: factor100Schema.optional(),
+    responsibility: factor100Schema.optional(),
+    unit: staffWorkUnitSchema.optional(),
+    unitLabelEn: z.string().trim().max(80).optional(),
+    unitLabelHi: z.string().trim().max(80).optional(),
+    domain: staffWorkDomainSchema,
+    active: z.boolean().optional().default(true),
+  })
+  .superRefine(refineWorkItemPricing);
 export type DealerCustomWorkItemInput = z.infer<typeof dealerCustomWorkItemSchema>;
 
 /** Body for PUT /dealers/:dealerId/staff/work-list — full replace of the overlay. */
@@ -225,32 +276,40 @@ export const updateDealerWorkListSchema = z.object({
 export type UpdateDealerWorkListInput = z.infer<typeof updateDealerWorkListSchema>;
 
 /** Body for POST /super-admin/staff-work-items — create a global catalog item. */
-export const createStaffWorkItemSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(1)
-    .max(120)
-    .regex(/^[a-z0-9-]+$/i, 'Code must be a slug (letters, digits, hyphens)')
-    // The `custom-` prefix is reserved for per-dealer overlay items; a global
-    // `custom-*` code would be shadowed by a dealer custom item in the effective
-    // work map, so reject it at the source.
-    .refine((c) => !/^custom-/i.test(c), 'Code cannot start with the reserved "custom-" prefix'),
-  srNo: z.number().int().min(0).max(100_000).optional(),
-  titleEn: z.string().trim().min(1).max(300),
-  titleHi: z.string().trim().min(1).max(300),
-  labelEn: z.string().trim().min(1).max(200),
-  labelHi: z.string().trim().min(1).max(200),
-  points: z.number().min(0).max(100_000),
-  distribution: staffPointDistributionSchema,
-  unit: staffWorkUnitSchema.optional(),
-  unitLabelEn: z.string().trim().max(80).optional(),
-  unitLabelHi: z.string().trim().max(80).optional(),
-  domain: staffWorkDomainSchema,
-  requiresApproval: z.boolean().optional().default(false),
-  notesEn: z.string().trim().max(500).optional(),
-  notesHi: z.string().trim().max(500).optional(),
-});
+export const createStaffWorkItemSchema = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .min(1)
+      .max(120)
+      .regex(/^[a-z0-9-]+$/i, 'Code must be a slug (letters, digits, hyphens)')
+      // The `custom-` prefix is reserved for per-dealer overlay items; a global
+      // `custom-*` code would be shadowed by a dealer custom item in the effective
+      // work map, so reject it at the source.
+      .refine((c) => !/^custom-/i.test(c), 'Code cannot start with the reserved "custom-" prefix'),
+    srNo: z.number().int().min(0).max(100_000).optional(),
+    titleEn: z.string().trim().min(1).max(300),
+    titleHi: z.string().trim().min(1).max(300),
+    labelEn: z.string().trim().min(1).max(200),
+    labelHi: z.string().trim().min(1).max(200),
+    /** Typed for incentive works; server-derived from the factors for labour works. */
+    points: z.number().min(0).max(100_000).optional(),
+    distribution: staffPointDistributionSchema,
+    pricingMode: staffPricingModeSchema.default('labour'),
+    timeMin: timeMinSchema.optional(),
+    skill: factor100Schema.optional(),
+    effort: factor100Schema.optional(),
+    responsibility: factor100Schema.optional(),
+    unit: staffWorkUnitSchema.optional(),
+    unitLabelEn: z.string().trim().max(80).optional(),
+    unitLabelHi: z.string().trim().max(80).optional(),
+    domain: staffWorkDomainSchema,
+    requiresApproval: z.boolean().optional().default(false),
+    notesEn: z.string().trim().max(500).optional(),
+    notesHi: z.string().trim().max(500).optional(),
+  })
+  .superRefine(refineWorkItemPricing);
 export type CreateStaffWorkItemInput = z.infer<typeof createStaffWorkItemSchema>;
 
 /** Body for PATCH /super-admin/staff-work-items/:code — edit a global catalog item. */
@@ -263,6 +322,11 @@ export const updateStaffWorkItemSchema = z
     labelHi: z.string().trim().min(1).max(200).optional(),
     points: z.number().min(0).max(100_000).optional(),
     distribution: staffPointDistributionSchema.optional(),
+    pricingMode: staffPricingModeSchema.optional(),
+    timeMin: timeMinSchema.optional(),
+    skill: factor100Schema.optional(),
+    effort: factor100Schema.optional(),
+    responsibility: factor100Schema.optional(),
     unit: staffWorkUnitSchema.optional(),
     unitLabelEn: z.string().trim().max(80).optional(),
     unitLabelHi: z.string().trim().max(80).optional(),
