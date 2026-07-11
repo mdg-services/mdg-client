@@ -135,7 +135,7 @@ export interface StaffWorkItemSeedItem {
   titleHi: string;
   labelEn: string;
   labelHi: string;
-  /** Typed policy value for incentive works; OMITTED for labour works (derived from the factors). */
+  /** Derived snapshot for labour works, typed policy value for incentive works. Optional — the seeder recomputes labour points from the factors. */
   points?: number;
   distribution: StaffPointDistribution;
   pricingMode: StaffPricingMode;
