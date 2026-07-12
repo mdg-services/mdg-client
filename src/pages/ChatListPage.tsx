@@ -1,7 +1,7 @@
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, RefreshCw } from 'lucide-react';
 import { Navigate, useNavigate } from 'react-router-dom';
 
-import { EmptyState, Spinner } from '@/components/ui';
+import { Button, EmptyState, Spinner } from '@/components/ui';
 import {
   conversationTitle,
   hasUnread,
@@ -32,7 +32,37 @@ export function ChatListPage() {
   const myId = useAuthStore((s) => s.user?.id);
   const q = useMyConversations();
 
-  if (q.isLoading) {
+  // The server guarantees every dealer member at least one thread, so an empty
+  // list can only mean the fetch never succeeded. Treat "couldn't load" as its
+  // own state: rendering it as "No chats yet" tells the user their chats are
+  // gone and leaves them with nothing to tap. `isLoading` alone is not enough —
+  // it is false while the query is PAUSED (offline) or disabled, both of which
+  // would otherwise fall through to the empty state.
+  const failed =
+    q.isError || (q.status === 'pending' && q.fetchStatus === 'paused');
+
+  if (failed) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <EmptyState
+          icon={<MessageCircle width={28} strokeWidth={1.5} />}
+          title={t('chat.listErrorTitle')}
+          description={t('chat.listErrorDesc')}
+          cta={
+            <Button
+              onClick={() => void q.refetch()}
+              loading={q.isFetching}
+              leftIcon={<RefreshCw width={16} strokeWidth={1.75} />}
+            >
+              {t('chat.retry')}
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
+  if (q.status === 'pending') {
     return (
       <div className="flex flex-1 items-center justify-center">
         <Spinner size={20} />

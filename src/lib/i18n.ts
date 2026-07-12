@@ -119,10 +119,6 @@ export const messages = {
     en: 'Allow microphone access for Dealer Kavach in your phone Settings, then try again.',
     hi: 'फ़ोन की सेटिंग में Dealer Kavach को माइक्रोफ़ोन की अनुमति दें, फिर दोबारा कोशिश करें।',
   },
-  'chat.micEnabled': {
-    en: 'Microphone enabled — tap and hold to record',
-    hi: 'माइक्रोफ़ोन चालू हो गया — रिकॉर्ड करने के लिए दबाकर रखें',
-  },
   'chat.releaseToCancel': {
     en: 'Release to cancel',
     hi: 'छोड़ें, रद्द हो जाएगा',
@@ -179,6 +175,15 @@ export const messages = {
     en: 'Your support chats will appear here.',
     hi: 'आपकी सहायता चैट यहाँ दिखेंगी।',
   },
+  'chat.listErrorTitle': {
+    en: "We couldn't load your chats",
+    hi: 'अभी आपकी चैट लोड नहीं हो पाईं',
+  },
+  'chat.listErrorDesc': {
+    en: 'Your chats are safe. Check your connection and try again.',
+    hi: 'आपकी चैट सुरक्षित हैं। कनेक्शन जांचें और फिर कोशिश करें।',
+  },
+  'chat.retry': { en: 'Try again', hi: 'फिर कोशिश करें' },
   'chat.backToChats': { en: 'Back to chats', hi: 'चैट सूची पर वापस' },
   'chat.conversationNotFound': {
     en: "This chat isn't available.",

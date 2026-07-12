@@ -63,6 +63,8 @@ export function useVoiceRecorder() {
   const startedAtRef = React.useRef(0);
   const tickRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const resolveRef = React.useRef<((r: VoiceRecording | null) => void) | null>(null);
+  /** Bumped on every start()/cancel() so a late getUserMedia can be discarded. */
+  const epochRef = React.useRef(0);
 
   // WebAudio analysis (optional — recording works without it).
   const audioCtxRef = React.useRef<AudioContext | null>(null);
@@ -185,8 +187,19 @@ export function useVoiceRecorder() {
       setStatus('error');
       return false;
     }
+    // getUserMedia stays PENDING for as long as the OS permission dialog is up —
+    // and on Android it can never settle at all if that dialog is dismissed by
+    // the system. Stamp each attempt so a caller that gave up (cancel/unmount/
+    // timeout) can invalidate it: if a stale attempt resolves later we must stop
+    // its tracks, or the mic stays hot behind a UI that has already moved on.
+    const epoch = epochRef.current + 1;
+    epochRef.current = epoch;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (epoch !== epochRef.current) {
+        stream.getTracks().forEach((t) => t.stop());
+        return false;
+      }
       const picked = pickMimeType();
       const rec = picked ? new MediaRecorder(stream, { mimeType: picked }) : new MediaRecorder(stream);
       const effectiveType = rec.mimeType || picked || 'audio/webm';
@@ -235,8 +248,10 @@ export function useVoiceRecorder() {
     });
   }, []);
 
-  /** Abort recording and discard audio. */
+  /** Abort recording and discard audio. Also invalidates a start() that is still
+   * waiting on the permission prompt, so it can never hand back a live mic. */
   const cancel = React.useCallback(() => {
+    epochRef.current += 1;
     const rec = recorderRef.current;
     resolveRef.current = null;
     if (rec && rec.state !== 'inactive') {
@@ -259,7 +274,13 @@ export function useVoiceRecorder() {
    */
   const getLevels = React.useCallback((): number[] => rollingRef.current, []);
 
-  React.useEffect(() => () => cleanup(), [cleanup]);
+  React.useEffect(
+    () => () => {
+      epochRef.current += 1;
+      cleanup();
+    },
+    [cleanup],
+  );
 
   return { supported, status, elapsedMs, start, stop, cancel, getLevels };
 }

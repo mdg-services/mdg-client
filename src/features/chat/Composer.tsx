@@ -52,6 +52,18 @@ const CANCEL_DX = 80;
 const LOCK_DY = 72;
 /** A press shorter than this is treated as a tap → hands-free locked mode. */
 const TAP_MS = 350;
+/**
+ * How long we wait for the mic to actually open before giving up.
+ *
+ * `getUserMedia` does not settle while the OS permission dialog is on screen,
+ * and inside the Android WebView it can stay pending forever (the dialog is a
+ * separate Activity; if its result never reaches the WebView the promise is
+ * simply never resolved OR rejected). Without a ceiling the composer would sit
+ * in the press-and-hold overlay indefinitely — no timer, no waveform, no way to
+ * send, cancel or even type. Generous enough for a human to read and accept the
+ * prompt; after it we always return the composer to a usable state.
+ */
+const START_TIMEOUT_MS = 12_000;
 
 /** One in-flight press-and-hold gesture on the mic. */
 interface Gesture {
@@ -192,6 +204,13 @@ export function Composer({
   const suppressClickRef = React.useRef(false);
   // Ignore the ghost click that lands right after we swap to the locked bar.
   const clickGuardUntilRef = React.useRef(0);
+  // Watchdog for a mic that never opens (see START_TIMEOUT_MS).
+  const startTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Identifies the current start attempt. Bumped by every new attempt and by
+  // resetRecording(), so a getUserMedia that resolves late — after the watchdog
+  // gave up, or after the user pressed again — can tell it has been superseded
+  // and must not touch the composer.
+  const attemptRef = React.useRef(0);
 
   React.useEffect(() => {
     if (initialText !== undefined) setText(initialText);
@@ -341,41 +360,104 @@ export function Composer({
     void stopAndSend();
   };
 
-  // The mic couldn't start (permission denied / unsupported). Instead of silently
-  // opening the image/file picker (which read as "why is the camera opening?"),
-  // try a just-in-time OS permission re-request inside the native shell — the
-  // WebView's getUserMedia can't trigger the Android runtime prompt itself. If
-  // the user grants it, prompt them to try again; otherwise guide them to
-  // Settings. In a plain browser, requestNativeMicPermission resolves false, so
-  // it goes straight to the Settings hint.
+  /** Put the composer back in a usable state, whatever the recorder was doing. */
+  const resetRecording = () => {
+    attemptRef.current += 1;
+    if (startTimerRef.current) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+    recorder.cancel();
+    gestureRef.current = null;
+    recStartedRef.current = false;
+    setRecMode('idle');
+    setCancelArmed(false);
+  };
+
+  // The mic couldn't start (permission denied / unsupported / never opened).
+  // Instead of silently opening the image/file picker (which read as "why is the
+  // camera opening?"), try a just-in-time OS permission re-request inside the
+  // native shell — the WebView's getUserMedia can't trigger the Android runtime
+  // prompt itself. Once granted we START RECORDING rather than only announcing
+  // success: the user already asked for a voice note, so making them press again
+  // reads as "the mic still doesn't work". In a plain browser
+  // requestNativeMicPermission resolves false, so it goes straight to the hint.
   const notifyMicBlocked = async () => {
     if (isNativeShell()) {
       const granted = await requestNativeMicPermission();
       if (granted) {
-        toast.success(t('chat.micEnabled'));
+        const attempt = attemptRef.current + 1;
+        attemptRef.current = attempt;
+        const ok = await recorder.start();
+        if (attempt !== attemptRef.current) return;
+        if (ok) {
+          recStartedRef.current = true;
+          setCancelArmed(false);
+          setRecMode('locked');
+          return;
+        }
+        // Granted at the OS level but the mic still won't open — don't loop.
+        toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
         return;
       }
     }
     toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
   };
 
+  const disarmStartWatchdog = () => {
+    if (startTimerRef.current) {
+      clearTimeout(startTimerRef.current);
+      startTimerRef.current = null;
+    }
+  };
+
+  /**
+   * Give up on a mic that never opens. Only counts time the WebView is actually
+   * in the FOREGROUND: while the OS permission dialog is on screen we are waiting
+   * on a human, not hung, so the watchdog is disarmed (see the effect below).
+   */
+  const armStartWatchdog = () => {
+    disarmStartWatchdog();
+    startTimerRef.current = setTimeout(() => {
+      startTimerRef.current = null;
+      resetRecording(); // bumps attemptRef → any pending start becomes a no-op
+      void notifyMicBlocked();
+    }, START_TIMEOUT_MS);
+  };
+
   const beginRecorder = async () => {
     recStartedRef.current = false;
+    const attempt = attemptRef.current + 1;
+    attemptRef.current = attempt;
+
+    // Never let a mic that won't open strand the composer in the hold overlay.
+    armStartWatchdog();
+
     const ok = await recorder.start();
+
+    disarmStartWatchdog();
+    // Superseded: the watchdog gave up, or the user started a new attempt.
+    if (attempt !== attemptRef.current) return;
+
     const g = gestureRef.current;
     if (!ok) {
       // Mic blocked (permission denied / unsupported) — reset and tell the user
       // how to enable it, rather than silently opening the image/file picker.
-      gestureRef.current = null;
-      recStartedRef.current = false;
-      setRecMode('idle');
-      setCancelArmed(false);
+      resetRecording();
       void notifyMicBlocked();
       return;
     }
     recStartedRef.current = true;
+    if (!g) {
+      // The gesture was torn down while we waited (pointer lost to the OS
+      // permission dialog). We are recording, so hand the user the hands-free
+      // bar instead of a dead press-and-hold overlay they can never release.
+      setCancelArmed(false);
+      setRecMode('locked');
+      return;
+    }
     // The gesture already ended (quick tap / release) before the mic was ready.
-    if (g && !g.active && g.released) {
+    if (!g.active && g.released) {
       finishGesture(g);
     }
   };
@@ -448,6 +530,80 @@ export function Composer({
     finishGesture(g);
   };
 
+  /**
+   * Safety net for a press-and-hold whose finger-up never arrives.
+   *
+   * The first voice note opens the OS microphone prompt, which on Android is a
+   * separate Activity stacked over the WebView. The page loses the pointer while
+   * that dialog is up, so the `pointerup`/`pointercancel` on the mic button is
+   * often never delivered: the gesture stays "finger down" forever and the
+   * composer is stuck in the recording overlay — the exact "the mic does nothing"
+   * report. Listen for the release on the WINDOW (it lands there once pointer
+   * capture is lost) and treat losing the window/tab as a release too.
+   */
+  React.useEffect(() => {
+    if (recMode !== 'hold') return;
+
+    const release = () => {
+      const g = gestureRef.current;
+      if (recStartedRef.current) {
+        // Already recording: hand over the hands-free bar so send/cancel stay
+        // reachable, rather than an overlay that can never be released.
+        gestureRef.current = null;
+        setCancelArmed(false);
+        setRecMode('locked');
+        return;
+      }
+      // Still opening the mic — mark it released so beginRecorder() resolves the
+      // gesture once getUserMedia settles.
+      if (g) {
+        g.active = false;
+        g.released = true;
+        gestureRef.current = null;
+      }
+    };
+    const onWindowPointerEnd = () => {
+      // Only relevant if the button never got its own pointerup (capture lost).
+      if (gestureRef.current?.active) release();
+    };
+    // Losing the window means the OS mic dialog is up. We are now waiting on a
+    // human to read and tap it — NOT on a hung mic — so stop the hang watchdog,
+    // or it would abort a grant that is seconds from arriving. It resumes when
+    // the dialog is dismissed and we are back in the foreground.
+    const onWindowLost = () => {
+      if (!recStartedRef.current) disarmStartWatchdog();
+      release();
+    };
+    const onWindowBack = () => {
+      if (recMode === 'hold' && !recStartedRef.current) armStartWatchdog();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') onWindowLost();
+      else onWindowBack();
+    };
+
+    window.addEventListener('pointerup', onWindowPointerEnd);
+    window.addEventListener('pointercancel', onWindowPointerEnd);
+    window.addEventListener('blur', onWindowLost);
+    window.addEventListener('focus', onWindowBack);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pointerup', onWindowPointerEnd);
+      window.removeEventListener('pointercancel', onWindowPointerEnd);
+      window.removeEventListener('blur', onWindowLost);
+      window.removeEventListener('focus', onWindowBack);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [recMode]);
+
+  // Never leave a watchdog running after the composer goes away.
+  React.useEffect(
+    () => () => {
+      if (startTimerRef.current) clearTimeout(startTimerRef.current);
+    },
+    [],
+  );
+
   const onMicClick = () => {
     if (suppressClickRef.current) {
       suppressClickRef.current = false;
@@ -459,7 +615,10 @@ export function Composer({
   };
 
   const startLockedRecording = async () => {
+    const attempt = attemptRef.current + 1;
+    attemptRef.current = attempt;
     const ok = await recorder.start();
+    if (attempt !== attemptRef.current) return;
     if (!ok) {
       void notifyMicBlocked();
       return;

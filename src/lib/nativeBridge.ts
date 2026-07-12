@@ -63,12 +63,19 @@ let micRequestInFlight: Promise<boolean> | null = null;
  *
  * Native replies by dispatching a `native-mic-permission` CustomEvent with
  * detail `{ granted: boolean }` (see mdg-app buildMicPermissionResultInjection).
- * The timeout is short (5s): a real PermissionsAndroid answer arrives in well
- * under a second, so a longer wait only means an old shell without this handler
- * (version-skew during a Play rollout) — we shouldn't leave the user staring at
- * dead air.
+ *
+ * The timeout MUST outlast a human. `PermissionsAndroid.request()` does not
+ * resolve until the user actually answers the OS dialog, so this clock is really
+ * measuring how long someone takes to read "Allow Dealer Kavach to record audio?"
+ * and tap. It used to be 5s — which a real dealer reliably overran, so we
+ * declared the mic denied and told them to go to Settings WHILE they were tapping
+ * Allow. The only thing the deadline still guards is an ancient shell with no
+ * handler at all (it would never reply); that deserves a slow fallback, not a
+ * fast wrong answer. A dismissed or permanently-denied prompt still comes back
+ * as `granted: false` immediately, so the legitimate "enable it in Settings"
+ * message is unaffected.
  */
-export function requestNativeMicPermission(timeoutMs = 5000): Promise<boolean> {
+export function requestNativeMicPermission(timeoutMs = 60_000): Promise<boolean> {
   if (!isNativeShell() || typeof window === 'undefined') {
     return Promise.resolve(false);
   }
