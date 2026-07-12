@@ -15,6 +15,8 @@ const recorder = vi.hoisted(() => ({
   stop: vi.fn(),
   cancel: vi.fn(),
   getLevels: vi.fn(() => [] as number[]),
+  /** The DOMException name from the last failed start(), e.g. 'NotReadableError'. */
+  lastError: vi.fn((): string | null => null),
 }));
 vi.mock('@/lib/useVoiceRecorder', () => ({
   useVoiceRecorder: () => recorder,
@@ -128,5 +130,95 @@ describe('Composer reply strip', () => {
   it('renders no strip when not replying', () => {
     renderWithProviders(<Composer onSend={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Cancel reply' })).toBeNull();
+  });
+});
+
+/**
+ * Regression: every way the microphone can fail used to produce the SAME message —
+ * "allow microphone access in your phone Settings".
+ *
+ * That advice is only true when the mic was refused. If it is busy (a call, a voice
+ * assistant, another app holding it), the dealer goes to Settings, finds the
+ * permission already granted, and comes back to report the mic as broken again.
+ * Which is roughly how a mic bug survives two rounds of fixes.
+ *
+ * The recorder now surfaces the DOMException name and the composer says something
+ * that can actually be acted on.
+ */
+describe('Composer — the mic failure message matches the actual cause', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.start.mockReset();
+    recorder.cancel.mockReset();
+    recorder.lastError.mockReset();
+    recorder.status = 'idle';
+    bridge.isNativeShell.mockReturnValue(true);
+    bridge.requestNativeMicPermission.mockReset();
+  });
+
+  /** Hold the mic, let start() fail, release. */
+  async function failWith(name: string) {
+    recorder.lastError.mockReturnValue(name);
+    recorder.start.mockResolvedValue(false);
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await act(async () => {
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+  }
+
+  it('a BUSY mic is not sent to Settings — the permission is already granted', async () => {
+    // NotReadableError: allowed and present, but another app has it open.
+    await failWith('NotReadableError');
+
+    expect(
+      await screen.findByText('The microphone is being used by another app'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Close any call or recording app/)).toBeInTheDocument();
+    // The old, useless advice must be gone.
+    expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
+    // And we must not re-prompt: the permission was never the problem.
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+  });
+
+  it('a MISSING mic says so, and points at typing instead', async () => {
+    await failWith('NotFoundError');
+
+    expect(await screen.findByText('No microphone found on this phone')).toBeInTheDocument();
+    expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+  });
+
+  it('an unusable mic (insecure context / no mediaDevices) does not blame the dealer', async () => {
+    await failWith('SecurityError');
+
+    expect(
+      await screen.findByText("Voice notes don't work on this phone"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
+  });
+
+  it('a REFUSED mic — the one case Settings actually fixes — still says Settings', async () => {
+    recorder.lastError.mockReturnValue('NotAllowedError');
+    recorder.start.mockResolvedValue(false);
+    // The native re-prompt is offered, and refused again.
+    bridge.requestNativeMicPermission.mockResolvedValue(false);
+
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await act(async () => {
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+
+    // Only here is it right to re-ask, and only here is Settings the answer.
+    await waitFor(() => expect(bridge.requestNativeMicPermission).toHaveBeenCalled());
+    expect(await screen.findByText(/in your phone Settings/)).toBeInTheDocument();
   });
 });

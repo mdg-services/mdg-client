@@ -1,5 +1,8 @@
 import * as React from 'react';
 
+import { errorName } from './errors';
+import { micDiagnostics } from './micDiagnostics';
+import { addCrumb, reportIssue } from './monitoring';
 import { WAVEFORM_BARS, downsamplePeaks } from './waveform';
 
 /**
@@ -65,6 +68,12 @@ export function useVoiceRecorder() {
   const resolveRef = React.useRef<((r: VoiceRecording | null) => void) | null>(null);
   /** Bumped on every start()/cancel() so a late getUserMedia can be discarded. */
   const epochRef = React.useRef(0);
+  /**
+   * Why the last start() failed — the DOMException name, e.g. 'NotAllowedError'
+   * or 'NotReadableError'. The caller needs this to give advice that can actually
+   * work: "allow it in Settings" is wrong for every cause except a refusal.
+   */
+  const lastErrorRef = React.useRef<string | null>(null);
 
   // WebAudio analysis (optional — recording works without it).
   const audioCtxRef = React.useRef<AudioContext | null>(null);
@@ -184,7 +193,17 @@ export function useVoiceRecorder() {
 
   const start = React.useCallback(async (): Promise<boolean> => {
     if (!supported) {
+      // The mic button should never have been reachable — worth knowing about.
       setStatus('error');
+      lastErrorRef.current = 'Unsupported';
+      void micDiagnostics().then((diag) => {
+        reportIssue({
+          name: 'mic.unsupported',
+          level: 'warning',
+          tags: { nativeShell: diag.nativeShell, secureContext: diag.secureContext },
+          extra: diag as unknown as Record<string, unknown>,
+        });
+      });
       return false;
     }
     // getUserMedia stays PENDING for as long as the OS permission dialog is up —
@@ -194,12 +213,17 @@ export function useVoiceRecorder() {
     // its tracks, or the mic stays hot behind a UI that has already moved on.
     const epoch = epochRef.current + 1;
     epochRef.current = epoch;
+    const askedAt = Date.now();
+    addCrumb('mic: requesting getUserMedia');
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (epoch !== epochRef.current) {
         stream.getTracks().forEach((t) => t.stop());
+        addCrumb('mic: getUserMedia resolved after the attempt was abandoned');
         return false;
       }
+      lastErrorRef.current = null;
+      addCrumb('mic: getUserMedia granted', { waitedMs: Date.now() - askedAt });
       const picked = pickMimeType();
       const rec = picked ? new MediaRecorder(stream, { mimeType: picked }) : new MediaRecorder(stream);
       const effectiveType = rec.mimeType || picked || 'audio/webm';
@@ -228,9 +252,42 @@ export function useVoiceRecorder() {
         setElapsedMs(Date.now() - startedAtRef.current);
       }, 200);
       return true;
-    } catch {
+    } catch (err) {
       cleanup();
       setStatus('error');
+
+      // The error used to be thrown away by a bare `catch {}`, so every cause —
+      // permission refused, mic held by another app, no mic at all, insecure
+      // context — produced the same "enable it in Settings" message, and only one
+      // of those is actually fixable that way. Keep the name: the caller needs it
+      // to say something true, and we need it to know what is really happening on
+      // dealers' phones.
+      // DOMException is not reliably `instanceof Error` — see lib/errors.
+      const name = errorName(err);
+      lastErrorRef.current = name;
+
+      void micDiagnostics(err).then((diag) => {
+        reportIssue({
+          name: 'mic.blocked',
+          // A denied mic is a handled path, not a crash: it is a fault in the
+          // product, not in the code, so it is reported as a warning — but it IS
+          // reported, because nothing would reach Sentry on its own.
+          level: 'warning',
+          tags: {
+            'mic.error': name,
+            'mic.permission': diag.permissionState,
+            nativeShell: diag.nativeShell,
+            secureContext: diag.secureContext,
+            audioInputs: diag.audioInputs,
+          },
+          extra: {
+            ...(diag as unknown as Record<string, unknown>),
+            waitedMs: Date.now() - askedAt,
+          },
+          error: err,
+        });
+      });
+
       return false;
     }
   }, [supported, cleanup, setupAnalyser]);
@@ -274,6 +331,9 @@ export function useVoiceRecorder() {
    */
   const getLevels = React.useCallback((): number[] => rollingRef.current, []);
 
+  /** The DOMException name from the last failed start(), or null if it worked. */
+  const lastError = React.useCallback((): string | null => lastErrorRef.current, []);
+
   React.useEffect(
     () => () => {
       epochRef.current += 1;
@@ -282,5 +342,5 @@ export function useVoiceRecorder() {
     [cleanup],
   );
 
-  return { supported, status, elapsedMs, start, stop, cancel, getLevels };
+  return { supported, status, elapsedMs, start, stop, cancel, getLevels, lastError };
 }

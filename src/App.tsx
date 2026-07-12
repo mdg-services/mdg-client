@@ -4,6 +4,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { Spinner } from '@/components/ui';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { setMonitoringUser } from '@/lib/monitoring';
 import { useAuthStore } from '@/store/auth';
 
 // Route-level code splitting: each page (and the authenticated shell) is its own
@@ -63,7 +64,27 @@ function ProtectedLayout() {
   return <AppShell />;
 }
 
+/**
+ * Tell the error reporter who is reporting — by opaque id only.
+ *
+ * Enough to answer the question that actually gets asked ("is this the dealer who
+ * complained, and is it only them?") without shipping a name, an email or a phone
+ * number to a third party.
+ */
+function useMonitoringIdentity() {
+  const user = useAuthStore((s) => s.user);
+  React.useEffect(() => {
+    setMonitoringUser(
+      user
+        ? { id: user.id, role: user.role, dealerId: user.dealerId ?? undefined }
+        : null,
+    );
+  }, [user]);
+}
+
 export function App() {
+  useMonitoringIdentity();
+
   return (
     <ChunkErrorBoundary>
       <React.Suspense fallback={<FullScreenSpinner />}>

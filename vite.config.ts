@@ -7,6 +7,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // Sentry's documented tree-shaking flags. Without them the SDK ships its
+    // debug logging and its whole performance-tracing tree, neither of which this
+    // app uses — and every kilobyte here is paid for by a dealer on 2G.
+    __SENTRY_DEBUG__: false,
+    __SENTRY_TRACING__: false,
+    __RRWEB_EXCLUDE_SHADOW_DOM__: true,
+    __RRWEB_EXCLUDE_IFRAME__: true,
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

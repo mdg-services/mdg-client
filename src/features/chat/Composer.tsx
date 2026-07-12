@@ -15,6 +15,8 @@ import * as React from 'react';
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import { micDiagnostics } from '@/lib/micDiagnostics';
+import { addCrumb, reportIssue } from '@/lib/monitoring';
 import { isNativeShell, requestNativeMicPermission } from '@/lib/nativeBridge';
 import {
   formatDuration,
@@ -382,9 +384,51 @@ export function Composer({
   // success: the user already asked for a voice note, so making them press again
   // reads as "the mic still doesn't work". In a plain browser
   // requestNativeMicPermission resolves false, so it goes straight to the hint.
+  /**
+   * Say what is actually wrong.
+   *
+   * Every one of these used to produce "allow microphone access in Settings",
+   * which is only true when the mic was refused. A dealer whose mic is busy — on a
+   * call, or with a voice assistant holding it — goes to Settings, finds the
+   * permission already granted, and reports the mic as broken again. Which is
+   * roughly what has been happening.
+   */
+  const micMessage = () => {
+    switch (recorder.lastError()) {
+      case 'NotReadableError':
+      case 'AbortError':
+        // The mic is allowed and present; something else has it open.
+        return { title: t('chat.micBusy'), hint: t('chat.micBusyHint') };
+      case 'NotFoundError':
+      case 'OverconstrainedError':
+        return { title: t('chat.micMissing'), hint: t('chat.micMissingHint') };
+      case 'SecurityError':
+      case 'TypeError':
+      case 'Unsupported':
+        // Insecure context, or a WebView with no mediaDevices at all. Nothing the
+        // dealer can do about either — don't send them somewhere pointless.
+        return { title: t('chat.micUnavailable'), hint: t('chat.micUnavailableHint') };
+      default:
+        // NotAllowedError, and anything we haven't seen: it was refused.
+        return { title: t('chat.micBlocked'), hint: t('chat.micBlockedHint') };
+    }
+  };
+
+  const tellMicFailed = () => {
+    const { title, hint } = micMessage();
+    toast.error(title, { description: hint });
+  };
+
   const notifyMicBlocked = async () => {
-    if (isNativeShell()) {
+    // Only a REFUSAL can be fixed by asking again. Re-prompting for a mic that is
+    // busy or missing just makes the dealer tap through a dialog for nothing.
+    const refused = recorder.lastError() === 'NotAllowedError' || recorder.lastError() === null;
+
+    if (isNativeShell() && refused) {
+      addCrumb('mic: re-requesting the native permission');
       const granted = await requestNativeMicPermission();
+      addCrumb('mic: native permission answered', { granted });
+
       if (granted) {
         const attempt = attemptRef.current + 1;
         attemptRef.current = attempt;
@@ -396,12 +440,20 @@ export function Composer({
           setRecMode('locked');
           return;
         }
-        // Granted at the OS level but the mic still won't open — don't loop.
-        toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
+        // Granted at the OS level and the mic STILL won't open. This is the case
+        // worth shouting about: the permission is not the problem, so whatever is
+        // wrong is ours or the device's, and we have no other way to find out.
+        reportIssue({
+          name: 'mic.granted-but-unopenable',
+          level: 'error',
+          tags: { 'mic.error': recorder.lastError() ?? 'none' },
+        });
+        tellMicFailed();
         return;
       }
     }
-    toast.error(t('chat.micBlocked'), { description: t('chat.micBlockedHint') });
+
+    tellMicFailed();
   };
 
   const disarmStartWatchdog = () => {
@@ -420,6 +472,24 @@ export function Composer({
     disarmStartWatchdog();
     startTimerRef.current = setTimeout(() => {
       startTimerRef.current = null;
+      // getUserMedia never settled, in the foreground, for 12 seconds. It did not
+      // reject — it simply never answered, which no error name will ever explain.
+      // Nothing else in the app can see this, so it has to be reported here.
+      void micDiagnostics().then((diag) => {
+        reportIssue({
+          name: 'mic.never-settled',
+          level: 'error',
+          tags: {
+            nativeShell: diag.nativeShell,
+            'mic.permission': diag.permissionState,
+            audioInputs: diag.audioInputs,
+          },
+          extra: {
+            ...(diag as unknown as Record<string, unknown>),
+            timeoutMs: START_TIMEOUT_MS,
+          },
+        });
+      });
       resetRecording(); // bumps attemptRef → any pending start becomes a no-op
       void notifyMicBlocked();
     }, START_TIMEOUT_MS);

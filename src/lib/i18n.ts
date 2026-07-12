@@ -115,9 +115,37 @@ export const messages = {
     en: "Can't access the microphone",
     hi: 'माइक्रोफ़ोन एक्सेस नहीं हो पा रहा',
   },
+  // "Allow it in Settings" is the right advice for a REFUSED mic and nothing else.
+  // If the mic is busy, or absent, or the page is insecure, that instruction sends
+  // the dealer to a screen where the permission is already on — they follow it,
+  // nothing changes, and they report the mic as broken again. One message per cause.
   'chat.micBlockedHint': {
     en: 'Allow microphone access for Dealer Kavach in your phone Settings, then try again.',
     hi: 'फ़ोन की सेटिंग में Dealer Kavach को माइक्रोफ़ोन की अनुमति दें, फिर दोबारा कोशिश करें।',
+  },
+  'chat.micBusy': {
+    en: 'The microphone is being used by another app',
+    hi: 'माइक्रोफ़ोन किसी दूसरे ऐप में चल रहा है',
+  },
+  'chat.micBusyHint': {
+    en: 'Close any call or recording app, then try again.',
+    hi: 'कॉल या रिकॉर्डिंग वाला ऐप बंद कीजिए, फिर दोबारा कोशिश करें।',
+  },
+  'chat.micMissing': {
+    en: 'No microphone found on this phone',
+    hi: 'इस फ़ोन में माइक्रोफ़ोन नहीं मिला',
+  },
+  'chat.micMissingHint': {
+    en: 'You can still type your message, or send a photo.',
+    hi: 'आप संदेश टाइप कर सकते हैं, या फोटो भेज सकते हैं।',
+  },
+  'chat.micUnavailable': {
+    en: "Voice notes don't work on this phone",
+    hi: 'इस फ़ोन में वॉइस नोट नहीं चलते',
+  },
+  'chat.micUnavailableHint': {
+    en: 'Please type your message instead. We are looking into it.',
+    hi: 'कृपया संदेश टाइप कीजिए। हम इसे देख रहे हैं।',
   },
   'chat.releaseToCancel': {
     en: 'Release to cancel',
