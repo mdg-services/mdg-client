@@ -40,6 +40,29 @@ export const STAFF_WORK_DOMAINS = [
 ] as const;
 export type StaffWorkDomain = (typeof STAFF_WORK_DOMAINS)[number];
 
+/**
+ * The catch-all works — "Other cleaning work", "Other DU work", "Other office
+ * work". Their label says nothing about what was actually done, so a free-text
+ * description is REQUIRED before points can be awarded for one; every other work
+ * names itself and takes an optional note.
+ *
+ * Enforced in `staffDraftEntrySchema` / `awardWorkSelectionSchema`, so the rule
+ * holds for the client, the draft autosave and the finalize path alike.
+ */
+export const DESCRIPTION_REQUIRED_WORK_CODES = [
+  'other-cleaning-work',
+  'other-du-work',
+  'other-office-work',
+] as const;
+
+/** Whether this work demands a written description of what was done. */
+export function requiresDescription(workItemCode: string): boolean {
+  return (DESCRIPTION_REQUIRED_WORK_CODES as readonly string[]).includes(workItemCode);
+}
+
+/** Max length of a per-work description. */
+export const WORK_NOTE_MAX = 300;
+
 /** The unit a PER_UNIT item is counted in (drives the quantity stepper's label). */
 export const STAFF_WORK_UNITS = [
   'vehicle',
@@ -270,6 +293,11 @@ export interface AwardStaffWorkSelection {
    * award for hardcopy reconciliation. Ignored for non-`rupee-1000` works.
    */
   amountRupees?: number;
+  /**
+   * What was done. REQUIRED for the catch-all works
+   * (`DESCRIPTION_REQUIRED_WORK_CODES`), optional for the rest.
+   */
+  note?: string;
 }
 
 export interface UpdateEmployeeInput {
@@ -324,6 +352,13 @@ export interface StaffPointDraftEntry {
   quantity?: number;
   /** Raw rupees for `rupee-1000` works; `quantity = amountRupees / 1000` server-side. */
   amountRupees?: number;
+  /**
+   * What was actually done. REQUIRED for the catch-all works
+   * (`DESCRIPTION_REQUIRED_WORK_CODES`), optional for the rest. Per-entry, not
+   * per-batch: a submission can hold several "Other …" works and each needs to
+   * say what it was.
+   */
+  note?: string;
 }
 
 /**
@@ -365,6 +400,8 @@ export interface StaffPointDraftLineItem {
   amountRupees?: number;
   /** SPLIT divisor (# distinct workers sharing this work in the draft). */
   splitAmong?: number;
+  /** What was done — always set for the catch-all works, which require it. */
+  note?: string;
   /** Server-computed points this line awards, rounded to 2 dp. */
   points: number;
   source: 'default' | 'custom';

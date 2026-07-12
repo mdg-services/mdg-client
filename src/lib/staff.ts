@@ -157,6 +157,8 @@ export interface DraftLine {
   amountRupees?: number;
   /** SPLIT divisor — distinct workers sharing this work across the whole draft. */
   splitAmong?: number;
+  /** What was done — always present for the catch-all works, which require it. */
+  note?: string;
   points: number;
 }
 
@@ -166,8 +168,11 @@ export interface NamedEmployee {
   name: string;
 }
 
-const lineKey = (employeeId: string, workItemCode: string): string =>
-  `${employeeId}::${workItemCode}`;
+// Keyed by description too, so two differently-described "Other" jobs for the
+// same worker resolve against their own server line instead of both matching the
+// first one. Mirrors the server's merge key.
+const lineKey = (employeeId: string, workItemCode: string, note?: string): string =>
+  `${employeeId}::${workItemCode}::${note ?? ''}`;
 
 /**
  * Resolve the persisted draft `entries` against the dealer's effective work list
@@ -186,7 +191,7 @@ export function buildDraftLines(
   const workByCode = new Map(workItems.map((w) => [w.code, w]));
   const nameById = new Map(employees.map((e) => [e.id, e.name]));
   const fallbackByKey = new Map(
-    (fallback ?? []).map((l) => [lineKey(l.employeeId, l.workItemCode), l]),
+    (fallback ?? []).map((l) => [lineKey(l.employeeId, l.workItemCode, l.note), l]),
   );
 
   // Distinct workers sharing each SPLIT work across the whole draft = the divisor.
@@ -201,7 +206,7 @@ export function buildDraftLines(
 
   return entries.map((e) => {
     const w = workByCode.get(e.workItemCode);
-    const fb = fallbackByKey.get(lineKey(e.employeeId, e.workItemCode));
+    const fb = fallbackByKey.get(lineKey(e.employeeId, e.workItemCode, e.note));
     const employeeName = nameById.get(e.employeeId) ?? fb?.employeeName ?? '';
 
     if (!w) {
@@ -217,6 +222,7 @@ export function buildDraftLines(
         quantity: e.quantity ?? fb?.quantity,
         amountRupees: e.amountRupees ?? fb?.amountRupees,
         splitAmong: fb?.splitAmong,
+        note: e.note ?? fb?.note,
         points: fb?.points ?? 0,
       };
     }
@@ -250,6 +256,7 @@ export function buildDraftLines(
       quantity: e.quantity,
       amountRupees: e.amountRupees,
       splitAmong,
+      note: e.note,
       points,
     };
   });

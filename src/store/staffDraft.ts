@@ -101,9 +101,19 @@ export function draftSignature(slice: {
   });
 }
 
+/**
+ * Two entries are "the same line" only if they also describe the same job. The
+ * description is part of the identity — two "Other cleaning work" rows for one
+ * worker that say different things are different work, and folding them together
+ * would drop a description. Must stay in step with the server's merge key in
+ * `mergeAndValidateDraftEntries`, or the local draft and the synced one disagree
+ * about how many lines there are.
+ */
 const sameEntry =
   (a: StaffPointDraftEntry) => (b: StaffPointDraftEntry) =>
-    a.employeeId === b.employeeId && a.workItemCode === b.workItemCode;
+    a.employeeId === b.employeeId &&
+    a.workItemCode === b.workItemCode &&
+    (a.note ?? '') === (b.note ?? '');
 
 /** Sum two optional numbers, returning undefined only when both are absent. */
 function addOptional(a?: number, b?: number): number | undefined {

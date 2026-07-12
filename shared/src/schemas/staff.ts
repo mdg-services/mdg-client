@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { WORK_NOTE_MAX, requiresDescription } from '../types/staff';
+
 /**
  * Zod schemas for the Staff Points subsystem. Enum values are mirrored by hand
  * from types/staff.ts (same convention as schemas/kavach.ts).
@@ -116,17 +118,38 @@ export const updateEmployeeSchema = z
   });
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
 
+/**
+ * The catch-all works ("Other cleaning work" etc.) are named so vaguely that the
+ * row alone records nothing useful, so they must carry a description. Applied via
+ * `.superRefine` to every path that can create a points row — the award call, the
+ * draft autosave, and (transitively) finalize — so there is no way in without one.
+ */
+function refineWorkNote(v: { workItemCode?: string; note?: string }, ctx: z.RefinementCtx): void {
+  if (!v.workItemCode || !requiresDescription(v.workItemCode)) return;
+  if (!v.note || v.note.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['note'],
+      message: 'Describe what was done for this work',
+    });
+  }
+}
+
 /** One work inside an award action: a catalog code plus optional PER_UNIT quantity. */
-export const awardWorkSelectionSchema = z.object({
-  workItemCode: z.string().trim().min(1).max(120),
-  /** PER_UNIT quantity — fractional allowed (e.g. ₹2500 of HSD → 2.5 units). */
-  quantity: z.number().positive().max(1_000_000).optional(),
-  /**
-   * Raw rupee amount for a `rupee-1000` unit work. When present the server
-   * computes `quantity = amountRupees / 1000` and ignores any `quantity`.
-   */
-  amountRupees: z.number().positive().max(100_000_000).optional(),
-});
+export const awardWorkSelectionSchema = z
+  .object({
+    workItemCode: z.string().trim().min(1).max(120),
+    /** PER_UNIT quantity — fractional allowed (e.g. ₹2500 of HSD → 2.5 units). */
+    quantity: z.number().positive().max(1_000_000).optional(),
+    /**
+     * Raw rupee amount for a `rupee-1000` unit work. When present the server
+     * computes `quantity = amountRupees / 1000` and ignores any `quantity`.
+     */
+    amountRupees: z.number().positive().max(100_000_000).optional(),
+    /** What was done. Required for `DESCRIPTION_REQUIRED_WORK_CODES`. */
+    note: z.string().trim().max(WORK_NOTE_MAX).optional(),
+  })
+  .superRefine(refineWorkNote);
 
 /**
  * Body for POST /dealers/:dealerId/staff-points — award points for one or more
@@ -154,6 +177,21 @@ export const awardStaffPointsSchema = z
     message: 'Select at least one work',
     path: ['items'],
   })
+  // The legacy single-work item is assembled inside .transform(), which runs
+  // AFTER validation — so awardWorkSelectionSchema's note check never sees it.
+  // Re-apply the rule here, accepting the batch note as the description (with one
+  // work there is nothing else it could be describing).
+  .superRefine((v, ctx) => {
+    const legacy = !(v.items && v.items.length > 0);
+    if (!legacy || !v.workItemCode) return;
+    if (requiresDescription(v.workItemCode) && !v.note) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['note'],
+        message: 'Describe what was done for this work',
+      });
+    }
+  })
   .transform((v) => ({
     employeeIds: v.employeeIds,
     items:
@@ -164,6 +202,7 @@ export const awardStaffPointsSchema = z
               workItemCode: v.workItemCode as string,
               quantity: v.quantity,
               amountRupees: v.amountRupees,
+              note: v.note,
             },
           ],
     workDate: v.workDate,
@@ -208,12 +247,16 @@ export type UpdateMyPreferencesInput = z.infer<typeof updateMyPreferencesSchema>
 /* ─────────────────────── Draft → Finalize (server-synced) ─────────────────────────────────── */
 
 /** One line of a server-synced draft: worker + work (+ optional PER_UNIT quantity/amount). */
-export const staffDraftEntrySchema = z.object({
-  employeeId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid employee id'),
-  workItemCode: z.string().trim().min(1).max(120),
-  quantity: z.number().positive().max(1_000_000).optional(),
-  amountRupees: z.number().positive().max(100_000_000).optional(),
-});
+export const staffDraftEntrySchema = z
+  .object({
+    employeeId: z.string().regex(/^[a-f0-9]{24}$/i, 'Invalid employee id'),
+    workItemCode: z.string().trim().min(1).max(120),
+    quantity: z.number().positive().max(1_000_000).optional(),
+    amountRupees: z.number().positive().max(100_000_000).optional(),
+    /** What was done. Required for `DESCRIPTION_REQUIRED_WORK_CODES`. */
+    note: z.string().trim().max(WORK_NOTE_MAX).optional(),
+  })
+  .superRefine(refineWorkNote);
 export type StaffDraftEntryInput = z.infer<typeof staffDraftEntrySchema>;
 
 /**

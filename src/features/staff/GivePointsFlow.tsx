@@ -22,7 +22,7 @@ import type {
   EmployeeWithPoints,
   StaffPointDraftEntry,
 } from '@dk/shared/types';
-import { STAFF_WORK_DOMAINS } from '@dk/shared/types';
+import { STAFF_WORK_DOMAINS, WORK_NOTE_MAX, requiresDescription } from '@dk/shared/types';
 
 type Step = 'worker' | 'work' | 'configure';
 
@@ -31,11 +31,26 @@ interface ChosenWork {
   item: EffectiveWorkItem;
   quantity?: number;
   amountRupees?: number;
+  note?: string;
 }
 
 /** A rupee work needs a positive amount before it can join the submission. */
 function rupeeInvalid(w: ChosenWork): boolean {
   return isRupeeWork(w.item) && (w.amountRupees == null || w.amountRupees <= 0);
+}
+
+/**
+ * A catch-all work ("Other cleaning work" …) needs someone to say what was
+ * actually done — the row alone records nothing. The server rejects it either
+ * way; catching it here means the dealer sees which field to fix instead of a
+ * failed save.
+ */
+function noteInvalid(w: ChosenWork): boolean {
+  return requiresDescription(w.item.code) && !w.note;
+}
+
+function workInvalid(w: ChosenWork): boolean {
+  return rupeeInvalid(w) || noteInvalid(w);
 }
 
 /**
@@ -67,6 +82,7 @@ export function GivePointsFlow({
   const [selectedCodes, setSelectedCodes] = React.useState<string[]>([]);
   const [quantities, setQuantities] = React.useState<Record<string, number>>({});
   const [amounts, setAmounts] = React.useState<Record<string, string>>({});
+  const [notes, setNotes] = React.useState<Record<string, string>>({});
   const [workDate, setWorkDate] = React.useState(() => istDate());
   const [search, setSearch] = React.useState('');
   const [attempted, setAttempted] = React.useState(false);
@@ -83,20 +99,22 @@ export function GivePointsFlow({
         .filter((w): w is EffectiveWorkItem => Boolean(w))
         .sort((a, b) => a.srNo - b.srNo)
         .map((item) => {
+          const note = (notes[item.code] ?? '').trim() || undefined;
           if (isRupeeWork(item)) {
             const raw = (amounts[item.code] ?? '').trim();
             const amt = raw === '' ? NaN : Number(raw);
             return {
               item,
               amountRupees: Number.isFinite(amt) && amt > 0 ? amt : undefined,
+              note,
             };
           }
           if (item.distribution === 'PER_UNIT') {
-            return { item, quantity: quantities[item.code] ?? 1 };
+            return { item, quantity: quantities[item.code] ?? 1, note };
           }
-          return { item };
+          return { item, note };
         }),
-    [selectedCodes, catalog, quantities, amounts],
+    [selectedCodes, catalog, quantities, amounts, notes],
   );
 
   const grandTotal = totalAwardPointsForWorks(works, count);
@@ -104,7 +122,7 @@ export function GivePointsFlow({
   // summary shows one worker's worth — a stable "face value" that matches the
   // per-work badges, instead of a total that silently multiplies by worker count.
   const previewTotal = totalAwardPointsForWorks(works, 1);
-  const hasInvalidAmount = works.some(rupeeInvalid);
+  const hasInvalidWork = works.some(workInvalid);
 
   const pickWorker = (id: string) => {
     setSelectedIds([id]);
@@ -131,6 +149,12 @@ export function GivePointsFlow({
     setAmounts((a) => {
       if (!(code in a)) return a;
       const next = { ...a };
+      delete next[code];
+      return next;
+    });
+    setNotes((n) => {
+      if (!(code in n)) return n;
+      const next = { ...n };
       delete next[code];
       return next;
     });
@@ -162,6 +186,10 @@ export function GivePointsFlow({
     setAmounts((a) => ({ ...a, [code]: cleaned }));
   };
 
+  const setNote = (code: string, value: string) => {
+    setNotes((n) => ({ ...n, [code]: value.slice(0, WORK_NOTE_MAX) }));
+  };
+
   const goBack = () => {
     if (step === 'configure') setStep('work');
     else if (step === 'work') setStep('worker');
@@ -169,8 +197,15 @@ export function GivePointsFlow({
 
   const confirm = () => {
     if (!dealerId || works.length === 0 || count === 0) return;
-    if (hasInvalidAmount) {
+    if (hasInvalidWork) {
+      // Reveal the inline errors, and say it out loud too: the offending field
+      // may be scrolled out of sight, and a tap that appears to do nothing reads
+      // as a broken app.
       setAttempted(true);
+      const missingNote = works.some(noteInvalid);
+      toast.error(
+        missingNote ? t('staff.workNoteRequired') : t('staff.amountRequired'),
+      );
       return;
     }
     const entries: StaffPointDraftEntry[] = [];
@@ -182,6 +217,7 @@ export function GivePointsFlow({
         };
         if (isRupeeWork(w.item)) entry.amountRupees = w.amountRupees;
         else if (w.item.distribution === 'PER_UNIT') entry.quantity = w.quantity;
+        if (w.note) entry.note = w.note;
         entries.push(entry);
       }
     }
@@ -256,10 +292,12 @@ export function GivePointsFlow({
               selectedIds={selectedIds}
               count={count}
               amounts={amounts}
+              notes={notes}
               attempted={attempted}
               onToggleWorker={toggleWorker}
               onQty={setQty}
               onAmount={setAmount}
+              onNote={setNote}
               onRemoveWork={removeWork}
               onAddMore={() => setStep('work')}
               canRemove={works.length > 1}
@@ -293,12 +331,13 @@ export function GivePointsFlow({
           </footer>
         ) : step === 'configure' ? (
           <footer className="border-t border-border p-3">
-            <Button
-              fullWidth
-              size="lg"
-              disabled={hasInvalidAmount}
-              onClick={confirm}
-            >
+            {/*
+              Deliberately NOT disabled when a field is missing. A greyed-out
+              button tells the dealer they cannot continue but never why — they
+              tap it, nothing happens, and they are stuck. Let the tap through and
+              let confirm() point at the field that needs filling.
+            */}
+            <Button fullWidth size="lg" onClick={confirm}>
               {t('staff.addToSubmission')} · {fmtPoints(grandTotal)}
             </Button>
           </footer>
@@ -485,10 +524,12 @@ function Configure({
   selectedIds,
   count,
   amounts,
+  notes,
   attempted,
   onToggleWorker,
   onQty,
   onAmount,
+  onNote,
   onRemoveWork,
   onAddMore,
   canRemove,
@@ -503,10 +544,12 @@ function Configure({
   selectedIds: string[];
   count: number;
   amounts: Record<string, string>;
+  notes: Record<string, string>;
   attempted: boolean;
   onToggleWorker: (id: string) => void;
   onQty: (code: string, n: number) => void;
   onAmount: (code: string, value: string) => void;
+  onNote: (code: string, value: string) => void;
   onRemoveWork: (code: string) => void;
   onAddMore: () => void;
   canRemove: boolean;
@@ -602,9 +645,12 @@ function Configure({
               count={count}
               canRemove={canRemove}
               amount={amounts[w.item.code] ?? ''}
-              showError={attempted && rupeeInvalid(w)}
+              note={notes[w.item.code] ?? ''}
+              showAmountError={attempted && rupeeInvalid(w)}
+              showNoteError={attempted && noteInvalid(w)}
               onQty={onQty}
               onAmount={onAmount}
+              onNote={onNote}
               onRemove={onRemoveWork}
               lang={lang}
               t={t}
@@ -634,9 +680,12 @@ function WorkRow({
   count,
   canRemove,
   amount,
-  showError,
+  note,
+  showAmountError,
+  showNoteError,
   onQty,
   onAmount,
+  onNote,
   onRemove,
   lang,
   t,
@@ -645,9 +694,12 @@ function WorkRow({
   count: number;
   canRemove: boolean;
   amount: string;
-  showError: boolean;
+  note: string;
+  showAmountError: boolean;
+  showNoteError: boolean;
   onQty: (code: string, n: number) => void;
   onAmount: (code: string, value: string) => void;
+  onNote: (code: string, value: string) => void;
   onRemove: (code: string) => void;
   lang: ReturnType<typeof useLang>;
   t: ReturnType<typeof useT>;
@@ -657,6 +709,7 @@ function WorkRow({
   const isPerUnit = item.distribution === 'PER_UNIT' && !isRupee;
   const isSplit = item.distribution === 'SPLIT';
   const isEach = item.distribution === 'EACH';
+  const needsNote = requiresDescription(item.code);
   const per = perEmployeePoints(item, count, effectiveQuantity(work));
   const qty = work.quantity ?? 1;
 
@@ -704,7 +757,7 @@ function WorkRow({
           <div
             className={cn(
               'flex items-center gap-2 rounded-xl border bg-surface-2 px-3',
-              showError ? 'border-danger' : 'border-border-strong',
+              showAmountError ? 'border-danger' : 'border-border-strong',
             )}
           >
             <span className="text-base font-semibold text-text-muted">₹</span>
@@ -717,7 +770,7 @@ function WorkRow({
               className="h-11 w-full bg-transparent text-base text-text outline-none placeholder:text-text-subtle"
             />
           </div>
-          {showError ? (
+          {showAmountError ? (
             <p className="mt-1 px-1 text-xs text-danger">
               {t('staff.amountRequired')}
             </p>
@@ -747,6 +800,44 @@ function WorkRow({
               <Plus width={18} strokeWidth={2} />
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {/*
+        The catch-all works are the only ones whose label doesn't say what was
+        done, so they're the only ones that ask. Every other work stays a single
+        tap — adding an optional box to all 66 would tax the common path to serve
+        the rare one.
+      */}
+      {needsNote ? (
+        <div className="mt-2">
+          <label
+            htmlFor={`note-${item.code}`}
+            className="mb-1 block px-1 text-xs font-semibold text-text-muted"
+          >
+            {t('staff.workNote')}
+          </label>
+          <textarea
+            id={`note-${item.code}`}
+            value={note}
+            onChange={(e) => onNote(item.code, e.target.value)}
+            rows={2}
+            maxLength={WORK_NOTE_MAX}
+            placeholder={t('staff.workNotePlaceholder')}
+            aria-invalid={showNoteError || undefined}
+            className={cn(
+              'w-full resize-none rounded-xl border bg-surface-2 px-3 py-2 text-base text-text outline-none placeholder:text-text-subtle',
+              showNoteError ? 'border-danger' : 'border-border-strong',
+            )}
+          />
+          <p
+            className={cn(
+              'mt-1 px-1 text-xs',
+              showNoteError ? 'text-danger' : 'text-text-muted',
+            )}
+          >
+            {showNoteError ? t('staff.workNoteRequired') : t('staff.workNoteHint')}
+          </p>
         </div>
       ) : null}
     </li>

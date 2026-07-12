@@ -283,6 +283,16 @@ function PendingLineRow({
         <p className="truncate text-sm text-text">
           {pick(lang, line.labelEn, line.labelHi)}
         </p>
+        {/*
+          For a catch-all work the description IS the work — "Other cleaning work"
+          on its own tells the dealer nothing about what they're about to submit,
+          so show what was written rather than making them reopen the flow.
+        */}
+        {line.note ? (
+          <p className="truncate text-[11px] italic text-text-muted">
+            {line.note}
+          </p>
+        ) : null}
         {line.splitAmong && line.splitAmong > 1 ? (
           <p className="text-[11px] text-text-subtle">
             {t('staff.give.splitInfo')}

@@ -366,7 +366,10 @@ export const messages = {
 
   /* ── profile & team ─────────────────────────────────────────────────── */
   'profile.roleOwner': { en: 'Owner', hi: 'मालिक' },
-  'profile.roleStaff': { en: 'Staff', hi: 'स्टाफ' },
+  // The `dealer-staff` LOGIN role — a manager with an app account. Not a warrior
+  // (a roster record with no login), so this must not be renamed to "warrior".
+  // The admin portal already calls this role "Manager".
+  'profile.roleStaff': { en: 'Manager', hi: 'मैनेजर' },
   'profile.roleAdmin': { en: 'Admin', hi: 'एडमिन' },
   'profile.statusActive': { en: 'Active', hi: 'चालू' },
   'profile.statusPaused': { en: 'Paused', hi: 'बंद' },
@@ -459,13 +462,13 @@ export const messages = {
   },
 
   /* ── staff & points ─────────────────────────────────────────────────── */
-  'profile.staffPoints': { en: 'Staff & points', hi: 'स्टाफ और पॉइंट' },
+  'profile.staffPoints': { en: 'Warriors & points', hi: 'योद्धा और पॉइंट' },
   'profile.staffPointsDesc': {
     en: 'Reward your warriors for their work',
     hi: 'अपने योद्धाओं को उनके काम के लिए इनाम दें',
   },
 
-  'staff.title': { en: 'Staff & points', hi: 'स्टाफ और पॉइंट' },
+  'staff.title': { en: 'Warriors & points', hi: 'योद्धा और पॉइंट' },
   'staff.givePoints': { en: 'Give points', hi: 'पॉइंट दें' },
   'staff.addWorker': { en: 'Add warrior', hi: 'योद्धा जोड़ें' },
   'staff.windowToday': { en: 'Today', hi: 'आज' },
@@ -569,6 +572,21 @@ export const messages = {
   'staff.amountRequired': {
     en: 'Enter the sale amount to add this',
     hi: 'इसे जोड़ने के लिए बिक्री की रकम भरें',
+  },
+
+  /* ── "Other …" works: what exactly was done? ─────────────────────────── */
+  'staff.workNote': { en: 'What did they do?', hi: 'उन्होंने क्या काम किया?' },
+  'staff.workNotePlaceholder': {
+    en: 'e.g. washed the canopy',
+    hi: 'जैसे — छत की सफाई की',
+  },
+  'staff.workNoteRequired': {
+    en: 'Write what work was done to add this',
+    hi: 'इसे जोड़ने के लिए लिखिए कि क्या काम किया',
+  },
+  'staff.workNoteHint': {
+    en: "This work doesn't say what was done — please write it.",
+    hi: 'इस काम से पता नहीं चलता कि क्या किया — कृपया लिखिए।',
   },
 
   /* ── draft: build up a submission ───────────────────────────────────── */
