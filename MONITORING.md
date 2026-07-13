@@ -15,7 +15,10 @@ imported, not bundled, and every call in `lib/monitoring` is a no-op.
    | --- | --- |
    | `VITE_SENTRY_DSN` | the DSN from Sentry |
    | `VITE_SENTRY_ENV` | `production` |
-   | `VITE_RELEASE` | optional — a commit SHA, so a report names its bundle |
+   | `SENTRY_AUTH_TOKEN` | optional — enables source-map upload (see below) |
+
+   `VITE_RELEASE` is set for you: the build reads Vercel's `VERCEL_GIT_COMMIT_SHA`,
+   so every report already names the deploy it came from.
 
 3. Redeploy. Vite inlines env vars at **build** time, so setting the variable
    without a rebuild changes nothing.
@@ -34,6 +37,28 @@ on low-end Android over 2G with metered data. So:
 
 There is a test (`lib/monitoring.test.ts`) pinning both properties. If someone
 "simplifies" this by importing Sentry at the top of a module, it will fail.
+
+## Source maps
+
+Without them, a stack trace in Sentry reads `a.b.c is not a function` at
+`index-Jq4LYgWJ.js:1:48210` — which is close to useless for the thing Sentry was
+added to answer.
+
+Set **`SENTRY_AUTH_TOKEN`** on the Vercel project (an *org* auth token from
+Sentry → Settings → Auth Tokens, scoped `project:releases`) and the build uploads
+source maps automatically.
+
+Three things make this safe:
+
+- **Nothing reaches the phone.** The plugin is build-time only; the bundle is
+  byte-for-byte identical.
+- **No `.map` is ever served.** They are uploaded and then deleted from `dist/`
+  (`filesToDeleteAfterUpload`). A public `.map` hands anyone the app's full source.
+- **A bad or expired token cannot break a deploy** — the build still exits 0. This
+  was tested, not assumed.
+
+With no token the maps are never even generated, so local builds and forks are
+unaffected.
 
 ## What it will not send
 
