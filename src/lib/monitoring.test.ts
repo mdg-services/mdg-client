@@ -142,3 +142,59 @@ describe('monitoring — enabled, but only pays when something breaks', () => {
     expect(true).toBe(true);
   });
 });
+
+/**
+ * The Sentry plan is the free one: 5,000 events a month for the whole product.
+ *
+ * One phone in a render loop, or one dealer holding a mic button that always fails,
+ * can raise thousands of events in minutes. Sentry would then silently drop the
+ * month's remaining reports — leaving us blind exactly when something is wrong. The
+ * client has to ration itself.
+ */
+describe('monitoring — rations itself to protect the free-tier quota', () => {
+  it('sends the same issue only a few times, not a thousand', async () => {
+    const m = await loadMonitoring('https://k@o0.ingest.sentry.io/0');
+    m.initMonitoring();
+
+    // A mic that fails on every single tap.
+    for (let i = 0; i < 200; i += 1) {
+      m.reportIssue({ name: 'mic.blocked', level: 'warning', error: new Error('nope') });
+    }
+
+    await vi.waitFor(() => expect(sentryModule.loaded).toBe(1));
+    // Three is enough to characterise a fault; the two-hundredth adds nothing.
+    expect(sentryModule.captured.length).toBeLessThanOrEqual(3);
+  });
+
+  it('caps the whole session, so many different faults still cannot drain it', async () => {
+    const m = await loadMonitoring('https://k@o0.ingest.sentry.io/0');
+    m.initMonitoring();
+
+    for (let i = 0; i < 100; i += 1) {
+      m.reportIssue({ name: `issue-${i}`, error: new Error(String(i)) });
+    }
+
+    await vi.waitFor(() => expect(sentryModule.loaded).toBe(1));
+    // The per-session ceiling is 12.
+    expect(sentryModule.captured.length).toBeLessThanOrEqual(12);
+  });
+
+  it('a crash loop cannot even trigger the 106 kB download after the cap', async () => {
+    const m = await loadMonitoring('https://k@o0.ingest.sentry.io/0');
+    m.initMonitoring();
+
+    // Burn the session ration.
+    for (let i = 0; i < 100; i += 1) {
+      m.reportIssue({ name: `x-${i}`, error: new Error('x') });
+    }
+    await vi.waitFor(() => expect(sentryModule.loaded).toBe(1));
+    const after = sentryModule.captured.length;
+
+    // Anything beyond the cap is dropped before it costs the phone anything.
+    for (let i = 0; i < 50; i += 1) {
+      m.reportIssue({ name: 'late', error: new Error('late') });
+    }
+    await new Promise((r) => setTimeout(r, 10));
+    expect(sentryModule.captured.length).toBe(after);
+  });
+});

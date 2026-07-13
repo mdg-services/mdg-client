@@ -71,6 +71,34 @@ const MAX_PENDING = 40;
 
 let pendingUser: { id: string; role?: string; dealerId?: string } | null = null;
 
+/*
+ * Quota guard.
+ *
+ * The Sentry plan is the free one: 5,000 events a month for the whole product. A
+ * single phone stuck in a render loop, or one dealer mashing a mic button that
+ * always fails, can raise thousands of events in minutes and swallow the month's
+ * budget — after which the reports we actually need are dropped on the floor by
+ * Sentry, silently, and we are blind again precisely when something is wrong.
+ *
+ * So the client rations itself. A repeated fault is worth knowing about a few
+ * times; the tenth copy tells us nothing the third did not.
+ */
+const SESSION_EVENT_CAP = 12;
+const PER_ISSUE_CAP = 3;
+
+let sentThisSession = 0;
+const sentByIssue = new Map<string, number>();
+
+/** Whether this event is within the session's ration. Counts it if so. */
+function withinQuota(name: string): boolean {
+  if (sentThisSession >= SESSION_EVENT_CAP) return false;
+  const seen = sentByIssue.get(name) ?? 0;
+  if (seen >= PER_ISSUE_CAP) return false;
+  sentByIssue.set(name, seen + 1);
+  sentThisSession += 1;
+  return true;
+}
+
 /** Reporting is off entirely without a DSN. */
 export function monitoringEnabled(): boolean {
   return Boolean(DSN);
@@ -160,7 +188,9 @@ async function ensureSentry(): Promise<void> {
     const crumbs = pendingCrumbs.splice(0);
     const issues = pendingIssues.splice(0);
     for (const c of crumbs) addCrumb(c.message, c.data);
-    for (const i of issues) reportIssue(i);
+    // send(), not reportIssue(): these already passed the quota check on the way in,
+    // and charging them twice would silently drop the ones we chose to keep.
+    for (const i of issues) send(i);
   })();
 
   return loading;
@@ -238,14 +268,25 @@ export function addCrumb(message: string, data?: Record<string, unknown>): void 
 export function reportIssue(issue: Issue): void {
   if (!DSN) return;
 
+  // Rationed BEFORE the SDK is fetched, so a crash loop can neither fill the buffer
+  // nor — worse — trigger a 106 kB download on a phone that is already struggling.
+  if (!withinQuota(issue.name)) return;
+
   if (!sentry) {
     if (pendingIssues.length < MAX_PENDING) pendingIssues.push(issue);
     void ensureSentry();
     return;
   }
 
-  const { name, level = 'error', tags, extra, error } = issue;
+  send(issue);
+}
+
+/** Hand an already-rationed issue to Sentry. */
+function send(issue: Issue): void {
   const S = sentry;
+  if (!S) return;
+
+  const { name, level = 'error', tags, extra, error } = issue;
 
   S.withScope((scope) => {
     scope.setLevel(level);
