@@ -23,6 +23,7 @@ export const staffWorkDomainSchema = z.enum([
   'sales',
   'office',
   'customer',
+  'kitchen',
   'misc',
 ]);
 
@@ -117,6 +118,29 @@ export const updateEmployeeSchema = z
     message: 'Provide at least one field to update',
   });
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;
+
+/**
+ * Body for POST /dealers/:dealerId/employees/:id/leave — mark a worker on leave
+ * for a day. `date` defaults to today (IST) server-side when omitted, so the
+ * common "who's off today" case needs no date at all.
+ */
+export const setEmployeeLeaveSchema = z.object({
+  date: staffDateSchema.optional(),
+  note: z
+    .string()
+    .trim()
+    .max(WORK_NOTE_MAX)
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
+});
+export type SetEmployeeLeaveInput = z.infer<typeof setEmployeeLeaveSchema>;
+
+/** Query for GET /dealers/:dealerId/employees/leave — leave records in a window. */
+export const employeeLeaveQuerySchema = z.object({
+  from: staffDateSchema.optional(),
+  to: staffDateSchema.optional(),
+});
+export type EmployeeLeaveQuery = z.infer<typeof employeeLeaveQuerySchema>;
 
 /**
  * The catch-all works ("Other cleaning work" etc.) are named so vaguely that the

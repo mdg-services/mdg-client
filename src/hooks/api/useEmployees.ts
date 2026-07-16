@@ -6,15 +6,16 @@ import {
 } from '@tanstack/react-query';
 
 
-import { useToast } from '@/components/ui';
-import { api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
-import { istDate, istMonthStart } from '@/lib/staff';
 import type {
   CreateEmployeeInput,
   EmployeeWithPoints,
   UpdateEmployeeInput,
 } from '@dk/shared/types';
+
+import { useToast } from '@/components/ui';
+import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
+import { istDate, istMonthStart } from '@/lib/staff';
 
 /** The leaderboard windows offered on the Staff screen. */
 export type PointsWindow = 'today' | 'month';
@@ -98,6 +99,44 @@ export function useUpdateEmployee(dealerId: string | undefined) {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: UpdateEmployeeInput }) =>
       api.patch(`/v1/dealers/${dealerId}/employees/${id}`, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
+    },
+    onError: () => {
+      toast.error(t('profile.actionFailed'));
+    },
+  });
+}
+
+/**
+ * Mark a worker on leave (छुट्टी) for a day — defaults to today when `date` is
+ * omitted. Leave carries no points; it just lets a 0-point day read as "on leave"
+ * instead of "did no work". The caller supplies its own success toast.
+ */
+export function useSetEmployeeLeave(dealerId: string | undefined) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const t = useT();
+  return useMutation({
+    mutationFn: ({ id, date, note }: { id: string; date?: string; note?: string }) =>
+      api.post(`/v1/dealers/${dealerId}/employees/${id}/leave`, { date, note }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
+    },
+    onError: () => {
+      toast.error(t('profile.actionFailed'));
+    },
+  });
+}
+
+/** Remove a worker's leave for a day (undo "on leave"). */
+export function useRemoveEmployeeLeave(dealerId: string | undefined) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const t = useT();
+  return useMutation({
+    mutationFn: ({ id, date }: { id: string; date: string }) =>
+      api.del(`/v1/dealers/${dealerId}/employees/${id}/leave/${date}`),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
     },

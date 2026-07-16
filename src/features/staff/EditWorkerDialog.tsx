@@ -4,12 +4,18 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
 
-import { Button, Input, useToast } from '@/components/ui';
-import { useUpdateEmployee } from '@/hooks/api/useEmployees';
-import { useT } from '@/lib/i18n';
-import { useScrollLock } from '@/lib/useScrollLock';
 import { createEmployeeSchema } from '@dk/shared/schemas';
 import type { EmployeeWithPoints } from '@dk/shared/types';
+
+import { Button, Input, useToast } from '@/components/ui';
+import {
+  useRemoveEmployeeLeave,
+  useSetEmployeeLeave,
+  useUpdateEmployee,
+} from '@/hooks/api/useEmployees';
+import { useT } from '@/lib/i18n';
+import { istDate } from '@/lib/staff';
+import { useScrollLock } from '@/lib/useScrollLock';
 
 interface EditWorkerValues {
   name: string;
@@ -33,6 +39,8 @@ export function EditWorkerDialog({
   const t = useT();
   const toast = useToast();
   const update = useUpdateEmployee(dealerId);
+  const setLeave = useSetEmployeeLeave(dealerId);
+  const removeLeave = useRemoveEmployeeLeave(dealerId);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   // Lock the StaffPage behind the dialog so its backdrop doesn't scroll the page.
   useScrollLock();
@@ -81,6 +89,39 @@ export function EditWorkerDialog({
     );
   };
 
+  // Leave (छुट्टी). The primary action is today ("who's off today"); a smaller
+  // option covers yesterday, since owners often realise a day late.
+  const yesterdayIST = istDate(new Date(Date.now() - 864e5));
+  const markLeave = (date?: string) => {
+    setLeave.mutate(
+      { id: employee.id, date },
+      {
+        onSuccess: () => {
+          toast.success(
+            t(date === yesterdayIST ? 'staff.leaveMarkedYesterday' : 'staff.leaveMarked', {
+              name: employee.name,
+            }),
+          );
+          onClose();
+        },
+      },
+    );
+  };
+
+  const onClearLeave = () => {
+    removeLeave.mutate(
+      { id: employee.id, date: istDate() },
+      {
+        onSuccess: () => {
+          toast.success(t('staff.leaveCleared', { name: employee.name }));
+          onClose();
+        },
+      },
+    );
+  };
+
+  const leaveBusy = setLeave.isPending || removeLeave.isPending;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
@@ -103,6 +144,57 @@ export function EditWorkerDialog({
           >
             <X width={18} strokeWidth={1.75} />
           </button>
+        </div>
+
+        {/* Leave (छुट्टी) first — a resistant owner glancing at a "0" row needs to
+            find this immediately, not scroll past the Save button. */}
+        <div className="mb-3 rounded-xl border border-border bg-surface-2/40 p-3">
+          {employee.onLeaveToday ? (
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                  {t('staff.onLeave')}
+                </span>
+                <span className="truncate text-xs text-text-muted">
+                  {t('staff.leaveTodayHint')}
+                </span>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                loading={leaveBusy}
+                onClick={onClearLeave}
+              >
+                {t('staff.clearLeave')}
+              </Button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-text-muted">{t('staff.markLeaveHint')}</p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  loading={leaveBusy}
+                  onClick={() => markLeave()}
+                >
+                  {t('staff.markLeave')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  loading={leaveBusy}
+                  onClick={() => markLeave(yesterdayIST)}
+                >
+                  {t('staff.markLeaveYesterday')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         <form onSubmit={onSave} className="flex flex-col gap-2" noValidate>

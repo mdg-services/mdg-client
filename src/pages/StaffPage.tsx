@@ -14,6 +14,9 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 
+import type { EmployeeWithPoints } from '@dk/shared/types';
+import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
+
 import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
 import { EditWorkerDialog } from '@/features/staff/EditWorkerDialog';
@@ -32,8 +35,6 @@ import { useT } from '@/lib/i18n';
 import { fmtPoints } from '@/lib/staff';
 import { useAuthStore } from '@/store/auth';
 import { useStaffDraftStore } from '@/store/staffDraft';
-import type { EmployeeWithPoints } from '@dk/shared/types';
-import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
 
 function WindowToggle({
   value,
@@ -79,15 +80,29 @@ function WindowToggle({
 
 function LeaderboardRow({
   employee,
+  window,
   onEdit,
 }: {
   employee: EmployeeWithPoints;
+  window: PointsWindow;
   onEdit: (e: EmployeeWithPoints) => void;
 }) {
   const t = useT();
   const reached = employee.pointsInWindow >= STAFF_DAILY_POINT_TARGET;
+  // On leave today (today view) explains a 0 — they were off, they didn't slack.
+  const onLeaveToday = window === 'today' && employee.onLeaveToday;
+  // Only stand in "छुट्टी" for the number when there's nothing earned to show —
+  // leave must never look like it wiped out points they actually earned.
+  const showLeaveInsteadOfPoints = onLeaveToday && employee.pointsInWindow <= 0;
+  // In the month view, show how many days off contributed to a lower total.
+  const leaveDays = window === 'month' ? employee.leaveDaysInWindow : 0;
   return (
-    <li className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-3">
+    <li
+      className={cn(
+        'flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-3',
+        onLeaveToday && 'bg-surface-2/50',
+      )}
+    >
       <Avatar name={employee.name} size={44} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-text">
@@ -98,19 +113,35 @@ function LeaderboardRow({
             {employee.designation}
           </p>
         ) : null}
-        {reached ? (
+        {onLeaveToday ? (
+          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+            {t('staff.onLeave')}
+          </span>
+        ) : reached ? (
           <span className="mt-1 inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-medium text-success">
             {t('staff.reached')}
+          </span>
+        ) : leaveDays > 0 ? (
+          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+            {t('staff.leaveDays', { n: leaveDays })}
           </span>
         ) : null}
       </div>
       <div className="flex shrink-0 flex-col items-end leading-none">
-        <span className="text-2xl font-bold tabular-nums text-text">
-          {fmtPoints(employee.pointsInWindow)}
-        </span>
-        <span className="mt-0.5 text-[11px] text-text-subtle">
-          {t('staff.points')}
-        </span>
+        {showLeaveInsteadOfPoints ? (
+          <span className="text-sm font-semibold text-warning">
+            {t('staff.onLeaveShort')}
+          </span>
+        ) : (
+          <>
+            <span className="text-2xl font-bold tabular-nums text-text">
+              {fmtPoints(employee.pointsInWindow)}
+            </span>
+            <span className="mt-0.5 text-[11px] text-text-subtle">
+              {t('staff.points')}
+            </span>
+          </>
+        )}
       </div>
       <button
         type="button"
@@ -419,7 +450,12 @@ export function StaffPage() {
           {hasActiveWorkers ? (
             <ul className="flex flex-col gap-2">
               {sorted.map((e) => (
-                <LeaderboardRow key={e.id} employee={e} onEdit={setEditing} />
+                <LeaderboardRow
+                  key={e.id}
+                  employee={e}
+                  window={window}
+                  onEdit={setEditing}
+                />
               ))}
             </ul>
           ) : null}

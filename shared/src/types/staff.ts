@@ -26,7 +26,7 @@
 export const STAFF_POINT_DISTRIBUTIONS = ['FLAT', 'SPLIT', 'EACH', 'PER_UNIT'] as const;
 export type StaffPointDistribution = (typeof STAFF_POINT_DISTRIBUTIONS)[number];
 
-/** Operational grouping used to make the 66-item work picker navigable. */
+/** Operational grouping used to make the work picker navigable. */
 export const STAFF_WORK_DOMAINS = [
   'cleaning',
   'du',
@@ -36,15 +36,17 @@ export const STAFF_WORK_DOMAINS = [
   'sales',
   'office',
   'customer',
+  'kitchen',
   'misc',
 ] as const;
 export type StaffWorkDomain = (typeof STAFF_WORK_DOMAINS)[number];
 
 /**
  * The catch-all works — "Other cleaning work", "Other DU work", "Other office
- * work". Their label says nothing about what was actually done, so a free-text
- * description is REQUIRED before points can be awarded for one; every other work
- * names itself and takes an optional note.
+ * work", plus the open-ended tanker preventive-maintenance work. Their label says
+ * nothing about what was actually done, so a free-text description is REQUIRED
+ * before points can be awarded for one; every other work names itself and takes
+ * an optional note.
  *
  * Enforced in `staffDraftEntrySchema` / `awardWorkSelectionSchema`, so the rule
  * holds for the client, the draft autosave and the finalize path alike.
@@ -53,6 +55,7 @@ export const DESCRIPTION_REQUIRED_WORK_CODES = [
   'other-cleaning-work',
   'other-du-work',
   'other-office-work',
+  'tanker-preventive-work',
 ] as const;
 
 /** Whether this work demands a written description of what was done. */
@@ -204,6 +207,33 @@ export interface EmployeeWithPoints extends Employee {
   pointsInWindow: number;
   /** Lifetime points. */
   totalPoints: number;
+  /**
+   * Days this worker was marked on leave (छुट्टी) within the requested window.
+   * Lets the leaderboard read a 0-point day as "on leave", not "did no work".
+   */
+  leaveDaysInWindow: number;
+  /** Whether this worker is marked on leave for TODAY (IST), independent of the window. */
+  onLeaveToday: boolean;
+}
+
+/**
+ * A day a worker was on leave (छुट्टी). A plain dealer-scoped record: one per
+ * (employee, calendar day). Its whole purpose is to explain a 0-point day — a
+ * worker on leave did no work because they were off, not because they slacked.
+ * Leave never adds or removes points; it is a status flag the leaderboard reads.
+ */
+export interface EmployeeLeave {
+  id: string;
+  dealerId: string;
+  employeeId: string;
+  /** The calendar day off (YYYY-MM-DD, IST). */
+  date: string;
+  /** Optional reason (e.g. "sick", "wedding"). */
+  note?: string;
+  createdByUserId: string;
+  createdByName?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /* ───────────────────────────── Point award ledger (immutable-ish) ────────────────────────── */
@@ -305,6 +335,13 @@ export interface UpdateEmployeeInput {
   phone?: string;
   designation?: string;
   status?: EmployeeStatus;
+}
+
+/** Body for marking a worker on leave. `date` defaults to today (IST) when omitted. */
+export interface SetEmployeeLeaveInput {
+  /** YYYY-MM-DD; defaults to today (IST). */
+  date?: string;
+  note?: string;
 }
 
 /**

@@ -1,4 +1,3 @@
-import type { MessageKey } from '@/lib/i18n';
 import type {
   EffectiveWorkItem,
   StaffPointDistribution,
@@ -7,6 +6,8 @@ import type {
   StaffWorkDomain,
   StaffWorkUnit,
 } from '@dk/shared/types';
+
+import type { MessageKey } from '@/lib/i18n';
 
 
 /**
@@ -277,5 +278,6 @@ export const DOMAIN_LABEL_KEY: Record<StaffWorkDomain, MessageKey> = {
   sales: 'staff.domain.sales',
   office: 'staff.domain.office',
   customer: 'staff.domain.customer',
+  kitchen: 'staff.domain.kitchen',
   misc: 'staff.domain.misc',
 };

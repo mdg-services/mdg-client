@@ -507,6 +507,29 @@ export const messages = {
     hi: 'हर योद्धा को 100 पॉइंट चाहिए',
   },
   'staff.reached': { en: 'Reached 100', hi: '100 पूरे' },
+  'staff.onLeave': { en: 'On leave', hi: 'छुट्टी पर' },
+  'staff.onLeaveShort': { en: 'On leave', hi: 'छुट्टी' },
+  'staff.leaveDays': { en: '{n} days leave', hi: '{n} दिन छुट्टी' },
+  'staff.markLeave': { en: 'Leave today', hi: 'आज छुट्टी' },
+  'staff.markLeaveYesterday': { en: 'Yesterday', hi: 'कल' },
+  'staff.markLeaveHint': {
+    en: 'On leave? No points are expected for that day.',
+    hi: 'छुट्टी पर हैं? उस दिन पॉइंट की उम्मीद नहीं होगी।',
+  },
+  'staff.clearLeave': { en: 'Remove leave', hi: 'छुट्टी हटाएँ' },
+  'staff.leaveTodayHint': { en: 'Off today', hi: 'आज छुट्टी पर' },
+  'staff.leaveMarked': {
+    en: '{name} marked on leave for today',
+    hi: '{name} की आज की छुट्टी लगा दी',
+  },
+  'staff.leaveMarkedYesterday': {
+    en: '{name} marked on leave for yesterday',
+    hi: '{name} की कल की छुट्टी लगा दी',
+  },
+  'staff.leaveCleared': {
+    en: "{name}'s leave removed",
+    hi: '{name} की छुट्टी हटा दी',
+  },
   'staff.emptyTitle': { en: 'Add your first warrior', hi: 'अपना पहला योद्धा जोड़ें' },
   'staff.emptyDesc': {
     en: 'Keep a list of your warriors and give them points for the work they do.',
@@ -592,6 +615,7 @@ export const messages = {
   'staff.domain.sales': { en: 'Sales', hi: 'बिक्री' },
   'staff.domain.office': { en: 'Office', hi: 'ऑफिस' },
   'staff.domain.customer': { en: 'Customer', hi: 'ग्राहक' },
+  'staff.domain.kitchen': { en: 'Kitchen', hi: 'रसोई' },
   'staff.domain.misc': { en: 'Other', hi: 'अन्य' },
 
   /* ── rupee-amount work input ─────────────────────────────────────────── */
