@@ -92,6 +92,13 @@ export const AUDIT_ACTIONS = [
   'CONVERSATION_RESOLVED',
   'CONVERSATION_REOPENED',
   'CONVERSATION_AUTO_UNASSIGNED',
+  // IndianOil SDMS — Credit & DOD Monitoring
+  'SDMS_CREDENTIALS_SET',
+  'SDMS_CREDENTIALS_CLEAR',
+  'CREDIT_DOD_SHARE',
+  // File egress + staff draft
+  'ATTACHMENT_DOWNLOAD',
+  'STAFF_DRAFT_CLEAR',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -108,5 +115,7 @@ export const AUDIT_ENTITIES = [
   'DealerService',
   'Record',
   'ServiceRun',
+  'StaffWorkItem',
+  'Conversation',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
