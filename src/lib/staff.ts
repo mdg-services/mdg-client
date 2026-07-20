@@ -275,6 +275,7 @@ export const DOMAIN_LABEL_KEY: Record<StaffWorkDomain, MessageKey> = {
   equipment: 'staff.domain.equipment',
   automation: 'staff.domain.automation',
   tanker: 'staff.domain.tanker',
+  'mobile-dispenser': 'staff.domain.mobile-dispenser',
   sales: 'staff.domain.sales',
   office: 'staff.domain.office',
   customer: 'staff.domain.customer',

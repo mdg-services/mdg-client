@@ -33,6 +33,7 @@ export const STAFF_WORK_DOMAINS = [
   'equipment',
   'automation',
   'tanker',
+  'mobile-dispenser',
   'sales',
   'office',
   'customer',

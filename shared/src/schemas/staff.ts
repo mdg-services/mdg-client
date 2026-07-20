@@ -20,6 +20,7 @@ export const staffWorkDomainSchema = z.enum([
   'equipment',
   'automation',
   'tanker',
+  'mobile-dispenser',
   'sales',
   'office',
   'customer',

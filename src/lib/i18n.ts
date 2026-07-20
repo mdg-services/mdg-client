@@ -612,6 +612,7 @@ export const messages = {
   'staff.domain.equipment': { en: 'Equipment', hi: 'उपकरण' },
   'staff.domain.automation': { en: 'Automation', hi: 'ऑटोमेशन' },
   'staff.domain.tanker': { en: 'Tanker', hi: 'टैंकर' },
+  'staff.domain.mobile-dispenser': { en: 'Mobile dispenser', hi: 'मोबाइल डिस्पेंसर' },
   'staff.domain.sales': { en: 'Sales', hi: 'बिक्री' },
   'staff.domain.office': { en: 'Office', hi: 'ऑफिस' },
   'staff.domain.customer': { en: 'Customer', hi: 'ग्राहक' },
