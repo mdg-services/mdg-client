@@ -11,3 +11,4 @@ export * from './device';
 export * from './serviceLog';
 export * from './kavach';
 export * from './staff';
+export * from './bankHoliday';

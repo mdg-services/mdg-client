@@ -99,6 +99,8 @@ export const AUDIT_ACTIONS = [
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
+  // Bank / national holiday calendar (drives DOD due-date roll-forward)
+  'BANK_HOLIDAY_CONFIRM',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -117,5 +119,14 @@ export const AUDIT_ENTITIES = [
   'ServiceRun',
   'StaffWorkItem',
   'Conversation',
+  'BankHoliday',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
+
+/**
+ * Where a bank/national holiday row came from: `library` = suggested by the
+ * date-holidays calendar; `manual` = added by an admin (e.g. a state bank holiday
+ * the national calendar doesn't carry).
+ */
+export const BANK_HOLIDAY_SOURCES = ['library', 'manual'] as const;
+export type BankHolidaySource = (typeof BANK_HOLIDAY_SOURCES)[number];

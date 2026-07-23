@@ -18,6 +18,21 @@ export interface RunStepRecord {
   error?: { message: string; stack?: string };
 }
 
+/**
+ * What an artifact IS, which decides who may see it.
+ *
+ * `output`     — a deliverable of the run (a rendered card, an exported report).
+ *                Plain admins see and download these.
+ * `diagnostic` — evidence about HOW the run went: failure screenshots, page-source
+ *                dumps, raw upstream API responses. These frequently contain the
+ *                scraped portal verbatim, so they are super-admin only.
+ *
+ * A plugin that omits it is classified by filename (`fail_*`, `raw_*`, `*.html`),
+ * which keeps pre-existing runs redacted correctly. Declare it explicitly in new
+ * code — the filename heuristic is a fallback, not the contract.
+ */
+export type RunArtifactKind = 'output' | 'diagnostic';
+
 export interface RunArtifactRecord {
   reportCode?: string;
   filename: string;
@@ -25,6 +40,8 @@ export interface RunArtifactRecord {
   size?: number;
   contentType?: string;
   createdAt?: Date;
+  /** Defaults to `output`; see {@link RunArtifactKind}. */
+  kind?: RunArtifactKind;
 }
 
 export interface ServiceRunContext {
