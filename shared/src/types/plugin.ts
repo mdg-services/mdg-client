@@ -40,7 +40,15 @@ export interface RunArtifactRecord {
   size?: number;
   contentType?: string;
   createdAt?: Date;
-  /** Defaults to `output`; see {@link RunArtifactKind}. */
+  /**
+   * Who may see this artifact; see {@link RunArtifactKind}.
+   *
+   * There is NO safe default. Omitting it leaves the stored row `undefined`, and
+   * the API then classifies it by filename (`fail_*`, `raw_*`, `*.html` are
+   * treated as diagnostic). Plugins that produce raw captures should pass
+   * `'diagnostic'` explicitly — the SDMS runner defaults its own helper to that,
+   * precisely so a new capture cannot leak by omission.
+   */
   kind?: RunArtifactKind;
 }
 
