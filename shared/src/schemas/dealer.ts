@@ -88,7 +88,11 @@ export const complianceDocSchema = z.object({
  */
 export const dealerCreateSchema = z.object({
   phone: blankToUndefined(phoneSchema),
-  name: z.string().trim().min(2).max(200).optional(),
+  // Blank-tolerant for the same reason as phone: the drawer seeds this input
+  // with '', and a bare `.optional()` on `.min(2)` rejects '' — so leaving the
+  // optional name empty would fail validation with "String must contain at
+  // least 2 character(s)".
+  name: blankToUndefined(z.string().trim().min(2).max(200)),
 });
 export type DealerCreateInput = z.infer<typeof dealerCreateSchema>;
 
