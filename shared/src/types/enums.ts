@@ -79,6 +79,7 @@ export const AUDIT_ACTIONS = [
   // Dealer portal credentials (IRAS)
   'IRAS_CREDENTIALS_SET',
   'IRAS_CREDENTIALS_CLEAR',
+  'IRAS_CREDENTIALS_REVEAL',
   // Service execution log
   'SERVICE_LOGGED',
   // Dealer documents / artifacts (data access & egress)
@@ -95,12 +96,16 @@ export const AUDIT_ACTIONS = [
   // IndianOil SDMS — Credit & DOD Monitoring
   'SDMS_CREDENTIALS_SET',
   'SDMS_CREDENTIALS_CLEAR',
+  'SDMS_CREDENTIALS_REVEAL',
   'CREDIT_DOD_SHARE',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
   // Bank / national holiday calendar (drives DOD due-date roll-forward)
   'BANK_HOLIDAY_CONFIRM',
+  // Dealer lifecycle (super-admin soft delete)
+  'DEALER_ARCHIVE',
+  'DEALER_RESTORE',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

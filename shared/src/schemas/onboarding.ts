@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type { OnboardingStepId } from '../types/enums';
 
-import { dealerCodeSchema, gstSchema, phoneSchema } from './dealer';
+import { blankToUndefined, dealerCodeSchema, gstSchema, phoneSchema } from './dealer';
 
 const noteSchema = z.string().trim().max(500).optional();
 
@@ -39,7 +39,10 @@ export const issueAppLoginStepSchema = z.object({
   email: z.string().email().toLowerCase(),
   name: z.string().trim().min(2).max(200),
   password: z.string().min(8).max(200),
-  phone: phoneSchema.optional(),
+  // Blank-tolerant: the admin form prefills this from `dealer.phone`, which is
+  // optional, so an untouched input posts '' — which a bare `.optional()` on a
+  // regex schema rejects.
+  phone: blankToUndefined(phoneSchema),
   note: noteSchema,
 });
 

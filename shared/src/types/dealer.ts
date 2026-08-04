@@ -60,8 +60,10 @@ export interface DealerOnboarding {
 export interface Dealer {
   id: string;
 
-  // Captured at step 1 (collect-phone)
-  phone: string;
+  // Normally captured at step 1 (collect-phone), but optional: a dealer record
+  // can be opened before a phone number is known, and the number is then
+  // captured through the collect-phone onboarding step.
+  phone?: string;
   name?: string;
 
   // Assigned at step 6 (assign-code)
@@ -74,6 +76,15 @@ export interface Dealer {
   pan?: string;
   onboardingDate: string;
   status: DealerStatus;
+
+  /**
+   * Set (ISO timestamp) when a super-admin archives (soft-deletes) the dealer:
+   * status flips to SUSPENDED, attached services are paused, members can no
+   * longer sign in and the dealer drops out of every roster and counter — but
+   * the record and its history are retained and it is reversible via restore.
+   * Null/absent for a live dealer.
+   */
+  archivedAt?: string | null;
 
   // Step 5
   paymentNote?: string;
@@ -93,6 +104,7 @@ export interface Dealer {
   updatedAt: string;
 }
 
-export type DealerCreateInput = Pick<Dealer, 'phone'> & {
+export type DealerCreateInput = {
+  phone?: string;
   name?: string;
 };

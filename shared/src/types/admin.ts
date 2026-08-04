@@ -28,6 +28,13 @@ export interface LoginResponse {
  * `GET /v1/super-admin/users`, already grouped and ordered by the backend.
  */
 export interface DealerUserGroup {
-  dealer: { id: string; name: string; code: string | null; status: DealerStatus } | null;
+  dealer: {
+    id: string;
+    name: string;
+    code: string | null;
+    status: DealerStatus;
+    /** ISO timestamp when the dealer was archived (soft-deleted); null = live. */
+    archivedAt: string | null;
+  } | null;
   users: User[];
 }

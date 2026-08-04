@@ -7,14 +7,24 @@ export const phoneSchema = z
   .trim()
   .regex(/^\+?[0-9\-\s]{7,20}$/, 'Invalid phone');
 
+/**
+ * Treat a blank / whitespace-only submission as "not provided".
+ *
+ * An HTML form posts `''` for an untouched input, and a bare `.optional()` on a
+ * `.regex()` schema REJECTS `''` — it only admits `undefined`. Without this an
+ * "optional" text field is unsubmittable when left blank.
+ */
+export const blankToUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    schema.optional(),
+  );
+
 export const gstSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(
-    /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/,
-    'Invalid GST format',
-  );
+  .regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GST format');
 
 export const panSchema = z
   .string()
@@ -70,11 +80,14 @@ export const complianceDocSchema = z.object({
 });
 
 /**
- * Initial dealer creation payload (POST /dealers). Only the phone number is
- * required — every other field accrues as the onboarding workflow advances.
+ * Initial dealer creation payload (POST /dealers). Nothing is required — the
+ * record can be opened with just a working name, or with neither, and every
+ * field accrues as the onboarding workflow advances. A phone number supplied
+ * here completes onboarding step 1 up front; without one, `collect-phone`
+ * stays the current step and captures it later.
  */
 export const dealerCreateSchema = z.object({
-  phone: phoneSchema,
+  phone: blankToUndefined(phoneSchema),
   name: z.string().trim().min(2).max(200).optional(),
 });
 export type DealerCreateInput = z.infer<typeof dealerCreateSchema>;
@@ -103,5 +116,17 @@ export type DealerUpdateInput = z.infer<typeof dealerUpdateSchema>;
 
 export const dealerListQuerySchema = listQuerySchema.extend({
   status: dealerStatusSchema.optional(),
+  /**
+   * Include archived (soft-deleted) dealers in the roster. Off by default;
+   * honoured only for super-admins, so a plain admin can never surface one.
+   *
+   * Parsed explicitly rather than with `z.coerce.boolean()` — that coerces via
+   * JS truthiness, so the query string `?includeArchived=false` would arrive as
+   * `true`.
+   */
+  includeArchived: z
+    .union([z.boolean(), z.enum(['true', 'false', '1', '0'])])
+    .transform((v) => v === true || v === 'true' || v === '1')
+    .optional(),
 });
 export type DealerListQuery = z.infer<typeof dealerListQuerySchema>;
