@@ -16,3 +16,4 @@ export * from './kavach';
 export * from './staff';
 export * from './bankHoliday';
 export * from './irasData';
+export * from './dsrReport';
