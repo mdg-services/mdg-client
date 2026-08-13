@@ -98,6 +98,8 @@ export const AUDIT_ACTIONS = [
   'SDMS_CREDENTIALS_CLEAR',
   'SDMS_CREDENTIALS_REVEAL',
   'CREDIT_DOD_SHARE',
+  // IndianOil SDMS — Inspection Reports aggregation
+  'INSPECTION_REPORTS_COLLECT',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
@@ -125,6 +127,7 @@ export const AUDIT_ENTITIES = [
   'StaffWorkItem',
   'Conversation',
   'BankHoliday',
+  'InspectionReport',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
