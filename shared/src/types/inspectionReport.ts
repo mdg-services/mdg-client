@@ -45,6 +45,40 @@ export interface InspectionColumn {
 export type InspectionRow = Record<string, string>;
 
 /**
+ * One section of a captured inspection report — a labelled block of rows.
+ *
+ * The report (IndianOil Form SL.5(R)) is a stack of tables; each becomes a
+ * section. Rows are kept generically (cell strings) so the exact fields survive
+ * even as the form changes, and the data stays usable (addressable cells) rather
+ * than a flat blob.
+ */
+export interface InspectionReportSection {
+  /** Section heading if the report exposed one, e.g. "Sales Performance". */
+  title?: string | null;
+  /** Header row, when the section is a table with a header. */
+  columns?: string[] | null;
+  /** The section's rows, each an array of cell strings. */
+  rows: string[][];
+}
+
+/**
+ * The full report behind a list row's VIEW link — captured and parsed so the
+ * data is usable, with the raw HTML retained for audit and an exact download.
+ */
+export interface InspectionReportDetail {
+  /** The report's own reference/serial, matching the row's `ref`. */
+  ref?: string | null;
+  /** ISO-8601 of when the report was captured. */
+  capturedAt?: string | null;
+  /** S3 key of the raw report HTML (audit + exact download). */
+  htmlKey?: string | null;
+  /** Signed URL for the raw report HTML — populated by the API, never stored. */
+  htmlUrl?: string | null;
+  /** The report parsed into ordered sections, for rendering and data use. */
+  sections: InspectionReportSection[];
+}
+
+/**
  * One inspection report captured from the portal list.
  *
  * The portal's columns vary, so the identifying fields are best-effort: `ref`
@@ -60,6 +94,11 @@ export interface InspectionReportItem {
   date?: string | null;
   /** The full row, keyed by column field — the source of truth for rendering. */
   cells: InspectionRow;
+  /**
+   * The full report behind this row's VIEW link, when captured. Absent for rows
+   * whose report could not be opened (the row still stands on its own).
+   */
+  report?: InspectionReportDetail | null;
 }
 
 /** Snapshot health, so the Vault can show a status without parsing errors. */
