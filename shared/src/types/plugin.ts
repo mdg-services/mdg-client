@@ -97,6 +97,13 @@ export interface ServicePlugin {
   cadence: Cadence;
   /** JSON Schema (draft-07) used to validate config and drive RJSF. */
   defaultConfigSchema: Record<string, unknown>;
+  /**
+   * Other service ids that must ALREADY be attached to a dealer before this one
+   * can be. Enforced at the attach route (not the registry or scheduler): a
+   * dealer missing a prerequisite is refused a NEW attach with a plain message,
+   * while existing attachments are never disturbed.
+   */
+  dependsOn?: string[];
   run(ctx: ServiceRunContext): Promise<ServiceRunResult>;
 }
 
@@ -107,4 +114,6 @@ export interface ServicePluginCatalogEntry {
   description: string;
   cadence: Cadence;
   defaultConfigSchema: Record<string, unknown>;
+  /** Prerequisite service ids that must be attached first; see {@link ServicePlugin.dependsOn}. */
+  dependsOn?: string[];
 }

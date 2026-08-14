@@ -134,6 +134,13 @@ export interface DsrProductReport {
   tankLabel: string;
   /** The ledger window shown, oldest first — typically [yesterday, today]. */
   rows: DsrDayRow[];
+  /**
+   * The FULL per-day ledger for this product, oldest first — the complete "DSR
+   * sheet" every day since the ledger began, matching the dealer's macro
+   * workbook's DSR tab. `rows` stays the compact yesterday+today window; this is
+   * the whole history for the sheet view and the Excel export.
+   */
+  ledger?: DsrDayRow[];
   variation: DsrVariationSummary;
 }
 
