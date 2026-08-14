@@ -100,6 +100,8 @@ export const AUDIT_ACTIONS = [
   'CREDIT_DOD_SHARE',
   // IndianOil SDMS — Inspection Reports aggregation
   'INSPECTION_REPORTS_COLLECT',
+  // Daily Sales Report — admin-approved share of the cards with the dealer
+  'DSR_SHARE',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
