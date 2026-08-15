@@ -18,3 +18,4 @@ export * from './bankHoliday';
 export * from './irasData';
 export * from './dsrReport';
 export * from './inspectionReport';
+export * from './festival';

@@ -7,5 +7,6 @@ export * from './types';
 export * from './onboarding';
 export * from './data/kavachTemplate';
 export * from './data/staffWorkCatalog';
+export * from './data/festivals';
 export * from './points/staffPoints';
 export * as schemas from './schemas';
