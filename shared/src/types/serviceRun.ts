@@ -27,6 +27,14 @@ export interface ServiceRunArtifact {
   kind?: RunArtifactKind;
 }
 
+/**
+ * How a run started. `manual` is an admin pressing Run now / Generate;
+ * `scheduled` is the cadence tick; `backfill` is a run one service started on
+ * another's behalf — the DSR collecting the IRAS shift data it needs before it
+ * can report on a day.
+ */
+export type ServiceRunTrigger = 'manual' | 'scheduled' | 'backfill';
+
 export interface ServiceRun {
   id: string;
   dealerId: string;
@@ -37,6 +45,13 @@ export interface ServiceRun {
   status: ServiceRunStatus;
   durationMs?: number;
   output?: unknown;
+  /** Absent on rows written before the field existed. */
+  trigger?: ServiceRunTrigger;
+  /**
+   * The run that drove this one, set on a `backfill`. Lets the admin panel
+   * attribute an out-of-band collection to the report that asked for it.
+   */
+  parentRunId?: string;
   error?: {
     message: string;
     /** Process detail — serialised for super-admins only. */
