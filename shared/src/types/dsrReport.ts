@@ -18,6 +18,16 @@
  * stays contained.
  */
 
+/**
+ * Where a day's `receipt` figure came from.
+ *
+ * `iras` — summed from the portal's REC (decantation) rows, the normal path.
+ * `manual` — entered by an admin, which REPLACES whatever the portal reported.
+ * The portal's own decantation entries are made by the dealer and are routinely
+ * late, missing or wrong, so a hand-entered figure has to be able to win.
+ */
+export type DsrReceiptSource = 'iras' | 'manual';
+
 /** One pump nozzle's cumulative totaliser reading at the shift instant. */
 export interface DsrPumpReading {
   /** IRAS nozzle number, e.g. 8. */
@@ -43,8 +53,22 @@ export interface DsrDayRow {
   waterDip: number;
   /** Net product quantity per dip (litres) — the row's "opening stock". */
   openingStock: number;
-  /** Litres decanted into this product's tank on this date (0 when no receipt). */
+  /**
+   * Litres decanted into this product's tank on this date (0 when no receipt) —
+   * the EFFECTIVE figure, i.e. the manual entry when there is one.
+   */
   receipt: number;
+  /**
+   * Where {@link receipt} came from. Absent on rows written before manual entry
+   * existed; read a missing value as `iras`.
+   */
+  receiptSource?: DsrReceiptSource;
+  /**
+   * What the portal itself reported for this day, kept alongside a `manual`
+   * receipt so the correction stays auditable (and so "revert to IRAS" has
+   * something to revert to). `null` when the day has no snapshot to compare with.
+   */
+  irasReceipt?: number | null;
   /** `openingStock + receipt`. */
   totalStock: number;
   /** Ordered pump readings, one per nozzle feeding this product. */
@@ -211,4 +235,88 @@ export interface DsrConfig {
   /** Minimum daily throughput (litres) for a pump to count as active. */
   testingMinDeltaLitres: number;
   products: DsrProductConfig[];
+}
+
+// ------------------------------------------------------- manual receipts
+
+/**
+ * An admin-entered receipt for one product on one business date — the DSR's one
+ * hand-editable input.
+ *
+ * Receipts are the only figure in the report that does not come from a meter or
+ * a dip: the portal learns about a decantation only when somebody enters it
+ * there, so a tanker that arrived is routinely missing, late or wrong in IRAS
+ * while every other figure for the day is fine. This record overrides the
+ * portal's number for that (dealer, date, product) until it is cleared.
+ *
+ * `litres` is the whole of it on purpose. It is the ONLY value the DSR consumes
+ * from a receipt — the engine sums `NET_QTY_DECANTED` over the product's tanks
+ * and uses nothing else — so `tankNo` / `invoiceNo` / `note` are recorded for
+ * the paper trail and never enter the calculation.
+ */
+export interface DsrManualReceipt {
+  id: string;
+  dealerId: string;
+  /** IST calendar date the receipt belongs to, `YYYY-MM-DD`. */
+  businessDate: string;
+  /** Product key from the dealer's DSR config, e.g. `HSD`. */
+  productKey: string;
+  /** Litres decanted — the figure the report will use. */
+  litres: number;
+  /** Which tank took it, for the record. Not used in the calculation. */
+  tankNo?: number | null;
+  /** Invoice / DSN reference, for the record. */
+  invoiceNo?: string | null;
+  /** Why this was entered by hand. */
+  note?: string | null;
+  /** What IRAS reported when the entry was made, for comparison. */
+  irasLitres?: number | null;
+  enteredBy: string;
+  enteredAt: string;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
+/** One product's receipt position for a business date, as the editor shows it. */
+export interface DsrProductReceipt {
+  productKey: string;
+  labelEn: string;
+  tankLabel: string;
+  /** Litres IRAS reports for this product on this date; `null` with no snapshot. */
+  irasLitres: number | null;
+  /** The admin's entry, when one exists. */
+  manual: DsrManualReceipt | null;
+  /** What a generation for this date would use — `manual?.litres ?? irasLitres ?? 0`. */
+  effectiveLitres: number;
+}
+
+/** `GET /dsr/dealers/:dealerId/receipts?businessDate=` — the day's receipts. */
+export interface DsrDayReceipts {
+  dealerId: string;
+  businessDate: string;
+  /** True when the IRAS snapshot for this date exists and is COMPLETE. */
+  hasSnapshot: boolean;
+  products: DsrProductReceipt[];
+}
+
+/**
+ * Why a generated report no longer matches its inputs.
+ *
+ * Set when a receipt is entered or changed for `businessDate`: that day's own
+ * report is wrong, and so is EVERY later one, because the stock-vs-sales
+ * variation accumulates receipts since the last inspection. Sales and the
+ * cumulative are untouched — they are a function of meter readings and testing
+ * only — so a stale report is wrong in its variation panel, not its ledger.
+ */
+export interface DsrReportStale {
+  /** When the report was marked stale, ISO-8601. */
+  at: string;
+  /** One sentence for the banner. */
+  reason: string;
+  /** The business date whose receipt changed — where a regeneration must start. */
+  businessDate: string;
+  /** The product whose receipt changed, when it was a single one. */
+  productKey?: string | null;
+  /** Admin id that made the change. */
+  by?: string | null;
 }

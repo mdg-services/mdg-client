@@ -102,6 +102,9 @@ export const AUDIT_ACTIONS = [
   'INSPECTION_REPORTS_COLLECT',
   // Daily Sales Report — admin-approved share of the cards with the dealer
   'DSR_SHARE',
+  // Daily Sales Report — hand-entered receipt (the one editable DSR input)
+  'DSR_RECEIPT_SET',
+  'DSR_RECEIPT_CLEAR',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
