@@ -8,10 +8,6 @@ const noteSchema = z.string().trim().max(500).optional();
 
 export const collectPhoneStepSchema = z.object({
   phone: phoneSchema,
-  // Blank-tolerant: the admin form seeds this from the (optional) dealer name,
-  // so an untouched input posts '', which a bare `.optional()` on `.min(2)`
-  // rejects — making the step unsubmittable for a dealer with no name yet.
-  name: blankToUndefined(z.string().trim().min(2).max(200)),
   note: noteSchema,
 });
 

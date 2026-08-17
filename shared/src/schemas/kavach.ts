@@ -54,8 +54,6 @@ const queryBoolean = z
 
 /** Outlet metadata captured at initiation (sheet header). */
 export const kavachOutletMetaSchema = z.object({
-  retailOutletName: z.string().trim().min(1).max(160),
-  roSapCode: z.string().trim().min(1).max(40),
   /** "YYYY-MM". */
   monthYear: z
     .string()

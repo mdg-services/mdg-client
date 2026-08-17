@@ -75,7 +75,12 @@ export function ticketFlagLevel(
 export interface Conversation {
   id: string;
   dealerId: string;
-  dealerName?: string;
+  /**
+   * The dealer's code, for the admin inbox's thread list. Populated only for
+   * admin callers: a dealer already knows which outlet they are, and this rides
+   * on `/conversations/mine` and every socket fan-out.
+   */
+  dealerCode?: string;
   /**
    * The PRIMARY member (User) this thread belongs to — the owner for a 'support'
    * thread, the manager for a 'manager' thread. Exactly one per thread (a unique

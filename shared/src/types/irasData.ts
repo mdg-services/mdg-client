@@ -103,7 +103,6 @@ export interface IrasDataSnapshot {
   id: string;
   dealerId: string;
   /** Denormalised for the cross-dealer Vault list. */
-  dealerName?: string | null;
   dealerCode?: string | null;
   /** RO code as reported by IRAS (from the data itself, not config). */
   roCode?: string | null;
@@ -299,8 +298,12 @@ export interface IrasCorrectionPreview {
 export interface IrasDayEditorView {
   dealer: {
     id: string;
-    name: string | null;
-    code: string | null;
+    /** The dealer's code — how the editor's header identifies the outlet. */
+    code: string;
+    /**
+     * RO code as the portal reports it. Admin-only: it is the oil company's SAP
+     * outlet number, so it must not reach anything the dealer receives.
+     */
     roCode: string | null;
     archived: boolean;
   };
@@ -346,7 +349,6 @@ export interface IrasDayEditorView {
 export interface IrasDataSnapshotSummary {
   id: string;
   dealerId: string;
-  dealerName?: string | null;
   dealerCode?: string | null;
   roCode?: string | null;
   businessDate: string;
@@ -376,7 +378,6 @@ export interface IrasDataVaultOverview {
 /** One dealer's line on the Vault landing page. */
 export interface IrasDataVaultDealerRow {
   dealerId: string;
-  dealerName?: string | null;
   dealerCode?: string | null;
   roCode?: string | null;
   /** Whether the dealer has the pipeline attached and ACTIVE. */

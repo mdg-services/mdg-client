@@ -12,4 +12,5 @@ export * from './points/staffPoints';
 export * from './dsr/guideline';
 export * from './iras/fields';
 export * from './iras/corrections';
+export * from './dealer/code';
 export * as schemas from './schemas';

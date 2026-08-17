@@ -60,14 +60,24 @@ export interface DealerOnboarding {
 export interface Dealer {
   id: string;
 
+  /**
+   * The dealer's code, e.g. `15E` — the ONLY thing that identifies a dealer.
+   *
+   * Captured at creation and required from then on, because a dealer with no
+   * code cannot be told apart from any other in a list, a picker, a report
+   * header or a conversation. Deliberately not a name: an outlet's trading name
+   * is long, duplicated between neighbouring pumps, and (unlike the code) not
+   * something either side quotes when talking about a site.
+   *
+   * Unique among live dealers only — archiving a dealer vacates its code so the
+   * number can be reissued.
+   */
+  code: string;
+
   // Normally captured at step 1 (collect-phone), but optional: a dealer record
   // can be opened before a phone number is known, and the number is then
   // captured through the collect-phone onboarding step.
   phone?: string;
-  name?: string;
-
-  // Assigned at step 6 (assign-code)
-  code?: string;
 
   // Optional / collected over the journey or via ad-hoc PATCH
   ownerContact?: OwnerContact;
@@ -105,6 +115,6 @@ export interface Dealer {
 }
 
 export type DealerCreateInput = {
+  code: string;
   phone?: string;
-  name?: string;
 };

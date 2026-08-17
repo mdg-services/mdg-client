@@ -38,11 +38,23 @@ const ifscSchema = z
   .toUpperCase()
   .regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, 'Invalid IFSC');
 
+/**
+ * A dealer code, e.g. `15E` — digits then letters, no separator.
+ *
+ * The order matters and is not arbitrary: every code in use reads as a number
+ * followed by a region letter (`1E`, `3E`, `15E`), which is how both sides say
+ * it out loud. The schema used to demand the opposite (`E01`) while real codes
+ * went in through other doors, so no real code could pass it.
+ */
 export const dealerCodeSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(/^[A-Z]{1,4}\d{1,5}$/, 'Invalid dealer code (e.g. E01)');
+  // Tolerate a typed-in space or dot ("12 E", "12.E") rather than rejecting it —
+  // the same code arrived in three different spellings through the old free-text
+  // service-config fields.
+  .transform((v) => v.replace(/[\s.]+/g, ''))
+  .refine((v) => /^\d{1,4}[A-Z]{1,3}$/.test(v), 'Invalid dealer code (e.g. 15E)');
 
 export const ownerContactSchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -80,19 +92,17 @@ export const complianceDocSchema = z.object({
 });
 
 /**
- * Initial dealer creation payload (POST /dealers). Nothing is required — the
- * record can be opened with just a working name, or with neither, and every
- * field accrues as the onboarding workflow advances. A phone number supplied
- * here completes onboarding step 1 up front; without one, `collect-phone`
- * stays the current step and captures it later.
+ * Initial dealer creation payload (POST /dealers).
+ *
+ * The code is the one required field: it is the dealer's whole identity, so a
+ * record opened without one could not be found again. Everything else accrues
+ * as the onboarding workflow advances. A phone number supplied here completes
+ * onboarding step 1 up front; without one, `collect-phone` stays the current
+ * step and captures it later.
  */
 export const dealerCreateSchema = z.object({
+  code: dealerCodeSchema,
   phone: blankToUndefined(phoneSchema),
-  // Blank-tolerant for the same reason as phone: the drawer seeds this input
-  // with '', and a bare `.optional()` on `.min(2)` rejects '' — so leaving the
-  // optional name empty would fail validation with "String must contain at
-  // least 2 character(s)".
-  name: blankToUndefined(z.string().trim().min(2).max(200)),
 });
 export type DealerCreateInput = z.infer<typeof dealerCreateSchema>;
 
@@ -102,7 +112,13 @@ export type DealerCreateInput = z.infer<typeof dealerCreateSchema>;
  */
 export const dealerUpdateSchema = z
   .object({
-    name: z.string().trim().min(2).max(200).optional(),
+    /**
+     * Correcting a mistyped code. This is the only way to change one: the
+     * `assign-code` onboarding step is append-only and not reopenable, so
+     * without this a typo at creation would identify the dealer wrongly for
+     * good. Uniqueness is still the index's call — a clash surfaces as a 409.
+     */
+    code: dealerCodeSchema.optional(),
     phone: phoneSchema.optional(),
     ownerContact: ownerContactSchema.partial().optional(),
     pumpLocation: pumpLocationSchema.partial().optional(),

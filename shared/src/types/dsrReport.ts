@@ -173,10 +173,18 @@ export interface DsrProductReport {
  * deliverable and the shape the Vault renders and the exporters consume.
  */
 export interface DsrReportDigest {
-  /** Outlet code used in the report titles, e.g. `15E`. */
+  /**
+   * The dealer's code, e.g. `15E` — used in the report titles. Derived from the
+   * dealer record, not configured per attachment, so it cannot drift from the
+   * code the dealer is known by everywhere else.
+   */
   outletCode: string;
   dealerId: string;
-  dealerName?: string | null;
+  /**
+   * RO code as the IRAS portal reports it (numeric, e.g. `198889`) — the oil
+   * company's outlet number, kept for admin troubleshooting only. It is a SAP
+   * identifier and must never be rendered into anything the dealer receives.
+   */
   roCode?: string | null;
   /** The report's business date, `YYYY-MM-DD`. */
   businessDate: string;
@@ -227,7 +235,6 @@ export interface DsrProductConfig {
 
 /** Per-dealer DSR configuration (stored on the DealerService `config`). */
 export interface DsrConfig {
-  outletCode: string;
   /** Last physical inspection date the variation is measured from, `YYYY-MM-DD`. */
   sinceDate: string;
   /** Litres of testing recorded per pump that moved during the day. */

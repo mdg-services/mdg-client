@@ -149,10 +149,16 @@ export interface KavachTemplateSeedItem {
 
 /* ───────────────────────────────── Per-dealer programme ──────────────────────────────────── */
 
-/** Outlet metadata captured at initiation (from the sheet header). */
+/**
+ * Outlet metadata captured at initiation (from the sheet header).
+ *
+ * The outlet name and RO SAP code that used to be typed in here are gone: the
+ * dealer's own code identifies the programme, and the RO code the portal
+ * reports is collected automatically, so both fields only ever offered a second
+ * spelling of something already known — and this block ships to dealer tokens
+ * via `GET /kavach/me`.
+ */
 export interface KavachOutletMeta {
-  retailOutletName: string;
-  roSapCode: string;
   /** e.g. "2026-01" — the month/year the programme baseline was captured. */
   monthYear: string;
 }
@@ -336,7 +342,6 @@ export interface SetKavachSosComplianceInput {
 /** Row in the admin cross-dealer compliance dashboard. */
 export interface KavachDashboardRow {
   dealerId: string;
-  dealerName: string;
   dealerCode: string;
   programmeId: string;
   overallPct: number;

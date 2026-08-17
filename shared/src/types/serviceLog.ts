@@ -12,7 +12,7 @@ import type { Attachment } from './conversation';
 export interface ServiceLog {
   id: string;
   dealerId: string;
-  dealerName?: string;
+  dealerCode?: string;
   /** The conversation this was logged against, when resolved from a request. */
   conversationId?: string | null;
   /** The organisation member the work was done for, when known. */

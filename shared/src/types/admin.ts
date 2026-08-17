@@ -30,8 +30,7 @@ export interface LoginResponse {
 export interface DealerUserGroup {
   dealer: {
     id: string;
-    name: string;
-    code: string | null;
+    code: string;
     status: DealerStatus;
     /** ISO timestamp when the dealer was archived (soft-deleted); null = live. */
     archivedAt: string | null;

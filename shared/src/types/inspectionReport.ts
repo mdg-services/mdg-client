@@ -116,7 +116,6 @@ export interface InspectionReportSnapshot {
   id: string;
   dealerId: string;
   /** Denormalised for the cross-dealer / list views. */
-  dealerName?: string | null;
   dealerCode?: string | null;
   /** RO code as reported by the portal, when available. */
   roCode?: string | null;

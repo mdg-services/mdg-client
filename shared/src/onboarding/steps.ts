@@ -63,7 +63,11 @@ export const ONBOARDING_STEPS: readonly OnboardingStepDefinition[] = [
     id: 'assign-code',
     order: 6,
     title: 'Assign dealer code',
-    description: 'Generate or confirm a unique dealer code (e.g. E01) for the organisation.',
+    // Completed up front for any dealer created since the code became the
+    // dealer's identity — the record cannot be opened without one. The step is
+    // kept so the earlier dealers' history still reads straight, and so the
+    // code has a home in the audit trail.
+    description: 'Confirm the unique dealer code (e.g. 15E) for the organisation.',
     fieldsCaptured: ['code'],
     mutating: true,
     reopenable: false,
