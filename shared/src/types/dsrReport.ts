@@ -237,76 +237,26 @@ export interface DsrConfig {
   products: DsrProductConfig[];
 }
 
-// ------------------------------------------------------- manual receipts
-
-/**
- * An admin-entered receipt for one product on one business date — the DSR's one
- * hand-editable input.
- *
- * Receipts are the only figure in the report that does not come from a meter or
- * a dip: the portal learns about a decantation only when somebody enters it
- * there, so a tanker that arrived is routinely missing, late or wrong in IRAS
- * while every other figure for the day is fine. This record overrides the
- * portal's number for that (dealer, date, product) until it is cleared.
- *
- * `litres` is the whole of it on purpose. It is the ONLY value the DSR consumes
- * from a receipt — the engine sums `NET_QTY_DECANTED` over the product's tanks
- * and uses nothing else — so `tankNo` / `invoiceNo` / `note` are recorded for
- * the paper trail and never enter the calculation.
- */
-export interface DsrManualReceipt {
-  id: string;
-  dealerId: string;
-  /** IST calendar date the receipt belongs to, `YYYY-MM-DD`. */
-  businessDate: string;
-  /** Product key from the dealer's DSR config, e.g. `HSD`. */
-  productKey: string;
-  /** Litres decanted — the figure the report will use. */
-  litres: number;
-  /** Which tank took it, for the record. Not used in the calculation. */
-  tankNo?: number | null;
-  /** Invoice / DSN reference, for the record. */
-  invoiceNo?: string | null;
-  /** Why this was entered by hand. */
-  note?: string | null;
-  /** What IRAS reported when the entry was made, for comparison. */
-  irasLitres?: number | null;
-  enteredBy: string;
-  enteredAt: string;
-  updatedBy?: string | null;
-  updatedAt?: string | null;
-}
-
-/** One product's receipt position for a business date, as the editor shows it. */
-export interface DsrProductReceipt {
-  productKey: string;
-  labelEn: string;
-  tankLabel: string;
-  /** Litres IRAS reports for this product on this date; `null` with no snapshot. */
-  irasLitres: number | null;
-  /** The admin's entry, when one exists. */
-  manual: DsrManualReceipt | null;
-  /** What a generation for this date would use — `manual?.litres ?? irasLitres ?? 0`. */
-  effectiveLitres: number;
-}
-
-/** `GET /dsr/dealers/:dealerId/receipts?businessDate=` — the day's receipts. */
-export interface DsrDayReceipts {
-  dealerId: string;
-  businessDate: string;
-  /** True when the IRAS snapshot for this date exists and is COMPLETE. */
-  hasSnapshot: boolean;
-  products: DsrProductReceipt[];
-}
+// ------------------------------------------------------------ staleness
 
 /**
  * Why a generated report no longer matches its inputs.
  *
- * Set when a receipt is entered or changed for `businessDate`: that day's own
- * report is wrong, and so is EVERY later one, because the stock-vs-sales
- * variation accumulates receipts since the last inspection. Sales and the
- * cumulative are untouched — they are a function of meter readings and testing
- * only — so a stale report is wrong in its variation panel, not its ledger.
+ * Set when a collected IRAS figure for `businessDate` is corrected by hand: that
+ * day's own report is wrong, and so is EVERY later one, because the stock-vs-sales
+ * variation accumulates receipts and testing since the last inspection.
+ *
+ * WHAT is wrong depends on which figure moved, and both cases are real now that
+ * every collected field is correctable — the note that used to live here (only a
+ * receipt could change, so only the variation panel could be wrong) stopped being
+ * true when meter readings became editable:
+ *
+ *   • a receipt or a tank dip moves the stock and the variation;
+ *   • a METER READING also moves sales and the running cumulative, because a
+ *     day's sales are the difference between its reading and the next day's.
+ *
+ * A regeneration of a corrected meter day therefore has to rebuild the ledger
+ * rows around it, not just recompute the variation.
  */
 export interface DsrReportStale {
   /** When the report was marked stale, ISO-8601. */

@@ -102,9 +102,14 @@ export const AUDIT_ACTIONS = [
   'INSPECTION_REPORTS_COLLECT',
   // Daily Sales Report — admin-approved share of the cards with the dealer
   'DSR_SHARE',
-  // Daily Sales Report — hand-entered receipt (the one editable DSR input)
+  // Daily Sales Report — hand-entered receipt. Superseded by IRAS_DATA_EDIT
+  // below; kept because audit entries written before that change still name it.
   'DSR_RECEIPT_SET',
   'DSR_RECEIPT_CLEAR',
+  // IRAS shift data — hand corrections to collected portal figures. One entry
+  // per commit, not per cell, so the log reads as a list of decisions.
+  'IRAS_DATA_EDIT',
+  'IRAS_DATA_REVERT',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',

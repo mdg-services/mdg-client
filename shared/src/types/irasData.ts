@@ -17,6 +17,19 @@ export const IRAS_REPORT_CODES = ['TOT', 'STK', 'REC'] as const;
 export type IrasReportCode = (typeof IRAS_REPORT_CODES)[number];
 
 /**
+ * The portal's own label for each report. Lives here rather than only in the
+ * collector's registry because a dataset built entirely by hand — a delivery the
+ * portal never sent, on a day it returned no receipt rows at all — has to be
+ * labelled the same way as a collected one, and two spellings of "Receipt (REC)"
+ * would show up as two different reports in the Vault.
+ */
+export const IRAS_REPORT_LABELS: Record<IrasReportCode, string> = {
+  TOT: 'Shift Totalizer Record (TOT)',
+  STK: 'Stock (STK)',
+  REC: 'Receipt (REC)',
+};
+
+/**
  * Column metadata as IRAS itself reports it, carried through untouched so the
  * Vault renders the portal's own headers rather than a hardcoded mapping that
  * silently rots when IRAS renames a field.
@@ -122,6 +135,208 @@ export interface IrasDataSnapshot {
   } | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/* ───────────────────────────── hand corrections ─────────────────────────────
+ *
+ * The portal is the source of this data, and the portal is sometimes wrong: a
+ * tanker decants but nobody enters it at the outlet, a totaliser is keyed in
+ * transposed, a dip is written against the wrong tank. Those figures are what
+ * the Daily Sales Report judges a dealer's stock variation on, so an admin has
+ * to be able to state the real number.
+ *
+ * Corrections are an OVERLAY, never a write into the snapshot. `saveSnapshot`
+ * upserts by `(dealerId, businessDate)` and replaces `datasets` wholesale, so
+ * anything written into the snapshot is destroyed by the next collection of that
+ * day — the operator's work would vanish and a dealer's report would silently
+ * revert. Keeping the correction beside the snapshot also keeps the answer to
+ * "what did the portal actually say?" available forever, which is the whole
+ * basis for trusting a corrected report.
+ */
+
+export const IRAS_CORRECTION_KINDS = ['FIELD', 'ADDED_ROW', 'EXCLUDED_ROW'] as const;
+export type IrasCorrectionKind = (typeof IRAS_CORRECTION_KINDS)[number];
+
+/**
+ * The `field` value on a row-level correction (an added or excluded row).
+ *
+ * A sentinel rather than an empty string so the uniqueness key
+ * `(dealer, date, code, rowKey, field)` still admits one row-level correction
+ * ALONGSIDE the row's per-field ones, and so a row-level document is obvious in
+ * the database rather than looking like a field correction that lost its name.
+ */
+export const IRAS_ROW_LEVEL_FIELD = '*';
+
+/**
+ * How a correction's row is identified, which decides how cautious the apply
+ * step has to be when the portal re-sends the day. See `irasRowKeys`.
+ */
+export const IRAS_ROW_KEY_STRENGTHS = ['txn', 'natural', 'ordinal', 'index'] as const;
+export type IrasRowKeyStrength = (typeof IRAS_ROW_KEY_STRENGTHS)[number];
+
+/** One hand correction to one dealer-day's collected data. */
+export interface IrasDataCorrection {
+  id: string;
+  dealerId: string;
+  businessDate: string;
+  code: IrasReportCode;
+  /** Stable row identity — see `irasRowKeys`. `add:<id>` for a hand-added row. */
+  rowKey: string;
+  /** How `rowKey` was derived, recorded so apply-time can be strict about weak keys. */
+  keyStrength: IrasRowKeyStrength;
+  /** Human row identity for the orphan list, e.g. `Nozzle 5`, `Tank 2`. */
+  rowLabel: string;
+  kind: IrasCorrectionKind;
+  /** The IRAS field key, or {@link IRAS_ROW_LEVEL_FIELD} for a row-level change. */
+  field: string;
+  /** What the portal said for this cell when the correction was made. */
+  portalValue: string | null;
+  /** What it should be. Null for a row-level correction. */
+  value: string | null;
+  /** The whole hand-entered row — `ADDED_ROW` only. */
+  row?: IrasRow | null;
+  /** Rows the dataset held when the correction was made; guards weak row keys. */
+  rowCountAtEdit: number;
+  /** Why, in one line. Required at commit time and stamped on every correction in it. */
+  reason: string;
+  by: string;
+  byName?: string | null;
+  at: string;
+  updatedBy?: string | null;
+  updatedByName?: string | null;
+  updatedAt?: string | null;
+  /** Set when the portal re-sent the day and no longer matches `portalValue`. */
+  portalValueNow?: string | null;
+  /** Set when the row this correction was made on is not in the latest collection. */
+  orphanedAt?: string | null;
+}
+
+/** One requested change, as the editor sends it. `value: null` reverts the cell. */
+export interface IrasCellEditInput {
+  code: IrasReportCode;
+  rowKey: string;
+  field: string;
+  value: string | null;
+}
+
+/** A hand-added row. The server mints its `rowKey`. */
+export interface IrasAddedRowInput {
+  code: IrasReportCode;
+  row: IrasRow;
+}
+
+/** What one commit actually changed, for the response and the audit entry. */
+export interface IrasCorrectionChange {
+  code: IrasReportCode;
+  rowKey: string;
+  rowLabel: string;
+  field: string;
+  kind: IrasCorrectionKind;
+  /** The value in force before the change. */
+  from: string | null;
+  /** The value in force after it. */
+  to: string | null;
+  action: 'set' | 'reverted';
+  /** Whether this change can move a figure on the report. */
+  usedByReport: boolean;
+}
+
+/** `PUT …/days/:businessDate/corrections` — one commit, all or nothing. */
+export interface IrasCorrectionCommitInput {
+  /** Optimistic-concurrency token from the day payload. */
+  revision: string;
+  reason: string;
+  edits?: IrasCellEditInput[];
+  addedRows?: IrasAddedRowInput[];
+  /** Rows to exclude, and rows to stop excluding (`restore`). */
+  excludeRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
+  restoreRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
+  /** Hand-added rows to delete outright. */
+  deleteAddedRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
+  /** Drop every correction on these rows. */
+  revertRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
+  /** Drop every correction on the whole day. */
+  revertDay?: boolean;
+}
+
+export interface IrasCorrectionCommitResult {
+  corrections: IrasDataCorrection[];
+  orphaned: IrasDataCorrection[];
+  changes: IrasCorrectionChange[];
+  /** Business dates whose generated report this invalidated, oldest first. */
+  staleDates: string[];
+  revision: string;
+}
+
+/** One product's variation, before and after the pending changes. */
+export interface IrasCorrectionPreviewProduct {
+  productKey: string;
+  productLabel: string;
+  /** Null when the day cannot be computed at all (no prior ledger, say). */
+  before: DsrVariationPreview | null;
+  after: DsrVariationPreview | null;
+}
+
+/** The slice of a variation summary the preview needs — kept flat on purpose. */
+export interface DsrVariationPreview {
+  variation: number;
+  permissibleVariation: number;
+  variationNotWithinLimit: number;
+  receipt: number;
+  openingStock: number;
+  sales: number | null;
+}
+
+export interface IrasCorrectionPreview {
+  products: IrasCorrectionPreviewProduct[];
+  warnings: string[];
+}
+
+/**
+ * Everything the editor needs for one dealer-day, in one request, so the screen
+ * never renders half-known state.
+ */
+export interface IrasDayEditorView {
+  dealer: {
+    id: string;
+    name: string | null;
+    code: string | null;
+    roCode: string | null;
+    archived: boolean;
+  };
+  businessDate: string;
+  /** The portal's own data, verbatim. Null when the day was never collected. */
+  snapshot: IrasDataSnapshot | null;
+  corrections: IrasDataCorrection[];
+  orphaned: IrasDataCorrection[];
+  /**
+   * Hand-added rows the portal may since have caught up with — a delivery entered
+   * by hand and then, a day later, entered at the outlet too. Counting both would
+   * swing the variation by a whole tanker, so this is the loudest thing on the
+   * screen when it is non-empty.
+   */
+  duplicateRisk: Array<{ correction: IrasDataCorrection; portalRows: IrasRow[] }>;
+  /** Applied corrections whose portal value has changed since they were made. */
+  portalChanged: IrasDataCorrection[];
+  revision: string;
+  /** Nozzle number → the previous day's meter reading, for the backwards-meter check. */
+  previousTotReadings: Record<string, string>;
+  dsr: {
+    attached: boolean;
+    /** Why receipts cannot be attributed to a product, rendered inline and calmly. */
+    configError: string | null;
+    products: Array<{
+      key: string;
+      labelEn: string;
+      tankLabel: string;
+      tankNos: number[];
+      nozzleNos: number[];
+    }>;
+    /** This dealer's generated report dates, so the footer can count the impact locally. */
+    reportDates: string[];
+    /** Of those, the ones already shared into the dealer's chat. */
+    sharedDates: string[];
+  };
 }
 
 /**
