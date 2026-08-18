@@ -121,7 +121,9 @@ export const DSR_KNOWN_PROD_CODES = Object.keys(CATALOG);
  * code is unknown so discovery always yields a complete product.
  */
 export function dsrProductProfile(prodCode: string): DsrProductProfile {
-  const code = String(prodCode ?? '').trim().toUpperCase();
+  const code = String(prodCode ?? '')
+    .trim()
+    .toUpperCase();
   const known = CATALOG[code];
   if (known) return { prodCode: code, provisional: false, ...known };
   return {
