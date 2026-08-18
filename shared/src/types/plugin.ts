@@ -1,4 +1,5 @@
 import type { Cadence } from './enums';
+import type { ServiceRunTrigger } from './serviceRun';
 
 /**
  * The runtime context handed to a plugin's `run` function.
@@ -58,6 +59,17 @@ export interface ServiceRunContext {
   runId: string;
   config: Record<string, unknown>;
   now: Date;
+  /**
+   * Why this run is happening. A plugin that behaves differently depending on
+   * who asked reads this rather than inferring it from config.
+   *
+   * The case it exists for is `attach`: a plugin whose schedule comes from
+   * upstream needs one run to go and look, and that run must not have the side
+   * effects a real one does — `water-ingress-testing` reads the outlet's slot
+   * grid and deliberately ticks nothing, because adding a service to a dealer
+   * is not a statement that an observation was made.
+   */
+  trigger: ServiceRunTrigger;
   logger: {
     info: (...a: unknown[]) => void;
     warn: (...a: unknown[]) => void;
@@ -81,6 +93,26 @@ export interface ServiceRunResult {
   output: unknown;
   /** Wall-clock duration in ms; the runner will compute one if omitted. */
   durationMs: number;
+  /**
+   * When this service wants to run next, overriding the cadence for this cycle
+   * only. Honoured on SCHEDULED runs; a manual "Run now" never moves the slot
+   * (see the reasoning in `executeRun`).
+   *
+   * For a cadence a cron cannot express — one that depends on what the upstream
+   * page said rather than on the calendar — the plugin is the only thing that
+   * knows when to come back. `water-ingress-testing` is the case in point: the
+   * portal publishes the dealer's own slot grid (a 24h RO gets twelve 2-hour
+   * slots, a 06:00–22:00 RO gets fewer), each slot may only be marked while the
+   * clock is inside it, and the grid can change without anyone telling us. So
+   * the plugin reads the grid it was just shown and aims the next run at the
+   * middle of the next slot.
+   *
+   * This is a REFINEMENT, never the only line of defence: a plugin that fails
+   * (or crashes before returning) sets nothing, and the attachment falls back to
+   * its cron / cadence. Which is exactly why {@link ServicePlugin.defaultCustomCron}
+   * exists — the floor stays correct even when the refinement never arrives.
+   */
+  nextRunAt?: Date;
 }
 
 /**
@@ -95,6 +127,47 @@ export interface ServicePlugin {
   description: string;
   /** Default cadence; admins may override per-attachment. */
   cadence: Cadence;
+  /**
+   * A cron expression (IST) applied at attach time when the admin does not
+   * supply one of their own — the schedule this service NEEDS rather than the
+   * one the five-value {@link Cadence} enum can name.
+   *
+   * `Cadence` covers daily/weekly/monthly/yearly, which is every schedule the
+   * services had until one needed to run twelve times a day. Adding an HOURLY
+   * member for it would have been a lie in the other direction (this service is
+   * two-hourly, the next one might be half-hourly) and would have rippled
+   * through the enum, the model, the admin picker and every serializer. A
+   * default cron says the same thing without teaching the rest of the system a
+   * new word.
+   *
+   * It is a DEFAULT, not a lock: the admin's `customCron` still wins, and the
+   * plugin's own {@link ServiceRunResult.nextRunAt} still refines each cycle.
+   * What it guarantees is the floor — a plugin that fails before it can express
+   * an opinion still comes back on the right rhythm instead of dropping to a
+   * once-a-day cadence it was never meant to have.
+   */
+  defaultCustomCron?: string;
+  /**
+   * Fire one run the moment this service is attached to a dealer, purely so the
+   * plugin can discover its real schedule and return a `nextRunAt`.
+   *
+   * `defaultCustomCron` is a guess made without looking. It is a good guess —
+   * good enough to be the permanent floor — but it is still a constant in this
+   * repository describing a timetable that lives on somebody else's server. A
+   * dealer whose outlet does not trade round the clock, or whose windows are not
+   * the standard two hours, would spend up to one whole cron interval on the
+   * wrong rhythm before the first real run could correct it.
+   *
+   * So the attach goes and looks. The run is dispatched in the background (the
+   * attach request returns immediately; a captcha-gated login takes minutes) and
+   * arrives as a normal ServiceRun with `trigger: 'attach'`, so it is visible,
+   * auditable and diagnosable like any other. If it fails, nothing is lost — the
+   * cron floor is already in place and the first scheduled run corrects the
+   * schedule itself.
+   *
+   * A plugin that sets this MUST make `trigger === 'attach'` side-effect-free.
+   */
+  discoverScheduleOnAttach?: boolean;
   /** JSON Schema (draft-07) used to validate config and drive RJSF. */
   defaultConfigSchema: Record<string, unknown>;
   /**
@@ -113,6 +186,10 @@ export interface ServicePluginCatalogEntry {
   name: string;
   description: string;
   cadence: Cadence;
+  /** Cron applied when the admin attaches without one; see {@link ServicePlugin.defaultCustomCron}. */
+  defaultCustomCron?: string;
+  /** Whether attaching fires a discovery run; see {@link ServicePlugin.discoverScheduleOnAttach}. */
+  discoverScheduleOnAttach?: boolean;
   defaultConfigSchema: Record<string, unknown>;
   /** Prerequisite service ids that must be attached first; see {@link ServicePlugin.dependsOn}. */
   dependsOn?: string[];

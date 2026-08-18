@@ -31,9 +31,12 @@ export interface ServiceRunArtifact {
  * How a run started. `manual` is an admin pressing Run now / Generate;
  * `scheduled` is the cadence tick; `backfill` is a run one service started on
  * another's behalf — the DSR collecting the IRAS shift data it needs before it
- * can report on a day.
+ * can report on a day; `attach` is the one-off run fired the moment a service is
+ * added to a dealer, so a self-scheduling plugin can read its real timetable off
+ * the upstream portal instead of waiting for a generic cron to fire once
+ * (see {@link ServicePlugin.discoverScheduleOnAttach}).
  */
-export type ServiceRunTrigger = 'manual' | 'scheduled' | 'backfill';
+export type ServiceRunTrigger = 'manual' | 'scheduled' | 'backfill' | 'attach';
 
 export interface ServiceRun {
   id: string;

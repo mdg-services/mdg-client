@@ -216,6 +216,23 @@ export interface DsrProductConfig {
   tankNos: number[];
   /** Nozzles feeding this product, in the order the report columns show them. */
   nozzleNos: number[];
+  /**
+   * Per-nozzle multiplier applied to the portal's totaliser reading, keyed by
+   * nozzle number. Absent or 1 for almost every pump.
+   *
+   * Not a unit conversion anyone chose — some dispensing units report their
+   * totaliser in a different decimal scale from the rest of the forecourt, and
+   * the portal passes that through. 14E's nozzles 6 and 9 read ten times their
+   * true litres, and the dealer's own macro carries a hand-added `/10` on those
+   * two columns alone (`DATA!M39`, `DATA!M40`, under a header they labelled
+   * "Formula Adjust"). Uncorrected, one such nozzle turned a 2,500 L day into a
+   * 21,500 L one.
+   *
+   * Applied to the reading, so everything downstream — the printed meter, the
+   * day's sales, and the since-inspection meter total — is in litres. Inspection
+   * baselines are therefore stored in LITRES too, already scaled.
+   */
+  meterScale?: Record<string, number>;
   /** Evaporation/leakage allowance as a percent of throughput, e.g. 0.25. */
   leakagePct: number;
   /** Permissible band as a percent of current stock, e.g. 4. */
@@ -233,8 +250,31 @@ export interface DsrProductConfig {
   };
 }
 
+/**
+ * Which figure a tanker delivery contributes to the stock reconciliation.
+ *
+ * The portal reports both: `NET_QTY_DECANTED`, the litres the tank actually
+ * gained measured from the dip before and after decanting, and
+ * `INVOICE_QUANTITY`, the litres the tanker was billed at. They differ by a
+ * percent or two in either direction — 5E was invoiced 9,000 L for a delivery
+ * that dipped in at 8,695.61, and 14E received 87.89 L MORE than it was billed
+ * for.
+ *
+ * `DECANTED` is the default and the more defensible basis: the stock this is
+ * reconciled against is itself dip-measured, so measuring the receipts the same
+ * way keeps the comparison internally consistent and leaves a short delivery
+ * visible as a short delivery rather than folded into the variation.
+ *
+ * `INVOICE` exists because every dealer's own hand-kept book uses the invoiced
+ * figure, and a dealer who cannot reconcile our report against their book will
+ * not trust either. It is a per-dealer choice, not a global one.
+ */
+export type DsrReceiptBasis = 'DECANTED' | 'INVOICE';
+
 /** Per-dealer DSR configuration (stored on the DealerService `config`). */
 export interface DsrConfig {
+  /** Which delivery figure feeds the reconciliation; see {@link DsrReceiptBasis}. */
+  receiptBasis?: DsrReceiptBasis;
   /** Last physical inspection date the variation is measured from, `YYYY-MM-DD`. */
   sinceDate: string;
   /** Litres of testing recorded per pump that moved during the day. */
