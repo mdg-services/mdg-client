@@ -230,12 +230,15 @@ const STK_FIELDS: IrasFieldPolicy[] = [
   },
   measured('PRODUCT_DIP', {
     usedByReport: true,
-    hint: 'Type it exactly as the portal shows it. The report divides it by 10 to print the dip.',
+    hint: 'Type it exactly as the portal shows it. The report divides it by 10 and prints it as THIS tank’s dip — every tank of a product gets its own column.',
   }),
-  measured('WATER_DIP', { usedByReport: true, hint: 'Printed on the report as the water dip.' }),
+  measured('WATER_DIP', {
+    usedByReport: true,
+    hint: 'Printed on the report as THIS tank’s water dip.',
+  }),
   measured('NET_QTY', {
     usedByReport: true,
-    hint: 'The stock the report opens the day with. Where a product has more than one tank, the tanks are added together.',
+    hint: 'The stock the report opens the day with. Printed as this tank’s own stock, and added to the product’s other tanks for the opening stock the variation is measured against.',
   }),
   measured('PRODUCT_QTY', {
     usedByReport: false,

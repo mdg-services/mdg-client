@@ -28,6 +28,47 @@
  */
 export type DsrReceiptSource = 'iras' | 'manual';
 
+/**
+ * One TANK's own readings at the shift instant.
+ *
+ * A grade can sit in several tanks — 1E's diesel is in tanks 4, 6 and 8, 5E's in
+ * 2 and 5 — and the reconciliation is deliberately whole-of-grade (the nozzles
+ * are not partitioned by tank, so a per-tank meter total would attribute litres
+ * to whichever tank a dispensing unit was configured against rather than the one
+ * they came out of).
+ *
+ * But whole-of-grade ARITHMETIC is not a reason to print whole-of-grade
+ * READINGS, and for a long time the report did exactly that: one DIP cell under
+ * a header that said `TANK -4/6/8`, holding the first tank's dip alone, with the
+ * other tanks' dips nowhere on the page even though their litres were inside the
+ * opening stock beside it. A dealer counting the tanks on their forecourt could
+ * not find them all on their own report — 5E has four tanks and only ever saw
+ * three readings.
+ *
+ * So each tank now states itself. `Σ (stock ?? 0)` over this array is exactly the
+ * row's {@link DsrDayRow.openingStock}: this is a disclosure of what that number
+ * is made of, never a second, competing figure.
+ */
+export interface DsrTankReading {
+  /** IRAS tank number, e.g. 6. */
+  tankNo: number;
+  /**
+   * This tank's product dip in cm (IRAS reports mm; divided by 10), or `null`
+   * when the day's snapshot carried no stock row for this tank.
+   *
+   * `null` rather than `0` throughout, and not a separate "missing" flag beside
+   * a zero: a tank that was not measured is not an empty tank, and a flag is
+   * something a renderer can forget to read while still printing the number
+   * beside it. A dip of 0 means the tank was dipped and found dry — which does
+   * happen (1E's tank 4 reads 0 every day) and must not look like an outage.
+   */
+  dip: number | null;
+  /** This tank's water dip, as IRAS reports it (not rescaled); `null` if unreported. */
+  waterDip: number | null;
+  /** Net product quantity in THIS tank (litres); `null` if unreported. */
+  stock: number | null;
+}
+
 /** One pump nozzle's cumulative totaliser reading at the shift instant. */
 export interface DsrPumpReading {
   /** IRAS nozzle number, e.g. 8. */
@@ -47,12 +88,29 @@ export interface DsrPumpReading {
 export interface DsrDayRow {
   /** IST calendar date this row belongs to, `YYYY-MM-DD`. */
   businessDate: string;
-  /** Product dip in cm (IRAS reports mm; divided by 10). */
+  /**
+   * Product dip in cm (IRAS reports mm; divided by 10).
+   *
+   * For a grade in ONE tank this is that tank's dip. For a grade in several it
+   * is the FIRST configured tank that reported — kept unchanged so no stored
+   * figure moved when {@link tanks} arrived. Read {@link tanks} to show a dip
+   * against a tank; this field cannot say which tank it belongs to.
+   */
   dip: number;
-  /** Water dip, as IRAS reports it (not rescaled). */
+  /** Water dip, as IRAS reports it (not rescaled). Same caveat as {@link dip}. */
   waterDip: number;
   /** Net product quantity per dip (litres) — the row's "opening stock". */
   openingStock: number;
+  /**
+   * Each configured tank's own dip, water dip and stock, in the config's tank
+   * order — the detail behind {@link openingStock}, whose sum it is.
+   *
+   * Optional because rows written before per-tank readings existed do not carry
+   * it. A renderer reading `undefined` must fall back to the single {@link dip}
+   * column rather than printing blanks, and `backfillDsrTankReadings` fills it
+   * in for any historic row whose day still has a shift snapshot.
+   */
+  tanks?: DsrTankReading[];
   /**
    * Litres decanted into this product's tank on this date (0 when no receipt) —
    * the EFFECTIVE figure, i.e. the manual entry when there is one.
@@ -154,8 +212,26 @@ export interface DsrProductReport {
   productKey: string;
   productLabelEn: string;
   productLabelHi: string;
-  /** e.g. `TANK -1`; how the ledger labels this product's tank column. */
+  /**
+   * The label the ledger's tank column used to be headed with, e.g. `TANK -1`.
+   *
+   * NO LONGER AUTHORITATIVE, and kept only so a report generated before
+   * {@link tankNos} existed still renders. It is free text an operator typed, and
+   * at six of the eight live outlets it named the wrong tank: 15E's diesel sits
+   * in tank 2 under a header reading `TANK -1`, while its petrol sits in tank 1
+   * under `TANK -2`. Renderers derive the heading from {@link tankNos} — the very
+   * array the stock arithmetic selects on — so the header can no longer disagree
+   * with the figures beneath it.
+   */
   tankLabel: string;
+  /**
+   * The tanks holding this product, in the config's order — the authority for
+   * every tank heading on the report.
+   *
+   * Optional only for reports generated before it existed; new ones always carry
+   * it.
+   */
+  tankNos?: number[];
   /** The ledger window shown, oldest first — typically [yesterday, today]. */
   rows: DsrDayRow[];
   /**
