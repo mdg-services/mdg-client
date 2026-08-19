@@ -77,6 +77,16 @@ export interface IrasFieldPolicy {
    * the time, which is how a warning stops being read.
    */
   blankReadsAsZero?: boolean;
+  /**
+   * True when this column moves no FIGURE but does change the layout notes the
+   * report prints — the "nozzle 34 is dispensing but is not in the setup" kind.
+   *
+   * A third state rather than a flag flip, because `usedByReport` also decides
+   * membership of {@link IRAS_ENGINE_FIELDS}, which is a list of the columns the
+   * arithmetic reads. Promoting a note-only column into it would make that list
+   * mean two different things at once.
+   */
+  affectsReportNotes?: boolean;
   min?: number;
   max?: number;
   maxDecimals?: number;
@@ -84,10 +94,33 @@ export interface IrasFieldPolicy {
 
 const LITRES_MAX = 99_999_999;
 
+/**
+ * How IRAS writes a date and a time, shared so the cell validator and the
+ * engine's `parseIrasInstant` cannot come to disagree about what is readable.
+ */
+export const IRAS_DATE_RE = /^\d{2}-\d{2}-\d{4}$/;
+export const IRAS_TIME_RE = /^\d{1,2}:\d{2}(:\d{2})?$/;
+
+/**
+ * Appended to the columns the report's LAYOUT CHECK reads. They move no figure —
+ * the arithmetic finds a row's product from its tank — but they decide the notes
+ * printed under the report, so "editing this changes nothing" would be false.
+ */
+const LAYOUT_NOTE =
+  ' The report’s layout check reads it, so it changes no figure but it does decide the notes printed at the bottom of the report.';
+
 /** A measured litres/millimetre figure — the common shape. */
 function measured(
   field: string,
-  opts: { usedByReport: boolean; hint?: string; maxDecimals?: number; dropsRowWhenBlank?: boolean },
+  opts: {
+    usedByReport: boolean;
+    hint?: string;
+    maxDecimals?: number;
+    dropsRowWhenBlank?: boolean;
+    /** Override the derived default, for a column whose blank is neither. */
+    blankReadsAsZero?: boolean;
+    affectsReportNotes?: boolean;
+  },
 ): IrasFieldPolicy {
   return {
     field,
@@ -117,6 +150,7 @@ function info(field: string, kind: IrasFieldKind = 'text'): IrasFieldPolicy {
  *   STK.WATER_DIP, STK.NET_QTY              → the printed dip and opening stock
  *   REC.TANK_NO, REC.NET_QTY_DECANTED,
  *   REC.INVOICE_QUANTITY                    → receipts since the last inspection
+ *   REC.REC_TXN_ID                          → one tanker reported twice, counted once
  *   REC.DECANT_END_DATE, REC.DECANT_END_TIME → which day a delivery counts on
  *
  * `INVOICE_QUANTITY` is here because a dealer's `receiptBasis` can put their
@@ -126,7 +160,14 @@ function info(field: string, kind: IrasFieldKind = 'text'): IrasFieldPolicy {
 export const IRAS_ENGINE_FIELDS: Record<IrasReportCode, readonly string[]> = {
   TOT: ['NOZZLE_NO', 'TOT_READING'],
   STK: ['TANK_NO', 'PRODUCT_DIP', 'WATER_DIP', 'NET_QTY'],
-  REC: ['TANK_NO', 'NET_QTY_DECANTED', 'INVOICE_QUANTITY', 'DECANT_END_DATE', 'DECANT_END_TIME'],
+  REC: [
+    'TANK_NO',
+    'REC_TXN_ID',
+    'NET_QTY_DECANTED',
+    'INVOICE_QUANTITY',
+    'DECANT_END_DATE',
+    'DECANT_END_TIME',
+  ],
 };
 
 const TOT_FIELDS: IrasFieldPolicy[] = [
@@ -142,12 +183,13 @@ const TOT_FIELDS: IrasFieldPolicy[] = [
   measured('TOT_READING', {
     usedByReport: true,
     dropsRowWhenBlank: true,
-    hint: 'The meter total. The day’s sales are the difference between this and yesterday’s reading for the same nozzle.',
+    hint: 'The meter total as the portal reports it. The day’s sales come from the change since yesterday’s reading for this nozzle. Some pumps report their totaliser on a different scale, and where that is set up the report converts it — so type the value exactly as the portal shows it and check the preview rather than working back from the sales figure you expect.',
   }),
   {
     field: 'TANK_NO',
     class: 'IDENTITY',
     usedByReport: false,
+    affectsReportNotes: true,
     kind: 'number',
     hint: 'Which tank this nozzle draws from. The report matches nozzles by nozzle number, so this does not change any figure.',
   },
@@ -156,7 +198,10 @@ const TOT_FIELDS: IrasFieldPolicy[] = [
     class: 'IDENTITY',
     usedByReport: false,
     kind: 'text',
-    hint: 'The portal’s product code. The report decides a row’s product from its tank number, not from this, so changing it does not change any figure.',
+    affectsReportNotes: true,
+    hint:
+      'The portal’s product code. The report decides a row’s product from its tank number, not from this, so changing it moves no figure.' +
+      LAYOUT_NOTE,
   },
   info('PUMP_NO', 'number'),
   info('PARENT_DU_NO', 'number'),
@@ -205,7 +250,10 @@ const STK_FIELDS: IrasFieldPolicy[] = [
     class: 'IDENTITY',
     usedByReport: false,
     kind: 'text',
-    hint: 'The portal’s product code. The report decides a row’s product from its tank number, not from this.',
+    affectsReportNotes: true,
+    hint:
+      'The portal’s product code. The report decides a row’s product from its tank number, not from this.' +
+      LAYOUT_NOTE,
   },
   info('TANK_STATUS'),
   info('TRAN_NAME'),
@@ -236,8 +284,12 @@ const REC_FIELDS: IrasFieldPolicy[] = [
   },
   measured('NET_QTY_DECANTED', {
     usedByReport: true,
-    dropsRowWhenBlank: true,
-    hint: 'Litres the tank dip measured going in. Whichever of this and Invoice Quantity you set by hand is what the report counts for this delivery.',
+    // No longer deletes the delivery on its own: the row survives on the invoice
+    // figure, which is the whole receipt for the dealers whose book is kept that
+    // way. Both blank still drops it — see `parseRec`.
+    dropsRowWhenBlank: false,
+    blankReadsAsZero: false,
+    hint: 'Litres the tank dip measured going in. Whichever of this and Invoice Quantity you set by hand is what the report counts for this delivery; if you set both, the dealer’s configured basis decides. Leaving it empty is not zero — the report falls back to the invoiced litres, and only drops the delivery if both are empty.',
   }),
   {
     field: 'PRODCODE',
@@ -249,18 +301,29 @@ const REC_FIELDS: IrasFieldPolicy[] = [
   info('INVOICE_NUMBER'),
   info('INVOICE_DATE', 'date'),
   measured('INVOICE_QUANTITY', {
+    // Blank does NOT read as zero here: `receiptLitres` falls through to the
+    // decanted litres, which is the late-invoice case (a delivery entered at the
+    // outlet before its invoice figure was to hand).
+    blankReadsAsZero: false,
     // Load-bearing since `receiptBasis` arrived: a dealer whose book is kept on
     // invoiced litres has their whole receipt read from HERE. Marking it
     // read-by-nothing hid it behind "show all portal columns" and told the
     // operator the report ignored it, which is how 5E's corrections came to be
     // typed into the other column and silently discarded.
     usedByReport: true,
-    hint: 'Litres the tanker was invoiced for. Whichever of this and Net Qty Decanted you set by hand is what the report counts for this delivery.',
+    hint: 'Litres the tanker was invoiced for. Whichever of this and Net Qty Decanted you set by hand is what the report counts for this delivery; if you set both, the dealer’s configured basis decides. Leaving it empty is not zero — the report falls back to the decanted litres. Type 0 to record the delivery as nothing.',
   }),
   info('TRUCK_NUMBER'),
   info('SUPPLY_POINT'),
   info('TRAN_NAME'),
-  info('REC_TXN_ID'),
+  {
+    field: 'REC_TXN_ID',
+    class: 'IDENTITY',
+    usedByReport: true,
+    kind: 'text',
+    identityWarning:
+      'The report uses this id to tell two real tankers apart from one tanker the portal reported twice: two deliveries sharing an id are counted once. Changing it can make a single delivery count twice; giving it an id another delivery already has makes a real one vanish.',
+  },
   info('DECANT_START_DATE', 'date'),
   info('DECANT_START_TIME', 'time'),
   // These two decide WHICH DAY a delivery counts on. The portal answers the
@@ -273,16 +336,18 @@ const REC_FIELDS: IrasFieldPolicy[] = [
     class: 'IDENTITY',
     usedByReport: true,
     kind: 'date',
+    hint: 'The decant date exactly as the portal writes it — dd-mm-yyyy.',
     identityWarning:
-      'The report counts a delivery on the day it was decanted. Changing this date moves these litres to a different day’s receipts, or off the ledger if the day has no report.',
+      'The report counts a delivery on the day it was decanted, in the 24 hours ending at this dealer’s shift close. Moving this date moves the litres to that day’s receipts. A value the report cannot read makes the delivery count on whichever day is being generated, which can count one tanker twice.',
   },
   {
     field: 'DECANT_END_TIME',
     class: 'IDENTITY',
     usedByReport: true,
     kind: 'time',
+    hint: 'HH:mm:ss, as the portal writes it.',
     identityWarning:
-      'Together with the decant date this decides which day’s receipts these litres count in — a delivery that finishes after the shift closes belongs to the next day.',
+      'With the decant date, this decides which day’s receipts these litres count in — a delivery that finishes after the shift closes belongs to the next day. A value the report cannot read makes it count on whichever day is being generated.',
   },
   measured('PROD_DIP_START', { usedByReport: false }),
   measured('PROD_DIP_END', { usedByReport: false }),
@@ -361,6 +426,16 @@ export function validateIrasCell(code: IrasReportCode, field: string, raw: strin
     // Blank is legal — the portal itself sends blanks — but on a field the
     // parser keys on it silently deletes the row from the report.
     return null;
+  }
+  // A date or a time the report cannot read is not a harmless typo: the engine
+  // decides which day a delivery counts on from the decant stamp, and an
+  // unreadable one makes it count on whichever day is being generated. Catch it
+  // where it is typed rather than three months later in a variation.
+  if (policy.kind === 'date') {
+    return IRAS_DATE_RE.test(value) ? null : 'Use the portal’s format: dd-mm-yyyy.';
+  }
+  if (policy.kind === 'time') {
+    return IRAS_TIME_RE.test(value) ? null : 'Use the portal’s format: HH:mm:ss.';
   }
   if (policy.kind !== 'number') return null;
 
