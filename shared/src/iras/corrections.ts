@@ -152,6 +152,19 @@ export interface IrasApplyResult {
    * applied and excluded rows dropped, then hand-added rows appended.
    */
   rows: IrasRow[];
+  /**
+   * For each row in {@link rows}, the fields on it a person set by hand — every
+   * field of a hand-added row, the corrected fields of a patched one, and
+   * nothing for a row the portal sent untouched.
+   *
+   * Parallel to `rows` on purpose. A consumer that needs to tell an operator's
+   * figure from the portal's would otherwise have to re-key the rows, and a
+   * second keying does not reliably agree with this one: `irasRowKeys` chooses
+   * its strategy from the rows it is handed, so a single hand-added row without
+   * a transaction id drops the whole dataset from `txn:` keys to positional
+   * ones and a correction stored against `txn:1536` stops resolving.
+   */
+  handSetFields: string[][];
   /** Applied corrections, in the order given. */
   applied: IrasDataCorrection[];
   /**
@@ -292,11 +305,22 @@ export function applyIrasCorrections(
   }
 
   const rows: IrasRow[] = [];
+  // Which fields on each OUTPUT row a person set, in step with `rows`.
+  //
+  // Published rather than left for a consumer to work out, because working it
+  // out means keying the rows a second time — and the second keying does not
+  // always agree with this one. `irasRowKeys` picks its strategy from the rows
+  // it is given: add one hand-entered row with no transaction id and the whole
+  // dataset drops from `txn:` keys to positional ones, so a correction stored
+  // against `txn:1536` no longer resolves. Excluding a row shifts every ordinal
+  // after it, too. Here, inside the assembly, the mapping is simply known.
+  const handSetFields: string[][] = [];
   for (let i = 0; i < portalRows.length; i += 1) {
     if (excluded.has(i)) continue;
     const patch = patches.get(i);
     if (!patch) {
       rows.push(portalRows[i]!);
+      handSetFields.push([]);
       continue;
     }
     const next: IrasRow = { ...portalRows[i]! };
@@ -307,11 +331,17 @@ export function applyIrasCorrections(
       next[field] = value ?? '';
     }
     rows.push(next);
+    handSetFields.push([...patch.keys()]);
   }
-  for (const added of addedRows) rows.push(added.row);
+  for (const added of addedRows) {
+    rows.push(added.row);
+    // The portal never sent this row, so every figure on it is a person's.
+    handSetFields.push(Object.keys(added.row));
+  }
 
   return {
     rows,
+    handSetFields,
     applied,
     orphaned,
     portalChanged,
@@ -328,12 +358,15 @@ export function applyIrasCorrectionsToDatasets(
   codes: readonly IrasReportCode[],
 ): {
   datasets: Partial<Record<IrasReportCode, IrasDataset>>;
+  /** Per report, the hand-set fields of each row — see {@link IrasApplyResult.handSetFields}. */
+  handSetFields: Partial<Record<IrasReportCode, string[][]>>;
   orphaned: IrasDataCorrection[];
   portalChanged: IrasDataCorrection[];
   duplicateRisk: IrasApplyResult['duplicateRisk'];
   correctedCount: number;
 } {
   const next: Partial<Record<IrasReportCode, IrasDataset>> = {};
+  const handSetFields: Partial<Record<IrasReportCode, string[][]>> = {};
   const orphaned: IrasDataCorrection[] = [];
   const portalChanged: IrasDataCorrection[] = [];
   const duplicateRisk: IrasApplyResult['duplicateRisk'] = [];
@@ -346,6 +379,7 @@ export function applyIrasCorrectionsToDatasets(
     portalChanged.push(...result.portalChanged);
     duplicateRisk.push(...result.duplicateRisk);
     correctedCount += result.applied.length;
+    handSetFields[code] = result.handSetFields;
 
     if (!dataset) {
       // No dataset, but rows all the same: this is the COMMONEST correction of
@@ -388,7 +422,7 @@ export function applyIrasCorrectionsToDatasets(
     if (!codes.includes(c.code)) orphaned.push(c);
   }
 
-  return { datasets: next, orphaned, portalChanged, duplicateRisk, correctedCount };
+  return { datasets: next, handSetFields, orphaned, portalChanged, duplicateRisk, correctedCount };
 }
 
 /** The field corrections in force for one row, keyed by field. */

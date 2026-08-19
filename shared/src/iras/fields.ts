@@ -38,9 +38,18 @@ export interface IrasFieldPolicy {
   field: string;
   class: IrasFieldClass;
   /**
-   * Whether the DSR engine reads this field. The editor hides everything false
-   * behind "Show all portal columns", so the default view contains only cells
-   * that can actually change a dealer's report.
+   * Whether the DSR engine reads this field under ANY supported configuration —
+   * not just the default one. The editor hides everything false behind "Show all
+   * portal columns", so the default view contains only cells that can actually
+   * change a dealer's report.
+   *
+   * "Any configuration" is the load-bearing part, and it is written this way
+   * because the other reading caused a real fault. `INVOICE_QUANTITY` is read
+   * only by dealers whose `receiptBasis` is `INVOICE` — seven of eight — and it
+   * sat here marked false, hidden, and labelled as ignored, while it decided
+   * their entire receipt. A column that matters to one dealer has to be visible
+   * to all of them; a column no configuration reads is the only kind that may be
+   * hidden.
    */
   usedByReport: boolean;
   kind: IrasFieldKind;
@@ -100,18 +109,24 @@ function info(field: string, kind: IrasFieldKind = 'text'): IrasFieldPolicy {
 }
 
 /**
- * The eight fields the DSR actually computes from, stated once so a reader can
- * check this table against `parse.ts` without cross-referencing 70 rows.
+ * The fields the DSR actually computes from, stated once so a reader can check
+ * this table against `parse.ts` without cross-referencing 70 rows.
  *
  *   TOT.NOZZLE_NO, TOT.TOT_READING          → sales, cumulative sales, testing
  *   STK.TANK_NO, STK.PRODUCT_DIP,
  *   STK.WATER_DIP, STK.NET_QTY              → the printed dip and opening stock
- *   REC.TANK_NO, REC.NET_QTY_DECANTED       → receipts since the last inspection
+ *   REC.TANK_NO, REC.NET_QTY_DECANTED,
+ *   REC.INVOICE_QUANTITY                    → receipts since the last inspection
+ *   REC.DECANT_END_DATE, REC.DECANT_END_TIME → which day a delivery counts on
+ *
+ * `INVOICE_QUANTITY` is here because a dealer's `receiptBasis` can put their
+ * whole receipt on it; the list is what ANY configuration reads, not what the
+ * default one does.
  */
 export const IRAS_ENGINE_FIELDS: Record<IrasReportCode, readonly string[]> = {
   TOT: ['NOZZLE_NO', 'TOT_READING'],
   STK: ['TANK_NO', 'PRODUCT_DIP', 'WATER_DIP', 'NET_QTY'],
-  REC: ['TANK_NO', 'NET_QTY_DECANTED'],
+  REC: ['TANK_NO', 'NET_QTY_DECANTED', 'INVOICE_QUANTITY', 'DECANT_END_DATE', 'DECANT_END_TIME'],
 };
 
 const TOT_FIELDS: IrasFieldPolicy[] = [
@@ -222,7 +237,7 @@ const REC_FIELDS: IrasFieldPolicy[] = [
   measured('NET_QTY_DECANTED', {
     usedByReport: true,
     dropsRowWhenBlank: true,
-    hint: 'Litres actually decanted into the tank. This is what the report counts as the day’s receipt.',
+    hint: 'Litres the tank dip measured going in. Whichever of this and Invoice Quantity you set by hand is what the report counts for this delivery.',
   }),
   {
     field: 'PRODCODE',
@@ -234,8 +249,13 @@ const REC_FIELDS: IrasFieldPolicy[] = [
   info('INVOICE_NUMBER'),
   info('INVOICE_DATE', 'date'),
   measured('INVOICE_QUANTITY', {
-    usedByReport: false,
-    hint: 'The quantity on the invoice. Stored for the paper trail; the report counts the decanted litres.',
+    // Load-bearing since `receiptBasis` arrived: a dealer whose book is kept on
+    // invoiced litres has their whole receipt read from HERE. Marking it
+    // read-by-nothing hid it behind "show all portal columns" and told the
+    // operator the report ignored it, which is how 5E's corrections came to be
+    // typed into the other column and silently discarded.
+    usedByReport: true,
+    hint: 'Litres the tanker was invoiced for. Whichever of this and Net Qty Decanted you set by hand is what the report counts for this delivery.',
   }),
   info('TRUCK_NUMBER'),
   info('SUPPLY_POINT'),
@@ -243,8 +263,27 @@ const REC_FIELDS: IrasFieldPolicy[] = [
   info('REC_TXN_ID'),
   info('DECANT_START_DATE', 'date'),
   info('DECANT_START_TIME', 'time'),
-  info('DECANT_END_DATE', 'date'),
-  info('DECANT_END_TIME', 'time'),
+  // These two decide WHICH DAY a delivery counts on. The portal answers the
+  // receipt query on when a delivery was entered rather than when it was
+  // decanted, and reports one tanker across several days' data, so the engine
+  // keeps only the deliveries decanted inside the day it is closing. Move the
+  // decant time and the litres move to another day — or off the ledger.
+  {
+    field: 'DECANT_END_DATE',
+    class: 'IDENTITY',
+    usedByReport: true,
+    kind: 'date',
+    identityWarning:
+      'The report counts a delivery on the day it was decanted. Changing this date moves these litres to a different day’s receipts, or off the ledger if the day has no report.',
+  },
+  {
+    field: 'DECANT_END_TIME',
+    class: 'IDENTITY',
+    usedByReport: true,
+    kind: 'time',
+    identityWarning:
+      'Together with the decant date this decides which day’s receipts these litres count in — a delivery that finishes after the shift closes belongs to the next day.',
+  },
   measured('PROD_DIP_START', { usedByReport: false }),
   measured('PROD_DIP_END', { usedByReport: false }),
   measured('PROD_QTY_START', { usedByReport: false }),
