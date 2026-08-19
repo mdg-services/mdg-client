@@ -135,7 +135,16 @@ export interface DsrDayRow {
   testing: number;
   /** Day's sales (litres) once closed by the next day; `null` while open. */
   sales: number | null;
-  /** Running total of `sales` since the ledger began; `null` while open. */
+  /**
+   * Running total of `sales` for the CALENDAR MONTH this row falls in; `null`
+   * while open.
+   *
+   * It restarts at the 1st, which is how the dealers' own workbooks keep it and
+   * what "cumulative" means to the person reading the report — this month's
+   * sales so far. So it is exactly the sales column above it on the same report,
+   * added up, plus {@link DsrProductConfig.monthOpening} for a month the ledger
+   * only partly covers. `dsrCumulativeBefore` is the one place that decides it.
+   */
   cumulativeSales: number | null;
   /** Free-text remark (kept for parity with the workbook's REMARKS column). */
   remarks?: string | null;
@@ -279,6 +288,25 @@ export interface DsrReportDigest {
 
 // ------------------------------------------------------------------ config
 
+/**
+ * Sales already made in one calendar month before the ledger's first day in it.
+ *
+ * A dealer onboarded on the 14th has thirteen days of that month's sales in
+ * their own book and none in ours, so without this the month's cumulative opens
+ * at zero mid-month and reads far too low for the rest of it — 5E's diesel would
+ * have shown 33,784 L on the 16th against the 223,904 L their sheet shows.
+ *
+ * It names the month it belongs to rather than being a bare number, so it stops
+ * applying by itself the moment that month ends. Nothing has to be cleared, and
+ * no run on the 1st has to succeed for the next month to start from zero.
+ */
+export interface DsrMonthOpening {
+  /** The calendar month this opening belongs to, `YYYY-MM`. */
+  month: string;
+  /** Litres of this product sold in that month before the ledger's first day. */
+  sales: number;
+}
+
 /** One product's layout + policy within a dealer's DSR config. */
 export interface DsrProductConfig {
   /** Stable key, e.g. `HSD`, `MS`. */
@@ -313,6 +341,12 @@ export interface DsrProductConfig {
   leakagePct: number;
   /** Permissible band as a percent of current stock, e.g. 4. */
   permissiblePct: number;
+  /**
+   * This month's sales already made before the ledger begins — see
+   * {@link DsrMonthOpening}. Absent once the ledger covers whole months, which
+   * is every month after the dealer's first.
+   */
+  monthOpening?: DsrMonthOpening;
   /** Baselines fixed at the last physical inspection. */
   inspection: {
     /** Product stock at inspection (litres). */

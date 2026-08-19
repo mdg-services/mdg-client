@@ -9,6 +9,7 @@ export * from './data/kavachTemplate';
 export * from './data/staffWorkCatalog';
 export * from './data/festivals';
 export * from './points/staffPoints';
+export * from './dsr/cumulative';
 export * from './dsr/guideline';
 export * from './dsr/products';
 export * from './dsr/tanks';
