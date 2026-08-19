@@ -301,9 +301,17 @@ export interface DsrReportDigest {
  * no run on the 1st has to succeed for the next month to start from zero.
  */
 export interface DsrMonthOpening {
-  /** The calendar month this opening belongs to, `YYYY-MM`. */
-  month: string;
-  /** Litres of this product sold in that month before the ledger's first day. */
+  /**
+   * The last day these litres cover, `YYYY-MM-DD` — normally the day before the
+   * ledger's first row.
+   *
+   * A date rather than just a month, because the ledger grows backwards: the
+   * service generates the day before whichever day it is asked for, so a figure
+   * that only named a month would end up added on top of ledger rows for days it
+   * already contains. The boundary makes the two halves meet exactly once.
+   */
+  through: string;
+  /** Litres of this product sold from the 1st of that month up to {@link through}. */
   sales: number;
 }
 

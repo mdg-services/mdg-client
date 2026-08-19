@@ -20,9 +20,7 @@
  *     regenerated for an old day still gets that day's month.
  *
  *   • A dealer whose ledger starts mid-month is missing the days before it, and
- *     those litres were still sold. {@link DsrMonthOpening} carries them. It
- *     names the month it belongs to, so it applies to exactly one month and then
- *     stops counting on its own — there is nothing to remember to remove.
+ *     those litres were still sold. {@link DsrMonthOpening} carries them.
  */
 import type { DsrMonthOpening } from '../types/dsrReport';
 
@@ -42,27 +40,44 @@ export function dsrSameMonth(a: string, b: string): boolean {
 }
 
 /**
- * Whether an opening has been stated for this date's month.
+ * The day after `businessDate`, `YYYY-MM-DD`.
  *
- * Separate from the litres, because zero is a real answer — 2E sold no premium
- * in August and its opening says so. "Stated as nothing" and "nobody has said"
- * need to be tellable apart, or the report cannot ask for the figure it is
- * missing without also nagging about the ones it has.
+ * UTC arithmetic on a date-only string: India keeps no daylight saving, and the
+ * string carries no time, so there is no local midnight to slip across.
+ */
+export function dsrNextDate(businessDate: string): string {
+  const t = new Date(`${businessDate}T00:00:00.000Z`);
+  if (!Number.isFinite(t.getTime())) return businessDate;
+  t.setUTCDate(t.getUTCDate() + 1);
+  return t.toISOString().slice(0, 10);
+}
+
+/**
+ * Whether an opening has anything to say about this date.
+ *
+ * It must name the same month, and the date must fall AFTER the last day the
+ * opening covers. That second condition is what makes the figure safe to leave
+ * in the configuration: the ledger grows backwards from time to time — the
+ * service generates the day before whichever day it is asked for — and an
+ * opening that only named a month would then be added on top of ledger rows for
+ * days it already contains, counting them twice. 1E's diesel showed 51,158.67 L
+ * on 13 August that way, against the 47,947.18 L on their own sheet, and every
+ * later day was over by that day's 3,211.49 L.
  */
 export function dsrMonthOpeningApplies(
   monthOpening: DsrMonthOpening | undefined | null,
   businessDate: string,
 ): boolean {
-  return !!monthOpening && monthOpening.month === dsrMonthKey(businessDate);
+  return (
+    !!monthOpening &&
+    dsrSameMonth(monthOpening.through, businessDate) &&
+    businessDate > monthOpening.through
+  );
 }
 
 /**
  * The litres a configured opening contributes to this date — its own figure when
- * the date is inside the month it names, and zero otherwise.
- *
- * The month check is the whole point: it is what makes the opening expire by
- * itself. Left as a bare number it would be added to every month forever, and
- * September would open at August's mid-month total.
+ * it applies, and zero otherwise.
  */
 export function dsrMonthOpeningSales(
   monthOpening: DsrMonthOpening | undefined | null,
@@ -74,19 +89,36 @@ export function dsrMonthOpeningSales(
 }
 
 /**
+ * The first day whose LEDGER sales count towards this date's cumulative: the day
+ * after the opening reaches, or the 1st of the month when there is no opening.
+ *
+ * The two halves cannot overlap by construction — this is the same boundary the
+ * opening's own `through` defines — so no day is ever counted twice.
+ */
+export function dsrCumulativeFrom(
+  monthOpening: DsrMonthOpening | undefined | null,
+  businessDate: string,
+): string {
+  return dsrMonthOpeningApplies(monthOpening, businessDate)
+    ? dsrNextDate(monthOpening!.through)
+    : dsrMonthStart(businessDate);
+}
+
+/**
  * Where a day's CUMULATIVE SALES starts from: everything sold earlier in its
  * month, opening figure included.
  *
- * `monthSalesBefore` is the sum of the ledger's own sales for the days of this
- * month before this one — so the printed cumulative is exactly the sales column
- * above it added up, which is a claim a dealer can check by hand on their own
- * report. Kept as an argument rather than fetched here because this file is the
- * shared contract and has no database; the caller supplies the sum.
+ * `monthSalesBefore` is the sum of the ledger's own sales from
+ * {@link dsrCumulativeFrom} up to (not including) this day — so the printed
+ * cumulative is exactly the sales column above it added up, which is a claim a
+ * dealer can check by hand on their own report. Kept as an argument rather than
+ * fetched here because this file is the shared contract and has no database; the
+ * caller supplies the sum.
  */
 export function dsrCumulativeBefore(args: {
   /** The day whose baseline is wanted, `YYYY-MM-DD`. */
   businessDate: string;
-  /** Σ sales over ledger days in [1st of the month .. businessDate). */
+  /** Σ sales over ledger days in [dsrCumulativeFrom .. businessDate). */
   monthSalesBefore: number;
   /** This product's configured opening for a part-covered month, if any. */
   monthOpening?: DsrMonthOpening | null;
