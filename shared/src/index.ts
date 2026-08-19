@@ -13,5 +13,6 @@ export * from './dsr/guideline';
 export * from './dsr/products';
 export * from './iras/fields';
 export * from './iras/corrections';
+export * from './iras/decant';
 export * from './dealer/code';
 export * as schemas from './schemas';
