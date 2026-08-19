@@ -11,6 +11,7 @@ export * from './data/festivals';
 export * from './points/staffPoints';
 export * from './dsr/cumulative';
 export * from './dsr/guideline';
+export * from './dsr/inspectionWindow';
 export * from './dsr/products';
 export * from './dsr/tanks';
 export * from './iras/fields';

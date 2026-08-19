@@ -361,10 +361,23 @@ export interface DsrProductConfig {
     openingStock: number;
     /** Nozzle totaliser readings at inspection, keyed by nozzle number. */
     meterByNozzle: Record<string, number>;
-    /** Cumulative receipts from inspection up to the ledger's start (litres). */
+    /** Cumulative receipts from inspection up to {@link seedThrough} (litres). */
     seedReceipts: number;
-    /** Cumulative testing from inspection up to the ledger's start (litres). */
+    /** Cumulative testing from inspection up to {@link seedThrough} (litres). */
     seedTesting: number;
+    /**
+     * The last day the two seed figures above cover, `YYYY-MM-DD` — normally the
+     * day before the ledger's first row. The ledger's own receipts and testing
+     * are counted from the day AFTER it.
+     *
+     * Stated rather than inferred from where the ledger happens to begin,
+     * because the ledger moves: the service generates the day before whichever
+     * day it is asked for, so a regeneration can extend it backwards into the
+     * period the seeds already cover. Absent on configurations written before
+     * this existed, where the totals are floored at the inspection date as they
+     * always were.
+     */
+    seedThrough?: string;
   };
 }
 
