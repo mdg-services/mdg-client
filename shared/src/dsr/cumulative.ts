@@ -42,6 +42,21 @@ export function dsrSameMonth(a: string, b: string): boolean {
 }
 
 /**
+ * Whether an opening has been stated for this date's month.
+ *
+ * Separate from the litres, because zero is a real answer — 2E sold no premium
+ * in August and its opening says so. "Stated as nothing" and "nobody has said"
+ * need to be tellable apart, or the report cannot ask for the figure it is
+ * missing without also nagging about the ones it has.
+ */
+export function dsrMonthOpeningApplies(
+  monthOpening: DsrMonthOpening | undefined | null,
+  businessDate: string,
+): boolean {
+  return !!monthOpening && monthOpening.month === dsrMonthKey(businessDate);
+}
+
+/**
  * The litres a configured opening contributes to this date — its own figure when
  * the date is inside the month it names, and zero otherwise.
  *
@@ -53,9 +68,8 @@ export function dsrMonthOpeningSales(
   monthOpening: DsrMonthOpening | undefined | null,
   businessDate: string,
 ): number {
-  if (!monthOpening) return 0;
-  if (monthOpening.month !== dsrMonthKey(businessDate)) return 0;
-  const n = Number(monthOpening.sales);
+  if (!dsrMonthOpeningApplies(monthOpening, businessDate)) return 0;
+  const n = Number(monthOpening!.sales);
   return Number.isFinite(n) ? n : 0;
 }
 
