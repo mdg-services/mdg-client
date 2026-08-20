@@ -25,8 +25,13 @@
  * `manual` — entered by an admin, which REPLACES whatever the portal reported.
  * The portal's own decantation entries are made by the dealer and are routinely
  * late, missing or wrong, so a hand-entered figure has to be able to win.
+ * `inferred` — nobody reported this delivery at all; the tank dip proved it
+ * happened. See `DSR_MIN_INFERRED_TANKER_L` for when the engine is allowed to
+ * conclude that, and {@link DsrDayRow.unexplainedLitres} for the figure it read.
+ * An inferred receipt is a debt against the portal: it is replaced by the real
+ * figure the moment one arrives and the day is regenerated.
  */
-export type DsrReceiptSource = 'iras' | 'manual';
+export type DsrReceiptSource = 'iras' | 'manual' | 'inferred';
 
 /**
  * One TANK's own readings at the shift instant.
@@ -129,6 +134,18 @@ export interface DsrDayRow {
   irasReceipt?: number | null;
   /** `openingStock + receipt`. */
   totalStock: number;
+  /**
+   * Litres this day's tanks gained that its receipts do not account for, from
+   * the two dips and the meters: `(stock tomorrow − stock today) + sold + tested
+   * − receipt`. Written when the day is CLOSED, `null` while it is open.
+   *
+   * Ordinarily a few tens of litres — the noise of dipping a tank. A large
+   * positive figure means fuel arrived that nobody recorded, and a large negative
+   * one means the previous day's dip was taken before the tank settled. Kept on
+   * the row because the NEXT day's run needs yesterday's figure to tell those two
+   * apart before it dares book a delivery nobody reported.
+   */
+  unexplainedLitres?: number | null;
   /** Ordered pump readings, one per nozzle feeding this product. */
   pumps: DsrPumpReading[];
   /** Testing litres for the day (per active pump), see `DsrConfig.testingPerActivePumpLitres`. */

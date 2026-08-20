@@ -14,6 +14,7 @@ export * from './dsr/guideline';
 export * from './dsr/inspectionWindow';
 export * from './dsr/products';
 export * from './dsr/tanks';
+export * from './dsr/receipts';
 export * from './iras/fields';
 export * from './iras/corrections';
 export * from './iras/decant';

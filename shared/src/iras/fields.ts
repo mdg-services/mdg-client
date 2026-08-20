@@ -61,6 +61,21 @@ export interface IrasFieldPolicy {
    */
   identityWarning?: string;
   /**
+   * True when nobody may change this cell on a row the portal sent.
+   *
+   * Reserved for the case where a correction cannot be wrong in a small way,
+   * only in a catastrophic one. A stock row's tank number is the whole of it:
+   * the report SUMS a product's tanks, so pointing a second row at a tank that
+   * already has one does not misplace a figure, it counts that tank's fuel
+   * twice. 1E's diesel would jump from 11,410 L to about 17,800 L and report
+   * thousands of litres of surplus, which suspends sales.
+   *
+   * Deliberately narrow. A DELIVERY's tank number stays editable, because a
+   * tanker typed against the wrong tank is a real thing that happens and
+   * correcting it is the only way to rescue those litres.
+   */
+  locked?: boolean;
+  /**
    * True when `parse.ts` DROPS the whole row if this field is blank. Clearing
    * one of these silently removes a nozzle or a tank from the report, so the
    * editor says so before the commit rather than after the regeneration.
@@ -225,6 +240,11 @@ const STK_FIELDS: IrasFieldPolicy[] = [
     usedByReport: true,
     kind: 'number',
     dropsRowWhenBlank: true,
+    // Not editable at all — see `locked`. The warning below is what it used to
+    // say instead, and it describes an outcome nobody should be able to reach:
+    // the guard that stops two rows sharing a tank runs when a row is ADDED and
+    // never ran on an edit, so this was the one door left open to it.
+    locked: true,
     identityWarning:
       'The report decides which product a tank’s stock belongs to from this number. Changing it moves this whole row’s stock to a different product — and if that product already has a row for the tank, its opening stock is counted twice.',
   },
