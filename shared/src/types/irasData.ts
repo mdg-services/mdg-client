@@ -93,6 +93,23 @@ export interface IrasShiftAnchor {
 
 /** Snapshot health, so the Vault can show a status without parsing errors. */
 export const IRAS_SNAPSHOT_STATUSES = ['COMPLETE', 'PARTIAL', 'FAILED'] as const;
+
+/**
+ * Who put a day's figures there.
+ *
+ * `PORTAL` — collected from IndianOil's IRAS site, the normal path.
+ * `MANUAL` — typed in by an admin, because this outlet's portal automation does
+ * not exist. 16E is the case: onboarded with no IRAS account, keeping its DSR in
+ * a macro workbook, and needing the same report as everyone else.
+ *
+ * Recorded rather than inferred, because four separate behaviours turn on it and
+ * every one of them is wrong by default. A hand day holds no portal rows, so
+ * without this marker it is indistinguishable from a day a failed collection
+ * emptied — and the report would tell the dealer "IRAS reported 0 L" about a
+ * portal nobody ever asked.
+ */
+export const IRAS_SNAPSHOT_SOURCES = ['PORTAL', 'MANUAL'] as const;
+export type IrasSnapshotSource = (typeof IRAS_SNAPSHOT_SOURCES)[number];
 export type IrasSnapshotStatus = (typeof IRAS_SNAPSHOT_STATUSES)[number];
 
 /**
@@ -112,6 +129,12 @@ export interface IrasDataSnapshot {
   businessDate: string;
   capturedAt: string;
   status: IrasSnapshotStatus;
+  /**
+   * Where the figures came from; see {@link IRAS_SNAPSHOT_SOURCES}. Absent on
+   * documents written before hand entry existed — read a missing value as
+   * `PORTAL`, which is what they all were.
+   */
+  source?: IrasSnapshotSource;
   shift: IrasShiftAnchor;
   /** Keyed by report code so a consumer can ask for exactly what it needs. */
   datasets: Partial<Record<IrasReportCode, IrasDataset>>;
@@ -306,6 +329,15 @@ export interface IrasDayEditorView {
      */
     roCode: string | null;
     archived: boolean;
+    /**
+     * Whether this dealer's portal collection can run at all.
+     *
+     * `NONE` — the IRAS Shift Data service is not attached. `PAUSED` — attached
+     * but stopped, which is how an outlet with no portal account is set up.
+     * Either way the editor must not offer "Collect this day": for such a dealer
+     * that button is a guaranteed dead end, and typing the day is the only way in.
+     */
+    portalCollection: 'ACTIVE' | 'PAUSED' | 'NONE';
   };
   businessDate: string;
   /** The portal's own data, verbatim. Null when the day was never collected. */
@@ -334,6 +366,12 @@ export interface IrasDayEditorView {
       tankLabel: string;
       tankNos: number[];
       nozzleNos: number[];
+      /**
+       * The code IRAS calls this grade, e.g. `HS`. Carried so the editor can
+       * stamp it on a hand-added row: on a day nobody collected it is the only
+       * thing that tells the report which grade a tank holds.
+       */
+      prodCodes: string[];
     }>;
     /** This dealer's generated report dates, so the footer can count the impact locally. */
     reportDates: string[];
@@ -354,9 +392,18 @@ export interface IrasDataSnapshotSummary {
   businessDate: string;
   capturedAt: string;
   status: IrasSnapshotStatus;
+  /** See {@link IrasDataSnapshot.source}; a missing value means `PORTAL`. */
+  source?: IrasSnapshotSource;
   selectedShiftTime: string;
   failureReason?: string | null;
-  /** Per-report row counts, e.g. `{ TOT: 13, STK: 5, REC: 1 }`. */
+  /**
+   * Per-report row counts, e.g. `{ TOT: 13, STK: 5, REC: 1 }`.
+   *
+   * Counted off the PORTAL's own rows, so a day typed by hand reports zeros —
+   * its figures live in the correction overlay, not in the snapshot. A list must
+   * read {@link source} before it prints these, or it will say a full day is
+   * empty.
+   */
   rowCounts: Partial<Record<IrasReportCode, number>>;
 }
 
