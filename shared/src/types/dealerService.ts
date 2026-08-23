@@ -75,6 +75,14 @@ export interface DealerServiceSummaryEntry {
    * the failure message, or what made a sent report out of date.
    */
   note?: string;
+  /**
+   * The period this state is ABOUT, when that is not simply "the latest" —
+   * Water Ingress Testing's two-hour observation window, verbatim as the portal
+   * labels it ("12:00 AM - 02:00 AM"). A service marks one window per run, so
+   * "it ran" and "which window it marked" are different facts and the second is
+   * the one an operator is checking.
+   */
+  covers?: string;
 }
 
 export interface DealerServiceSummary {
