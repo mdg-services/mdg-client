@@ -20,3 +20,4 @@ export * from './dsrReport';
 export * from './inspectionReport';
 export * from './waterIngress';
 export * from './festival';
+export * from './assist';

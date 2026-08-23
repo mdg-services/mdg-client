@@ -120,6 +120,11 @@ export const AUDIT_ACTIONS = [
   'DEALER_RESTORE',
   // Festival greeting band on dealer-facing report images
   'FESTIVAL_UPDATE',
+  // Landing-page assistant (ADR 0009)
+  'ASSIST_BLOCK',
+  'ASSIST_UNBLOCK',
+  'ASSIST_FOLLOWUP_UPDATE',
+  'ASSIST_KB_RELOAD',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -141,6 +146,9 @@ export const AUDIT_ENTITIES = [
   'BankHoliday',
   'InspectionReport',
   'FestivalSetting',
+  'AssistSession',
+  'AssistBlock',
+  'AssistKnowledgeBase',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 

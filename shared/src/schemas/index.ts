@@ -13,3 +13,4 @@ export * from './kavach';
 export * from './staff';
 export * from './bankHoliday';
 export * from './festival';
+export * from './assist';
