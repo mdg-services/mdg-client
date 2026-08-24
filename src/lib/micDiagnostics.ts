@@ -1,4 +1,4 @@
-import { errorMessage, errorName, isErrorLike } from './errors';
+import { errorMessage, errorName } from './errors';
 import { isNativeShell } from './nativeBridge';
 
 /**

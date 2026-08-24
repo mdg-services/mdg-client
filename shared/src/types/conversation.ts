@@ -1,3 +1,7 @@
+// `record` imports `Attachment` back from this file, so these two reference each
+// other. That is harmless because both directions are `import type`: TypeScript
+// erases them, so no cycle survives into the emitted JavaScript.
+import type { RecordCard } from './record';
 import type { UserRole } from './user';
 
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
@@ -229,7 +233,7 @@ export interface Message {
   body?: string;
   attachments: Attachment[];
   /** When present, this message renders as a rich record card in the chat. */
-  card?: import('./record').RecordCard;
+  card?: RecordCard;
   /** Distinguishes system/automated messages (e.g. "Your DSR is ready"). */
   system?: boolean;
   /** User ids that have received the message on a device (drives the ✓✓ "delivered" tick). */

@@ -63,10 +63,6 @@ export interface IrasRowKeying {
   strengths: IrasRowKeyStrength[];
 }
 
-function blank(v: string | undefined): boolean {
-  return v === undefined || v === null || String(v).trim() === '';
-}
-
 /**
  * A stable key for every row in a dataset.
  *

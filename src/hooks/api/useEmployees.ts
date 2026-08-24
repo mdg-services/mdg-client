@@ -6,16 +6,16 @@ import {
 } from '@tanstack/react-query';
 
 
-import type {
-  CreateEmployeeInput,
-  EmployeeWithPoints,
-  UpdateEmployeeInput,
-} from '@dk/shared/types';
 
 import { useToast } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { istDate, istMonthStart } from '@/lib/staff';
+import type {
+  CreateEmployeeInput,
+  EmployeeWithPoints,
+  UpdateEmployeeInput,
+} from '@dk/shared/types';
 
 /** The leaderboard windows offered on the Staff screen. */
 export type PointsWindow = 'today' | 'month';

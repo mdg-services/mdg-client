@@ -4,8 +4,6 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
 
-import { createEmployeeSchema } from '@dk/shared/schemas';
-import type { EmployeeWithPoints } from '@dk/shared/types';
 
 import { Button, Input, useToast } from '@/components/ui';
 import {
@@ -16,6 +14,8 @@ import {
 import { useT } from '@/lib/i18n';
 import { istDate } from '@/lib/staff';
 import { useScrollLock } from '@/lib/useScrollLock';
+import { createEmployeeSchema } from '@dk/shared/schemas';
+import type { EmployeeWithPoints } from '@dk/shared/types';
 
 interface EditWorkerValues {
   name: string;
