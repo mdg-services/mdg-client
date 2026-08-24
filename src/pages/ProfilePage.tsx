@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, LogOut, Users, UserPlus, Wrench } from 'lucide-react';
+import { ChevronRight, Gauge, LogOut, Users, UserPlus, Wrench } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ import {
   Spinner,
   useToast,
 } from '@/components/ui';
+import { useDensityMe } from '@/hooks/api/useDensity';
 import { ApiError, api } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
@@ -382,6 +383,9 @@ export function ProfilePage() {
   const t = useT();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // Must stay above the not-signed-in early return below, or the hook count
+  // changes between renders and takes the tree down.
+  const densityAttached = useDensityMe().data?.attached === true;
 
   const onSignOut = () => {
     logout();
@@ -460,6 +464,35 @@ export function ProfilePage() {
               </span>
               <span className="block text-xs text-text-muted">
                 {t('profile.staffPointsDesc')}
+              </span>
+            </span>
+            <ChevronRight
+              width={18}
+              strokeWidth={1.75}
+              className="shrink-0 text-text-subtle"
+            />
+          </button>
+        </Card>
+      ) : null}
+
+      {/* Always here while the service is on, so a dealer who dismissed the
+          chat-list card still has a way back to their register. */}
+      {densityAttached ? (
+        <Card>
+          <button
+            type="button"
+            onClick={() => navigate('/density')}
+            className="flex w-full items-center gap-3 p-5 text-left active:bg-surface-2"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted">
+              <Gauge width={18} strokeWidth={1.75} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-text">
+                {t('profile.density')}
+              </span>
+              <span className="block text-xs text-text-muted">
+                {t('profile.densityDesc')}
               </span>
             </span>
             <ChevronRight

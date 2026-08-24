@@ -125,6 +125,13 @@ export const AUDIT_ACTIONS = [
   'ASSIST_UNBLOCK',
   'ASSIST_FOLLOWUP_UPDATE',
   'ASSIST_KB_RELOAD',
+  // TT Density (ADR 0010) — file egress and the register-day mark. The two VIEW
+  // rows are what make an invoice PDF read and a register photo read auditable;
+  // UPLOAD records who marked the day, which matters because an account manager
+  // may mark it on the dealer's behalf.
+  'TT_INVOICE_PDF_VIEW',
+  'TT_REGISTER_PHOTO_VIEW',
+  'TT_REGISTER_PHOTO_UPLOAD',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -149,6 +156,8 @@ export const AUDIT_ENTITIES = [
   'AssistSession',
   'AssistBlock',
   'AssistKnowledgeBase',
+  'TtInvoice',
+  'TtDensityDayLog',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 

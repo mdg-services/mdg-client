@@ -7,6 +7,7 @@ import {
   hasUnread,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
+import { DensityChatPin } from '@/features/density/DensityTodayCard';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
@@ -93,6 +94,10 @@ export function ChatListPage() {
 
   return (
     <div className="flex flex-1 flex-col">
+      {/* The one chore the dealer owes today, above their conversations, and
+          only while it is owed. Chat is the app's home; a task card here is
+          seen, and it disappears the moment today's photo is sent. */}
+      <DensityChatPin />
       <div className="border-b border-border bg-surface px-4 py-2.5">
         <p className="text-sm font-semibold text-text">{t('chat.chatsTitle')}</p>
       </div>

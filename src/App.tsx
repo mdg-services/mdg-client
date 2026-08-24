@@ -38,6 +38,9 @@ const ServicesPage = lazyWithRetry(() =>
 const StaffPage = lazyWithRetry(() =>
   import('@/pages/StaffPage').then((m) => ({ default: m.StaffPage })),
 );
+const DensityPage = lazyWithRetry(() =>
+  import('@/pages/DensityPage').then((m) => ({ default: m.DensityPage })),
+);
 const ProfilePage = lazyWithRetry(() =>
   import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
@@ -104,6 +107,9 @@ export function App() {
             <Route path="/services" element={<ServicesPage />} />
             {/* Staff Points — owner/manager tool, reached from Profile (not a 5th tab). */}
             <Route path="/staff" element={<StaffPage />} />
+            {/* The daily density-register photo. Reached from the pinned card on
+                the chat list, from Profile and from a push — the bar stays four. */}
+            <Route path="/density" element={<DensityPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/chat" replace />} />

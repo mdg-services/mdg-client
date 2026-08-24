@@ -134,4 +134,13 @@ export const ROSTER_SERVICES: readonly RosterServiceSpec[] = [
     shortLabel: 'Water',
     delivers: false,
   },
+  {
+    id: 'tt-density',
+    label: 'TT Density',
+    shortLabel: 'Density',
+    // Nothing is sent to the dealer: the run either read the window or it did
+    // not. The daily register photo is deliberately NOT what this column
+    // reports — see ADR 0010 §13.
+    delivers: false,
+  },
 ] as const;

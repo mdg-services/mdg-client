@@ -744,6 +744,119 @@ export const messages = {
     en: '{points} points · {workers} warriors',
     hi: '{points} पॉइंट · {workers} योद्धा',
   },
+
+  /* ── density register (tt-density) ──────────────────────────────────── */
+  // The dealer's word for the thing in their hand is "the density register".
+  // "TT", "acknowledgement", "invoice", "Density@15", "kg/m³", "sync", "upload",
+  // "server" and "retry" appear nowhere in this block, in either language, and
+  // must not be added: the dealer sees the NUMBER, never our name for it.
+  'density.title': { en: 'Density register', hi: 'डेंसिटी रजिस्टर' },
+  'density.latestTitle': {
+    en: "Last tanker's reading",
+    hi: 'पिछले टैंकर की रीडिंग',
+  },
+  'density.registerLine': {
+    en: 'Write this in your register',
+    hi: 'यह अपने रजिस्टर में लिखें',
+  },
+  'density.noReadingYet': {
+    en: 'No tanker reading yet. It will appear here the day after one arrives.',
+    hi: 'अभी कोई टैंकर रीडिंग नहीं है। टैंकर आने के अगले दिन यह यहाँ दिखेगी।',
+  },
+  'density.figureAge': {
+    en: 'This reading is {n} days old',
+    hi: 'यह रीडिंग {n} दिन पुरानी है',
+  },
+  'profile.density': { en: 'Density register', hi: 'डेंसिटी रजिस्टर' },
+  'profile.densityDesc': {
+    en: "Send today's register page",
+    hi: 'आज के रजिस्टर का पन्ना भेजें',
+  },
+  'density.todayTitle': {
+    en: "Today's register photo",
+    hi: 'आज के रजिस्टर की फोटो',
+  },
+  'density.todayHint': {
+    en: "Open your register at today's page and take one clear photo.",
+    hi: 'अपना रजिस्टर आज वाले पन्ने पर खोलें और एक साफ़ फोटो लें।',
+  },
+  'density.takePhoto': { en: 'Take photo', hi: 'फोटो लें' },
+  'density.takePhotoFor': { en: 'Take photo for {day}', hi: '{day} की फोटो लें' },
+  'density.chooseFromPhone': { en: 'Choose from phone', hi: 'फ़ोन से चुनें' },
+  'density.readable': {
+    en: 'Is the page readable?',
+    hi: 'क्या पन्ना साफ़ पढ़ा जा रहा है?',
+  },
+  'density.sendThis': { en: 'Yes, send this', hi: 'हाँ, यही भेजें' },
+  'density.takeAgain': { en: 'Take again', hi: 'दोबारा लें' },
+  'density.sending': { en: 'Sending your photo…', hi: 'फोटो भेजी जा रही है…' },
+  'density.doneTitle': { en: 'Today is done', hi: 'आज का काम हो गया' },
+  'density.doneDesc': {
+    en: "We have today's register photo. Nothing else to do.",
+    hi: 'आज के रजिस्टर की फोटो हमें मिल गई। और कुछ नहीं करना है।',
+  },
+  'density.doneToast': { en: 'Photo saved', hi: 'फोटो सेव हो गई' },
+  'density.doneToastDesc': {
+    en: "Today's register page is saved.",
+    hi: 'आज के रजिस्टर का पन्ना सेव हो गया।',
+  },
+  'density.seePhoto': { en: 'See the photo', hi: 'फोटो देखें' },
+  'density.weekTitle': { en: 'This week', hi: 'इस हफ़्ते' },
+  'density.legendSent': { en: 'Sent', hi: 'भेज दी' },
+  'density.legendTodo': { en: 'Still to do', hi: 'अभी बाकी' },
+  'density.missedOne': { en: '1 day still to do', hi: '1 दिन बाकी है' },
+  'density.missedMany': { en: '{n} days still to do', hi: '{n} दिन बाकी हैं' },
+  'density.missedDesc': {
+    en: "Open the register at that day's page and take a photo of it.",
+    hi: 'उस दिन वाले पन्ने पर रजिस्टर खोलें और उसकी फोटो लें।',
+  },
+  'density.earlierDays': {
+    en: '{n} earlier days still to do',
+    hi: '{n} पुराने दिन अभी बाकी हैं',
+  },
+  'density.today': { en: 'Today', hi: 'आज' },
+  // "कल" means yesterday AND tomorrow, so it is never used bare: the word is
+  // "बीता कल", and every day chip prints its date beside it as well.
+  'density.yesterday': { en: 'Yesterday', hi: 'बीता कल' },
+  'density.failedTitle': {
+    en: 'The photo did not reach us',
+    hi: 'फोटो हम तक नहीं पहुँची',
+  },
+  'density.failedDesc': {
+    en: 'Your phone lost the network. Tap to send it again.',
+    hi: 'आपके फ़ोन का नेटवर्क चला गया था। दोबारा भेजने के लिए दबाएँ।',
+  },
+  'density.sendAgain': { en: 'Send again', hi: 'दोबारा भेजें' },
+  'density.notAPhoto': {
+    en: 'That is not a photo. Please take a photo of the register page.',
+    hi: 'यह फोटो नहीं है। कृपया रजिस्टर के पन्ने की फोटो लें।',
+  },
+  'density.offline': {
+    en: 'Your phone is not on the internet right now. The photo will not go.',
+    hi: 'आपका फ़ोन अभी इंटरनेट पर नहीं है। फोटो अभी नहीं जाएगी।',
+  },
+  'density.tooOld': {
+    en: 'Only the last 7 days can be filled in.',
+    hi: 'सिर्फ़ पिछले 7 दिन ही भरे जा सकते हैं।',
+  },
+  'density.adminAdded': {
+    en: 'MDG team added this photo',
+    hi: 'यह फोटो MDG टीम ने डाली है',
+  },
+  'density.notOnTitle': { en: 'Nothing to do yet', hi: 'अभी कुछ नहीं करना है' },
+  'density.notOnDesc': {
+    en: 'This service is not on for your pump yet. Message us if you want it.',
+    hi: 'यह सेवा अभी आपके पंप के लिए चालू नहीं है। चाहिए तो हमें मैसेज करें।',
+  },
+  'density.errorTitle': { en: 'We could not open this', hi: 'यह खुल नहीं पाया' },
+  'density.helpLine': {
+    en: 'Something not right? Message us.',
+    hi: 'कुछ ठीक नहीं लग रहा? हमें मैसेज करें।',
+  },
+  // A push notification's words are chosen by whoever sends it, and that is the
+  // server: `services/ttDensity/notify.ts` builds the title and body when a
+  // tanker's density lands. A copy here would be a second version of the same
+  // sentence that nothing renders and nothing keeps in step.
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

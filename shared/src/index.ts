@@ -19,4 +19,5 @@ export * from './iras/fields';
 export * from './iras/corrections';
 export * from './iras/decant';
 export * from './dealer/code';
+export * from './tt/materials';
 export * as schemas from './schemas';

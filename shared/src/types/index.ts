@@ -21,3 +21,4 @@ export * from './inspectionReport';
 export * from './waterIngress';
 export * from './festival';
 export * from './assist';
+export * from './ttDensity';
