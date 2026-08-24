@@ -49,13 +49,29 @@ export interface TtProductProfile {
   provisional: boolean;
 }
 
-/** Material codes seen on a real invoice. Both from `7010045406.pdf`, 22-Aug-26. */
+/** Material codes seen on real invoices — 15E's `7010045406`, and 1E's first collection. */
 const MATERIAL_CATALOG: Record<
   string,
   Omit<TtProductProfile, 'materialCode' | 'description' | 'provisional'>
 > = {
   /** Ethanol Blended Motor Spirit — ordinary petrol. Verified: 727.300 kg/m³. */
   '16730': { key: 'MS', labelEn: 'MOTOR SPIRIT', labelHi: 'मोटर स्पिरीट', family: 'PETROL' },
+  /**
+   * XtraPremium 95 — the branded petrol, invoiced as `EBMS-XP95`.
+   *
+   * It shares the first four letters of its description with ordinary petrol,
+   * which is exactly the trap the description ladder was ordered to avoid. Until
+   * this code was known, 1E's two petrol grades both resolved to `MS`: the
+   * outlet takes both, so the newer reading simply hid the older one and a whole
+   * grade vanished from the dealer's screen. Verified: 728.100 kg/m³, invoice
+   * 7010043583, 22-Aug-26.
+   */
+  '17295': {
+    key: 'XP',
+    labelEn: 'XTRAPREMIUM',
+    labelHi: 'एक्स्ट्रा प्रीमियम',
+    family: 'PETROL',
+  },
   /** High Speed Diesel, BS-VI. Verified: 820.500 kg/m³. */
   '50700': {
     key: 'HSD',
@@ -79,7 +95,11 @@ const DESCRIPTION_LADDER: readonly {
   profile: Omit<TtProductProfile, 'materialCode' | 'description' | 'provisional'>;
 }[] = [
   {
-    re: /xtra\s*-?\s*premium|^xp\b/i,
+    // `XP` is matched anywhere it is not glued to a letter, not only at the
+    // start: the real invoice spells the grade `EBMS-XP95`, so an anchored
+    // `^xp` misses it and the plain-petrol rung below then claims it. A trailing
+    // octane number is part of the token, not a separate operand.
+    re: /xtra\s*-?\s*premium|(?:^|[^a-z])xp\s*-?\s*\d*\b/i,
     profile: { key: 'XP', labelEn: 'XTRAPREMIUM', labelHi: 'एक्स्ट्रा प्रीमियम', family: 'PETROL' },
   },
   {
