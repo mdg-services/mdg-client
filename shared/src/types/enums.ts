@@ -57,6 +57,21 @@ export const AUDIT_ACTIONS = [
   'KAVACH_ITEM_PAUSE',
   'KAVACH_SOS_FLAG',
   'KAVACH_PROGRAMME_UPDATE',
+  // ADR 0011 — admin- and automation-verified compliance.
+  /** An admin certified a task, with (or explicitly without) the required evidence. */
+  'KAVACH_ADMIN_VERIFY',
+  /** A portal/vault signal certified a task; the row names the proving artifact. */
+  'KAVACH_AUTOMATION_MARK',
+  'KAVACH_EVIDENCE_REQUEST',
+  'KAVACH_EVIDENCE_SUBMIT',
+  'KAVACH_EVIDENCE_REJECT',
+  /** Global catalog edits — these move every dealer's score, so they are audited hard. */
+  'KAVACH_CATALOG_CREATE',
+  'KAVACH_CATALOG_UPDATE',
+  'KAVACH_CATALOG_DELETE',
+  /** A dealer's overlay (hidden tasks, custom tasks, per-dealer overrides). */
+  'KAVACH_WORK_LIST_UPDATE',
+  'KAVACH_DIGEST_SHARE',
   // Staff Points (ADR 0007)
   'STAFF_EMPLOYEE_ADD',
   'STAFF_EMPLOYEE_UPDATE',

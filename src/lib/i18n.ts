@@ -305,6 +305,11 @@ export const messages = {
   'record.type.other': { en: 'Document', hi: 'दस्तावेज़' },
 
   /* ── kavach / pump health ───────────────────────────────────────────── */
+  // The dealer certifies NOTHING on this screen (ADR 0011): an MDG admin or an
+  // automation closes a task, and the dealer's photo is an input to that
+  // decision. Every string below is written from that one fact, which is why
+  // there is no "mark done" copy left in either language — a button whose words
+  // promised completion would be a promise the API now refuses to keep.
   'kavach.title': { en: 'Pump health', hi: 'पंप हेल्थ' },
   'kavach.needHelp': {
     en: 'Need help? Message us',
@@ -314,36 +319,133 @@ export const messages = {
     en: "We couldn't load this just now",
     hi: 'अभी यह लोड नहीं हो पाया',
   },
+  'kavach.retry': { en: 'Try again', hi: 'फिर कोशिश करें' },
   'kavach.welcomeTitle': {
     en: 'Welcome to Kavach',
     hi: 'कवच में स्वागत है',
   },
   'kavach.welcomeDesc': {
-    en: "This is where you'll see what keeps your pump safe and compliant. We'll guide you, one small task at a time.",
-    hi: 'यहां आप देखेंगे कि आपके पंप को सुरक्षित रखने के लिए क्या ज़रूरी है। हम एक-एक करके बताएंगे।',
+    en: "This is where you'll see what keeps your pump safe and compliant. The MDG team checks these for you, one at a time.",
+    hi: 'यहां आप देखेंगे कि आपके पंप को सुरक्षित रखने के लिए क्या ज़रूरी है। MDG टीम इन्हें एक-एक करके जाँचती है।',
   },
   'kavach.settling': {
     en: 'Getting started — nothing to worry about yet.',
     hi: 'अभी शुरू कर रहे हैं — अभी चिंता की कोई बात नहीं।',
   },
-  'kavach.todoOne': {
-    en: '1 thing to do today',
-    hi: 'आज 1 काम बाकी है',
+
+  /* ── what the dealer can actually do: send what MDG asked for ───────── */
+  'kavach.weNeedTitle': { en: 'We need from you', hi: 'आपसे चाहिए' },
+  'kavach.weNeedDesc': {
+    en: 'Send a photo for these and the MDG team will check them.',
+    hi: 'इनकी फोटो भेजें, MDG टीम इन्हें जाँच लेगी।',
   },
-  'kavach.todoMany': {
-    en: '{n} things to do today',
-    hi: 'आज {n} काम बाकी हैं',
+  'kavach.sendPhoto': { en: 'Send a photo', hi: 'फोटो भेजें' },
+  'kavach.choosePhoto': { en: 'Choose from phone', hi: 'फ़ोन से चुनें' },
+  'kavach.sendAgain': { en: 'Send another photo', hi: 'दूसरी फोटो भेजें' },
+  'kavach.rejectedTitle': {
+    en: 'The MDG team needs another photo',
+    hi: 'MDG टीम को दूसरी फोटो चाहिए',
   },
-  'kavach.allDone': { en: 'All done for today', hi: 'आज सब हो गया' },
-  'kavach.doToday': { en: 'Do today', hi: 'आज करें' },
+  'kavach.rejectedPreamble': { en: 'They wrote:', hi: 'उन्होंने लिखा:' },
+  'kavach.photoSent': { en: 'Photo sent', hi: 'फोटो भेज दी' },
+  'kavach.photoSentDesc': {
+    en: 'The MDG team will check it and confirm.',
+    hi: 'MDG टीम इसे जाँचकर पक्का करेगी।',
+  },
+  'kavach.notAPhoto': {
+    en: 'That is not a photo. Please take a photo.',
+    hi: 'यह फोटो नहीं है। कृपया फोटो लें।',
+  },
+
+  /* ── sent, and waiting on us. NEVER shown as done. ──────────────────── */
+  'kavach.withMdgTitle': { en: 'With the MDG team', hi: 'MDG टीम के पास' },
+  'kavach.sentWaiting': {
+    en: 'Sent — the MDG team is looking',
+    hi: 'भेज दिया — MDG टीम देख रही है',
+  },
+  'kavach.sentWaitingDesc': {
+    en: 'This is not finished yet. It counts once the MDG team has checked it.',
+    hi: 'यह अभी पूरा नहीं हुआ। MDG टीम के जाँचने के बाद ही यह गिना जाएगा।',
+  },
+  'kavach.sentOn': { en: 'Sent {date}', hi: '{date} को भेजा' },
+  'kavach.seeWhatYouSent': {
+    en: 'See what you sent',
+    hi: 'आपने जो भेजा वह देखें',
+  },
+
+  /* ── the ring, and what it is honestly a measure of ─────────────────── */
+  'kavach.stillPendingOne': {
+    en: '1 thing is still pending',
+    hi: '1 काम अभी बाकी है',
+  },
+  'kavach.stillPendingMany': {
+    en: '{n} things are still pending',
+    hi: '{n} काम अभी बाकी हैं',
+  },
+  'kavach.allDone': { en: 'Nothing pending right now', hi: 'अभी कुछ बाकी नहीं' },
+  'kavach.scoreSource': {
+    en: 'The MDG team sets this figure by checking your pump — out of {n} points in all.',
+    hi: 'यह आंकड़ा MDG टीम आपके पंप की जाँच करके बनाती है — कुल {n} पॉइंट में से।',
+  },
+  'kavach.neverCheckedOne': {
+    en: 'We have not checked 1 thing at your pump yet.',
+    hi: '1 काम हमने आपके पंप पर अभी तक नहीं जाँचा है।',
+  },
+  'kavach.neverCheckedMany': {
+    en: 'We have not checked {n} things at your pump yet.',
+    hi: '{n} काम हमने आपके पंप पर अभी तक नहीं जाँचे हैं।',
+  },
   'kavach.allDoneTitle': {
-    en: 'All done for today!',
-    hi: 'आज सब हो गया!',
+    en: 'Nothing pending right now',
+    hi: 'अभी कुछ बाकी नहीं',
   },
   'kavach.allDoneDesc': {
-    en: "Your pump is in great shape. We'll let you know when something needs you.",
-    hi: 'आपका पंप बढ़िया स्थिति में है। ज़रूरत होने पर हम आपको बताएंगे।',
+    en: "The MDG team has checked everything that was due. We'll tell you when something needs you.",
+    hi: 'जो जाँचना था, MDG टीम ने जाँच लिया है। कुछ ज़रूरत होगी तो हम आपको बताएंगे।',
   },
+
+  /* ── still pending, and whose side it is sitting on ─────────────────── */
+  'kavach.stillPending': { en: 'Still pending', hi: 'अभी बाकी' },
+  'kavach.withMdg': {
+    en: 'The MDG team will check this',
+    hi: 'MDG टीम इसे जाँचेगी',
+  },
+  'kavach.withMdgAsk': {
+    en: 'The MDG team will ask you for a photo',
+    hi: 'MDG टीम आपसे इसकी फोटो माँगेगी',
+  },
+  'kavach.heldTitle': {
+    en: 'We could not check this yet',
+    hi: 'हम यह अभी जाँच नहीं पाए',
+  },
+  'kavach.heldDesc': {
+    en: 'This one is on us, not on you. We are sorting it out.',
+    hi: 'यह हमारी तरफ से है, आपकी तरफ से नहीं। हम इसे ठीक कर रहे हैं।',
+  },
+  'kavach.claimDone': { en: "I've done this", hi: 'मैंने कर दिया' },
+  'kavach.claimHint': {
+    en: 'This asks the MDG team to come and check. It does not finish the task.',
+    hi: 'इससे MDG टीम जाँचने आएगी। इससे काम पूरा नहीं होता।',
+  },
+  'kavach.claimSent': { en: 'You told the MDG team', hi: 'MDG टीम को बता दिया' },
+  'kavach.claimSentDesc': {
+    en: 'They will check it and confirm.',
+    hi: 'वे इसे जाँचकर पक्का करेंगे।',
+  },
+  'kavach.sendFailed': {
+    en: "That didn't reach us. Please check your network and try again.",
+    hi: 'यह हम तक नहीं पहुँचा। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+
+  /* ── who moved the number, and when ─────────────────────────────────── */
+  // Always the MDG TEAM, never the individual admin who clicked: the dealer's
+  // relationship is with MDG, and naming a person invites them to argue with one.
+  'kavach.recentlyChecked': { en: 'Recently checked', hi: 'हाल में जाँचा गया' },
+  'kavach.checkedByMdg': {
+    en: 'Checked by the MDG team — {date}',
+    hi: 'MDG टीम ने जाँचा — {date}',
+  },
+
   'kavach.sosSummary': {
     en: 'When it happens ({n})',
     hi: 'जब ज़रूरत हो ({n})',
@@ -352,44 +454,42 @@ export const messages = {
     en: 'These happen only when needed — we handle them with you.',
     hi: 'ये ज़रूरत पड़ने पर होते हैं — हम आपके साथ इन्हें संभालते हैं।',
   },
-  'kavach.doneToast': { en: 'Done!', hi: 'हो गया!' },
-  'kavach.doneToastDesc': {
-    en: 'Your pump health went up.',
-    hi: 'आपकी पंप हेल्थ बढ़ गई।',
-  },
+
   'kavach.statusReady': { en: 'Ready', hi: 'तैयार' },
   'kavach.statusDueSoon': { en: 'Due soon', hi: 'जल्द' },
   'kavach.statusOverdue': { en: 'Overdue', hi: 'बाकी है' },
+  'kavach.statusNotChecked': { en: 'Not checked yet', hi: 'अभी जाँचा नहीं' },
+  'kavach.statusFlagged': { en: 'Needs attention', hi: 'ध्यान दें' },
+  'kavach.statusSent': { en: 'Sent', hi: 'भेज दी' },
+  'kavach.statusYourTurn': { en: 'Photo needed', hi: 'फोटो चाहिए' },
+  'kavach.statusOnUs': { en: 'On us', hi: 'हमारी तरफ' },
+
   'kavach.bandGood': { en: 'Looking good', hi: 'बढ़िया चल रहा है' },
   'kavach.bandFew': { en: 'A few things to do', hi: 'कुछ काम बाकी हैं' },
   'kavach.bandCatchup': { en: "Let's catch up", hi: 'इन्हें पूरा करें' },
   'kavach.bandSettling': { en: 'Getting started', hi: 'अभी शुरू कर रहे हैं' },
-  'kavach.markDone': { en: 'Mark done', hi: 'हो गया' },
-  'kavach.addPhotoMarkDone': {
-    en: 'Add photo & mark done',
-    hi: 'फोटो डालकर हो गया',
-  },
   'kavach.preparing': { en: 'Preparing…', hi: 'तैयार हो रहा है' },
   'kavach.tapRetry': {
-    en: "Didn't save — tap to try again",
-    hi: 'सेव नहीं हुआ — फिर से दबाएं',
+    en: "Didn't send — tap to try again",
+    hi: 'नहीं भेजा गया — फिर से दबाएं',
   },
   'kavach.addingPhoto': {
-    en: 'Adding your photo…',
-    hi: 'फोटो जोड़ रहे हैं…',
+    en: 'Sending your photo…',
+    hi: 'फोटो भेजी जा रही है…',
   },
   'kavach.photoAddFailed': {
-    en: "We couldn't add your photo just now",
-    hi: 'अभी फोटो नहीं जुड़ी',
+    en: "We couldn't send your photo just now",
+    hi: 'अभी फोटो नहीं भेजी जा सकी',
   },
   'kavach.photoAddFailedDesc': {
     en: 'Please message us and we will help.',
     hi: 'कृपया हमें लिखें, हम मदद करेंगे।',
   },
+  // Borrowed by the density register's error toasts as well — grep before moving.
   'kavach.messageUs': { en: 'Message us', hi: 'हमें लिखें' },
   'kavach.photoUploadFailed': {
-    en: "Photo didn't upload — please try again",
-    hi: 'फोटो अपलोड नहीं हुई — फिर से कोशिश करें',
+    en: "Photo didn't send — please try again",
+    hi: 'फोटो नहीं भेजी जा सकी — फिर से कोशिश करें',
   },
 
   /* ── profile & team ─────────────────────────────────────────────────── */

@@ -2,11 +2,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
 import type {
-  Attachment,
   KavachItem,
   KavachProgramme,
+  SubmitKavachEvidenceInput,
 } from '@dk/shared/types';
 
 export interface KavachMe {
@@ -39,93 +40,54 @@ export function useKavachMe() {
   });
 }
 
-interface MarkDoneVars {
+export interface SubmitEvidenceVars extends SubmitKavachEvidenceInput {
   itemId: string;
-  proof?: Attachment;
-  note?: string;
 }
 
 /**
- * Mark a Kavach item done. Optimistic: the item is set "done" (status nudged to
- * VALID) and the score is bumped immediately so the dealer sees instant cause
- * and effect; the server response replaces the optimistic item in place. On a
- * flaky network the optimistic change is rolled back so the dealer sees the
- * true state and can tap to retry — never a dead toast.
+ * The dealer sends something towards one task — a photo, a note, or nothing.
+ *
+ * An EMPTY body is the unprompted claim ("I've done this"): it queues the task
+ * for an admin to look at and moves neither the score nor the clock. There is
+ * no `/mark-done` counterpart any more; that route is gone and `/verify` 403s
+ * for a dealer token.
+ *
+ * Deliberately NOT optimistic. The old version nudged `overallPct` up by the
+ * item's share of the total the instant the dealer tapped, which was defensible
+ * while the tap WAS the completion. It no longer is: the number moves when an
+ * admin rules, which may be tomorrow, and a ring that ticks forward and then
+ * falls back on the next refetch is precisely the "the app lied to me" moment
+ * this model exists to remove. The server's own answer replaces the item; we
+ * predict nothing.
  */
-export function useMarkKavachItemDone() {
+export function useSubmitKavachEvidence() {
   const qc = useQueryClient();
   const toast = useToast();
-  return useMutation<KavachItem, ApiError, MarkDoneVars, { previous?: KavachMe | null }>(
-    {
-      mutationFn: ({ itemId, proof, note }: MarkDoneVars) =>
-        api.post<KavachItem>(`/v1/kavach/items/${itemId}/mark-done`, {
-          ...(proof ? { proof } : {}),
-          ...(note ? { note } : {}),
-        }),
-      onMutate: async ({ itemId }) => {
-        await qc.cancelQueries({ queryKey: kavachMeQueryKey });
-        const previous = qc.getQueryData<KavachMe | null>(kavachMeQueryKey);
-
-        qc.setQueryData<KavachMe | null>(kavachMeQueryKey, (old) => {
-          if (!old) return old;
-          const target = old.items.find((it) => it.id === itemId);
-          if (!target) return old;
-
-          const items = old.items.map((it) =>
-            it.id === itemId
-              ? { ...it, status: 'VALID' as const, lastDoneAt: new Date().toISOString() }
-              : it,
-          );
-
-          // Nudge the overall score up by the item's share of total points so
-          // the health ring visibly ticks forward in the same gesture.
-          const wasCounting =
-            target.status === 'VALID' || target.status === 'EXPIRING_SOON';
-          const total = old.programme.score.totalPoints || 0;
-          const gain =
-            !wasCounting && total > 0 ? (target.points / total) * 100 : 0;
-          const overallPct = Math.min(
-            100,
-            Math.round((old.programme.score.overallPct + gain) * 10) / 10,
-          );
-
-          return {
-            ...old,
-            items,
-            programme: {
-              ...old.programme,
-              score: { ...old.programme.score, overallPct },
-            },
-          };
-        });
-
-        return { previous };
-      },
-      onError: (err, _vars, ctx) => {
-        // Always roll the optimistic change back so the dealer sees true state.
-        if (ctx && ctx.previous !== undefined) {
-          qc.setQueryData(kavachMeQueryKey, ctx.previous);
-        }
-        // A 4xx is a hard, non-retryable rejection (item paused / validation):
-        // explain it once and don't leave the dealer tapping a button that
-        // will keep failing. Network (status 0) and 5xx are transient, so we
-        // keep the in-place tap-to-retry the card already shows — no toast.
-        if (err.status >= 400 && err.status < 500) {
-          toast.error(err.message);
-        }
-      },
-      onSuccess: (updated) => {
-        qc.setQueryData<KavachMe | null>(kavachMeQueryKey, (old) => {
-          if (!old) return old;
-          return {
-            ...old,
-            items: old.items.map((it) => (it.id === updated.id ? updated : it)),
-          };
-        });
-      },
-      onSettled: () => {
-        void qc.invalidateQueries({ queryKey: kavachMeQueryKey });
-      },
+  const t = useT();
+  return useMutation<KavachItem, ApiError, SubmitEvidenceVars>({
+    mutationFn: ({ itemId, proof, note }: SubmitEvidenceVars) =>
+      api.post<KavachItem>(`/v1/kavach/items/${itemId}/evidence`, {
+        ...(proof ? { proof } : {}),
+        ...(note ? { note } : {}),
+      }),
+    onSuccess: (updated) => {
+      qc.setQueryData<KavachMe | null>(kavachMeQueryKey, (old) => {
+        if (!old) return old;
+        return {
+          ...old,
+          items: old.items.map((it) => (it.id === updated.id ? updated : it)),
+        };
+      });
     },
-  );
+    onError: (err) => {
+      // A 4xx is a hard, non-retryable rejection (task paused, programme off):
+      // say it once, in our words, never the server's. Network (status 0) and
+      // 5xx are transient, so the card's own tap-to-retry stays the answer and
+      // a toast on top of it would just be noise.
+      if (err.status >= 400 && err.status < 500) toast.error(t('kavach.sendFailed'));
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: kavachMeQueryKey });
+    },
+  });
 }

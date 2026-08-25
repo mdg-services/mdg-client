@@ -33,6 +33,33 @@ import type { KavachTemplateSeedItem } from '../types/kavach';
  *  - Spec cadence overrides applied: srNo 43 → 90/QUARTERLY; srNo 44 & 45 →
  *    365/YEARLY; srNo 35 → 90/QUARTERLY (was 180 in source). srNo 18 kept at
  *    15/FORTNIGHTLY, srNo 19 kept at 10 pts, srNo 33 kept at 45 pts (inferred).
+ *
+ * Who certifies each task (ADR 0011)
+ * ----------------------------------
+ * `requiresProof` is gone. Every row now says WHO may close it and WHAT they
+ * must attach. Nobody's task is closed by the dealer any more:
+ *
+ *  - 21 rows `DEALER_EVIDENCE_THEN_ADMIN` + `PHOTO` — the 21 that used to carry
+ *    `requiresProof`. MDG asks the dealer for the picture; an admin rules on it.
+ *  - 21 rows `ADMIN` + `NONE` — an admin can see the fact themselves (an SDMS
+ *    filing, a portal page, a field visit). The audit row is the attestation.
+ *  - 1 row `ADMIN` + `NOTE` (air-compressor-maintenance) — the evidence for a
+ *    maintenance visit is a written observation, not a picture.
+ *  - 2 rows `AUTOMATION` — the only two a signal can honestly prove TODAY:
+ *    `daily-density-book` (the TT density register photo was marked for the day)
+ *    and `stock-variation-within-limit` (every product came in within limit on
+ *    our own DSR). 115 of the 3,740 TIME points.
+ *
+ * `daily-dsr-before-10am` is `ADMIN` with `signalId: 'dsr-generated'` — a
+ * CORROBORATING signal, not a closing one. The task asks about the dealer's own
+ * DSR book; that our report was ready by 10 am is strong supporting evidence and
+ * is shown to the admin, but auto-closing on it would quietly turn part of the
+ * dealer's score into a report on OUR uptime.
+ *
+ * A further 7 rows (the SDMS declaration cluster, the e-Mitra TDS upload, the
+ * mock drill, the annual DAR) are portal facts nobody has scraped yet — 1,090
+ * points of headroom. They stay `ADMIN` until a real signal exists; a signalId
+ * pointing at nothing fails the boot by design.
  */
 export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
   {
@@ -48,7 +75,9 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
+    signalId: 'dsr-generated',
   },
   {
     code: 'daily-density-book',
@@ -63,7 +92,9 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'AUTOMATION',
+    evidence: 'NONE',
+    signalId: 'tt-register-photo',
   },
   {
     code: 'daily-stock-board',
@@ -78,7 +109,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'daily-toilet-inspection-sheet',
@@ -93,7 +125,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'cleanliness',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'bathroom-outdoor-display-sheet',
@@ -108,7 +141,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'cleanliness',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'display-peso-license-number',
@@ -123,7 +157,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'display-emergency-number',
@@ -138,7 +173,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'first-aid-box',
@@ -153,7 +189,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'customer-complaint-book',
@@ -168,7 +205,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'stock-variation-within-limit',
@@ -183,7 +221,9 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'AUTOMATION',
+    evidence: 'NONE',
+    signalId: 'dsr-variation-within-limit',
   },
   {
     code: 'dto-trade-licence-validity',
@@ -198,7 +238,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'statutory-license',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'weight-measurement-certificate-validity',
@@ -213,7 +254,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'statutory-license',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'upload-tds-certificate-iocl',
@@ -228,7 +270,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'QUARTERLY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'subsidy-claim-sdms',
@@ -243,7 +286,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'SOS',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'air-compressor-maintenance',
@@ -258,7 +302,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'FORTNIGHTLY',
     domain: 'equipment',
     category: 'technical',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NOTE',
   },
   {
     code: 'underground-chamber-cleaning',
@@ -273,7 +318,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'MONTHLY',
     domain: 'cleanliness',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'water-cooler-area-cleaning',
@@ -288,7 +334,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'MONTHLY',
     domain: 'cleanliness',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'solar-panel-cleaning',
@@ -303,7 +350,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'FORTNIGHTLY',
     domain: 'equipment',
     category: 'technical',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'servo-island-display',
@@ -318,7 +366,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'complaint-register-automation',
@@ -334,7 +383,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'SOS',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'product-sampling-storage',
@@ -349,7 +399,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'SOS',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'tanker-decantation-documentation',
@@ -365,7 +416,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'SOS',
     domain: 'daily-ops',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'mock-drill-web-portal',
@@ -380,7 +432,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'QUARTERLY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'safety-declaration-sdms',
@@ -395,7 +448,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'min-wages-declaration-sdms',
@@ -410,7 +464,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'MONTHLY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'swachta-hygiene-declaration-sdms',
@@ -425,7 +480,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'WEEKLY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'staff-evaluation-sdms',
@@ -440,7 +496,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'MONTHLY',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'ro-per-peso-approved-map',
@@ -457,7 +514,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'statutory-license',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'nh-sh-road-noc-renewal',
@@ -472,7 +530,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'statutory-license',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'hydrometer-thermometer-calibration',
@@ -488,7 +547,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'equipment',
     category: 'technical',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'insurance-renewal-reminder',
@@ -503,7 +563,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'mdg-copy-available-at-ro',
@@ -518,7 +579,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'earthing-pits-numbered',
@@ -533,7 +595,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'insulation-mat-electrical-panel',
@@ -548,7 +611,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'cas-with-id-cards',
@@ -563,7 +627,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'QUARTERLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'cas-pics',
@@ -578,7 +643,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'MONTHLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'dar-annual-report-sdms',
@@ -593,7 +659,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'BIENNIAL',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'trade-licence-copy-display',
@@ -608,7 +675,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'gst-certificate-copy-display',
@@ -623,7 +691,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'weight-measurement-copy-display',
@@ -638,7 +707,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'HALF_YEARLY',
     domain: 'documentation-display',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'work-permit-sdms',
@@ -653,7 +723,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'SOS',
     domain: 'sdms-filing',
     category: 'compliance',
-    requiresProof: false,
+    verification: 'ADMIN',
+    evidence: 'NONE',
   },
   {
     code: 'quality-quantity-kit',
@@ -668,7 +739,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'DAILY',
     domain: 'equipment',
     category: 'technical',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'safety-signage-display',
@@ -683,7 +755,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'QUARTERLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'crocodile-clip-wires-aluminium-bucket',
@@ -698,7 +771,8 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
   {
     code: 'crocodile-clip-wires-tanker',
@@ -713,6 +787,7 @@ export const KAVACH_TEMPLATE_SEED: KavachTemplateSeedItem[] = [
     cadenceBucket: 'YEARLY',
     domain: 'safety',
     category: 'compliance',
-    requiresProof: true,
+    verification: 'DEALER_EVIDENCE_THEN_ADMIN',
+    evidence: 'PHOTO',
   },
 ];

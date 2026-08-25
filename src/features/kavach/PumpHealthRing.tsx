@@ -69,7 +69,9 @@ export function PumpHealthRing({
   const arcLen = circ * sweep;
   const dash = (shown / 100) * arcLen;
 
-  // Animate the dash up smoothly when the score changes (e.g. after mark-done).
+  // Animate the dash up smoothly when the score changes. The dealer no longer
+  // causes that change — an admin or an automation does — so the movement is a
+  // report arriving, not a reward for a tap.
   const [animDash, setAnimDash] = React.useState(0);
   React.useEffect(() => {
     const id = window.requestAnimationFrame(() => setAnimDash(dash));
