@@ -68,11 +68,21 @@ export const presignUploadSchema = z.object({
     .int()
     .positive()
     .max(25 * 1024 * 1024),
-  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density']).default('chat'),
+  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach']).default('chat'),
   conversationId: z.string().optional(),
-  /** Required for the `staff` and `tt-density` scopes: the dealer the photo belongs to. */
+  /**
+   * Required for the `staff`, `tt-density` and `kavach` scopes: the dealer the
+   * photo belongs to.
+   */
   dealerId: z.string().optional(),
 });
+/**
+ * This union is the ONLY declaration of the upload scopes. `/uploads/sign`
+ * validates against it and must derive its handler's body type from
+ * `PresignUploadInput` rather than re-spelling the list: a route that keeps its
+ * own copy type-checks against scopes the validator rejects, and the mismatch
+ * surfaces only as a 400 at the moment a user tries to attach a photo.
+ */
 export type PresignUploadInput = z.infer<typeof presignUploadSchema>;
 
 export const assignConversationSchema = z.object({
