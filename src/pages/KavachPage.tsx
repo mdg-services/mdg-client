@@ -92,6 +92,10 @@ export function KavachPage() {
   const settling = React.useMemo(() => {
     if (!programme) return false;
     if (programme.dealerFacingEnabled === false) return true;
+    // No denominator means there is no percentage to show — the ring must wear
+    // the calm "getting started" face rather than render a number the server
+    // has explicitly declined to state.
+    if (!programme.score.scored) return true;
     if (!programme.settlingUntil) return false;
     return Date.now() < new Date(programme.settlingUntil).getTime();
   }, [programme]);

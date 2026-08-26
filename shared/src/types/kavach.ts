@@ -410,7 +410,29 @@ export interface KavachOutletMeta {
 
 /** Live, recomputed score snapshot. Dealers see overallPct; admins see byBucket too. */
 export interface KavachScoreSnapshot {
-  /** Overall operational % (0–100). Excludes SOS items (admin availability gauge, MVP). */
+  /**
+   * Is there anything to divide by?
+   *
+   * FALSE means every scoreable task is still unexamined, so there is no
+   * percentage to state — not that the outlet is at zero, and emphatically not
+   * that it is at a hundred. Read this BEFORE `overallPct` on every surface; a
+   * screen that prints the number without checking is making a claim the
+   * calculation does not support.
+   *
+   * It exists because `overallPct` used to fall back to 100 when the
+   * denominator was empty. That began as a kindness — a brand-new programme
+   * should not open red — and it was defensible while the figure was the
+   * dealer's own declaration. Once the figure became MDG's written statement
+   * about them, a fresh outlet rendered "100% · 40 never checked · 0/0 points
+   * compliant": three numbers in one line, one of which contradicted the other
+   * two.
+   */
+  scored: boolean;
+  /**
+   * Overall operational % (0–100), meaningful only when `scored`. Excludes SOS
+   * items (admin availability gauge, MVP). Zero when unscored, so a consumer
+   * that ignores `scored` understates rather than invents a perfect score.
+   */
   overallPct: number;
   /** Per-bucket sub-scores (0–100); admin-only. */
   byBucket: Partial<Record<KavachCadenceBucket, number>>;
@@ -758,6 +780,8 @@ export interface KavachDashboardRow {
   dealerId: string;
   dealerCode: string;
   programmeId: string;
+  /** False when nothing has been verified: read this before `overallPct`. */
+  scored: boolean;
   overallPct: number;
   expiredCount: number;
   expiringSoonCount: number;
