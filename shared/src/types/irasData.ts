@@ -270,6 +270,19 @@ export interface IrasCorrectionCommitInput {
   reason: string;
   edits?: IrasCellEditInput[];
   addedRows?: IrasAddedRowInput[];
+  /**
+   * Nozzles the operator has stated did not run today, so a meter reading equal
+   * to yesterday's is deliberate rather than a figure nobody updated.
+   *
+   * On the commit body only, never inside a correction and never inside the
+   * preview's pending changes. A hand-added row is sanitised against the shared
+   * field policy table, which would reject a column the portal does not send —
+   * and teaching that table a field the engine never reads is exactly what
+   * `dsr-report/fields.test.ts` exists to prevent. So the acknowledgement is
+   * written into the commit's AuditLog entry instead, where the nightly
+   * "unconfirmed unchanged meter" query can read it, and nowhere else.
+   */
+  acknowledgedUnchangedNozzles?: string[];
   /** Rows to exclude, and rows to stop excluding (`restore`). */
   excludeRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
   restoreRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
@@ -288,6 +301,18 @@ export interface IrasCorrectionCommitResult {
   /** Business dates whose generated report this invalidated, oldest first. */
   staleDates: string[];
   revision: string;
+  /**
+   * Things worth saying about what was just saved, which are not reasons to
+   * refuse it.
+   *
+   * A meter reading equal to the previous day's is the case this exists for. It
+   * is checked on the screen and blocked there, but a refusal here would lock an
+   * operator out of saving correct work on the one morning the figures are least
+   * checkable — the day after a business date nobody typed, when there is no
+   * previous reading to argue with. So the server states it and lets the day
+   * through.
+   */
+  warnings?: string[];
 }
 
 /** One product's variation, before and after the pending changes. */
@@ -307,6 +332,27 @@ export interface DsrVariationPreview {
   receipt: number;
   openingStock: number;
   sales: number | null;
+  /**
+   * Litres the tanks gained that the day's receipts do not account for —
+   * `impliedReceipt − closingReceipt`, straight off what the engine already
+   * computed at the close.
+   *
+   * This is the one figure that answers "do the tanks and the pumps agree?", and
+   * the editor cannot work it out for itself: the arithmetic behind it is the
+   * engine's, and a second implementation of an engine rule is this area's
+   * founding fault. Null when the day cannot be closed at all — no prior ledger
+   * row, or a nozzle with no reading.
+   */
+  unexplainedLitres: number | null;
+  /**
+   * What the book says the tanks should hold — `openingStock − unexplained`.
+   *
+   * Per GRADE, never per tank: `openingStock` is the sum of a product's tanks,
+   * so a per-tank book figure does not exist in the engine and inventing one
+   * would be a second implementation of the arithmetic. Null on the same days
+   * {@link unexplainedLitres} is.
+   */
+  bookStock: number | null;
 }
 
 export interface IrasCorrectionPreview {
@@ -356,6 +402,21 @@ export interface IrasDayEditorView {
   revision: string;
   /** Nozzle number → the previous day's meter reading, for the backwards-meter check. */
   previousTotReadings: Record<string, string>;
+  /**
+   * Tank number → the previous day's stock row, read the same way
+   * {@link previousTotReadings} is: off the EFFECTIVE previous day, so a figure
+   * corrected yesterday is the one the engine will actually measure against, and
+   * so a day that was itself typed by hand still answers.
+   *
+   * Three jobs. The water dip is carried forward from it, because it is the one
+   * measurement the engine never calculates with. The stock and the product dip
+   * are printed beside their empty boxes as something to check against, never
+   * into them. And the stock is what the "this tank did not move while its pumps
+   * sold" warning compares against — no existing guard catches that: the
+   * engine's own "no stock reading" warning fires only when the row is ABSENT,
+   * so a present row carrying a stale but plausible figure passes everything.
+   */
+  previousStkRows: Record<string, { productDip: string; waterDip: string; netQty: string }>;
   dsr: {
     attached: boolean;
     /** Why receipts cannot be attributed to a product, rendered inline and calmly. */
@@ -372,7 +433,29 @@ export interface IrasDayEditorView {
        * thing that tells the report which grade a tank holds.
        */
       prodCodes: string[];
+      /**
+       * Nozzle number → the factor its totaliser reading is multiplied by before
+       * the engine uses it.
+       *
+       * Carried because the editor prints litres sold per nozzle, and without it
+       * that figure is simply wrong for the nozzles that need it: 14E's nozzles
+       * 6 and 9 report at 0.1, so a readout built without the scale shows ten
+       * times what the report will say. Absent for a dealer with no override,
+       * which is every nozzle at most outlets.
+       */
+      meterScale?: Record<string, number>;
     }>;
+    /**
+     * Which column this dealer's receipts are counted from — the litres the tank
+     * dip measured going in, or the litres the tanker was invoiced for.
+     *
+     * On screen so a delivery card can say which of its two quantity fields
+     * actually decides the report. Today the field hint says "the dealer's
+     * configured basis decides" without ever saying which, and 5E's corrections
+     * were typed into the other column and silently discarded. Null when the
+     * dealer has no readable Daily Sales Report configuration.
+     */
+    receiptBasis: 'DECANTED' | 'INVOICE' | null;
     /** This dealer's generated report dates, so the footer can count the impact locally. */
     reportDates: string[];
     /** Of those, the ones already shared into the dealer's chat. */

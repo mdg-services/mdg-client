@@ -17,6 +17,7 @@ export * from './dsr/tanks';
 export * from './dsr/receipts';
 export * from './iras/fields';
 export * from './iras/corrections';
+export * from './iras/dayPlan';
 export * from './iras/decant';
 export * from './dealer/code';
 export * from './tt/materials';

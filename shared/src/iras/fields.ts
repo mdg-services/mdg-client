@@ -454,11 +454,28 @@ export function validateIrasCell(code: IrasReportCode, field: string, raw: strin
   // decides which day a delivery counts on from the decant stamp, and an
   // unreadable one makes it count on whichever day is being generated. Catch it
   // where it is typed rather than three months later in a variation.
+  //
+  // Both sentences say what to type and name no portal. This message is the one
+  // an operator reads on BOTH surfaces, and 16E — the outlet the shift sheet was
+  // built for — has no portal account at all, so “the portal’s format” pointed at
+  // something that operator has never seen. They also have to be true of what
+  // {@link IRAS_TIME_RE} accepts: seconds are optional there, and demanding a
+  // `:00` nobody can check is how an invented figure gets typed into a stamp
+  // that, on a day the portal collected, decides which day a tanker’s litres
+  // land on. On a hand-typed day it decides nothing — there is no collection
+  // window, so `recRowDayVerdict` counts the tanker in the day it was typed into
+  // whatever the stamp says — and the shift sheet tells the operator exactly
+  // that. Do not restore the unqualified claim: it is what the sheet’s wording
+  // was rewritten to stop asserting.
   if (policy.kind === 'date') {
-    return IRAS_DATE_RE.test(value) ? null : 'Use the portal’s format: dd-mm-yyyy.';
+    return IRAS_DATE_RE.test(value)
+      ? null
+      : 'Type the day and month with two digits and the year with four — like 31-08-2026.';
   }
   if (policy.kind === 'time') {
-    return IRAS_TIME_RE.test(value) ? null : 'Use the portal’s format: HH:mm:ss.';
+    return IRAS_TIME_RE.test(value)
+      ? null
+      : 'Type the time on the 24-hour clock — like 04:20, or 04:20:00 with the seconds.';
   }
   if (policy.kind !== 'number') return null;
 
