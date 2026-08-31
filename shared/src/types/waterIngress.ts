@@ -49,6 +49,22 @@ export interface WaterIngressSlotRecord {
   runId?: string | null;
 }
 
+/**
+ * The archived picture of a finished day.
+ *
+ * Written once, when the last window of the day is recorded — at which point
+ * nothing about the day can change, because a window can only be filled in
+ * while the clock is inside it. That is what makes the image safe to keep: it
+ * can never disagree with the record it was drawn from.
+ */
+export interface WaterIngressCardRef {
+  /** Object key in storage. */
+  key: string;
+  size: number;
+  /** ISO timestamp of the render. */
+  renderedAt: string;
+}
+
 /** One dealer's Water Ingress Testing day. */
 export interface WaterIngressDayLog {
   id: string;
@@ -65,6 +81,8 @@ export interface WaterIngressDayLog {
   /** `recordedSlots / totalSlots`, rounded — the portal's own COMPLIANCE figure. */
   compliancePercent: number;
   slots: WaterIngressSlotRecord[];
+  /** The saved card, once the day is complete. Absent while it is still running. */
+  card?: WaterIngressCardRef | null;
   lastRunAt: string;
   lastOutcome: WaterIngressOutcome;
   lastFailure?: {
