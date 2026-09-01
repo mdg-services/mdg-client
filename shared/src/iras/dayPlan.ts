@@ -9,25 +9,54 @@
  * building the same eight rows again, one at a time, before a single figure is
  * on screen.
  *
- * This module carries the SHAPE of that day forward and refuses to carry the
- * MEASUREMENTS. The distinction is the whole design and it is not a matter of
- * taste:
+ * This module carries the SHAPE of that day forward, and it carries yesterday's
+ * MEASUREMENTS into the boxes with a block sitting on every one of them until
+ * somebody changes it. The distinction is the whole design and it is not a
+ * matter of taste:
  *
  *   - Which nozzles and which tanks the outlet has, which grade each holds, and
  *     the three identity columns a hand-added row is refused without — those are
  *     plumbing. They were true yesterday and they are true today.
- *   - A totaliser is a lifetime odometer. Carrying yesterday's reading and
- *     leaving it untouched reports ZERO litres sold on that nozzle, and it also
- *     drops that nozzle's test draw, because the engine charges testing only to a
- *     nozzle whose reading moved. The variation then swings negative by the
- *     missing litres and the dealer is advised to draw fuel back into a tank that
- *     is not short. So a reading is never pre-filled; yesterday's is printed
- *     beside the empty box as something to check against, and the ruleset below
- *     refuses to save a day where one is blank, below yesterday's, or exactly
- *     equal to yesterday's without somebody saying the pump did not run.
- *   - The water dip is the one measurement carried, because it is the one the
- *     engine never calculates with: every read of it is display. A stale water
- *     dip can make a printed line stale; it cannot move a figure.
+ *   - A totaliser is a lifetime odometer, and yesterday's reading left where it
+ *     stands reports ZERO litres sold on that nozzle. It also drops that
+ *     nozzle's test draw, because the engine charges testing only to a nozzle
+ *     whose reading moved: the variation then swings negative by the missing
+ *     litres and the dealer is advised to draw fuel back into a tank that is not
+ *     short.
+ *
+ *     That hazard is not a reason to leave the box empty, and this module used
+ *     to. On a totaliser the operator is changing the last few digits, so having
+ *     49,059 in the box to edit is fewer keystrokes on a phone than reading
+ *     49,059 off a caption and typing 49,412 from nothing. So the reading, the
+ *     stock and the product dip are all pre-filled with the previous day's
+ *     figure — and a pre-filled figure NOBODY HAS TOUCHED refuses to save. That
+ *     block is the whole safety of the pre-fill: a day where every box still
+ *     holds yesterday's number is a day nobody has done, and it must not be
+ *     savable.
+ *
+ *     Two different situations, two different sentences, because they are two
+ *     different problems with two different fixes. `CARRIED_UNTOUCHED` is "you
+ *     have not done this box yet" — the system put the figure there — and it is
+ *     said quietly, in the carried style, because a freshly opened day would
+ *     otherwise show ten red alarms before anybody had done anything wrong.
+ *     `METER_UNCHANGED` is "you typed a number that means zero litres sold", and
+ *     it stays red. Both BLOCK; only ONE of them is ever raised on one box; and
+ *     the only way past either is the confirmed "This pump did not run today",
+ *     which is still the one route to a zero-sales nozzle.
+ *   - The water dip is the one carried measurement that does NOT block, because
+ *     it is the one the engine never calculates with: every read of it is
+ *     display. A stale water dip can make a printed line stale; it cannot move a
+ *     figure.
+ *
+ * None of that leaves the browser. The sheet's record of which boxes it filled
+ * in and nobody has touched lives in a React component and is never sent, so on
+ * the wire a whole morning of yesterday's figures is indistinguishable from a
+ * morning somebody typed — where a blank box used to be refused by the server
+ * outright. {@link irasUnchangedMeterReadings} is the same question asked where
+ * a bug in that component cannot reach it: the commit itself refuses a meter
+ * still reading yesterday's figure with nobody having said the pump did not run.
+ * It needs no product layout and no browser, and it blocks nothing the screen
+ * does not already block.
  *
  * It lives in `@dk/shared` rather than in the admin because `mdg-admin` has no
  * test runner at all, and none of this may be decided in a React component that
@@ -106,6 +135,17 @@ export interface IrasPlannedFigure {
   /** Nozzle number for `TOT`, tank number for `STK`. */
   identity: string;
   field: string;
+  /**
+   * The previous day's figure for this box — the value it was pre-filled with —
+   * or `''` when the previous day has none.
+   *
+   * Here so that {@link irasDayProgress} can tell a figure a PERSON supplied
+   * from the one the system carried in, using the very same test the block runs
+   * on. Counting a carried figure as typed would announce a freshly opened day
+   * as "All 10 figures typed" before anybody had touched it, and that is the
+   * single largest way the pre-fill can go wrong.
+   */
+  previous: string;
 }
 
 export interface IrasPlannedRow {
@@ -115,15 +155,38 @@ export interface IrasPlannedRow {
   /** The DSR product this row belongs to, e.g. `HSD`. */
   productKey: string;
   /**
-   * The row itself: identity columns, and `WATER_DIP` when there is one to
-   * carry. Never `TOT_READING`, `NET_QTY` or `PRODUCT_DIP` — see the header.
+   * The row itself: the identity columns, and every measurement the previous day
+   * has a figure for — the reading, the stock, the product dip and the water
+   * dip. A box the previous day has nothing for is left out, so a gap still
+   * reads as a gap.
    */
   row: IrasRow;
-  /** Figures the system put in the row, so the field can say it did. */
+  /**
+   * Figures the system put in the row, so the field can say it did — and so the
+   * ruleset can tell them from figures a person typed.
+   *
+   * This is the seam the whole pre-fill turns on. The sheet holds this list per
+   * row and strikes a field off it the moment somebody edits that box; what is
+   * left is what nobody has touched. It is handed back on
+   * {@link IrasDayRowInForce.carried}, and `CARRIED_UNTOUCHED` is raised on
+   * exactly those fields — see {@link irasCarriedUntouched}.
+   */
   carried: Array<{ field: string; from: string }>;
-  /** Fields a person must supply before this day can be saved. */
+  /**
+   * Fields a person must supply before this day can be saved. Unchanged by the
+   * pre-fill, and now enforced by it: a carried figure does not answer an ask,
+   * it blocks until somebody changes it.
+   */
   asks: string[];
-  /** Yesterday's figure for each asked field, to print beside the empty box. */
+  /**
+   * Yesterday's figure for each asked field — which is the figure `row` was
+   * pre-filled with, for every field that had one.
+   *
+   * Kept beside the row rather than read back off it, because the two answer
+   * different questions once the operator starts typing: `row.TOT_READING` is
+   * what is in the box now, and this is what was carried into it, which the
+   * sheet still prints as the figure to check against.
+   */
   previous: Record<string, string>;
 }
 
@@ -172,9 +235,13 @@ const TOT_ASKS: readonly string[] = ['TOT_READING'];
 /**
  * The two a stock row asks for. `NET_QTY` is the stock the whole variation is
  * measured against; `PRODUCT_DIP` is the dealer's own independent witness to it,
- * printed on the report beside it. Neither can be carried: a carried stock is a
- * day of sales that never happened, and a carried dip is a witness agreeing with
- * a figure it never saw.
+ * printed on the report beside it.
+ *
+ * Both are pre-filled and neither may be LEFT carried: a carried stock is a day
+ * of sales that never happened, and a carried dip is a witness agreeing with a
+ * figure it never saw. That is why `CARRIED_UNTOUCHED` is raised on these two
+ * and not on the water dip beside them — the sheet asks for these, so a carried
+ * one is work outstanding, and the water dip is not asked for at all.
  */
 const STK_ASKS: readonly string[] = ['NET_QTY', 'PRODUCT_DIP'];
 
@@ -218,19 +285,34 @@ export function irasDayPlan(input: IrasDayPlanInput): IrasDayPlan {
 
       const previousReading = trimmed(byIdentity(previousTot, identity));
 
-      figuresNeeded.push({ code: 'TOT', identity, field: 'TOT_READING' });
+      figuresNeeded.push({
+        code: 'TOT',
+        identity,
+        field: 'TOT_READING',
+        previous: previousReading,
+      });
       if (takenNozzles.has(identity)) continue;
 
       const row: IrasRow = { NOZZLE_NO: identity };
       if (tankForNozzle) row.TANK_NO = tankForNozzle;
       if (prodCode) row.PRODCODE = prodCode;
 
+      // Only when there is one, here and on every carried figure below. A box
+      // the previous day has nothing for is left empty, because a gap has to
+      // read as a gap — filling it with nothing and calling it carried would
+      // say the system knew something it does not.
+      const carried: IrasPlannedRow['carried'] = [];
+      if (previousReading) {
+        row.TOT_READING = previousReading;
+        carried.push({ field: 'TOT_READING', from: carriedFrom });
+      }
+
       rows.push({
         code: 'TOT',
         planKey: `TOT:${identity}`,
         productKey: product.key,
         row,
-        carried: [],
+        carried,
         asks: [...TOT_ASKS],
         previous: previousReading ? { TOT_READING: previousReading } : {},
       });
@@ -249,19 +331,25 @@ export function irasDayPlan(input: IrasDayPlanInput): IrasDayPlan {
       const previousWaterDip = trimmed(previous?.waterDip);
 
       figuresNeeded.push(
-        { code: 'STK', identity, field: 'NET_QTY' },
-        { code: 'STK', identity, field: 'PRODUCT_DIP' },
+        { code: 'STK', identity, field: 'NET_QTY', previous: previousNetQty },
+        { code: 'STK', identity, field: 'PRODUCT_DIP', previous: previousProductDip },
       );
       if (takenTanks.has(identity)) continue;
 
       const row: IrasRow = { TANK_NO: identity };
       if (prodCode) row.PRODCODE = prodCode;
 
+      // In the order the sheet draws them: the two figures the day is owed
+      // first, then the water dip, which is carried and is not owed.
       const carried: IrasPlannedRow['carried'] = [];
-      // Only when there is one. A tank whose previous day had no water dip gets
-      // an empty box, because a gap has to read as a gap — filling it with
-      // nothing and calling it carried would say the system knew something it
-      // does not.
+      if (previousNetQty) {
+        row.NET_QTY = previousNetQty;
+        carried.push({ field: 'NET_QTY', from: carriedFrom });
+      }
+      if (previousProductDip) {
+        row.PRODUCT_DIP = previousProductDip;
+        carried.push({ field: 'PRODUCT_DIP', from: carriedFrom });
+      }
       if (previousWaterDip) {
         row.WATER_DIP = previousWaterDip;
         carried.push({ field: 'WATER_DIP', from: carriedFrom });
@@ -451,6 +539,68 @@ export interface IrasDayRowInForce {
   row: IrasRow;
   /** The same row as the server holds it, `null` when this change set adds it. */
   onRecord?: IrasRow | null;
+  /**
+   * The fields on this row that the SYSTEM put there when the day was laid out
+   * and that nobody has touched since — {@link IrasPlannedRow.carried}, with
+   * every field the operator has since edited struck off.
+   *
+   * A separate question from `onRecord`, and it has to be, which is why it is a
+   * second field rather than something derived from the first. `onRecord` is
+   * about what the SERVER holds; this is about who put the figure on the screen.
+   * On a freshly opened day there is no server row at all — every one of these
+   * rows is being added — so `onRecord` cannot tell a figure the plan carried in
+   * from a figure the operator typed, and those are the two situations the
+   * quiet block and the red one have to be told apart by.
+   *
+   * The sheet owns this list because the sheet is where a keystroke happens. It
+   * is seeded from the plan, kept in the pending set beside the rows, and a
+   * field comes off it the moment that box is edited. Left off entirely — the
+   * backend's after-save pass, or any caller that is not the sheet — nothing is
+   * carried, no `CARRIED_UNTOUCHED` is raised, and every rule reads exactly as
+   * it read before the pre-fill existed.
+   */
+  carried?: readonly string[];
+}
+
+/**
+ * Whether one box is still holding the figure the system carried into it.
+ *
+ * The one implementation of "nobody has done this box yet". The block in
+ * {@link irasDayFindings} and the count in {@link irasDayProgress} are the same
+ * question asked twice — "is this figure a person's work" — and a second
+ * hand-written copy of the test is how a screen comes to block on a box it is
+ * also counting as typed.
+ *
+ * Three things have to hold, and each closes a different way of being wrong:
+ *
+ *   - the sheet lists the field as carried and untouched. This is the primary
+ *     answer, and only the sheet can give it: a keystroke is the only evidence
+ *     that a person has been in the box.
+ *   - the box still reads exactly what the previous day read. Belt and braces
+ *     over a `carried` list that has gone stale — a figure that differs from the
+ *     one carried in was typed by somebody, whatever the list says, and it then
+ *     falls through to the ordinary rules.
+ *   - the figure is not one the server already holds. A day saved at 07:00 and
+ *     reopened at 09:00 was answered for on the visit that saved it; re-blocking
+ *     it is the exact trap the equal-to-yesterday rule had to be scoped out of,
+ *     and 16E's two dead pumps live in it every morning.
+ *
+ * Exported so the sheet styles a box off the same answer that blocks it, and
+ * meant for the asked figures — the reading, the stock and the product dip. The
+ * water dip is carried too and is never asked for, so nothing calls this with
+ * it.
+ */
+export function irasCarriedUntouched(
+  entry: Pick<IrasDayRowInForce, 'row' | 'onRecord' | 'carried'> | undefined,
+  field: string,
+  previousValue: unknown,
+): boolean {
+  if (!entry || !field) return false;
+  if (!(entry.carried ?? []).includes(field)) return false;
+  const carriedIn = trimmed(previousValue);
+  if (!carriedIn) return false;
+  if (!sameStoredValue(entry.row?.[field], carriedIn)) return false;
+  return figureIsFreshWork(entry, field);
 }
 
 /* ───────────────── "this pump did not run", still true or not ───────────── */
@@ -539,6 +689,82 @@ export function irasAcknowledgementsInForce(input: IrasAcknowledgementsInput): s
   return inForce;
 }
 
+/* ───────── a reading that is still yesterday’s, on the wire ───────── */
+
+/** One meter reading a change set is putting on the day. */
+export interface IrasMeterReadingInHand {
+  /** The nozzle number as the row carries it. */
+  nozzleNo: unknown;
+  /** The reading this change set is putting on that nozzle. */
+  reading: unknown;
+}
+
+/** One nozzle whose new reading is the previous day’s own, unexplained. */
+export interface IrasUnchangedMeterReading {
+  /** The nozzle, normalised the way the report reads it. */
+  identity: string;
+  /** The reading in hand, exactly as it was typed. */
+  reading: string;
+  /** The previous day’s reading it matches. */
+  previous: string;
+}
+
+/**
+ * The nozzles a change set is about to put the previous day’s own reading on,
+ * with nobody having said the pump did not run.
+ *
+ * The server’s side of the question {@link irasDayFindings} asks on screen, and
+ * it exists because the screen’s answer never arrives. The shift sheet knows
+ * which boxes it pre-filled and nobody has touched; that list lives in the
+ * browser and is not sent, so a commit carrying a whole morning of yesterday’s
+ * figures looks on the wire exactly like a morning somebody typed. Before this,
+ * the only thing between an untouched day and the database was a map inside a
+ * React component — and the day used to reach the server with EMPTY boxes,
+ * which the server refused outright.
+ *
+ * Deliberately NOT given the dealer’s product layout, and that is not a
+ * shortcut. A nozzle’s meter scale multiplies both mornings’ readings before
+ * anything is subtracted, and any positive factor times two equal numbers is
+ * still a difference of nothing — so the scale cannot change this answer, and
+ * the refusal holds even for a dealer whose report configuration cannot be read
+ * at all. That matters: the after-save warning gives up on an unreadable
+ * config, and this is the net underneath it.
+ *
+ * Only readings the change set in hand puts there are handed in — a row it adds
+ * or a reading it alters. A reading already on record that the commit does not
+ * touch was answered for on the visit that saved it, and 16E’s two dead pumps
+ * sit at 13,205 and 2,638 every single morning: re-asking about those would make
+ * a day that was saved correctly impossible to reopen.
+ *
+ * One entry per nozzle, in the order they were handed in, so the caller’s
+ * sentence names each pump once.
+ */
+export function irasUnchangedMeterReadings(input: {
+  readings: ReadonlyArray<IrasMeterReadingInHand>;
+  previousTot: Record<string, string>;
+  acknowledgedUnchangedNozzles?: readonly string[];
+}): IrasUnchangedMeterReading[] {
+  const acknowledged = new Set(
+    (input.acknowledgedUnchangedNozzles ?? []).map((n) => irasRowIdentity(n)),
+  );
+  acknowledged.delete('');
+
+  const out: IrasUnchangedMeterReading[] = [];
+  const seen = new Set<string>();
+  for (const entry of input.readings ?? []) {
+    const identity = irasRowIdentity(entry?.nozzleNo);
+    if (!identity || seen.has(identity) || acknowledged.has(identity)) continue;
+    const previous = trimmed(byIdentity(input.previousTot, identity));
+    // Through the one litres rule rather than a subtraction of its own, so
+    // `452180.0` and `452180` are the one reading here too. A string test would
+    // wave the commonest retyped figure of all straight through.
+    if (irasNozzleSold(entry?.reading, previous) !== 0) continue;
+    seen.add(identity);
+    out.push({ identity, reading: trimmed(entry?.reading), previous });
+  }
+  return out;
+}
+
 /* ───────────────────────────── the findings ─────────────────────────────── */
 
 export type IrasDayFindingKind =
@@ -546,9 +772,11 @@ export type IrasDayFindingKind =
   | 'MISSING_ROW'
   | 'METER_BACKWARDS'
   | 'METER_UNCHANGED'
+  | 'CARRIED_UNTOUCHED'
   | 'UNREADABLE_VALUE'
   | 'DUPLICATE_IDENTITY'
   | 'STOCK_UNCHANGED_BUT_SOLD'
+  | 'STOCK_DIP_UNCHANGED'
   | 'ROW_NOT_IN_LAYOUT'
   | 'NO_PREVIOUS_DAY';
 
@@ -594,6 +822,10 @@ export interface IrasDayFindingsInput {
    * actually putting there; see that block for the walkthrough. A caller that
    * leaves it off gets the whole day treated as fresh work, which is what this
    * function did before the field existed.
+   *
+   * Each row may also carry `carried` — the boxes the plan pre-filled that
+   * nobody has touched yet. Left off, nothing is carried and no
+   * `CARRIED_UNTOUCHED` is raised.
    */
   rows: ReadonlyArray<IrasDayRowInForce>;
   previousTot: Record<string, string>;
@@ -635,6 +867,11 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     }),
   );
   const previousLabel = irasDayDateLabel(input.previousDate ?? '', 'long') || 'the previous day';
+  // The short spelling, and only for the carried sentences: they are printed
+  // under a box on a phone, one per unfinished figure, where "30 Aug" earns its
+  // place and "30 August" does not. Both come out of the one date helper, so a
+  // day cannot be named two different things on one screen.
+  const carriedFrom = irasDayDateLabel(input.previousDate ?? '') || 'the previous day';
 
   /* Configured identities, deduped, in config order. */
   const nozzles = configuredNozzlesOf(products);
@@ -643,7 +880,12 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
   const seenTanks = new Set(tanks.map((t) => t.identity));
 
   /* The rows in force, indexed the way the engine reads them. */
-  type FoundRow = { row: IrasRow; rowIndex: number; onRecord?: IrasRow | null };
+  type FoundRow = {
+    row: IrasRow;
+    rowIndex: number;
+    onRecord?: IrasRow | null;
+    carried?: readonly string[];
+  };
   const totByNozzle = new Map<string, FoundRow[]>();
   const stkByTank = new Map<string, FoundRow[]>();
   const recRows: FoundRow[] = [];
@@ -652,7 +894,12 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     // Carried through the index rather than looked up again later, because the
     // one rule that reads it has to read it off the SAME row it is measuring —
     // the first meter row on a nozzle, not the second one a duplicate put there.
-    const found: FoundRow = { row, rowIndex, onRecord: entry?.onRecord };
+    const found: FoundRow = {
+      row,
+      rowIndex,
+      onRecord: entry?.onRecord,
+      carried: entry?.carried,
+    };
     if (entry?.code === 'TOT') indexRow(totByNozzle, irasRowIdentity(row.NOZZLE_NO), found);
     else if (entry?.code === 'STK') indexRow(stkByTank, irasRowIdentity(row.TANK_NO), found);
     else if (entry?.code === 'REC') recRows.push(found);
@@ -743,9 +990,62 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     rowIndex: number;
   }> = [];
   const unchanged: Array<{ identity: string; previous: number; rowIndex: number }> = [];
+  /** Boxes still holding the figure the plan carried into them. */
+  const carriedUntouched: Array<{
+    code: IrasPlannedRowCode;
+    identity: string;
+    field: string;
+    label: string;
+    message: string;
+    rowIndex: number;
+  }> = [];
   for (const { identity, configNo, product } of nozzles) {
     const found = totByNozzle.get(identity)?.[0];
     if (!found) continue;
+
+    /*
+     * "This pump did not run today" answers everything below, so it is asked
+     * first — before the carried check as well as before the unmoved-meter one.
+     * 16E's nozzles 5 and 6 have not turned since the inspection: their boxes are
+     * carried AND unmoved every single morning, and if the carried check ran
+     * first the statement would never clear them and the only way to save that
+     * outlet's day would be typing a reading that did not happen.
+     */
+    if (acknowledged.has(identity)) continue;
+
+    /*
+     * The box the plan pre-filled and nobody has touched — said quietly, and
+     * said INSTEAD of every other thing that could be said about it.
+     *
+     * This is the ordering trap the pre-fill brings with it. A carried reading
+     * equals yesterday's by construction, so METER_UNCHANGED fires on it too,
+     * and a freshly opened day would come up with ten red boxes accusing the
+     * operator of reporting zero litres sold before they had typed a character.
+     * Only one finding may be raised per field, and on an untouched carried box
+     * it is this one: "you have not done this yet" and "you typed a number that
+     * means zero sales" are different problems with different fixes.
+     *
+     * Asked BEFORE the figure is parsed, which is the half that was missing. A
+     * previous day recorded with a comma — "1,53,269" — carries a value this
+     * validator cannot read, so the parse below used to `continue` past this
+     * check and the only thing left to say about the box was a red "Enter a
+     * number without commas", on a figure the operator never typed. The stock
+     * and the dip already resolved that pairing this way; the meter did not.
+     * Both are still a BLOCK, so nothing is saved either way — but the sentence
+     * that survives is the one naming what to do about it.
+     */
+    if (irasCarriedUntouched(found, 'TOT_READING', byIdentity(previousTot, identity))) {
+      carriedUntouched.push({
+        code: 'TOT',
+        identity,
+        field: 'TOT_READING',
+        label: `nozzle ${identity}`,
+        message: `Carried from ${carriedFrom} — change it to this morning’s meter reading.`,
+        rowIndex: found.rowIndex,
+      });
+      continue;
+    }
+
     const typed = asNumber(found.row.TOT_READING);
     const previous = asNumber(byIdentity(previousTot, identity));
     if (typed === null || previous === null) continue;
@@ -768,6 +1068,15 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
       backwards.push({ identity, typed, previous, litres: -sold, rowIndex: found.rowIndex });
       continue;
     }
+    if (sold !== 0) continue;
+
+    /*
+     * A nozzle that sold nothing, and two quite different reasons it might read
+     * that way. "This pump did not run today" answers both, and is still the one
+     * route to a zero-sales nozzle — it is asked at the top of this loop, so by
+     * here the statement has already cleared every nozzle it stands for.
+     */
+
     /*
      * Equal to yesterday blocks only on a reading THIS change set is putting
      * there — and 16E is why.
@@ -793,9 +1102,68 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
      * over a day's hand-added rows with nothing to compare them against — goes
      * on saying exactly what it said before this scoping existed.
      */
-    if (sold === 0 && !acknowledged.has(identity) && readingIsFreshWork(found)) {
+    if (figureIsFreshWork(found, 'TOT_READING')) {
       unchanged.push({ identity, previous, rowIndex: found.rowIndex });
     }
+  }
+
+  // The same question on the two figures a stock row is asked for. There is no
+  // acknowledgement to offer here and none to make: a tank has a stock and a dip
+  // this morning whatever the pumps did, so the only way out is to measure it.
+  for (const { identity } of tanks) {
+    const found = stkByTank.get(identity)?.[0];
+    if (!found) continue;
+    const previous = byIdentity(previousStk, identity);
+    for (const field of STK_ASKS) {
+      const previousValue = field === 'NET_QTY' ? previous?.netQty : previous?.productDip;
+      if (!irasCarriedUntouched(found, field, previousValue)) continue;
+      carriedUntouched.push({
+        code: 'STK',
+        identity,
+        field,
+        label: `tank ${identity}`,
+        message:
+          field === 'NET_QTY'
+            ? `Carried from ${carriedFrom} — change it to this morning’s stock.`
+            : `Carried from ${carriedFrom} — change it to this morning’s product dip.`,
+        rowIndex: found.rowIndex,
+      });
+    }
+  }
+  const carriedKeys = new Set(carriedUntouched.map((c) => `${c.code}|${c.identity}|${c.field}`));
+
+  /*
+   * The product dip that is still the previous day's.
+   *
+   * The dip is the dealer's own independent witness to the stock printed beside
+   * it, and it was the one pre-filled figure with nothing watching it anywhere:
+   * a day saved with tank 3's dip still reading 29 August's 1,275 raised not one
+   * finding, and the dealer's report then printed a dip measured two days before
+   * the stock standing next to it.
+   *
+   * A WARN and never a block, which is where it parts company with the meter
+   * above it. A dip really can repeat — the same reading to the centimetre two
+   * mornings running is ordinary on a tank that barely moved — so refusing it
+   * would stop real work, and only the person holding the tape can say whether
+   * it went in the tank this morning. Saying so is the whole of the job.
+   */
+  const stockDipUnchanged: Array<{ identity: string; dip: number; rowIndex: number }> = [];
+  for (const { identity } of tanks) {
+    const found = stkByTank.get(identity)?.[0];
+    if (!found) continue;
+    // Scoped to a dip THIS change set puts there, on the meter's own rule: one
+    // already on record and untouched by this commit was answered for on the
+    // visit that saved it, so a day reopened to add a tanker must not come back
+    // talking about it.
+    if (!figureIsFreshWork(found, 'PRODUCT_DIP')) continue;
+    const typed = asNumber(found.row.PRODUCT_DIP);
+    const previous = asNumber(byIdentity(previousStk, identity)?.productDip);
+    if (typed === null || previous === null || typed !== previous) continue;
+    // One finding per box, exactly as the stock beside it. A dip still holding
+    // the carried figure is already blocked with "you have not done this one
+    // yet", and a second sentence would only describe the same box again.
+    if (carriedKeys.has(`STK|${identity}|PRODUCT_DIP`)) continue;
+    stockDipUnchanged.push({ identity, dip: previous, rowIndex: found.rowIndex });
   }
 
   const missingFigures: Array<{
@@ -953,6 +1321,13 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
       const typed = asNumber(found.row.NET_QTY);
       const previous = asNumber(byIdentity(previousStk, identity)?.netQty);
       if (typed === null || previous === null || typed !== previous) continue;
+      // One finding per box. A stock still holding the carried figure is
+      // already blocked with "you have not done this one yet", and telling the
+      // operator in a second sentence that the tank has not moved while its
+      // pumps sold is describing the box they have just been told to fill in.
+      // The moment they type a figure — even yesterday's — this warning is
+      // exactly as it was.
+      if (carriedKeys.has(`STK|${identity}|NET_QTY`)) continue;
       stockUnchangedSeen.add(identity);
       stockUnchanged.push({
         identity,
@@ -1005,11 +1380,26 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     });
   }
 
+  // One finding per box, and this is where two of them met. A previous day's
+  // figure that cannot be read — `1,275` or `1,53,269` with the comma left in
+  // it — is carried into the box AND fails the value check, so one box was told
+  // both that its value cannot be read and that nobody has done it yet. Only the
+  // second says what to do: the operator did not type that figure, the system
+  // put it there, and this morning's figure typed over it settles both.
+  //
+  // Holds for all three carried figures — the meter reading as much as the stock
+  // and the dip. It did not always: the meter's carried check used to sit AFTER
+  // the numeric parse, so an unreadable carried reading never reached
+  // `carriedKeys` and this filter had nothing to match. Keep that check ahead of
+  // the parse.
+  const unreadableShown = unreadable.filter(
+    (item) => !carriedKeys.has(`${item.code}|${irasRowIdentity(item.identity)}|${item.field}`),
+  );
   const unreadableReason =
-    unreadable.length === 1
+    unreadableShown.length === 1
       ? 'One value cannot be read. Fix the highlighted field to save.'
-      : `${unreadable.length} values cannot be read. Fix the highlighted fields to save.`;
-  for (const item of unreadable) {
+      : `${unreadableShown.length} values cannot be read. Fix the highlighted fields to save.`;
+  for (const item of unreadableShown) {
     findings.push({
       severity: 'BLOCK',
       kind: 'UNREADABLE_VALUE',
@@ -1082,6 +1472,53 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     });
   }
 
+  // After the blank boxes, and in the same shape as their sentence: the two are
+  // one family — work nobody has done — and a blank box is the one the eye goes
+  // to first, so it gets to speak first when a day has both.
+  //
+  // The `message` is kept to the one quiet line the sheet prints under the box,
+  // because on a freshly opened day it is printed ten times. The route out for
+  // a pump that really did not run is said once, here, in the sentence beside
+  // the disabled button.
+  //
+  // Named row by row up to three of them, and counted after that — which is the
+  // one place this sentence parts company with the blank-figure one above it.
+  // That one names them all because a day with blanks on it is an exception. A
+  // day where everything is still carried is not an exception: it is how every
+  // morning starts, so the sentence an operator reads every day of their life
+  // must not be "Nozzle 2, nozzle 4, nozzle 5, nozzle 1, nozzle 3, nozzle 6,
+  // tank 3 and tank 1 still hold figures carried from 30 Aug". The naming earns
+  // its place at the other end, where one or two boxes are left and the
+  // operator has to be told which.
+  const carriedLabels = uniqueInOrder(carriedUntouched.map((c) => c.label));
+  const carriedCount = carriedUntouched.length;
+  const carriedReason = `${
+    carriedLabels.length <= 3
+      ? // The verb agrees with the rows named and the noun with the boxes
+        // counted, because one tank can be owed two of them: "Tank 1 still
+        // holds figures", never "holds a figure" over two boxes.
+        `${sentenceStart(joinList(carriedLabels))} still ${
+          carriedLabels.length === 1 ? 'holds' : 'hold'
+        } ${carriedCount === 1 ? 'a figure' : 'figures'} carried from ${carriedFrom}`
+      : `${carriedCount} figures on this day are still ${carriedFrom}’s`
+  }. Type this morning’s ${carriedCount === 1 ? 'figure over it' : 'figures over them'}.${
+    carriedUntouched.some((c) => c.code === 'TOT')
+      ? ' If a pump did not run at all, say so on its row menu.'
+      : ''
+  }`;
+  for (const item of carriedUntouched) {
+    findings.push({
+      severity: 'BLOCK',
+      kind: 'CARRIED_UNTOUCHED',
+      code: item.code,
+      identity: item.identity,
+      field: item.field,
+      rowIndex: item.rowIndex,
+      message: item.message,
+      blockReason: carriedReason,
+    });
+  }
+
   // Said whether or not the row is complete, and only ever a WARN. A complete
   // row for a nozzle the layout does not name is not wrong — the layout may
   // simply be behind the forecourt — but its figures reach no report, and an
@@ -1120,6 +1557,20 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
       message: `${item.product.labelEn} sold ${grouped(item.sold)} L but tank ${
         item.identity
       } still shows ${previousLabel}’s stock of ${grouped(item.stock)} L.`,
+    });
+  }
+
+  for (const item of stockDipUnchanged) {
+    findings.push({
+      severity: 'WARN',
+      kind: 'STOCK_DIP_UNCHANGED',
+      code: 'STK',
+      identity: item.identity,
+      field: 'PRODUCT_DIP',
+      rowIndex: item.rowIndex,
+      message: `Tank ${item.identity}’s product dip is still ${previousLabel}’s ${grouped(
+        item.dip,
+      )}. The report prints it beside this morning’s stock as the dealer’s own witness to it, so check the tank was dipped today.`,
     });
   }
 
@@ -1251,6 +1702,12 @@ export function irasFiguresOverwritten(
  * counting one into `needed` would tell an operator their finished day was one
  * figure short.
  *
+ * A figure the system carried in is not one somebody typed, and this is where
+ * that matters most: the day is laid out with the previous day's figures
+ * already in the boxes, so counting a full box would announce a morning nobody
+ * had started as finished. See {@link irasCarriedUntouched}, which is the same
+ * test the block runs on.
+ *
  * But a tanker is still somebody's typing, and both guards over a half-typed
  * shift used to read `entered` alone. Type the litres of a delivery before any
  * meter reading, then close the tab or press reset, and the count was zero: no
@@ -1263,17 +1720,17 @@ export function irasDayProgress(
   plan: IrasDayPlan,
   rows: ReadonlyArray<IrasDayRowInForce>,
 ): { entered: number; needed: number; tankersTyped: number; anythingTyped: boolean } {
-  const totByNozzle = new Map<string, IrasRow>();
-  const stkByTank = new Map<string, IrasRow>();
+  const totByNozzle = new Map<string, IrasDayRowInForce>();
+  const stkByTank = new Map<string, IrasDayRowInForce>();
   let tankersTyped = 0;
   for (const entry of rows ?? []) {
     const row = entry?.row ?? {};
     if (entry?.code === 'TOT') {
       const identity = irasRowIdentity(row.NOZZLE_NO);
-      if (identity && !totByNozzle.has(identity)) totByNozzle.set(identity, row);
+      if (identity && !totByNozzle.has(identity)) totByNozzle.set(identity, entry);
     } else if (entry?.code === 'STK') {
       const identity = irasRowIdentity(row.TANK_NO);
-      if (identity && !stkByTank.has(identity)) stkByTank.set(identity, row);
+      if (identity && !stkByTank.has(identity)) stkByTank.set(identity, entry);
     } else if (entry?.code === 'REC' && TANKER_FIGURES.some((field) => trimmed(row[field]))) {
       tankersTyped += 1;
     }
@@ -1282,9 +1739,19 @@ export function irasDayProgress(
   const needed = plan?.figuresNeeded ?? [];
   let entered = 0;
   for (const figure of needed) {
-    const row =
+    const entry =
       figure.code === 'TOT' ? totByNozzle.get(figure.identity) : stkByTank.get(figure.identity);
-    if (row && trimmed(row[figure.field])) entered += 1;
+    if (!entry || !trimmed(entry.row?.[figure.field])) continue;
+    // A box is not typed just because it has something in it. Since the day is
+    // laid out with the previous day's figures already in place, counting a
+    // full box would report a freshly opened morning as "All 10 figures typed"
+    // with nobody having touched it — and both guards over a half-typed shift,
+    // the browser's unsaved-work prompt and the reset button's confirm, read
+    // `anythingTyped` off this count. Asked through the very function the block
+    // is raised on, so the readout and the block cannot disagree about whether
+    // a figure is a person's.
+    if (irasCarriedUntouched(entry, figure.field, figure.previous)) continue;
+    entered += 1;
   }
   return {
     entered,
@@ -1557,21 +2024,23 @@ function sameStoredValue(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Whether the meter reading on this row is one the change set in hand puts
- * there.
+ * Whether ONE figure on this row is one the change set in hand puts there.
  *
  * True when the caller said nothing about what the server holds (`undefined`),
  * so a caller that does not supply it reads exactly as this module read before
  * the field existed; true when the change set is adding the row (`null`); and
- * true when the reading itself differs from the one on record.
+ * true when the figure itself differs from the one on record.
  *
- * The reading and no other column, which is the whole reason `onRecord` is a row
- * rather than a flag: correcting the tank a nozzle draws from does not re-open
- * the question of whether that nozzle ran.
+ * One named field and no other column, which is the whole reason `onRecord` is a
+ * row rather than a flag: correcting the tank a nozzle draws from does not
+ * re-open the question of whether that nozzle ran.
  */
-function readingIsFreshWork(entry: { row: IrasRow; onRecord?: IrasRow | null }): boolean {
+function figureIsFreshWork(
+  entry: { row?: IrasRow; onRecord?: IrasRow | null },
+  field: string,
+): boolean {
   if (!entry.onRecord) return true;
-  return !sameStoredValue(entry.row?.TOT_READING, entry.onRecord.TOT_READING);
+  return !sameStoredValue(entry.row?.[field], entry.onRecord[field]);
 }
 
 function trimmed(value: unknown): string {
