@@ -417,6 +417,18 @@ export interface IrasDayEditorView {
    * so a present row carrying a stale but plausible figure passes everything.
    */
   previousStkRows: Record<string, { productDip: string; waterDip: string; netQty: string }>;
+  /**
+   * Whether reading a slip is switched on and usable for this day.
+   *
+   * The screen has to be told, rather than assuming: the feature is off by
+   * default and it also needs a configured second reader, so a panel drawn on
+   * the strength of the day being hand-typed offers a camera that cannot work.
+   * Worse than useless — the photograph is compressed and uploaded before the
+   * refusal comes back, so an operator watches a 4 MB upload finish over a
+   * forecourt connection and only then reads that the feature is off, every
+   * morning, leaving an object behind each time.
+   */
+  slipRead: boolean;
   dsr: {
     attached: boolean;
     /** Why receipts cannot be attributed to a product, rendered inline and calmly. */

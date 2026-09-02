@@ -15,3 +15,4 @@ export * from './bankHoliday';
 export * from './festival';
 export * from './assist';
 export * from './ttDensity';
+export * from './slip';

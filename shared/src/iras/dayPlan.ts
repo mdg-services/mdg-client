@@ -560,6 +560,105 @@ export interface IrasDayRowInForce {
    * it read before the pre-fill existed.
    */
   carried?: readonly string[];
+  /**
+   * The boxes on this row whose figure was READ OFF THE OUTLET'S SLIP and
+   * accepted by a named person, rather than typed digit by digit — each one
+   * holding THE FIGURE THE SLIP SUPPLIED, so the claim can be checked rather
+   * than believed.
+   *
+   * A third answer to the question the other two fields already ask about a box
+   * — who put this figure here — and it exists because the first two could only
+   * say "the system carried it in" or "somebody typed it", and a slip figure is
+   * neither. Counting one as typed would put a sentence on screen that is not
+   * true: "All 10 figures typed" on a morning where six of them came off a
+   * photograph. That is the whole reason this field exists. It is honesty, and
+   * it is not a block.
+   *
+   * The value is carried WITH the mark for the same reason `carried` is checked
+   * against the previous day's figure rather than trusted: a mark that cannot
+   * falsify itself is a mark that goes on claiming after it has stopped being
+   * true. A bare list of field names survived the operator retyping the box —
+   * on the Full grid, on a second screen, anywhere the one surface that strikes
+   * the list is not the surface taking the keystroke — and the readout and the
+   * audit reason then said the slip supplied a figure the operator had overruled.
+   * With the figure here, {@link irasFigureReadOffSlip} answers the question by
+   * comparing, every rule agrees no matter which surface did the typing, and no
+   * second place to strike the mark is ever needed.
+   *
+   * It does NOT block the save, and that is a decision rather than an omission.
+   * The figure was accepted by a named admin on a screen showing the slip, the
+   * transcript and the arithmetic; a second confirmation on the sheet, where
+   * none of that is visible, would teach an operator to dismiss blocks — and
+   * `CARRIED_UNTOUCHED` and `METER_UNCHANGED` are only worth anything for as
+   * long as a block still means something.
+   *
+   * ONLY `TOT_READING` on a `TOT` row can ever be in this list. The slip has no
+   * tanks and no tankers on it, so that is the entire blast radius on the sheet.
+   *
+   * Optional and default-off, like `carried` beside it, and for a harder reason:
+   * the eight dealers whose figures the portal collects must read EXACTLY as
+   * they read today. A caller that passes no map — the backend's after-save
+   * pass, every portal day, every existing test — gets the count, the sentence
+   * and every finding it got before this field existed.
+   */
+  read?: Readonly<Record<string, IrasFigureReadOffSlip>>;
+}
+
+/**
+ * How one figure read off the slip earned its place in the box.
+ *
+ * `PROVED` — the rupee counter printed on the same block turned the money into
+ * the same litres the meter says, so the dealer's own paper proved the reading
+ * before anybody pressed anything. `CHECKED` — nothing on the slip could prove
+ * it, so a named person read it against the paper and accepted it on its own
+ * card. Both were read off the slip; only one of them was checked by arithmetic,
+ * and the save note says which.
+ */
+export type IrasReadKind = 'PROVED' | 'CHECKED';
+
+/** One box a slip filled: the figure it supplied, and how that figure was earned. */
+export interface IrasFigureReadOffSlip {
+  /**
+   * The digits the slip supplied, exactly as they were written into the box.
+   *
+   * This is what makes the mark checkable. The box holding something else means
+   * somebody typed over it, whoever they are and whichever screen they did it
+   * on, and the mark is then simply not true any more.
+   */
+  value: string;
+  /** Whether the slip's own money proved it, or a person checked it by eye. */
+  kind?: IrasReadKind;
+}
+
+/**
+ * Whether one box is still holding the figure the SLIP put in it.
+ *
+ * The one implementation of "this figure came off the outlet's slip", asked the
+ * same way {@link irasCarriedUntouched} asks its own question: by comparing, not
+ * by trusting a list. Three rules read this — the count in
+ * {@link irasDayProgress}, the carried block, and which sentence
+ * `METER_UNCHANGED` prints — and a second hand-written copy of the test is how a
+ * screen comes to tint a box as read while the audit reason calls it typed.
+ *
+ * Two things have to hold:
+ *
+ *   - the row lists this field as filled from the slip, with the figure the slip
+ *     supplied. Only the surface that accepted the reading can say that;
+ *   - the box still reads exactly that figure. A box holding anything else —
+ *     retyped, corrected, cleared — is a person's work, and it says so here even
+ *     if nobody remembered to strike the mark. That is the point: the honest
+ *     answer must not depend on which screen took the keystroke.
+ */
+export function irasFigureReadOffSlip(
+  entry: Pick<IrasDayRowInForce, 'row' | 'read'> | undefined,
+  field: string,
+): boolean {
+  if (!entry || !field) return false;
+  const mark = entry.read?.[field];
+  if (!mark || typeof mark !== 'object') return false;
+  const fromTheSlip = trimmed(mark.value);
+  if (!fromTheSlip) return false;
+  return sameStoredValue(entry.row?.[field], fromTheSlip);
 }
 
 /**
@@ -591,11 +690,17 @@ export interface IrasDayRowInForce {
  * it.
  */
 export function irasCarriedUntouched(
-  entry: Pick<IrasDayRowInForce, 'row' | 'onRecord' | 'carried'> | undefined,
+  entry: Pick<IrasDayRowInForce, 'row' | 'onRecord' | 'carried' | 'read'> | undefined,
   field: string,
   previousValue: unknown,
 ): boolean {
   if (!entry || !field) return false;
+  // A figure read off the slip is not one the system carried in: a named person
+  // accepted it against the paper. Asked through the one function that answers
+  // it, so a box the operator has since typed over stops counting as read here
+  // at the same instant it stops counting as read everywhere else — and then
+  // falls through to the ordinary rules below, which is right.
+  if (irasFigureReadOffSlip(entry, field)) return false;
   if (!(entry.carried ?? []).includes(field)) return false;
   const carriedIn = trimmed(previousValue);
   if (!carriedIn) return false;
@@ -826,6 +931,12 @@ export interface IrasDayFindingsInput {
    * Each row may also carry `carried` — the boxes the plan pre-filled that
    * nobody has touched yet. Left off, nothing is carried and no
    * `CARRIED_UNTOUCHED` is raised.
+   *
+   * And it may carry `read` — the boxes filled from the outlet's own slip. That
+   * one changes no verdict anywhere: it only chooses which wording
+   * `METER_UNCHANGED` uses, because a reading that came off a photograph sends
+   * the operator back to the photograph rather than to the register. Left off,
+   * every finding is worded exactly as it was before slips existed.
    */
   rows: ReadonlyArray<IrasDayRowInForce>;
   previousTot: Record<string, string>;
@@ -885,6 +996,7 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     rowIndex: number;
     onRecord?: IrasRow | null;
     carried?: readonly string[];
+    read?: Readonly<Record<string, IrasFigureReadOffSlip>>;
   };
   const totByNozzle = new Map<string, FoundRow[]>();
   const stkByTank = new Map<string, FoundRow[]>();
@@ -899,6 +1011,7 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
       rowIndex,
       onRecord: entry?.onRecord,
       carried: entry?.carried,
+      read: entry?.read,
     };
     if (entry?.code === 'TOT') indexRow(totByNozzle, irasRowIdentity(row.NOZZLE_NO), found);
     else if (entry?.code === 'STK') indexRow(stkByTank, irasRowIdentity(row.TANK_NO), found);
@@ -989,7 +1102,13 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     litres: number;
     rowIndex: number;
   }> = [];
-  const unchanged: Array<{ identity: string; previous: number; rowIndex: number }> = [];
+  const unchanged: Array<{
+    identity: string;
+    previous: number;
+    rowIndex: number;
+    /** True when this reading came off the outlet's slip rather than a keyboard. */
+    fromSlip: boolean;
+  }> = [];
   /** Boxes still holding the figure the plan carried into them. */
   const carriedUntouched: Array<{
     code: IrasPlannedRowCode;
@@ -1103,7 +1222,19 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
      * on saying exactly what it said before this scoping existed.
      */
     if (figureIsFreshWork(found, 'TOT_READING')) {
-      unchanged.push({ identity, previous, rowIndex: found.rowIndex });
+      unchanged.push({
+        identity,
+        previous,
+        rowIndex: found.rowIndex,
+        // Gated on the row's own read map, so this wording is unreachable on a
+        // portal day and unreachable from the backend's after-save pass —
+        // neither of those callers passes one. It is also unreachable once the
+        // operator has typed over the box: sending them back to a photograph
+        // for a figure they typed themselves would be the same lie the count
+        // used to tell. A day where NO reading moved is caught a step earlier,
+        // in the review, before anything is filled in.
+        fromSlip: irasFigureReadOffSlip(found, 'TOT_READING'),
+      });
     }
   }
 
@@ -1445,7 +1576,13 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
       identity: item.identity,
       field: 'TOT_READING',
       rowIndex: item.rowIndex,
-      message: `Same as yesterday. This reports zero litres sold on nozzle ${item.identity}, and it also drops that nozzle’s 5 litre test draw. If the pump really did not run, say so on the row menu.`,
+      // The same block, said two ways, because the operator's next move is not
+      // the same. A figure they typed sends them back to the register; a figure
+      // read off the slip sends them back to the slip, and the first thing to
+      // check there is whether it is this morning's paper at all.
+      message: item.fromSlip
+        ? `Same as yesterday. This reading came off the slip and it matches ${carriedFrom}’s, so it reports zero litres sold on nozzle ${item.identity} and drops that nozzle’s 5 litre test draw. Check the slip is this morning’s. If the pump really did not run, say so on the row menu.`
+        : `Same as yesterday. This reports zero litres sold on nozzle ${item.identity}, and it also drops that nozzle’s 5 litre test draw. If the pump really did not run, say so on the row menu.`,
       blockReason: `Nozzle ${item.identity} reads exactly the same as yesterday. Either correct it, or choose 'This pump did not run today' on that row.`,
     });
   }
@@ -1715,11 +1852,30 @@ export function irasFiguresOverwritten(
  * guards are really asking — has a person put a figure into this day — and it is
  * answered here so the unload guard and the reset button cannot answer it
  * differently.
+ *
+ * `read` is the third count, and it is here for honesty rather than for
+ * arithmetic. A figure read off the outlet's slip and accepted by a named person
+ * is a figure the day HAS — it is work in progress, it survives a reset prompt,
+ * and it counts towards a complete day — but it is not a figure somebody typed,
+ * and a readout that called it one would say "All 10 figures typed" on a morning
+ * where six of them came off a photograph. It is counted separately and named
+ * separately, everywhere it is shown.
+ *
+ * On a day whose rows carry no read list — every portal dealer, the backend's
+ * after-save pass, and every caller that existed before the slip did — `read` is
+ * 0 and `entered`, `needed`, `tankersTyped` and `anythingTyped` are exactly the
+ * numbers this function returned before it could count one.
  */
 export function irasDayProgress(
   plan: IrasDayPlan,
   rows: ReadonlyArray<IrasDayRowInForce>,
-): { entered: number; needed: number; tankersTyped: number; anythingTyped: boolean } {
+): {
+  entered: number;
+  read: number;
+  needed: number;
+  tankersTyped: number;
+  anythingTyped: boolean;
+} {
   const totByNozzle = new Map<string, IrasDayRowInForce>();
   const stkByTank = new Map<string, IrasDayRowInForce>();
   let tankersTyped = 0;
@@ -1738,10 +1894,19 @@ export function irasDayProgress(
 
   const needed = plan?.figuresNeeded ?? [];
   let entered = 0;
+  let read = 0;
   for (const figure of needed) {
     const entry =
       figure.code === 'TOT' ? totByNozzle.get(figure.identity) : stkByTank.get(figure.identity);
     if (!entry || !trimmed(entry.row?.[figure.field])) continue;
+    // Asked before the carried test rather than after it, so a box can only ever
+    // be counted once. A slip figure that happens to equal the previous day's is
+    // still a slip figure — it is blocked by METER_UNCHANGED, which is a
+    // different question and has its own sentence.
+    if (irasFigureReadOffSlip(entry, figure.field)) {
+      read += 1;
+      continue;
+    }
     // A box is not typed just because it has something in it. Since the day is
     // laid out with the previous day's figures already in place, counting a
     // full box would report a freshly opened morning as "All 10 figures typed"
@@ -1755,9 +1920,10 @@ export function irasDayProgress(
   }
   return {
     entered,
+    read,
     needed: needed.length,
     tankersTyped,
-    anythingTyped: entered > 0 || tankersTyped > 0,
+    anythingTyped: entered > 0 || read > 0 || tankersTyped > 0,
   };
 }
 
@@ -1779,8 +1945,20 @@ export function irasDayProgress(
  *
  * `entered` is `irasDayProgress(...).entered`; passing it in rather than
  * recomputing it keeps one count of a typed figure.
+ *
+ * `read` is that same call's `read` — the figures a named person accepted off
+ * the outlet's slip — and it is named in its own words rather than folded into
+ * the typed count:
+ *   partly    "4 of 10 figures typed. 6 more read off the slip."
+ *   all in    "All 10 figures in — 4 typed, 6 read off the slip."
+ *
+ * The day is complete when `entered + read` covers what it needs, and on such a
+ * morning this sentence must never say "All 10 figures typed" — six of them were
+ * not. It defaults to 0, so a caller that has no slip on this day (every portal
+ * dealer, and every caller that existed before the slip did) gets the three
+ * sentences above, word for word.
  */
-export function irasDayFiguresSentence(plan: IrasDayPlan, entered: number): string {
+export function irasDayFiguresSentence(plan: IrasDayPlan, entered: number, read = 0): string {
   const needed = plan?.figuresNeeded ?? [];
   const total = needed.length;
   if (total === 0) {
@@ -1788,10 +1966,29 @@ export function irasDayFiguresSentence(plan: IrasDayPlan, entered: number): stri
   }
 
   const typed = Math.max(0, Math.min(Number.isFinite(entered) ? Math.trunc(entered) : 0, total));
-  if (typed >= total) {
-    return total === 1 ? 'The one figure this day needs is typed.' : `All ${total} figures typed.`;
+  const offTheSlip = Math.max(
+    0,
+    Math.min(Number.isFinite(read) ? Math.trunc(read) : 0, total - typed),
+  );
+  if (typed + offTheSlip >= total) {
+    if (offTheSlip === 0) {
+      return total === 1
+        ? 'The one figure this day needs is typed.'
+        : `All ${total} figures typed.`;
+    }
+    if (typed === 0) {
+      return total === 1
+        ? 'The one figure this day needs is read off the slip.'
+        : `All ${total} figures in, read off the slip.`;
+    }
+    return `All ${total} figures in — ${typed} typed, ${offTheSlip} read off the slip.`;
   }
-  if (typed > 0) return `${typed} of ${total} figures typed.`;
+  if (typed > 0) {
+    return offTheSlip > 0
+      ? `${typed} of ${total} figures typed. ${offTheSlip} more read off the slip.`
+      : `${typed} of ${total} figures typed.`;
+  }
+  if (offTheSlip > 0) return `${offTheSlip} of ${total} figures read off the slip.`;
 
   const readings = needed.filter((f) => f.code === 'TOT').length;
   // Tanks, not stock figures: a tank is asked for two figures and the operator

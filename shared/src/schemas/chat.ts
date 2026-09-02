@@ -68,11 +68,11 @@ export const presignUploadSchema = z.object({
     .int()
     .positive()
     .max(25 * 1024 * 1024),
-  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach']).default('chat'),
+  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip']).default('chat'),
   conversationId: z.string().optional(),
   /**
-   * Required for the `staff`, `tt-density` and `kavach` scopes: the dealer the
-   * photo belongs to.
+   * Required for the `staff`, `tt-density`, `kavach` and `slip` scopes: the
+   * dealer the photo belongs to.
    */
   dealerId: z.string().optional(),
 });
@@ -82,6 +82,15 @@ export const presignUploadSchema = z.object({
  * `PresignUploadInput` rather than re-spelling the list: a route that keeps its
  * own copy type-checks against scopes the validator rejects, and the mismatch
  * surfaces only as a 400 at the moment a user tries to attach a photo.
+ *
+ * And a scope added here is only half the job. The route's scope switch ends in
+ * a CATCH-ALL `else`, not an `avatar` branch, so a scope named here with no
+ * branch of its own is not rejected — it is silently written under `avatars/`,
+ * which is the one prefix the download route will sign for any signed-in
+ * account with no ownership check at all. A dealer's forecourt slip filed there
+ * would be readable by staff at a different outlet. Add the enum member, the key
+ * builder and the route branch — ahead of that `else` — in one change, or add
+ * none of them.
  */
 export type PresignUploadInput = z.infer<typeof presignUploadSchema>;
 
