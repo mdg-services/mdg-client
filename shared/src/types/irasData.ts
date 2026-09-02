@@ -529,3 +529,153 @@ export interface IrasDataVaultDealerRow {
   /** Latest snapshot for the requested business date, if any. */
   latest?: IrasDataSnapshotSummary | null;
 }
+
+/* ──────────────────────────── the day's state ────────────────────────────
+ *
+ * A capture list built from snapshots can only ever show the days a capture
+ * happened, and that is the wrong shape for the question an admin actually
+ * asks: "is this dealer's data all there?" The days that matter most are the
+ * ones with NO snapshot, and those have nothing to list. So the calendar is the
+ * spine — every date in the window gets a row — and the snapshot, when there is
+ * one, hangs off it.
+ */
+
+/**
+ * What state one dealer-day is in, worst first.
+ *
+ * One value, decided server-side, so the Vault, the day editor and anything
+ * later all say the same thing about the same day. Deriving it per screen is
+ * how two surfaces end up disagreeing about whether a day is fine.
+ *
+ * `MISSING`     — no snapshot at all. Nothing was collected and nothing typed.
+ * `FAILED`      — the collection failed and left no usable figures.
+ * `PARTIAL`     — some of the day's reports arrived and some did not.
+ * `MISMATCH`    — the figures are all there and they do not add up: the tanks
+ *                 moved by more than the nozzles sold and the day's tankers
+ *                 explain, by more than the permissible band. Nobody has
+ *                 accounted for it.
+ * `MISMATCH_OK` — the same gap, accepted by a named admin with a reason.
+ * `OPEN`        — the figures are there but the day is not closed yet, so
+ *                 whether it adds up is not yet knowable. Today is always this.
+ * `OK`          — the figures are there and the day adds up.
+ */
+export const IRAS_DAY_STATES = [
+  'MISSING',
+  'FAILED',
+  'PARTIAL',
+  'MISMATCH',
+  'MISMATCH_OK',
+  'OPEN',
+  'OK',
+] as const;
+export type IrasDayState = (typeof IRAS_DAY_STATES)[number];
+
+/**
+ * The floor under which a gap between the book and the dips is not worth
+ * naming, in litres.
+ *
+ * The median unexplained figure across 101 closed dealer-days is 28 L — the
+ * ordinary noise of dipping a tank and reading a meter. Calling that a problem
+ * every morning is how an operator learns to stop reading the line. The
+ * effective threshold is this OR the day's own permissible band, whichever is
+ * larger, so the list is never louder than the engine that judges the dealer.
+ */
+export const IRAS_RECONCILE_MIN_LITRES = 1_000;
+
+/** One grade's reconciliation on one day. */
+export interface IrasDayGradeGap {
+  productKey: string;
+  productLabel: string;
+  /**
+   * Litres the tanks hold that the day's sales and receipts do not explain.
+   * Positive is OVER (more fuel than accounted for), negative is SHORT.
+   */
+  unexplainedLitres: number;
+  /** What this grade's gap had to exceed to count; see {@link IRAS_RECONCILE_MIN_LITRES}. */
+  threshold: number;
+  /** `|unexplainedLitres| > threshold` — this is the one that makes a day a MISMATCH. */
+  loud: boolean;
+}
+
+/**
+ * A named admin's statement that a day's gap is accounted for.
+ *
+ * Kept beside the day rather than on the snapshot, for the same reason
+ * corrections are: `saveSnapshot` replaces a day's datasets wholesale, so
+ * anything written into the snapshot is destroyed the next time that day is
+ * collected — and a verification silently vanishing is worse than one that was
+ * never made.
+ */
+export interface IrasDayVerification {
+  by: string;
+  byName?: string | null;
+  at: string;
+  /** Why the gap is acceptable. Required — a verification with no reason is a click. */
+  note: string;
+  /**
+   * The gap each grade had when it was accepted.
+   *
+   * This is what makes the acceptance mean something. Without it a day verified
+   * at 1,200 L over would still read "checked" after a correction moved it to
+   * 40,000 L over — the admin would have vouched for a figure they never saw.
+   * When the figures move, {@link stale} goes true and the day is a MISMATCH
+   * again until somebody looks at the new number.
+   */
+  acceptedGaps: Array<{ productKey: string; unexplainedLitres: number }>;
+  /** The day's figures have moved since it was accepted; the acceptance no longer covers them. */
+  stale: boolean;
+}
+
+/** One calendar day on a dealer's capture history. */
+export interface IrasDayStateRow {
+  /** IST calendar date, `YYYY-MM-DD`. Always present — this is the spine. */
+  businessDate: string;
+  state: IrasDayState;
+  /** The snapshot for this day, when one exists. `null` on a `MISSING` day. */
+  snapshotId?: string | null;
+  /** Who put the figures there; see {@link IRAS_SNAPSHOT_SOURCES}. */
+  source?: IrasSnapshotSource;
+  status?: IrasSnapshotStatus;
+  selectedShiftTime?: string | null;
+  capturedAt?: string | null;
+  /**
+   * How many figure rows this day actually holds, corrections included.
+   *
+   * NOT {@link IrasDataSnapshotSummary.rowCounts}, which counts the portal's own
+   * rows and therefore reports zero for every hand-typed day. A list that prints
+   * that number tells an admin their fully entered day is empty.
+   */
+  rowCount: number;
+  /** How many hand corrections stand on this day. */
+  correctionCount: number;
+  /**
+   * The day holds good figures but its most recent collection attempt failed.
+   *
+   * A retry never deletes data already collected, so the day keeps its state and
+   * carries this instead — otherwise a failed retry on a healthy day would read
+   * as the day itself having failed.
+   */
+  retryFailed: boolean;
+  failureReason?: string | null;
+  /**
+   * Per-grade reconciliation, or `null` when the day is not closed yet and the
+   * question cannot be answered. Never `[]` for "we did not check" — an empty
+   * list would read as "checked, nothing wrong".
+   */
+  gaps: IrasDayGradeGap[] | null;
+  verification?: IrasDayVerification | null;
+}
+
+/** `GET /iras-data/dealers/:dealerId/day-states` — the calendar, newest first. */
+export interface IrasDayStatesPage {
+  dealerId: string;
+  from: string;
+  to: string;
+  days: IrasDayStateRow[];
+}
+
+/** `PUT …/days/:businessDate/verification` — accept the day's gap. */
+export interface IrasDayVerifyInput {
+  /** Why the gap is accounted for. Trimmed; must not be empty. */
+  note: string;
+}

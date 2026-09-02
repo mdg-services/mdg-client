@@ -20,6 +20,7 @@ export * from './iras/corrections';
 export * from './iras/dayPlan';
 export * from './iras/slip';
 export * from './iras/decant';
+export * from './iras/dayState';
 export * from './dealer/code';
 export * from './tt/materials';
 export * as schemas from './schemas';

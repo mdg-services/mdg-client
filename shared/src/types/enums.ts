@@ -125,6 +125,12 @@ export const AUDIT_ACTIONS = [
   // per commit, not per cell, so the log reads as a list of decisions.
   'IRAS_DATA_EDIT',
   'IRAS_DATA_REVERT',
+  // IRAS shift data — a named admin accepting a day whose figures do not add
+  // up, and withdrawing that acceptance. The entry carries the litre figures
+  // signed for, because the verification row itself holds only the current
+  // answer and a superseded signature is exactly what an auditor asks about.
+  'IRAS_DAY_VERIFY',
+  'IRAS_DAY_UNVERIFY',
   // File egress + staff draft
   'ATTACHMENT_DOWNLOAD',
   'STAFF_DRAFT_CLEAR',
