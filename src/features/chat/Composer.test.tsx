@@ -222,3 +222,86 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     expect(await screen.findByText(/in your phone Settings/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The one-tap questions above the composer.
+ *
+ * They exist for one reason: "आज की रिपोर्ट?" is nine taps on a Devanagari phone
+ * keyboard and one tap here. The dangerous part is the mechanism — the seed sets
+ * the textarea's value, it does not append to it — so a chip that stayed on
+ * screen beside a half-typed sentence would be a one-tap way to lose it. They
+ * must be gone before the first character lands.
+ */
+describe('Composer quick-reply chips', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+  });
+
+  const CHIPS = ["Today's report?", "Sent today's photo?", 'Talk to support'];
+
+  it('offers the three questions while the box is empty', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    for (const label of CHIPS) {
+      expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it('fills the box and does NOT send', () => {
+    const onSend = vi.fn();
+    renderWithProviders(<Composer onSend={onSend} showQuickReplies />);
+    fireEvent.click(screen.getByRole('button', { name: "Today's report?" }));
+
+    const box = screen.getByPlaceholderText('Type your message…') as HTMLTextAreaElement;
+    expect(box.value).toBe("Today's report?");
+    // The dealer still reads it, still edits it, still presses Send.
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+  });
+
+  it('disappears the moment anything is typed, so a chip can never wipe it', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    const box = screen.getByPlaceholderText('Type your message…');
+    fireEvent.change(box, { target: { value: 'p' } });
+
+    for (const label of CHIPS) {
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+    }
+  });
+
+  it('stays gone while a half-typed message sits in the box', () => {
+    // The one that actually protects the dealer: a long sentence, mid-thought.
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    const box = screen.getByPlaceholderText('Type your message…');
+    fireEvent.change(box, {
+      target: { value: 'pump 2 ka nozzle band hai, kal se, aur' },
+    });
+    expect(screen.queryByRole('button', { name: 'Talk to support' })).toBeNull();
+    // Clearing it brings them back — the row is a state of the empty box, not a
+    // one-shot banner.
+    fireEvent.change(box, { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Talk to support' })).toBeInTheDocument();
+  });
+
+  it('hides them while replying to a message', () => {
+    // The reply strip owns that row, and a canned question is not a reply.
+    renderWithProviders(
+      <Composer
+        onSend={vi.fn()}
+        showQuickReplies
+        replyingTo={{ senderLabel: 'MDG Support', text: 'the answer', icon: null }}
+        onCancelReply={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: "Today's report?" })).toBeNull();
+  });
+
+  it('shows nothing at all when the caller has not asked for them', () => {
+    // An empty thread: `MessageList`'s empty state is already offering its own
+    // three chips, and six on one screen is no clear first move.
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    for (const label of CHIPS) {
+      expect(screen.queryByRole('button', { name: label })).toBeNull();
+    }
+  });
+});

@@ -432,14 +432,29 @@ export interface KavachScoreSnapshot {
    * Overall operational % (0–100), meaningful only when `scored`. Excludes SOS
    * items (admin availability gauge, MVP). Zero when unscored, so a consumer
    * that ignores `scored` understates rather than invents a perfect score.
+   *
+   * OPTIONAL BECAUSE IT IS NOW OMITTED, NOT ZEROED, WHEN A DEALER MAY NOT SEE IT.
+   * `GET /kavach/me` runs `kavachScoreIsPublishable` (see
+   * `kavach/dealerFacing.ts`) and drops this key entirely when the answer is no.
+   * Sending `0` instead would be no better than sending the real figure: "0%" is
+   * also a statement about the outlet, and also one MDG has not made. Absent is
+   * the only honest wire value for "we are not saying yet", and making the field
+   * optional is what forces every reader to notice that case exists — the same
+   * job `scored` does one line above.
    */
-  overallPct: number;
+  overallPct?: number;
   /** Per-bucket sub-scores (0–100); admin-only. */
   byBucket: Partial<Record<KavachCadenceBucket, number>>;
   /** Sum of points currently counting as compliant. */
   validPoints: number;
-  /** Sum of all non-paused, non-SOS item points (the live denominator). Never hardcoded. */
-  totalPoints: number;
+  /**
+   * Sum of all non-paused, non-SOS item points (the live denominator). Never
+   * hardcoded. Optional for the same reason as `overallPct`, and dropped by the
+   * same gate: it is the denominator OF that figure, so leaving it behind would
+   * publish "out of 3,740 points in all" underneath a percentage we declined to
+   * state.
+   */
+  totalPoints?: number;
   /**
    * How many tasks nobody has checked yet, and what they are worth. Carried
    * alongside the percentage rather than folded into it: once the number is
@@ -459,8 +474,12 @@ export interface KavachProgramme {
   status: KavachProgrammeStatus;
   outlet: KavachOutletMeta;
   score: KavachScoreSnapshot;
-  /** Mirrors score.totalPoints, surfaced for convenience. */
-  totalPoints: number;
+  /**
+   * Mirrors score.totalPoints, surfaced for convenience — and therefore dropped
+   * by the same dealer-facing gate. A mirror that survives the thing it mirrors
+   * is just the leak taking the back door.
+   */
+  totalPoints?: number;
   /**
    * Settling-in grace: until this instant, NO reminders or escalations fire and
    * the dealer never sees a failing score, so a freshly-initiated programme is

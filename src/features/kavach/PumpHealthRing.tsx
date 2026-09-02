@@ -47,16 +47,32 @@ function bandFor(pct: number, settling: boolean): Band {
  * "Pump health" — one friendly, coarse-banded dial. Color = state, never a
  * scary gradient meter. During settling-in it shows a calm "Getting started"
  * state and never a red fail (spec §4, uxDesign §1.3 / §1.8).
+ *
+ * WHILE SETTLING IT SHOWS NO FIGURE AT ALL, and that is a correction, not a
+ * refinement. The settling band used to change only the colour and the caption:
+ * the percentage was still printed in the middle and the arc was still drawn to
+ * its length, so a dealer whose programme was switched off, or still inside its
+ * grace period, read MDG's number off this ring in calm blue. The whole point of
+ * the settling state is that MDG has not made that statement yet, and an arc is
+ * as much a statement of it as the digits are.
  */
 export function PumpHealthRing({
   pct,
   settling = false,
 }: {
-  pct: number;
+  /**
+   * Optional because the server now OMITS the percentage rather than zeroing it
+   * when a dealer may not be shown it (`kavachScoreIsPublishable`). Absent and
+   * settling are treated identically here: no number, no arc.
+   */
+  pct?: number;
   settling?: boolean;
 }) {
   const t = useT();
-  const band = bandFor(pct, settling);
+  // Nothing is published while settling, and nothing can be published without a
+  // figure to publish.
+  const published = !settling && pct !== undefined;
+  const band = bandFor(pct ?? 0, settling);
   const style = BANDS[band];
 
   // 280° sweep so a low score still reads as a dial, not an empty circle.
@@ -65,9 +81,9 @@ export function PumpHealthRing({
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const sweep = 0.78; // 280/360
-  const shown = Math.max(0, Math.min(100, Math.round(pct)));
+  const shown = published ? Math.max(0, Math.min(100, Math.round(pct))) : 0;
   const arcLen = circ * sweep;
-  const dash = (shown / 100) * arcLen;
+  const dash = published ? (shown / 100) * arcLen : 0;
 
   // Animate the dash up smoothly when the score changes. The dealer no longer
   // causes that change — an admin or an automation does — so the movement is a
@@ -116,7 +132,7 @@ export function PumpHealthRing({
           <span
             className={cn('text-3xl font-semibold tracking-tight', style.text)}
           >
-            {shown}%
+            {published ? `${shown}%` : '\u2014'}
           </span>
         </div>
       </div>

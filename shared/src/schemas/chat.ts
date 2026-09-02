@@ -68,13 +68,22 @@ export const presignUploadSchema = z.object({
     .int()
     .positive()
     .max(25 * 1024 * 1024),
-  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip']).default('chat'),
+  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask']).default('chat'),
   conversationId: z.string().optional(),
   /**
-   * Required for the `staff`, `tt-density`, `kavach` and `slip` scopes: the
-   * dealer the photo belongs to.
+   * Required for the `staff`, `tt-density`, `kavach`, `slip` and `ask` scopes:
+   * the dealer the photo belongs to.
    */
   dealerId: z.string().optional(),
+  /**
+   * Required for the `ask` scope: the DocumentAsk this paper answers.
+   *
+   * An ask's object is filed under `ask/<dealerId>/<askId>/`, so the row has to
+   * exist before there is anywhere to put the file. That is why a dealer
+   * volunteering a document creates the ask first and uploads second —
+   * `volunteerDocumentAskSchema` deliberately carries no attachment.
+   */
+  askId: z.string().optional(),
 });
 /**
  * This union is the ONLY declaration of the upload scopes. `/uploads/sign`

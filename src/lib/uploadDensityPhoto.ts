@@ -1,31 +1,25 @@
 import type { TtRegisterPhotoInput } from '@dk/shared/schemas';
-import type { PresignUploadResponse } from '@dk/shared/types';
 
-import { api } from './api';
-import { compressImage } from './compressImage';
-import { resolveFileType } from './uploadAttachment';
+import { preparePhoto, presignAndPut } from './uploadCommon';
 
 /**
  * Send one photograph of the density-register page to the bucket, and describe
  * what was sent.
  *
  * This one photo is the dealer's entire job in this service, and it is taken on
- * a cheap Android phone, at a pump, on a link that is often 2G. Two things go
- * wrong there and both are dealt with before a byte leaves the phone:
+ * a cheap Android phone, at a pump, on a link that is often 2G. Both of the
+ * things that go wrong there — an Android WebView camera capture with an empty
+ * MIME and an empty name, and a 3–6 MB raw JPEG on a 2G link — are handled in
+ * `preparePhoto`; see `uploadCommon.ts` for what each one costs the dealer.
  *
- *  - A camera capture routed through the Android System WebView hands back a
- *    `File` whose `type` is the empty string. Left alone it presigns as
- *    `application/octet-stream`, and the server refuses it — the register page
- *    must be an image — so the dealer is told their photo is not a photo.
- *    `resolveFileType(file, { assumeImage: true })` recovers the real type.
- *  - A raw camera JPEG is 3–6 MB. `compressImage` (1600 px longest edge, JPEG
- *    q0.70, skipped under ~300 KB) turns that into a few hundred KB, which is
- *    the difference between a ten-second send and a minute the dealer abandons.
- *
- * It is `uploadStaffHardcopy` with a different scope, copied rather than
- * generalised on purpose: the two uploads presign against two different
- * server-side access rules, and one shared helper is how those rules end up one
- * careless refactor apart.
+ * This file used to say it was `uploadStaffHardcopy` copied on purpose, because
+ * "the two uploads presign against two different server-side access rules, and
+ * one shared helper is how those rules end up one careless refactor apart."
+ * The rules are still separate and still enforced on the server; what the two
+ * shared was never a rule, it was the byte-shovelling. `UploadTarget` keeps the
+ * scope AND the fields that scope requires here at the call site, so
+ * `tt-density` cannot be sent without this dealer's id and cannot be widened
+ * into anybody else's scope by a change made elsewhere.
  *
  * It returns the whole photo record and not just the key, because marking a day
  * needs `{ storageKey, filename, contentType, size }` — all four measured on the
@@ -36,41 +30,12 @@ export async function uploadDensityPhoto(
   file: File,
   dealerId: string,
 ): Promise<TtRegisterPhotoInput> {
-  const resolved = resolveFileType(file, { assumeImage: true });
-  let upload = file;
-  let contentType = resolved.contentType;
-
-  const compressed = await compressImage(file, { contentType });
-  if (compressed) {
-    upload = compressed;
-    contentType = compressed.type || contentType;
-  }
-
-  // Android camera captures sometimes hand back an empty File.name, and the
-  // presign requires one.
-  const filename = upload.name || 'register.jpg';
-
-  const presign = await api.post<PresignUploadResponse>('/v1/uploads/sign', {
-    filename,
-    contentType,
-    size: upload.size,
-    scope: 'tt-density',
-    dealerId,
-  });
-
-  const putRes = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: upload,
-  });
-  if (!putRes.ok) {
-    throw new Error(`Upload failed: ${putRes.status} ${putRes.statusText}`);
-  }
-
+  const photo = await preparePhoto(file, 'register.jpg');
+  const storageKey = await presignAndPut(photo, { scope: 'tt-density', dealerId });
   return {
-    storageKey: presign.storageKey,
-    filename,
-    contentType,
-    size: upload.size,
+    storageKey,
+    filename: photo.filename,
+    contentType: photo.contentType,
+    size: photo.size,
   };
 }

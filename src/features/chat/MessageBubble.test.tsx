@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLangStore } from '@/store/lang';
 import { makeMessage } from '@/test/utils';
-import type { MessageReaction } from '@dk/shared/types';
+import type { Attachment, MessageReaction } from '@dk/shared/types';
 
 import { MessageBubble } from './MessageBubble';
 
@@ -227,5 +227,219 @@ describe('MessageBubble sender names (group threads)', () => {
       />,
     );
     expect(screen.queryByText('Me Myself')).toBeNull();
+  });
+});
+
+describe('MessageBubble system notices', () => {
+  // Exactly the shape dsr-report/share.ts posts: a `system: true` message whose
+  // body ends "See the two images above", carrying the cards as attachments.
+  const card: Attachment = {
+    storageKey: 'dsr/15E/2026-08-13/variation.png',
+    filename: 'dsr-variation-2026-08-13.png',
+    contentType: 'image/png',
+    size: 48_000,
+    kind: 'image',
+    url: 'https://files.example.test/dsr-variation.png',
+  };
+
+  it('renders the card image AND the body (the body used to be all of it)', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          id: 'sys-1',
+          system: true,
+          body: 'See the two images above — Variation and Sales.',
+          attachments: [card],
+        })}
+        mine={false}
+        currentUserId="me"
+      />,
+    );
+    expect(screen.getByAltText(card.filename)).toHaveAttribute('src', card.url);
+    expect(
+      screen.getByText('See the two images above — Variation and Sales.'),
+    ).toBeInTheDocument();
+    // The chip is a rounded box, never a 9999px pill: a bilingual notice runs
+    // to a dozen lines and the pill radius cuts through its own text.
+    expect(container.querySelector('p.rounded-lg')).toBeTruthy();
+    expect(container.querySelector('p.rounded-full')).toBeFalsy();
+  });
+
+  it('opens the lightbox when the notice image is tapped', () => {
+    const onOpenImage = vi.fn();
+    render(
+      <MessageBubble
+        message={makeMessage({ id: 'sys-2', system: true, attachments: [card] })}
+        mine={false}
+        currentUserId="me"
+        onOpenImage={onOpenImage}
+      />,
+    );
+    fireEvent.click(screen.getByAltText(card.filename));
+    expect(onOpenImage).toHaveBeenCalledWith(card);
+  });
+
+  it('shows no reactions and no delivery ticks — a notice is not a message you reply to', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          id: 'sys-3',
+          senderId: 'me',
+          system: true,
+          body: 'a notice',
+          attachments: [card],
+          reactions: [reaction()],
+          deliveredTo: ['u2'],
+          readBy: ['u2'],
+        })}
+        mine
+        currentUserId="me"
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'Reactions' })).toBeNull();
+    expect(screen.queryByText('👍')).toBeNull();
+    expect(
+      container.querySelector('.lucide-clock, .lucide-check, .lucide-check-check'),
+    ).toBeFalsy();
+  });
+});
+
+/**
+ * The AI first line, from the dealer's side.
+ *
+ * Everything asserted here is progressive enhancement over one optional field.
+ * The backend can ship, and run a whole shadow week, before any dealer's app is
+ * updated — an app that has never heard of `ai` ignores the key and draws an
+ * ordinary Support bubble, which is correct and merely unlabelled. So the tests
+ * that matter most are the two negative ones: no field, no footnote, no button,
+ * and nothing else moved.
+ */
+describe('MessageBubble — a reply the first line wrote', () => {
+  /** Exactly the block run.ts attaches to an answer it posted. */
+  const aiAnswer = {
+    turnId: 'turn-1',
+    kind: 'answer' as const,
+    intent: 'dsr_status' as const,
+    templateId: 'dsr.shared',
+  };
+
+  interface AiBlock {
+    turnId: string;
+    kind: 'answer' | 'handoff' | 'reshare';
+    intent: string;
+    templateId: string;
+  }
+
+  /** An AI message is an ADMIN message: same sender role, same side, same colour. */
+  function aiMessage(ai: AiBlock = aiAnswer) {
+    return makeMessage({
+      id: 'ai-1',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      senderName: 'MDG',
+      body: 'Aaj ki DSR bhej di gayi hai.',
+      ai,
+    });
+  }
+
+  it('marks the reply as instant, and leaves the bubble itself alone', () => {
+    const { container } = render(
+      <MessageBubble message={aiMessage()} mine={false} currentUserId="me" />,
+    );
+    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    // Not a badge, not a colour change: the bubble is the same Support bubble a
+    // person's reply gets, because a dealer should not have to care which desk
+    // answered.
+    expect(container.querySelector('.bg-surface.text-text')).toBeTruthy();
+    expect(container.querySelector('.bg-brand')).toBeFalsy();
+  });
+
+  it('says nothing at all on an ordinary Support reply', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          id: 'human-1',
+          senderId: 'admin-7',
+          senderRole: 'admin',
+          body: 'Ji, dekh kar batata hoon.',
+        })}
+        mine={false}
+        currentUserId="me"
+      />,
+    );
+    expect(screen.queryByText('Instant reply')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
+  });
+
+  it('offers one tap to a person, and asks for nothing else', () => {
+    const onTalkToHuman = vi.fn();
+    render(
+      <MessageBubble
+        message={aiMessage()}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={onTalkToHuman}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Talk to a person' }));
+    expect(onTalkToHuman).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives that button a 44px thumb target', () => {
+    // jsdom has no layout, so the floor is asserted on the class that sets it.
+    // It is the escape hatch from an answer that got it wrong, pressed on a
+    // phone propped on a forecourt counter.
+    render(
+      <MessageBubble
+        message={aiMessage()}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole('button', { name: 'Talk to a person' });
+    expect(btn.getAttribute('class') ?? '').toContain('min-h-[44px]');
+  });
+
+  it('does NOT offer it under the handoff line — a person is already coming', () => {
+    // The handoff message says somebody will pick the thread up. A button asking
+    // for a person there is noise, and tapping it would start a second turn to
+    // reach a conclusion the thread had already reached.
+    render(
+      <MessageBubble
+        message={aiMessage({ ...aiAnswer, kind: 'handoff' })}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
+  });
+
+  it('labels a re-sent report too — it is still the machine that answered', () => {
+    render(
+      <MessageBubble
+        message={aiMessage({ ...aiAnswer, kind: 'reshare' })}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Talk to a person' })).toBeInTheDocument();
+  });
+
+  it('draws a message with no ai field exactly as it drew it yesterday', () => {
+    const before = render(
+      <MessageBubble
+        message={makeMessage({ id: 'plain', senderId: 'u1', body: 'kal ka DSR' })}
+        mine
+        currentUserId="u1"
+      />,
+    );
+    // No extra nodes, no extra buttons — the whole feature is invisible here.
+    expect(before.container.querySelectorAll('button').length).toBe(0);
+    expect(before.container.querySelector('.lucide-zap')).toBeFalsy();
   });
 });

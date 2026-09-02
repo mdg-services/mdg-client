@@ -4,6 +4,7 @@ import { NavLink, Outlet, useMatch } from 'react-router-dom';
 
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Avatar, Spinner } from '@/components/ui';
+import { AskBar } from '@/features/asks/AskBar';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
@@ -91,6 +92,32 @@ export function AppShell() {
             : 'flex-1 pb-20',
         )}
       >
+        {/* The one thing the dealer owes MDG, above the page rather than inside
+            it, and inside <main> so it picks up the same max-width column as
+            everything else. It draws nothing at all unless it is their turn.
+
+            It is mounted UNCONDITIONALLY, which matters: the bar also carries
+            the socket that tells this phone about a new ask and the loop that
+            sends a photograph waiting in the offline queue, and both have to
+            keep running on every screen. A component that returns null is still
+            mounted and its hooks still run, so the bar decides its own
+            visibility rather than being conditionally rendered here — the pin
+            it replaced was mounted with an `&&` and that is exactly the shape
+            that would switch the queue off.
+
+            `shrink-0` (declared on the bar's own root) is load-bearing: in a
+            conversation the frame is a fixed height (--vvh) and a flex child
+            that is allowed to shrink gets squeezed towards zero. This repo has
+            already shipped a sticky bar that crushed its neighbour to 0px and
+            broke its text one letter per line.
+
+            It does NOT hide while the keyboard is up, unlike the tab bar below.
+            The tab bar has to move because it is `fixed inset-x-0 bottom-0` and
+            would otherwise sit between the composer and the keyboard; a bar at
+            the TOP has no such conflict, and hiding it would reflow the message
+            list by 44px every time the dealer tapped the composer. */}
+        <AskBar />
+
         {/* The shell stays painted while the next page's chunk streams in. */}
         <React.Suspense
           fallback={

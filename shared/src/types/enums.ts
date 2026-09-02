@@ -153,6 +153,73 @@ export const AUDIT_ACTIONS = [
   'TT_INVOICE_PDF_VIEW',
   'TT_REGISTER_PHOTO_VIEW',
   'TT_REGISTER_PHOTO_UPLOAD',
+  // Document Ask — "this dealer owes this paper for this period". Every one of
+  // these is written from inside `services/documents/transition.ts`, the single
+  // writer of an ask's state, so no state change can reach the database without
+  // one. They are listed HERE, canonically, because an action name that is only
+  // ever a string literal at a call site compiles perfectly and then cannot be
+  // filtered for on the admin Activity page — the row exists and nobody can find
+  // it. (Two actions already ship in production having skipped this list; do not
+  // add a third.)
+  /** The row was made: MDG asked, or the dealer sent something unprompted. */
+  'DOCUMENT_ASK_CREATE',
+  /** We asked again. A nudge moves `askedCount`, never the state. */
+  'DOCUMENT_ASK_NUDGE',
+  /** The dealer sent the paper. */
+  'DOCUMENT_ASK_SUBMIT',
+  /** A named person at MDG looked at it and it is good. */
+  'DOCUMENT_ASK_ACCEPT',
+  /**
+   * A machine signal settled it and NOBODY looked — today only the TT Density
+   * register day log. Kept apart from `DOCUMENT_ASK_ACCEPT` on purpose: the
+   * Activity page must be able to tell an acceptance a person made from one an
+   * automation made, which is the same distinction `reviewedByKind` draws on the
+   * row and the dealer's card draws in words (ADR 0011).
+   */
+  'DOCUMENT_ASK_AUTO_ACCEPT',
+  /** Looked at, and it will not do. The row carries the reason shown to the dealer. */
+  'DOCUMENT_ASK_REJECT',
+  /** MDG no longer needs it. Closed with no fault on anyone. */
+  'DOCUMENT_ASK_WITHDRAW',
+  /** The period went by unanswered and the ask was closed unsatisfied. */
+  'DOCUMENT_ASK_EXPIRE',
+  /** File egress: somebody opened the paper. Same posture as the two TT VIEW rows. */
+  'DOCUMENT_ASK_FILE_VIEW',
+  /**
+   * The bytes behind a submission are NOT the bytes we recorded — the stored
+   * ETag and the bucket's current one disagree.
+   *
+   * Its own action rather than a flag on `DOCUMENT_ASK_FILE_VIEW`, because a
+   * presigned PUT URL is reusable until it expires, so this is the one row that
+   * says a paper was replaced after MDG looked at it. It has to be findable on
+   * the Activity page by itself; buried as a field inside a view row it would be
+   * discoverable only by somebody who already suspected it.
+   */
+  'DOCUMENT_ASK_FILE_MISMATCH',
+  /** Catalog edits — these change what every dealer can be asked for. */
+  'DOCUMENT_KIND_CREATE',
+  'DOCUMENT_KIND_UPDATE',
+  // AI first line on dealer support. Listed here for the same reason the
+  // DOCUMENT_ASK_* block above spells out: an action name that only ever exists
+  // as a string literal at a call site compiles perfectly and then cannot be
+  // filtered for on the Activity page — the row is written, and nobody can find
+  // it. Two actions already ship in production having skipped this list.
+  /** The machine answered a dealer. The row names the turn, the intent and the template. */
+  'AI_FIRSTLINE_ANSWER',
+  /** The machine stood down and left the thread for a person. The row names the reason. */
+  'AI_FIRSTLINE_HANDOFF',
+  /** The machine re-sent something MDG had already sent. Egress, so audited like one. */
+  'AI_FIRSTLINE_RESHARE',
+  /**
+   * An admin judged one turn right or wrong. Audited because these verdicts are
+   * what trips the breaker, so "who decided the machine was lying" has to be a
+   * question with an answer.
+   */
+  'AI_FIRSTLINE_REVIEW',
+  /** The global kill switch moved. Before/after carry which way. */
+  'AI_FIRSTLINE_KILL_SWITCH',
+  /** One dealer was moved between OFF, SHADOW and ON. */
+  'AI_FIRSTLINE_MODE_SET',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -179,6 +246,10 @@ export const AUDIT_ENTITIES = [
   'AssistKnowledgeBase',
   'TtInvoice',
   'TtDensityDayLog',
+  'DocumentAsk',
+  'DocumentKind',
+  /** One turn of the AI first line — what a review row is written against. */
+  'AiTurn',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 

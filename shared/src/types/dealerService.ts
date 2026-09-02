@@ -5,8 +5,17 @@ export interface DealerService {
   dealerId: string;
   /** Plugin slug, matches ServicePlugin.id. */
   serviceId: string;
-  /** Config validated against the plugin's defaultConfigSchema. */
-  config: Record<string, unknown>;
+  /**
+   * Config validated against the plugin's defaultConfigSchema.
+   *
+   * Optional because it is not served to everyone. It is authored by admins and
+   * is admin-only reading — dsr-report's holds the seed figures and inspection
+   * baselines the whole report is derived from — so `GET /dealers/:id/services`
+   * omits it when the caller is the dealer rather than an admin. Absent, not
+   * `{}`: "you were not shown this" and "this service has no config" are
+   * different facts and a screen should not have to guess which one it holds.
+   */
+  config?: Record<string, unknown>;
   cadence: Cadence;
   /** Derived cron expression. May be overridden by customCron. */
   schedule: string;

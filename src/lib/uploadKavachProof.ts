@@ -1,7 +1,6 @@
-import type { Attachment, PresignUploadResponse } from '@dk/shared/types';
+import type { Attachment } from '@dk/shared/types';
 
-import { api } from './api';
-import { compressImage } from './compressImage';
+import { preparePhoto, presignAndPut } from './uploadCommon';
 
 /**
  * Upload one Kavach evidence photo.
@@ -13,49 +12,24 @@ import { compressImage } from './compressImage';
  * the photo or the task. The `kavach` scope needs only the dealer's own id,
  * which the app already holds from login.
  *
- * The photo is downscaled before the presign, so the Content-Type we sign is
- * always the one we actually PUT — a mismatch is refused by S3 and reads to the
- * dealer as "your photo was rejected".
+ * `contentType` is the type the CARD already resolved at pick time and refused a
+ * non-image on; it is passed through so the bytes are signed as the thing that
+ * was judged. The downscale happens before the presign, so the Content-Type we
+ * sign is always the one we actually PUT — a mismatch is refused by S3 and reads
+ * to the dealer as "your photo was rejected".
  */
 export async function uploadKavachProof(
   file: File,
   dealerId: string,
   contentType: string,
 ): Promise<Attachment> {
-  let upload = file;
-  let type = contentType || file.type || 'image/jpeg';
-
-  const compressed = await compressImage(upload, { contentType: type });
-  if (compressed) {
-    upload = compressed;
-    type = compressed.type || type;
-  }
-
-  // An Android System WebView camera capture can hand back a File with no name.
-  const filename = upload.name || 'kavach-proof.jpg';
-
-  const presign = await api.post<PresignUploadResponse>('/v1/uploads/sign', {
-    filename,
-    contentType: type,
-    size: upload.size,
-    scope: 'kavach',
-    dealerId,
-  });
-
-  const putRes = await fetch(presign.uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': type },
-    body: upload,
-  });
-  if (!putRes.ok) {
-    throw new Error(`Upload failed: ${putRes.status} ${putRes.statusText}`);
-  }
-
+  const photo = await preparePhoto(file, 'kavach-proof.jpg', { contentType });
+  const storageKey = await presignAndPut(photo, { scope: 'kavach', dealerId });
   return {
-    storageKey: presign.storageKey,
-    filename,
-    contentType: type,
-    size: upload.size,
+    storageKey,
+    filename: photo.filename,
+    contentType: photo.contentType,
+    size: photo.size,
     kind: 'image',
   };
 }

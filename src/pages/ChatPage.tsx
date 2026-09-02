@@ -48,7 +48,11 @@ export function ChatPage() {
   const showBack = (listQuery.data?.length ?? 0) > 1 || listQuery.isError;
 
   const messagesQuery = useMessages(conversationId);
-  const sendMutation = useSendMessage();
+  // `mutateAsync` is destructured because it is referentially stable while the
+  // mutation object is not, and `handleTalkToHuman` below is handed to memoized
+  // bubbles — a fresh identity every render would re-render the whole thread on
+  // every keystroke.
+  const { mutateAsync: sendMessage, isPending: sending } = useSendMessage();
   const { mutate: reactMutate } = useReactToMessage();
   const download = useAttachmentDownload();
   const { typing, emitTyping, markRead } = useConversationSocket(
@@ -183,7 +187,7 @@ export function ChatPage() {
           );
         }
       }
-      await sendMutation.mutateAsync({
+      await sendMessage({
         conversationId,
         body: text || undefined,
         attachments,
@@ -198,6 +202,28 @@ export function ChatPage() {
       toast.error(t('chat.sendFailed'));
     }
   };
+
+  // "Talk to a person", under a reply the first line wrote.
+  //
+  // It sends an ORDINARY message, and that is the design rather than a shortcut:
+  // the backend already recognises a dealer asking for a person and hands the
+  // thread back to the unassigned pool with the SLA clock running. There is no
+  // route behind this button and there must not be one, because a route would be
+  // a second way to reach the same state that could drift from the first.
+  //
+  // Not disabled while a send is in flight: the optimistic bubble appears the
+  // instant it is tapped, so a dealer has no reason to tap twice, and reading
+  // `sending` here would cost the stable identity the memoized bubbles need.
+  const handleTalkToHuman = React.useCallback(() => {
+    if (!conversationId) {
+      toast.error(t('chat.stillConnecting'));
+      return;
+    }
+    void sendMessage({
+      conversationId,
+      body: t('chat.aiTalkToHumanBody'),
+    }).catch(() => toast.error(t('chat.sendFailed')));
+  }, [conversationId, sendMessage, toast, t]);
 
   // Still resolving which thread this is.
   if (listQuery.isLoading && !conversation) {
@@ -283,16 +309,20 @@ export function ChatPage() {
         onAction={handleAction}
         onOpenReactions={handleOpenReactions}
         onReply={handleReply}
+        onTalkToHuman={handleTalkToHuman}
       />
 
       <Composer
         onSend={handleSend}
         onTyping={emitTyping}
-        sending={sendMutation.isPending}
+        sending={sending}
         initialText={composerSeed}
         disabled={!conversationId}
         replyingTo={replyingTo}
         onCancelReply={cancelReply}
+        // Only once the thread has something in it. On an empty thread the
+        // empty state is already showing its own three chips.
+        showQuickReplies={messages.length > 0}
       />
 
       {actionMessage ? (

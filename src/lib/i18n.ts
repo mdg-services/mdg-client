@@ -176,6 +176,22 @@ export const messages = {
     en: 'Send a message and a real person from our support team will reply.',
     hi: 'संदेश भेजें, हमारी टीम का कोई व्यक्ति आपको जवाब देगा।',
   },
+  // NOT USED YET, AND DELIBERATELY SO. `chat.emptyDesc` above promises that a
+  // real person replies, and while every dealer's first-line mode is 'OFF' or
+  // 'SHADOW' that is still exactly what happens — the machine posts nothing.
+  // Swapping this in now would make the app lie in the other direction, telling
+  // a dealer they will get an instant answer that no one has switched on for
+  // them.
+  //
+  // SWITCH `chat.emptyDesc` TO THIS STRING IN THE DEPLOY THAT MOVES THE FIRST
+  // DEALER FROM 'SHADOW' TO 'ON', not before and not in a later tidy-up. The
+  // sentence names both halves on purpose: the answer is immediate, and a person
+  // is still there — which is the whole bargain, and the half a dealer distrusts
+  // is the second one.
+  'chat.emptyDescInstant': {
+    en: 'Send a message. You get an answer straight away, and a person from our team takes over whenever you need one.',
+    hi: 'संदेश भेजें। जवाब तुरंत मिलेगा, और जब भी ज़रूरत हो, हमारी टीम का व्यक्ति खुद बात करेगा।',
+  },
   'chat.quickReportIssue': {
     en: 'Report an issue',
     hi: 'कोई दिक्कत बताएं',
@@ -188,6 +204,33 @@ export const messages = {
     en: 'Talk to support',
     hi: 'सहायता से बात करें',
   },
+
+  /* ── the AI first line, from the dealer's side ──────────────────────────
+     Three strings and a pair of chips. Nothing here says "AI", "bot" or
+     "automatic": a dealer does not need to know which desk at MDG answered,
+     only that the answer came at once and that a person is one tap away. */
+
+  // The footnote under a reply the first line wrote. A footnote, not a badge —
+  // it sits on the same line as the timestamp precisely so it cannot out-weigh
+  // the answer it annotates.
+  'chat.aiInstantReply': { en: 'Instant reply', hi: 'तुरंत जवाब' },
+  // The button under that reply.
+  'chat.aiTalkToHuman': { en: 'Talk to a person', hi: 'किसी व्यक्ति से बात करें' },
+  // What the button SENDS, which is a different string from what it says. This
+  // one lands in the thread as the dealer's own message, so it is written the
+  // way a dealer writes ("I want…"), not the way a button label reads ("Talk
+  // to…"). It also has to be plain enough that the backend reads it as a
+  // request for a person and hands the thread over.
+  'chat.aiTalkToHumanBody': {
+    en: 'I want to talk to a person.',
+    hi: 'मुझे किसी व्यक्ति से बात करनी है।',
+  },
+  // The two chips above the composer, alongside `chat.quickTalkSupport`. Both
+  // are questions a dealer asks most mornings and both are a nuisance to type
+  // on a Devanagari phone keyboard, which is the entire point of a chip.
+  'chat.quickTodayReport': { en: "Today's report?", hi: 'आज की रिपोर्ट?' },
+  'chat.quickTodayPhoto': { en: "Sent today's photo?", hi: 'आज की फोटो भेजी?' },
+
   'chat.loadEarlier': {
     en: 'Load earlier messages',
     hi: 'पुराने संदेश देखें',
@@ -957,6 +1000,123 @@ export const messages = {
   // server: `services/ttDensity/notify.ts` builds the title and body when a
   // tanker's density lands. A copy here would be a second version of the same
   // sentence that nothing renders and nothing keeps in step.
+
+  /* ── document asks ──────────────────────────────────────────────────── */
+  // The dealer's word for all of this is "काग़ज़" — paper. Not "document ask",
+  // not "request", not "obligation", and never a state name: `ASKED`, `SENT`,
+  // `REJECTED` and `EXPIRED` are how the database talks, and none of the four
+  // appears in either language below. Nor does "error" or "failed"; a sentence
+  // to a dealer says what to do next, which is what "दोबारा भेजिए" is and what
+  // "upload failed" is not.
+  //
+  // NO DATE IS EVER SPELLED OUT HERE. Every `{day}` and `{period}` is filled in
+  // by `documentPeriodLabel` from `shared`, which is also what the server's push
+  // notification uses — so the card and the notification that opened it can
+  // never name the same period two different ways.
+  'asks.pageTitle': { en: 'Papers MDG needs', hi: 'MDG को चाहिए काग़ज़' },
+  'profile.asks': { en: 'Papers MDG needs', hi: 'MDG को चाहिए काग़ज़' },
+  'profile.asksDesc': {
+    en: 'What you have sent, and what is still to send',
+    hi: 'क्या भेज दिया, क्या अभी बाकी है',
+  },
+
+  // The bar under the header. `{name}` is the paper's own title from the
+  // catalog, so "Send today's register page" is this string plus the title MDG
+  // shipped rather than a second copy of it.
+  'asks.barOne': { en: 'Send {name}', hi: '{name} भेजें' },
+  'asks.barMany': { en: '{n} things to send', hi: '{n} चीज़ें भेजनी हैं' },
+  'asks.barLatePeriod': {
+    en: "{period}'s paper is still due",
+    hi: '{period} का काग़ज़ बाकी है',
+  },
+  // The same face for a paper that belongs to no period at all — a fire NOC has
+  // no day to name, so it is named by what it is.
+  'asks.barLateNamed': { en: '{name} is still due', hi: '{name} अभी बाकी है' },
+
+  'asks.groupTodo': { en: 'Still to do', hi: 'बाकी है' },
+  'asks.groupSent': { en: 'Sent', hi: 'भेज दिया' },
+  'asks.groupDone': { en: 'Done', hi: 'हो गया' },
+  'asks.emptyTitle': { en: 'Nothing to send', hi: 'भेजने को कुछ नहीं' },
+  'asks.emptyDesc': {
+    en: 'MDG has everything it asked you for.',
+    hi: 'MDG ने जो माँगा था, वह सब मिल गया है।',
+  },
+  'asks.dueOn': { en: 'Wanted by {day}', hi: '{day} तक चाहिए' },
+  'asks.lateBadge': { en: 'Late', hi: 'देर हो गई' },
+
+  // "Sent" is NOT a success state and is not written like one. The dealer
+  // sending a photo and MDG accepting it are different facts about different
+  // people, and a tick on the first is a promise the second may not keep.
+  'asks.sentWaiting': { en: 'With MDG now', hi: 'अब MDG के पास है' },
+  'asks.sentWaitingDesc': {
+    en: 'Nothing more to do. We will tell you if anything else is needed.',
+    hi: 'अब कुछ नहीं करना है। और कुछ चाहिए होगा तो हम बता देंगे।',
+  },
+  // Two different promises, never collapsed into one. A person at MDG looked, or
+  // a machine signal settled it and nobody looked — saying the first when the
+  // second happened publishes a claim MDG never made.
+  'asks.acceptedByAdmin': { en: 'MDG has checked it', hi: 'MDG ने देख लिया' },
+  'asks.acceptedBySystem': { en: 'Received', hi: 'मिल गया' },
+  'asks.rejectedTitle': { en: 'Please send it again', hi: 'दोबारा भेजना होगा' },
+  // Labelled as MDG's words because it IS MDG's words — typed by an admin, in
+  // English, on a Hindi screen. Passing it off as the app's own voice would be
+  // the app appearing to change language mid-card.
+  'asks.rejectedFrom': { en: 'MDG wrote:', hi: 'MDG ने यह लिखा है:' },
+
+  'asks.takePhoto': { en: 'Take photo', hi: 'फोटो लें' },
+  'asks.sendAgain': { en: 'Send again', hi: 'दोबारा भेजें' },
+  'asks.choosePhoto': { en: 'Choose from phone', hi: 'फ़ोन से चुनें' },
+  'asks.openInKavach': { en: 'Open in Kavach', hi: 'कवच में खोलें' },
+
+  // THE REFUSABLE SENTENCE. A 24-hour forecourt's "today" and the app's IST date
+  // disagree for the first six hours of every day, so the day is stated as
+  // something to agree with rather than printed as a label nobody reads.
+  'asks.confirmPeriod': {
+    en: 'This photo will be sent as the paper for {day}. Is that right?',
+    hi: 'इस फोटो को {day} के काग़ज़ के तौर पर भेजा जाएगा। सही है?',
+  },
+  // The day is on the button the thumb actually presses, not only in the
+  // sentence above it — `density.takePhotoFor` already worked this way.
+  'asks.sendForDay': { en: 'Send as {day}', hi: '{day} की फोटो भेजें' },
+  'asks.sendThis': { en: 'Yes, send this', hi: 'हाँ, यही भेजें' },
+  'asks.chooseAnotherDay': { en: 'Choose another day', hi: 'दूसरा दिन चुनें' },
+  'asks.whichDay': {
+    en: 'Which day is this page from?',
+    hi: 'यह पन्ना किस दिन का है?',
+  },
+  'asks.takeAgain': { en: 'Take again', hi: 'दोबारा लें' },
+  'asks.sending': { en: 'Sending your photo…', hi: 'फोटो भेजी जा रही है…' },
+
+  // The offline pair. Neither says "error" or "failed": the first is a promise
+  // the app can keep, the second is an instruction the dealer can follow.
+  'asks.queued': {
+    en: 'The photo is saved. It will go as soon as the internet is back.',
+    hi: 'फोटो रखी है — इंटरनेट आते ही चली जाएगी।',
+  },
+  'asks.queuedShort': {
+    en: 'Saved — waiting for the internet',
+    hi: 'रखी है — इंटरनेट का इंतज़ार',
+  },
+  'asks.sendingShort': { en: 'Going now…', hi: 'अभी जा रही है…' },
+  'asks.notSent': {
+    en: 'That photo did not go through. Please send it again.',
+    hi: 'यह फोटो पूरी नहीं गई। दोबारा भेजिए।',
+  },
+  'asks.sentToast': { en: 'Photo sent', hi: 'फोटो भेज दी' },
+  'asks.sentToastDesc': { en: 'MDG will look at it.', hi: 'MDG इसे देख लेगा।' },
+  'asks.notAFile': {
+    en: 'MDG cannot open that. Please send a photo, or a PDF.',
+    hi: 'यह MDG खोल नहीं पाएगा। कृपया फोटो भेजें, या PDF।',
+  },
+  'asks.tooBig': {
+    en: 'That file is too big to send. Take a photo of the paper instead.',
+    hi: 'यह फ़ाइल भेजने के लिए बहुत बड़ी है। इसकी जगह काग़ज़ की फोटो लें।',
+  },
+  'asks.photoAlt': {
+    en: 'The photo you are about to send',
+    hi: 'जो फोटो भेजनी है',
+  },
+  'asks.pdfPicked': { en: 'A PDF is ready to send', hi: 'एक PDF भेजने को तैयार है' },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

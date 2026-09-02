@@ -19,6 +19,7 @@ import {
 } from '@/features/kavach/status';
 import { useKavachMe } from '@/hooks/api/useKavach';
 import { pick, useLang, useT } from '@/lib/i18n';
+import { kavachScoreIsPublishable } from '@dk/shared';
 
 /** How many past checks to print. Enough to see the number moving, not a ledger. */
 const RECENT_LIMIT = 5;
@@ -88,17 +89,18 @@ export function KavachPage() {
    * and on day one the honest figure is "nobody has checked anything yet". Until
    * then the ring wears the same calm face it wears during settling-in rather
    * than publishing a number MDG has not stood behind.
+   *
+   * The three conditions used to be written out here and NOWHERE ELSE, which
+   * meant `GET /kavach/me` handed the percentage to anything that asked and this
+   * component was the whole gate. They now live in `kavachScoreIsPublishable`
+   * and the server applies them too, so by the time a settling-in programme
+   * reaches this page `score.overallPct` is already absent. This memo is what
+   * chooses the calm face; it is no longer what keeps the number secret.
    */
-  const settling = React.useMemo(() => {
-    if (!programme) return false;
-    if (programme.dealerFacingEnabled === false) return true;
-    // No denominator means there is no percentage to show — the ring must wear
-    // the calm "getting started" face rather than render a number the server
-    // has explicitly declined to state.
-    if (!programme.score.scored) return true;
-    if (!programme.settlingUntil) return false;
-    return Date.now() < new Date(programme.settlingUntil).getTime();
-  }, [programme]);
+  const settling = React.useMemo(
+    () => (programme ? !kavachScoreIsPublishable(programme) : false),
+    [programme],
+  );
 
   const asks = React.useMemo(
     () => items.filter(needsDealerEvidence).sort(byUrgency),
@@ -219,6 +221,10 @@ export function KavachPage() {
 
       {/* 2. The number, and what it does not know. */}
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+        {/* Passed through undefined and all: the server OMITS the percentage
+            while it is not publishable, and the ring draws neither a number nor
+            an arc when it has none. Substituting a 0 here would put "0%" in
+            front of a dealer whose figure MDG has deliberately not stated. */}
         <PumpHealthRing pct={programme.score.overallPct} settling={settling} />
         {settling ? (
           <p className="text-center text-sm text-text-muted">
@@ -236,10 +242,17 @@ export function KavachPage() {
           </p>
         )}
 
-        {/* Who owns this figure, said every time it is shown. */}
-        <p className="text-center text-xs text-text-muted">
-          {t('kavach.scoreSource', { n: programme.score.totalPoints })}
-        </p>
+        {/* Who owns this figure, said every time it is shown — and, now, only
+            when it is. The line reads "The MDG team sets this figure … out of N
+            points in all", so during settling it was naming a denominator for a
+            figure that was not on the screen. The server no longer sends N in
+            that state, which is what turned a slightly odd sentence into a
+            missing word, and hiding the whole line is the honest resolution. */}
+        {settling ? null : (
+          <p className="text-center text-xs text-text-muted">
+            {t('kavach.scoreSource', { n: programme.score.totalPoints ?? 0 })}
+          </p>
+        )}
 
         {/* A percentage that quietly omits how much of itself was never examined
             is a claim, not a measurement — and this one is MDG's claim about the

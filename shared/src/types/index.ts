@@ -22,3 +22,5 @@ export * from './waterIngress';
 export * from './festival';
 export * from './assist';
 export * from './ttDensity';
+export * from './documentAsk';
+export * from './aiFirstLine';

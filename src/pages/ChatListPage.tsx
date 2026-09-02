@@ -7,7 +7,6 @@ import {
   hasUnread,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
-import { DensityChatPin } from '@/features/density/DensityTodayCard';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
@@ -94,10 +93,20 @@ export function ChatListPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      {/* The one chore the dealer owes today, above their conversations, and
-          only while it is owed. Chat is the app's home; a task card here is
-          seen, and it disappears the moment today's photo is sent. */}
-      <DensityChatPin />
+      {/* `DensityChatPin` used to be mounted here and is not mounted anywhere
+          any more. `AppShell` renders `features/asks/AskBar` above the
+          <Outlet/>, which covers the register page as ONE document kind among
+          several — so today's page is still asked for, in one line, and no
+          longer only on this screen.
+
+          Two reasons it moved out of this page rather than staying beside the
+          bar. The redirect above this return sends a single-thread member — the
+          manager, and an owner at a pump with no manager — straight into their
+          chat, so anything mounted below that line was never on screen for
+          either of them. And two lines on one screen both saying "send today's
+          photo" is a worse screen than one: the dealer has to work out whether
+          they are the same chore before they can do either. Do not re-mount the
+          pin here; see the note on `DensityChatPin` itself. */}
       <div className="border-b border-border bg-surface px-4 py-2.5">
         <p className="text-sm font-semibold text-text">{t('chat.chatsTitle')}</p>
       </div>

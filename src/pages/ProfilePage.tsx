@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Gauge, LogOut, Users, UserPlus, Wrench } from 'lucide-react';
+import { ChevronRight, FileText, Gauge, LogOut, Users, UserPlus, Wrench } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -474,6 +474,28 @@ export function ProfilePage() {
           </button>
         </Card>
       ) : null}
+
+      {/* The ask bar under the header only appears while something is
+          outstanding, and it disappears the moment the last paper is sent — so
+          without this row there is no way back to the screen that says what was
+          sent and what MDG made of it. Unconditional, because "nothing is owed"
+          is exactly the state a dealer might want to check. */}
+      <Card>
+        <button
+          type="button"
+          onClick={() => navigate('/asks')}
+          className="flex w-full items-center gap-3 p-5 text-left active:bg-surface-2"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted">
+            <FileText width={18} strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-text">{t('profile.asks')}</span>
+            <span className="block text-xs text-text-muted">{t('profile.asksDesc')}</span>
+          </span>
+          <ChevronRight width={18} strokeWidth={1.75} className="shrink-0 text-text-subtle" />
+        </button>
+      </Card>
 
       {/* Always here while the service is on, so a dealer who dismissed the
           chat-list card still has a way back to their register. */}

@@ -41,6 +41,9 @@ const StaffPage = lazyWithRetry(() =>
 const DensityPage = lazyWithRetry(() =>
   import('@/pages/DensityPage').then((m) => ({ default: m.DensityPage })),
 );
+const AsksPage = lazyWithRetry(() =>
+  import('@/pages/AsksPage').then((m) => ({ default: m.AsksPage })),
+);
 const ProfilePage = lazyWithRetry(() =>
   import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
@@ -107,9 +110,22 @@ export function App() {
             <Route path="/services" element={<ServicesPage />} />
             {/* Staff Points — owner/manager tool, reached from Profile (not a 5th tab). */}
             <Route path="/staff" element={<StaffPage />} />
-            {/* The daily density-register photo. Reached from the pinned card on
-                the chat list, from Profile and from a push — the bar stays four. */}
+            {/* The daily density-register photo. Reached from Profile and from
+                a push — the tab bar stays four. */}
             <Route path="/density" element={<DensityPage />} />
+            {/* Every paper MDG is asking this dealer for. Reached from the ask
+                bar under the header, from Profile, and from a push.
+
+                TWO PATHS, ONE PAGE, and the second is not a nicety. The server
+                builds its deep link as `/documents?ask=<id>`
+                (`services/documents/notify.ts`), which is the string the native
+                bridge hands the WebView untouched — so a push that landed on a
+                route this app did not have would drop the dealer on the chat
+                list with no idea why. `/asks` is the name the app uses for
+                itself; `/documents` is the name already baked into notifications
+                that are on their way. Both must resolve. */}
+            <Route path="/asks" element={<AsksPage />} />
+            <Route path="/documents" element={<AsksPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/chat" replace />} />

@@ -354,15 +354,23 @@ function Head({
 /**
  * The same card, pinned above the chat list.
  *
- * Chat is where the dealer lands when they open the app, so the one chore they
- * owe today belongs there — and it disappears the moment it is done, which is
- * the difference between a reminder and a permanent fixture they stop seeing.
- * The Reports shelf was the alternative and is the wrong shelf: that is where
- * MDG puts things it sends TO the dealer, and this is something the dealer does.
+ * NOT MOUNTED ANY MORE. `AppShell` used to render this above the chat screens;
+ * it now renders `features/asks/AskBar` in the same place, because the register
+ * page has stopped being the only paper MDG asks a dealer for and two lines on
+ * one screen both saying "send today's photo" is a worse screen than one — the
+ * dealer has to work out whether they are the same chore before they can do
+ * either. The bar covers the register page as one document kind among several.
  *
- * It renders nothing while the payload is still loading, nothing if the service
- * is not on for this pump, and nothing once the register is up to date — so on
- * an ordinary day the chat list looks exactly as it did before.
+ * It is kept, rather than deleted, so `DensityTodayCard`'s two variants stay as
+ * they shipped and `/density` is untouched. DO NOT RE-MOUNT IT app-wide: that
+ * would put the register-page reminder back on the same screen as the ask bar,
+ * which is the thing the swap was for.
+ *
+ * Chat was the right shelf for it while it existed — it is where the dealer
+ * lands when they open the app, and the Reports shelf is where MDG puts things
+ * it sends TO the dealer, not things the dealer does. It rendered nothing while
+ * the payload was loading, nothing if the service was not on for this pump, and
+ * nothing once the register was up to date.
  */
 export function DensityChatPin() {
   const { data } = useDensityMe();

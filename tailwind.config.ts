@@ -27,7 +27,12 @@ export default {
         },
         'focus-ring': 'var(--color-focus-ring)',
         success: { DEFAULT: '#16a34a', soft: '#dcfce7' },
-        warning: { DEFAULT: '#d97706', soft: '#fef3c7' },
+        // `strong` is the only amber white may sit on. The palette's DEFAULT
+        // (#d97706) against `soft` (#fef3c7) computes to 2.86:1 and white on
+        // #d97706 to 2.15:1 — both fail WCAG AA at every size, which matters
+        // more here than anywhere else in the app: the reader is 55, outdoors,
+        // under a canopy, on a cheap screen. White on #92400e is 7.09:1.
+        warning: { DEFAULT: '#d97706', soft: '#fef3c7', strong: '#92400e' },
         danger: { DEFAULT: '#dc2626', soft: '#fee2e2' },
         info: { DEFAULT: '#2563eb', soft: '#dbeafe' },
         neutral: { DEFAULT: '#475569', soft: '#e2e8f0' },

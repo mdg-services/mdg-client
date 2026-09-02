@@ -4,10 +4,12 @@ import * as React from 'react';
 
 
 import { Card, CardContent, EmptyState, Spinner } from '@/components/ui';
-import { ApiError, api } from '@/lib/api';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { useT, type MessageKey, type TFunction } from '@/lib/i18n';
+import { pick, useLang, useT, type MessageKey, type TFunction } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
+import type { Lang } from '@/store/lang';
+import { serviceLabel } from '@dk/shared';
 import type { Cadence, DealerService } from '@dk/shared/types';
 
 function formatDate(iso?: string): string {
@@ -20,6 +22,16 @@ function formatDate(iso?: string): string {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+/**
+ * The service's name in the reader's language. The names are shared data, not
+ * catalog keys, so they come through `pick()` like every other bilingual field
+ * on a contract rather than through `t()`.
+ */
+function serviceName(lang: Lang, serviceId: string): string {
+  const label = serviceLabel(serviceId);
+  return pick(lang, label.en, label.hi);
 }
 
 /** Plain-language cadence phrase — never the raw enum (adoption audit §6). */
@@ -60,22 +72,21 @@ function StatusPill({
 
 export function ServicesPage() {
   const t = useT();
+  const lang = useLang();
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId ?? undefined;
 
+  // `GET /v1/dealers/:id/services` is the route that exists. This page used to
+  // ask for `/v1/dealer-services?dealerId=…`, which the backend has never
+  // served — that router only registers PATCH/DELETE/POST on `/:dsId` — and it
+  // caught the resulting 404 and returned `[]`, so every dealer who has ever
+  // opened this screen was told they have no services at all. The catch is gone
+  // with the bad path: a real failure now falls through to the error state this
+  // page already renders, which is the only way the NEXT broken path gets seen.
   const servicesQuery = useQuery<DealerService[]>({
     queryKey: ['dealer-services', dealerId],
     enabled: !!dealerId,
-    queryFn: async () => {
-      try {
-        return await api.get<DealerService[]>('/v1/dealer-services', {
-          dealerId,
-        });
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return [];
-        throw err;
-      }
-    },
+    queryFn: () => api.get<DealerService[]>(`/v1/dealers/${dealerId}/services`),
   });
 
   return (
@@ -109,8 +120,11 @@ export function ServicesPage() {
               <CardContent className="p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
+                    {/* The dealer's own word for the service, never the plugin
+                        slug — `credit-dod-monitoring` is the name of a folder on
+                        our server and it meant nothing to the person reading it. */}
                     <p className="truncate text-sm font-semibold text-text">
-                      {svc.serviceId}
+                      {serviceName(lang, svc.serviceId)}
                     </p>
                     <p className="mt-0.5 text-xs text-text-muted">
                       {t(CADENCE_KEY[svc.cadence])}

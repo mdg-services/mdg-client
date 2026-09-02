@@ -57,6 +57,11 @@ export interface MessageListProps {
   onOpenReactions?: (message: Message) => void;
   /** Swipe-right on a bubble → start replying to it. */
   onReply?: (message: Message) => void;
+  /**
+   * Tap on "Talk to a person" under a first-line answer. Passed straight to the
+   * bubble, so it must be referentially stable or every bubble re-renders.
+   */
+  onTalkToHuman?: () => void;
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
 }
@@ -75,6 +80,7 @@ export function MessageList({
   onAction,
   onOpenReactions,
   onReply,
+  onTalkToHuman,
   onFetchOlder,
 }: MessageListProps) {
   const t = useT();
@@ -285,6 +291,7 @@ export function MessageList({
             onAction={onAction}
             onOpenReactions={onOpenReactions}
             onJumpTo={handleJumpTo}
+            onTalkToHuman={onTalkToHuman}
           />
         </SwipeToReply>,
       );
@@ -298,6 +305,7 @@ export function MessageList({
     onAction,
     onOpenReactions,
     onReply,
+    onTalkToHuman,
     handleJumpTo,
     quoteLoadingId,
     showSenderNames,

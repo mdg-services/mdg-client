@@ -1,4 +1,4 @@
-import { Camera, Check, CheckCheck, Clock, FileText, Mic } from 'lucide-react';
+import { Camera, Check, CheckCheck, Clock, FileText, Mic, Zap } from 'lucide-react';
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
@@ -58,12 +58,54 @@ function CardMessage({ message }: { message: Message }) {
   );
 }
 
-function SystemMessage({ message }: { message: Message }) {
+/**
+ * An automated notice in the thread — a shared report, a resolution line.
+ * Centred, and deliberately not a bubble.
+ *
+ * A notice DOES carry attachments and this used to render `message.body` and
+ * nothing else. Three backend senders post `system: true` messages with image
+ * cards on them — dsr-report/share.ts (two PNGs), kavach/share.ts (the score
+ * card), creditDod/share.ts (the position card) — so the dealer's DSR notice
+ * ended on the line "ऊपर दो तस्वीरें / See the two images above" with nothing
+ * above it. The pictures were never lost from the product (they still reach the
+ * Media gallery, which only filters `system` off the links tab), but in the
+ * thread they were sent into they were invisible.
+ *
+ * Reactions, delivery ticks, the reply quote and the long-press action sheet
+ * all stay off here on purpose: a notice about the thread is not a message you
+ * reply to. `actionable` below and MessageList's `interactive` already exclude
+ * system messages for the same reason.
+ */
+function SystemMessage({
+  message,
+  onOpenImage,
+}: {
+  message: Message;
+  onOpenImage?: (attachment: Attachment) => void;
+}) {
   return (
-    <div className="flex w-full justify-center animate-in">
-      <p className="max-w-[85%] rounded-full bg-surface-2 px-3 py-1 text-center text-[12px] text-text-muted">
-        {message.body}
-      </p>
+    <div className="flex w-full flex-col items-center gap-1.5 animate-in">
+      {message.attachments.length > 0 ? (
+        <div className="flex w-full max-w-[85%] flex-col items-center gap-1.5">
+          {message.attachments.map((a) => (
+            <MessageAttachment
+              key={a.storageKey}
+              attachment={a}
+              onOpenImage={onOpenImage}
+            />
+          ))}
+        </div>
+      ) : null}
+      {message.body ? (
+        // `rounded-lg`, not `rounded-full`: the same reason already recorded in
+        // mdg-admin's copy of this component. The pill shape is only right for a
+        // one-line note, and a bilingual service notice runs to a dozen lines —
+        // a 9999px radius on a box that tall cuts a curve straight through its
+        // own first and last lines.
+        <p className="max-w-[85%] rounded-lg bg-surface-2 px-3 py-1 text-center text-[12px] text-text-muted">
+          {message.body}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -196,6 +238,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   onAction,
   onOpenReactions,
   onJumpTo,
+  onTalkToHuman,
 }: {
   message: Message;
   mine: boolean;
@@ -211,6 +254,11 @@ export const MessageBubble = React.memo(function MessageBubble({
   onOpenReactions?: (message: Message) => void;
   /** Tap on the quote block → jump to the original message. */
   onJumpTo?: (targetId: string, fromId: string) => void;
+  /**
+   * Tap on "Talk to a person" under a first-line answer. The chat screen owns
+   * it because it sends an ORDINARY message — there is no endpoint behind this.
+   */
+  onTalkToHuman?: () => void;
 }) {
   const t = useT();
   const actionable =
@@ -226,10 +274,24 @@ export const MessageBubble = React.memo(function MessageBubble({
     return <CardMessage message={message} />;
   }
   if (message.system) {
-    return <SystemMessage message={message} />;
+    return <SystemMessage message={message} onOpenImage={onOpenImage} />;
   }
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
+
+  // The ONLY thing that marks a reply as machine-written. There is no `'ai'`
+  // sender role and there must not be one: this bubble picks its side from
+  // `senderRole === 'admin'`, so an unrecognised role would draw MDG's own
+  // answer as if the dealer had typed it. Everything below is therefore
+  // progressive enhancement — an app that predates this field ignores the
+  // unknown key and draws an ordinary Support bubble, which is correct, merely
+  // unlabelled.
+  const ai = message.ai;
+  // Offered under an answer, NOT under the handoff line. A handoff message
+  // already says a person is coming, so a button asking for one is noise — and
+  // tapping it would start a second turn, which costs a model call to reach the
+  // conclusion the thread had already reached.
+  const offerHuman = !!ai && ai.kind !== 'handoff' && !!onTalkToHuman;
 
   return (
     <div
@@ -316,6 +378,21 @@ export const MessageBubble = React.memo(function MessageBubble({
             ))}
           </button>
         ) : null}
+        {offerHuman ? (
+          // 44px is the floor, not the look: this is the escape hatch from a
+          // machine that got it wrong, and it is pressed by a thumb on a phone
+          // propped on a forecourt counter. It sends an ordinary message — the
+          // backend's own handoff rule reads the text and puts the thread back
+          // in the unassigned pool — so there is nothing here to fail if the
+          // first line is switched off.
+          <button
+            type="button"
+            onClick={onTalkToHuman}
+            className="flex min-h-[44px] items-center rounded-full border border-border bg-surface px-4 text-sm font-medium text-text shadow-sm active:bg-surface-2"
+          >
+            {t('chat.aiTalkToHuman')}
+          </button>
+        ) : null}
         <div
           className={cn(
             'flex items-center gap-1 px-1 text-[11px] text-text-subtle',
@@ -324,6 +401,17 @@ export const MessageBubble = React.memo(function MessageBubble({
         >
           <span>{formatTime(message.createdAt)}</span>
           {mine ? <MessageTicks message={message} /> : null}
+          {ai ? (
+            // On the timestamp's line rather than a line of its own, because a
+            // footnote that gets its own row starts reading as a banner. A
+            // Lucide glyph and not the ⚡ character: an emoji renders as a
+            // colour picture on an Android WebView, which is the opposite of
+            // quiet, and its width varies by font.
+            <span className="flex items-center gap-0.5">
+              <Zap width={11} strokeWidth={2} className="shrink-0" />
+              {t('chat.aiInstantReply')}
+            </span>
+          ) : null}
         </div>
       </div>
     </div>

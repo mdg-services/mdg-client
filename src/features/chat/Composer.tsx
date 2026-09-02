@@ -44,6 +44,14 @@ export interface ComposerProps {
   /** When set, a quote strip renders above the input (replying to a message). */
   replyingTo?: ComposerReplyPreview | null;
   onCancelReply?: () => void;
+  /**
+   * Show the one-tap question chips above the input.
+   *
+   * The caller decides, and it says NO on an empty thread: the empty state
+   * already offers its own three chips (`MessageList`'s `onQuickAction`), and
+   * two sets on one screen is six chips and no clear first move.
+   */
+  showQuickReplies?: boolean;
 }
 
 const ACCEPT = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt';
@@ -183,6 +191,7 @@ export function Composer({
   initialText,
   replyingTo,
   onCancelReply,
+  showQuickReplies,
 }: ComposerProps) {
   const t = useT();
   const toast = useToast();
@@ -242,6 +251,33 @@ export function Composer({
 
   const hasContent = text.trim().length > 0 || staged.length > 0;
   const canSend = hasContent && !disabled;
+
+  // ── The one-tap questions ────────────────────────────────────────────────
+  // They FILL the box; they never send. What a dealer types is theirs to review
+  // and edit, and a chip that sent on tap would fire an unintended message every
+  // time a thumb brushed the row.
+  //
+  // THEY DISAPPEAR THE MOMENT THERE IS A SINGLE CHARACTER IN THE BOX, and that
+  // is the load-bearing line here. `setText(label)` REPLACES the contents — it
+  // has to, for the same reason the `initialText` seed above does — so a chip
+  // still on screen beside a half-typed sentence is a one-tap way to lose it.
+  // The gate is `text.length`, not `text.trim().length`: the first keystroke
+  // hides them, whatever it was.
+  const quickReplies = React.useMemo(
+    () => [
+      t('chat.quickTodayReport'),
+      t('chat.quickTodayPhoto'),
+      t('chat.quickTalkSupport'),
+    ],
+    [t],
+  );
+  const showChips =
+    !!showQuickReplies &&
+    !disabled &&
+    recMode === 'idle' &&
+    !replyingTo &&
+    text.length === 0 &&
+    staged.length === 0;
 
   // `fromCamera` items are known to be photos even when the OS hands back a File
   // with an empty MIME type (common on Android WebView), so classification can
@@ -755,6 +791,31 @@ export function Composer({
               staged={s}
               onRemove={() => removeStaged(s.id)}
             />
+          ))}
+        </div>
+      ) : null}
+
+      {showChips ? (
+        // Scrolls sideways rather than wrapping, exactly like the staged
+        // attachment strip above. The three Hindi labels come to roughly 430px
+        // and a cheap phone is 360px wide, so wrapping would push the input a
+        // whole row down the screen every time the box was empty; a third chip
+        // half in view is the affordance that says there is more to the right.
+        <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
+          {quickReplies.map((label) => (
+            <button
+              key={label}
+              type="button"
+              // Deliberately NOT focusing the textarea afterwards. Focus summons
+              // the phone keyboard over half the screen, and the whole point of
+              // the chip is the dealer who did not want to type: the button
+              // beside the box has already turned into Send by the time the
+              // keyboard would have finished animating in.
+              onClick={() => setText(label)}
+              className="shrink-0 rounded-full border border-border bg-surface-2 px-3.5 py-1.5 text-sm text-text active:bg-surface"
+            >
+              {label}
+            </button>
           ))}
         </div>
       ) : null}

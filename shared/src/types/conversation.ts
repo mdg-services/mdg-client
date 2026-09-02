@@ -1,6 +1,7 @@
 // `record` imports `Attachment` back from this file, so these two reference each
 // other. That is harmless because both directions are `import type`: TypeScript
 // erases them, so no cycle survives into the emitted JavaScript.
+import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { RecordCard } from './record';
 import type { UserRole } from './user';
 
@@ -138,6 +139,15 @@ export interface Conversation {
    * The client computes its own badge from whether this includes the viewer.
    */
   unreadDealerUserIds?: string[];
+  /**
+   * Where this thread stands with the AI first line. Absent on every thread the
+   * machine has never touched, which is most of them.
+   *
+   * An optional block rather than a fourth `ConversationStatus` — see
+   * `ConversationAiState` for the four places a fifth status would have made an
+   * AI-handled thread disappear from the inbox while a dealer waited on it.
+   */
+  ai?: ConversationAiState;
   createdAt: string;
   updatedAt: string;
 }
@@ -244,6 +254,16 @@ export interface Message {
   reactions?: MessageReaction[];
   /** Set when this message replies to (quotes) another message in the thread. */
   replyTo?: MessageReplyContext;
+  /**
+   * Set only on a message the AI first line posted. Its presence is the ONLY
+   * thing that distinguishes one: the sender is the existing "MDG System" admin
+   * user and `senderRole` is `'admin'`, deliberately, because
+   * `MessageBubble.tsx` computes `senderRole === 'admin'` to choose which side of
+   * the thread a bubble sits on and would have drawn an `'ai'` message as if the
+   * dealer had typed it. A client that predates this field ignores the unknown
+   * key and renders an ordinary Support bubble.
+   */
+  ai?: MessageAiMeta;
   createdAt: string;
 }
 

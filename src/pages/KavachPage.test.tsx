@@ -71,6 +71,17 @@ function makeProgramme(notYetVerifiedCount = 0): KavachProgramme {
     status: 'ACTIVE',
     outlet: { monthYear: '2026-01' },
     score: {
+      /**
+       * REQUIRED, and it was missing.
+       *
+       * Without it this fixture is a programme with no denominator, which the
+       * page treats as settling-in — and it still rendered "80%" in the middle
+       * of the ring, because the settling state used to change only the colour
+       * and the caption. That is exactly the leak `kavachScoreIsPublishable`
+       * closes, so the fixture now has to say what it means: a scored
+       * programme, published, showing its number.
+       */
+      scored: true,
       overallPct: 80,
       byBucket: {},
       validPoints: 0,
