@@ -78,8 +78,22 @@ export interface DsrTankReading {
 export interface DsrPumpReading {
   /** IRAS nozzle number, e.g. 8. */
   nozzleNo: number;
-  /** Cumulative totaliser (litres) as reported by IRAS. */
-  reading: number;
+  /**
+   * Cumulative totaliser (litres) as reported by IRAS, or `null` when no
+   * reading arrived for this nozzle on this day.
+   *
+   * `null`, not `0`: a nozzle that did not report is not a nozzle that sold
+   * nothing, and reading one as the other turns an absent meter into a whole
+   * day's fictitious sales.
+   *
+   * The ENGINE carries the same absence as `NaN`, which is what its
+   * `Number.isFinite` guards are written against and what keeps `a - b`
+   * arithmetic from silently coercing a missing figure to zero. `NaN` is not
+   * storable in Mongo and does not survive JSON, so the stored row and the wire
+   * both carry `null` (see `dsr-report/store.ts`) — which is why this is the
+   * type every RENDERER sees. Guard it before printing.
+   */
+  reading: number | null;
 }
 
 /**
