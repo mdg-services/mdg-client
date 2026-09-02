@@ -38,11 +38,22 @@
  *     different problems with two different fixes. `CARRIED_UNTOUCHED` is "you
  *     have not done this box yet" — the system put the figure there — and it is
  *     said quietly, in the carried style, because a freshly opened day would
- *     otherwise show ten red alarms before anybody had done anything wrong.
- *     `METER_UNCHANGED` is "you typed a number that means zero litres sold", and
- *     it stays red. Both BLOCK; only ONE of them is ever raised on one box; and
- *     the only way past either is the confirmed "This pump did not run today",
- *     which is still the one route to a zero-sales nozzle.
+ *     otherwise show ten red alarms before anybody had done anything wrong. It
+ *     BLOCKS, and typing the figure is what clears it. `METER_UNCHANGED` is "the
+ *     number you have typed means zero litres sold on this nozzle", and it only
+ *     WARNS. Once a person has typed the figure the keystroke IS the deliberate
+ *     act, and a pump that genuinely did not turn is a real morning that has to
+ *     be savable. Only ONE of the two is ever raised on one box, and on an
+ *     untouched box it is the carried one: "you have not done this yet" comes
+ *     before "what you have typed means nothing was sold".
+ *
+ *     There used to be a third thing here — a confirmed "This pump did not run
+ *     today" on the row's three-dots menu, the one way past either block. It is
+ *     gone. It restored no figure: `compute.ts` charges a nozzle its 5 litre
+ *     test draw purely on whether the meter moved, so the statement moved
+ *     nothing on any report. And the record it wrote into the audit row was read
+ *     back by nothing. All it bought was a confirm dialog between an operator
+ *     and a figure they had already typed on purpose.
  *   - The water dip is the one carried measurement that does NOT block, because
  *     it is the one the engine never calculates with: every read of it is
  *     display. A stale water dip can make a printed line stale; it cannot move a
@@ -52,11 +63,12 @@
  * in and nobody has touched lives in a React component and is never sent, so on
  * the wire a whole morning of yesterday's figures is indistinguishable from a
  * morning somebody typed — where a blank box used to be refused by the server
- * outright. {@link irasUnchangedMeterReadings} is the same question asked where
- * a bug in that component cannot reach it: the commit itself refuses a meter
- * still reading yesterday's figure with nobody having said the pump did not run.
- * It needs no product layout and no browser, and it blocks nothing the screen
- * does not already block.
+ * outright. {@link irasUntouchedMorning} is the net underneath that, asked where
+ * a bug in that component cannot reach it: a hand-typed day in which EVERY
+ * figure the commit carries — every meter reading, every stock, every product
+ * dip — is still the previous day's is a morning nobody did, and the commit
+ * itself refuses it. One dead pump among five live ones passes, because one
+ * moved meter is a person at work. It needs no product layout and no browser.
  *
  * It lives in `@dk/shared` rather than in the admin because `mdg-admin` has no
  * test runner at all, and none of this may be decided in a React component that
@@ -589,8 +601,8 @@ export interface IrasDayRowInForce {
    * The figure was accepted by a named admin on a screen showing the slip, the
    * transcript and the arithmetic; a second confirmation on the sheet, where
    * none of that is visible, would teach an operator to dismiss blocks — and
-   * `CARRIED_UNTOUCHED` and `METER_UNCHANGED` are only worth anything for as
-   * long as a block still means something.
+   * `CARRIED_UNTOUCHED` is only worth anything for as long as a block still
+   * means something.
    *
    * ONLY `TOT_READING` on a `TOT` row can ever be in this list. The slip has no
    * tanks and no tankers on it, so that is the entire blast radius on the sheet.
@@ -681,8 +693,8 @@ export function irasFigureReadOffSlip(
  *     falls through to the ordinary rules.
  *   - the figure is not one the server already holds. A day saved at 07:00 and
  *     reopened at 09:00 was answered for on the visit that saved it; re-blocking
- *     it is the exact trap the equal-to-yesterday rule had to be scoped out of,
- *     and 16E's two dead pumps live in it every morning.
+ *     it is the exact trap the unmoved-meter warning beside it had to be scoped
+ *     out of too, and 16E's two dead pumps live in it every morning.
  *
  * Exported so the sheet styles a box off the same answer that blocks it, and
  * meant for the asked figures — the reading, the stock and the product dip. The
@@ -708,166 +720,175 @@ export function irasCarriedUntouched(
   return figureIsFreshWork(entry, field);
 }
 
-/* ───────────────── "this pump did not run", still true or not ───────────── */
+/* ──────── a whole morning that is still yesterday’s, on the wire ──────── */
 
-export interface IrasAcknowledgementsInput {
-  /** Every row in force on the day, in the order the findings index into. */
-  rows: ReadonlyArray<IrasDayRowInForce>;
-  /** Nozzle number → the previous day's meter reading. */
-  previousTot: Record<string, string>;
-  products: readonly IrasDayPlanProduct[];
-  /** Every nozzle somebody has tapped "This pump did not run today" on. */
-  acknowledged: readonly string[];
+/** One figure a change set is putting on the day. */
+export interface IrasFigureInHand {
+  /** `TOT` for a meter reading, `STK` for a stock figure. */
+  code: IrasPlannedRowCode;
+  /** The nozzle number on a meter reading, the tank number on a stock figure. */
+  identity: unknown;
+  /** The column: `TOT_READING`, `NET_QTY` or `PRODUCT_DIP`. */
+  field: string;
+  /** The figure this change set is putting in that box, exactly as it was typed. */
+  value: unknown;
 }
 
-/**
- * Which of those statements the typed figures still bear out.
- *
- * "This pump did not run today" is a claim a named admin makes, and it goes on
- * the wire and into the AuditLog as a durable, machine-readable one — the whole
- * reason it is a field rather than a note is that something can be asked to
- * count unexplained unmoved meters later without re-deriving anything. So it has
- * to be true of the day as SAVED, not of the day as it stood at the moment the
- * button was pressed.
- *
- * The failure this closes came out of an operator walkthrough. Nozzle 5 read
- * 1,27,640 yesterday. The operator misreads the register, taps the action,
- * confirms it — which fills the box with 1,27,640 — then finds the real figure
- * and types 1,28,360. The block clears, because the nozzle now sold 720 L. But
- * nothing took the statement back: the save dialog still printed "Nozzle 5 is
- * recorded as not having run today" on a day where it sold 720 litres, and that
- * is the sentence that was written down.
- *
- * Derived rather than stored, and derived HERE rather than in three places. The
- * sentence in the save dialog, the {@link IrasDayFindingKind} block that is
- * suppressed, and the field on the wire are three readings of one question, and
- * this platform's founding fault in this area is a rule with two implementations
- * that can disagree. {@link irasDayFindings} calls this function for its own
- * suppression, so there is no third answer to find.
- *
- * A statement is in force when all three hold:
- *   - the nozzle is one this dealer's report layout names — the block only ever
- *     fires on those, and a statement about a nozzle no report prints is a claim
- *     about nothing;
- *   - the day holds a meter row for it, with a reading that can be read;
- *   - that reading, put through the one litres rule, still says the nozzle sold
- *     exactly nothing.
- *
- * Blanking the reading therefore drops it too, which is right: a nozzle with no
- * figure on it is not a nozzle somebody watched stand still. Type yesterday's
- * reading back in and the statement is in force again, because the stored set is
- * left alone and only this answer moves.
- *
- * Returns the nozzles normalised the way every comparison in this module
- * normalises them, deduped, in the dealer's configured order — so "Nozzles 2 and
- * 5" reads in forecourt order rather than in the order somebody happened to tap.
- */
-export function irasAcknowledgementsInForce(input: IrasAcknowledgementsInput): string[] {
-  const claimed = new Set((input.acknowledged ?? []).map(irasRowIdentity));
-  claimed.delete('');
-  if (claimed.size === 0) return [];
-
-  const previousTot = input.previousTot ?? {};
-
-  // The FIRST meter row on a nozzle, which is the row `irasDayFindings` measures
-  // against. A second row on one nozzle is a DUPLICATE_IDENTITY block in its own
-  // right; letting it decide whether a statement stands would mean the block and
-  // the wire disagreed on exactly the day that is already wrong.
-  const readingByNozzle = new Map<string, unknown>();
-  for (const entry of input.rows ?? []) {
-    if (entry?.code !== 'TOT') continue;
-    const identity = irasRowIdentity(entry.row?.NOZZLE_NO);
-    if (!identity || readingByNozzle.has(identity)) continue;
-    readingByNozzle.set(identity, entry.row?.TOT_READING);
-  }
-
-  const inForce: string[] = [];
-  for (const { identity, configNo, product } of configuredNozzlesOf(input.products ?? [])) {
-    if (!claimed.has(identity) || !readingByNozzle.has(identity)) continue;
-    const sold = irasNozzleSold(
-      readingByNozzle.get(identity),
-      byIdentity(previousTot, identity),
-      irasMeterScale(product, configNo),
-    );
-    if (sold === 0) inForce.push(identity);
-  }
-  return inForce;
-}
-
-/* ───────── a reading that is still yesterday’s, on the wire ───────── */
-
-/** One meter reading a change set is putting on the day. */
-export interface IrasMeterReadingInHand {
-  /** The nozzle number as the row carries it. */
-  nozzleNo: unknown;
-  /** The reading this change set is putting on that nozzle. */
-  reading: unknown;
-}
-
-/** One nozzle whose new reading is the previous day’s own, unexplained. */
-export interface IrasUnchangedMeterReading {
-  /** The nozzle, normalised the way the report reads it. */
+/** One box a change set is filling with the figure the previous day already had. */
+export interface IrasFigureStillYesterdays {
+  code: IrasPlannedRowCode;
+  /** The nozzle or tank, normalised the way the report reads it. */
   identity: string;
-  /** The reading in hand, exactly as it was typed. */
-  reading: string;
-  /** The previous day’s reading it matches. */
+  field: string;
+  /** The figure in hand, exactly as it was typed. */
+  value: string;
+  /** The previous day’s own figure it matches. */
   previous: string;
 }
 
+/** A change set that carries a morning and does not move one figure of it. */
+export interface IrasUntouchedMorning {
+  /**
+   * Every figure it carries, in the order handed in, each with the previous
+   * day’s own beside it — so the refusal can read the operator their own numbers
+   * back rather than quote a rule at them.
+   */
+  figures: IrasFigureStillYesterdays[];
+  /** How many of them are meter readings. The rest are stock figures. */
+  meterReadings: number;
+  /** The tanks among them, deduped, so a sentence can say “2 tanks”. */
+  tanks: string[];
+}
+
 /**
- * The nozzles a change set is about to put the previous day’s own reading on,
- * with nobody having said the pump did not run.
+ * Whether this change set is a morning nobody has actually done.
  *
- * The server’s side of the question {@link irasDayFindings} asks on screen, and
- * it exists because the screen’s answer never arrives. The shift sheet knows
- * which boxes it pre-filled and nobody has touched; that list lives in the
- * browser and is not sent, so a commit carrying a whole morning of yesterday’s
- * figures looks on the wire exactly like a morning somebody typed. Before this,
- * the only thing between an untouched day and the database was a map inside a
- * React component — and the day used to reach the server with EMPTY boxes,
- * which the server refused outright.
+ * The server’s own refusal, and the only thing left standing between an
+ * untouched day and the database. The shift sheet opens every box with the
+ * previous day’s figure already in it — fewer keystrokes on a phone — and
+ * refuses to save while a box is still holding what the system put there. But
+ * that refusal lives in a React component: the sheet’s record of which boxes it
+ * filled in is never sent, so on the wire a whole morning of yesterday’s figures
+ * looks exactly like a morning somebody typed. Before the pre-fill those boxes
+ * arrived EMPTY and `requiredForAddedRow` threw them out, a refusal that really
+ * did fire in production. This puts it back somewhere a stale tab, a replayed
+ * request or a bug in our own screen cannot reach.
+ *
+ * ONE question, asked of the whole change set rather than of each figure in it,
+ * and that is the whole difference between this rule and the one it replaces.
+ * The old rule refused ANY single meter reading equal to the previous day’s
+ * unless somebody had tapped “This pump did not run today” on that row. With
+ * that statement gone, the old rule would refuse every commit 16E ever makes:
+ * nozzles 5 and 6 have not turned since the inspection and stand at 13,205 and
+ * 2,638 every morning of the year. So the question is now the one the net was
+ * really written for, and the only one the server can answer on its own — is
+ * EVERY figure this commit carries still the previous day’s? Six readings and
+ * two tanks’ worth of stock, not one of them moved, is a morning nobody did.
+ * Six readings of which four moved is a person at work with two dead pumps, and
+ * it saves.
+ *
+ * “Every figure” means every figure a morning is ASKED for and this change set
+ * is putting somewhere: `TOT_READING` on a meter row, `NET_QTY` and
+ * `PRODUCT_DIP` on a stock row — the same three columns `TOT_ASKS` and
+ * `STK_ASKS` name above. The water dip is deliberately not among them. The
+ * engine never calculates with it, so a morning where somebody measured the
+ * water and left every meter and every stock at yesterday’s is still a morning
+ * nobody did, and letting one water dip exonerate it would be a hole rather than
+ * a kindness. Anything else handed in — a tanker, a truck number, an identity
+ * column — is ignored here and judged by the rules that own it.
+ *
+ * And the change set must carry BOTH KINDS before it can be refused: at least
+ * one meter reading AND at least one stock figure. That floor is what keeps a
+ * net meant for a morning from catching a correction. An admin who reopens a
+ * saved day to put nozzle 5 back to 13,205 after mistyping it is handing over
+ * one figure that equals the previous day’s, and they are right, and refusing it
+ * would be the very dead end this change exists to remove. A morning is meters
+ * AND tanks — 16E’s is six readings and two tanks — so asking for both costs a
+ * real morning nothing and costs a correction everything. Stock on its own is
+ * left alone for a second reason as well: a tank that neither sold nor received
+ * honestly reads the same two mornings running, and so does a dip read to the
+ * same centimetre.
+ *
+ * A figure the previous day has NOTHING for is not a figure standing still, and
+ * that settles the empty case honestly: `null`, no refusal. A box with no
+ * yesterday to match cannot have been carried in from one, so it is new
+ * information, and a change set carrying any of it is not an untouched morning.
+ * A dealer’s very first hand-typed day, where there is no previous day at all,
+ * therefore passes — which is right, because there is nothing there it could
+ * have failed to change.
  *
  * Deliberately NOT given the dealer’s product layout, and that is not a
  * shortcut. A nozzle’s meter scale multiplies both mornings’ readings before
  * anything is subtracted, and any positive factor times two equal numbers is
  * still a difference of nothing — so the scale cannot change this answer, and
  * the refusal holds even for a dealer whose report configuration cannot be read
- * at all. That matters: the after-save warning gives up on an unreadable
- * config, and this is the net underneath it.
+ * at all.
  *
- * Only readings the change set in hand puts there are handed in — a row it adds
- * or a reading it alters. A reading already on record that the commit does not
- * touch was answered for on the visit that saved it, and 16E’s two dead pumps
- * sit at 13,205 and 2,638 every single morning: re-asking about those would make
- * a day that was saved correctly impossible to reopen.
+ * Only the figures the change set in hand is PUTTING there are handed in — a row
+ * it adds, or a box it alters. A figure already on record that this commit does
+ * not touch was answered for on the visit that saved it, and 16E’s two dead
+ * pumps sit at 13,205 and 2,638 every single morning: judging those again would
+ * make a day that was saved correctly impossible to reopen. That is the same
+ * scoping {@link irasCarriedUntouched} needed, for the same reason.
  *
- * One entry per nozzle, in the order they were handed in, so the caller’s
- * sentence names each pump once.
+ * `null` on every ordinary commit, and otherwise the figures themselves.
  */
-export function irasUnchangedMeterReadings(input: {
-  readings: ReadonlyArray<IrasMeterReadingInHand>;
+export function irasUntouchedMorning(input: {
+  figures: ReadonlyArray<IrasFigureInHand>;
   previousTot: Record<string, string>;
-  acknowledgedUnchangedNozzles?: readonly string[];
-}): IrasUnchangedMeterReading[] {
-  const acknowledged = new Set(
-    (input.acknowledgedUnchangedNozzles ?? []).map((n) => irasRowIdentity(n)),
-  );
-  acknowledged.delete('');
+  previousStk: Record<string, IrasPreviousStkRow>;
+}): IrasUntouchedMorning | null {
+  const previousTot = input.previousTot ?? {};
+  const previousStk = input.previousStk ?? {};
 
-  const out: IrasUnchangedMeterReading[] = [];
+  const figures: IrasFigureStillYesterdays[] = [];
+  const tanks: string[] = [];
+  let meterReadings = 0;
+  // One answer per BOX. A commit that adds a row and then edits a cell on it
+  // hands the same figure over twice, and counting it twice would have the
+  // sentence name one nozzle two times.
   const seen = new Set<string>();
-  for (const entry of input.readings ?? []) {
-    const identity = irasRowIdentity(entry?.nozzleNo);
-    if (!identity || seen.has(identity) || acknowledged.has(identity)) continue;
-    const previous = trimmed(byIdentity(input.previousTot, identity));
-    // Through the one litres rule rather than a subtraction of its own, so
-    // `452180.0` and `452180` are the one reading here too. A string test would
-    // wave the commonest retyped figure of all straight through.
-    if (irasNozzleSold(entry?.reading, previous) !== 0) continue;
-    seen.add(identity);
-    out.push({ identity, reading: trimmed(entry?.reading), previous });
+
+  for (const figure of input.figures ?? []) {
+    const code = figure?.code;
+    if (code !== 'TOT' && code !== 'STK') continue;
+    const field = trimmed(figure?.field);
+    if (!(code === 'TOT' ? TOT_ASKS : STK_ASKS).includes(field)) continue;
+    const identity = irasRowIdentity(figure?.identity);
+    if (!identity) continue;
+    const box = `${code}|${identity}|${field}`;
+    if (seen.has(box)) continue;
+    seen.add(box);
+
+    const previous = previousFigureOf(code, identity, field, previousTot, previousStk);
+    // A box with NO previous figure behind it is skipped, not answered with.
+    //
+    // It cannot have been carried in from a day that has nothing in it, so it is
+    // new information either way and it says nothing about the rest. Bailing on
+    // the whole commit here — which is what `return null` used to do — let a
+    // single gap in yesterday's data disarm this over every other figure on the
+    // day, which is exactly the morning most likely to be got wrong.
+    if (trimmed(previous) === '') continue;
+    // One figure that has MOVED, and this is not an untouched morning. Answered
+    // on the spot rather than tallied: the verdict cannot come back once a
+    // single figure has gone.
+    if (!stillYesterdays(code, figure?.value, previous)) return null;
+
+    figures.push({
+      code,
+      identity,
+      field,
+      value: trimmed(figure?.value),
+      previous: trimmed(previous),
+    });
+    if (code === 'TOT') meterReadings += 1;
+    else if (!tanks.includes(identity)) tanks.push(identity);
   }
-  return out;
+
+  // A morning is meters AND tanks. Either one on its own is a correction, and a
+  // correction is not this rule’s business — see the walkthrough above.
+  if (meterReadings === 0 || tanks.length === 0) return null;
+  return { figures, meterReadings, tanks };
 }
 
 /* ───────────────────────────── the findings ─────────────────────────────── */
@@ -941,8 +962,6 @@ export interface IrasDayFindingsInput {
   rows: ReadonlyArray<IrasDayRowInForce>;
   previousTot: Record<string, string>;
   previousStk: Record<string, IrasPreviousStkRow>;
-  /** Nozzles somebody has stated did not run today, so a zero sale is deliberate. */
-  acknowledgedUnchangedNozzles: readonly string[];
   /**
    * The previous business date, `YYYY-MM-DD`. Optional only so a caller that has
    * not got it still gets every finding; without it the stock-did-not-move
@@ -964,19 +983,6 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
   const previousTot = input.previousTot ?? {};
   const previousStk = input.previousStk ?? {};
   const inputRows = input.rows ?? [];
-  // Consulted, never re-decided. The set that suppresses METER_UNCHANGED below
-  // has to be the same set that goes on the wire and into the sentence the save
-  // dialog prints — otherwise a nozzle can be blocked here while the dialog says
-  // it did not run, or the other way about. See
-  // {@link irasAcknowledgementsInForce} for the walkthrough that made this a bug.
-  const acknowledged = new Set(
-    irasAcknowledgementsInForce({
-      rows: inputRows,
-      previousTot,
-      products,
-      acknowledged: input.acknowledgedUnchangedNozzles ?? [],
-    }),
-  );
   const previousLabel = irasDayDateLabel(input.previousDate ?? '', 'long') || 'the previous day';
   // The short spelling, and only for the carried sentences: they are printed
   // under a box on a phone, one per unfinished figure, where "30 Aug" earns its
@@ -1123,26 +1129,26 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     if (!found) continue;
 
     /*
-     * "This pump did not run today" answers everything below, so it is asked
-     * first — before the carried check as well as before the unmoved-meter one.
-     * 16E's nozzles 5 and 6 have not turned since the inspection: their boxes are
-     * carried AND unmoved every single morning, and if the carried check ran
-     * first the statement would never clear them and the only way to save that
-     * outlet's day would be typing a reading that did not happen.
-     */
-    if (acknowledged.has(identity)) continue;
-
-    /*
      * The box the plan pre-filled and nobody has touched — said quietly, and
      * said INSTEAD of every other thing that could be said about it.
      *
      * This is the ordering trap the pre-fill brings with it. A carried reading
      * equals yesterday's by construction, so METER_UNCHANGED fires on it too,
-     * and a freshly opened day would come up with ten red boxes accusing the
-     * operator of reporting zero litres sold before they had typed a character.
+     * and a freshly opened day would come up with ten boxes telling the operator
+     * they had reported zero litres sold before they had typed a character.
      * Only one finding may be raised per field, and on an untouched carried box
-     * it is this one: "you have not done this yet" and "you typed a number that
+     * it is this one: "you have not done this yet" and "the number you typed
      * means zero sales" are different problems with different fixes.
+     *
+     * This is now the FIRST question asked about a nozzle. A third one used to
+     * come ahead of it — whether somebody had stated the pump did not run — and
+     * it had to, because that statement was the only way past this block and
+     * 16E's two dead pumps are carried AND unmoved every single morning. The
+     * statement is gone, and this block is no longer a dead end: typing the
+     * figure clears it, and a typed figure that turns out to equal yesterday's
+     * now saves with a warning under it. So carried has to keep winning over
+     * unchanged here, and the `continue` below is what keeps a freshly opened
+     * day saying "you have not done this one yet".
      *
      * Asked BEFORE the figure is parsed, which is the half that was missing. A
      * previous day recorded with a comma — "1,53,269" — carries a value this
@@ -1190,31 +1196,22 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     if (sold !== 0) continue;
 
     /*
-     * A nozzle that sold nothing, and two quite different reasons it might read
-     * that way. "This pump did not run today" answers both, and is still the one
-     * route to a zero-sales nozzle — it is asked at the top of this loop, so by
-     * here the statement has already cleared every nozzle it stands for.
-     */
-
-    /*
-     * Equal to yesterday blocks only on a reading THIS change set is putting
-     * there — and 16E is why.
+     * A nozzle that sold nothing. By here the box is not one the system filled
+     * in — the carried check above took those — so a person typed this figure,
+     * and typing it is the deliberate act. All that is left to do is say plainly
+     * what it means, which is a WARN and never a block.
+     *
+     * Said only about a reading THIS change set is putting there — and 16E is
+     * why.
      *
      * That outlet has two dead pumps. Nozzles 5 and 6 have not moved since the
      * inspection; their readings are still the inspection's own figures, 13,205
-     * and 2,638, and the operator retypes them every morning. The only honest
-     * way to save a nozzle that sold nothing is "This pump did not run today",
-     * and that statement is made in the change set: it goes with the commit and
-     * is not held on the day afterwards.
-     *
-     * So on the old rule a correctly saved morning was unopenable. Save at 07:00
-     * with both statements made; reopen at 09:00 to add a forgotten tanker, and
-     * nozzles 5 and 6 blocked again on figures nobody had touched, with only two
-     * ways out: swear the statement a second time, or type a reading that did not
-     * happen. The block was written to stop somebody leaving a carried figure
-     * untouched AS THEY ENTER IT. A reading that is already on record and that
-     * this change set does not alter was answered for on the visit that saved it,
-     * and asking again adds nothing.
+     * and 2,638, and the operator retypes them every morning. Once a day is
+     * saved those two figures are simply what that outlet reads, and repeating
+     * the warning on every later visit would teach the operator to look past it
+     * — which is the one way a warning can do harm. A reading already on record
+     * that this change set does not alter was answered for on the visit that
+     * saved it.
      *
      * A caller that says nothing about what the server holds still has every
      * reading read as fresh work, so the backend's after-save pass — which hands
@@ -1238,9 +1235,10 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     }
   }
 
-  // The same question on the two figures a stock row is asked for. There is no
-  // acknowledgement to offer here and none to make: a tank has a stock and a dip
-  // this morning whatever the pumps did, so the only way out is to measure it.
+  // The same question on the two figures a stock row is asked for, and here it
+  // is only ever the carried one: a tank has a stock and a dip this morning
+  // whatever the pumps did, so a box the system filled in is work outstanding
+  // and the one way out is to measure the tank.
   for (const { identity } of tanks) {
     const found = stkByTank.get(identity)?.[0];
     if (!found) continue;
@@ -1568,22 +1566,27 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
     });
   }
 
+  // Never a block, and never silent. Once a person has typed the figure the
+  // keystroke is the deliberate act — a pump that genuinely did not turn is a
+  // real morning and has to be savable — so all that is left is to say what the
+  // figure means, under the box, where the row's own "Sold 0 L" readout is
+  // saying it in the same breath. It keeps its place in this order because the
+  // sentence is about a meter and it belongs beside the other two.
   for (const item of unchanged) {
     findings.push({
-      severity: 'BLOCK',
+      severity: 'WARN',
       kind: 'METER_UNCHANGED',
       code: 'TOT',
       identity: item.identity,
       field: 'TOT_READING',
       rowIndex: item.rowIndex,
-      // The same block, said two ways, because the operator's next move is not
+      // The same warning, said two ways, because the operator's next move is not
       // the same. A figure they typed sends them back to the register; a figure
       // read off the slip sends them back to the slip, and the first thing to
       // check there is whether it is this morning's paper at all.
       message: item.fromSlip
-        ? `Same as yesterday. This reading came off the slip and it matches ${carriedFrom}’s, so it reports zero litres sold on nozzle ${item.identity} and drops that nozzle’s 5 litre test draw. Check the slip is this morning’s. If the pump really did not run, say so on the row menu.`
-        : `Same as yesterday. This reports zero litres sold on nozzle ${item.identity}, and it also drops that nozzle’s 5 litre test draw. If the pump really did not run, say so on the row menu.`,
-      blockReason: `Nozzle ${item.identity} reads exactly the same as yesterday. Either correct it, or choose 'This pump did not run today' on that row.`,
+        ? `Same as yesterday. This reading came off the slip and it matches ${carriedFrom}’s, so it reports zero litres sold on nozzle ${item.identity} and drops that nozzle’s 5 litre test draw. Check the slip is this morning’s. If the pump really did not run, leave it as it is — the day will save.`
+        : `Same as yesterday. This reports zero litres sold on nozzle ${item.identity}, and it also drops that nozzle’s 5 litre test draw. If the pump really did not run, leave it as it is — the day will save.`,
     });
   }
 
@@ -1614,9 +1617,10 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
   // to first, so it gets to speak first when a day has both.
   //
   // The `message` is kept to the one quiet line the sheet prints under the box,
-  // because on a freshly opened day it is printed ten times. The route out for
-  // a pump that really did not run is said once, here, in the sentence beside
-  // the disabled button.
+  // because on a freshly opened day it is printed ten times. There is one route
+  // out of this block and it is the same for every box, dead pump or not: type
+  // the figure. A reading that turns out to equal yesterday's saves, carrying
+  // the unmoved-meter warning under it.
   //
   // Named row by row up to three of them, and counted after that — which is the
   // one place this sentence parts company with the blank-figure one above it.
@@ -1638,11 +1642,7 @@ export function irasDayFindings(input: IrasDayFindingsInput): IrasDayFinding[] {
           carriedLabels.length === 1 ? 'holds' : 'hold'
         } ${carriedCount === 1 ? 'a figure' : 'figures'} carried from ${carriedFrom}`
       : `${carriedCount} figures on this day are still ${carriedFrom}’s`
-  }. Type this morning’s ${carriedCount === 1 ? 'figure over it' : 'figures over them'}.${
-    carriedUntouched.some((c) => c.code === 'TOT')
-      ? ' If a pump did not run at all, say so on its row menu.'
-      : ''
-  }`;
+  }. Type this morning’s ${carriedCount === 1 ? 'figure over it' : 'figures over them'}.`;
   for (const item of carriedUntouched) {
     findings.push({
       severity: 'BLOCK',
@@ -1901,7 +1901,7 @@ export function irasDayProgress(
     if (!entry || !trimmed(entry.row?.[figure.field])) continue;
     // Asked before the carried test rather than after it, so a box can only ever
     // be counted once. A slip figure that happens to equal the previous day's is
-    // still a slip figure — it is blocked by METER_UNCHANGED, which is a
+    // still a slip figure — it is warned about by METER_UNCHANGED, which is a
     // different question and has its own sentence.
     if (irasFigureReadOffSlip(entry, figure.field)) {
       read += 1;
@@ -2238,6 +2238,53 @@ function figureIsFreshWork(
 ): boolean {
   if (!entry.onRecord) return true;
   return !sameStoredValue(entry.row?.[field], entry.onRecord[field]);
+}
+
+/**
+ * The previous day’s own figure for one box.
+ *
+ * Looked up through {@link byIdentity} rather than by a plain key, because the
+ * portal writes a nozzle `02` one morning and `2` the next and the report reads
+ * both as nozzle 2. A lookup that missed would say the previous day has nothing
+ * for a box it has a figure for, and {@link irasUntouchedMorning} turns on
+ * telling those two apart: “nothing to compare against” is the answer that lets
+ * a commit through.
+ */
+function previousFigureOf(
+  code: IrasPlannedRowCode,
+  identity: string,
+  field: string,
+  previousTot: Record<string, string>,
+  previousStk: Record<string, IrasPreviousStkRow>,
+): unknown {
+  if (code === 'TOT') return byIdentity(previousTot, identity);
+  const row = byIdentity(previousStk, identity);
+  if (!row) return undefined;
+  return field === 'NET_QTY' ? row.netQty : row.productDip;
+}
+
+/**
+ * Whether one box is still holding the figure the previous day had in it.
+ *
+ * The meter goes through the one litres rule rather than a subtraction of its
+ * own, so `452180.0` and `452180` are the one reading here exactly as they are
+ * on the report — a string test would wave the commonest retyped figure of all
+ * straight through. No meter scale is passed and none is needed: any positive
+ * factor times two equal numbers is still a difference of nothing.
+ *
+ * A stock and a product dip are plain measurements rather than odometers, so
+ * they are compared as the numbers they are, which settles `5000.00` against
+ * `5000` the same way.
+ *
+ * Either side unreadable is NOT a match, and that is deliberate. A figure
+ * nothing can read is not a figure standing still, and the rules that refuse an
+ * unreadable value own that box.
+ */
+function stillYesterdays(code: IrasPlannedRowCode, value: unknown, previous: unknown): boolean {
+  if (code === 'TOT') return irasNozzleSold(value, previous) === 0;
+  const today = asNumber(value);
+  const before = asNumber(previous);
+  return today !== null && before !== null && today === before;
 }
 
 function trimmed(value: unknown): string {

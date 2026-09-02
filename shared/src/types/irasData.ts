@@ -270,19 +270,6 @@ export interface IrasCorrectionCommitInput {
   reason: string;
   edits?: IrasCellEditInput[];
   addedRows?: IrasAddedRowInput[];
-  /**
-   * Nozzles the operator has stated did not run today, so a meter reading equal
-   * to yesterday's is deliberate rather than a figure nobody updated.
-   *
-   * On the commit body only, never inside a correction and never inside the
-   * preview's pending changes. A hand-added row is sanitised against the shared
-   * field policy table, which would reject a column the portal does not send —
-   * and teaching that table a field the engine never reads is exactly what
-   * `dsr-report/fields.test.ts` exists to prevent. So the acknowledgement is
-   * written into the commit's AuditLog entry instead, where the nightly
-   * "unconfirmed unchanged meter" query can read it, and nowhere else.
-   */
-  acknowledgedUnchangedNozzles?: string[];
   /** Rows to exclude, and rows to stop excluding (`restore`). */
   excludeRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;
   restoreRowKeys?: Array<{ code: IrasReportCode; rowKey: string }>;

@@ -937,7 +937,7 @@ export function mapSlipToNozzles(input: SlipMapInput): SlipReading {
 
   const withValue = readings.filter((r) => r.value !== null);
   if (withValue.length > 0 && withValue.every((r) => r.outcome === 'UNCHANGED')) {
-    // The wrong-shift guard. Six taps of "this pump did not run" on a stale slip
+    // The wrong-shift guard. Six readings accepted off a stale slip
     // would report the outlet's entire day's throughput as stock gone missing —
     // the single largest number anything here can move — so the escape is not
     // offered on any of them and nothing may be filled in.
@@ -1396,7 +1396,7 @@ function readingForOneNozzle(
       value,
       soldLitres,
       proof,
-      message: `Exactly the same as yesterday. If nozzle ${nozzleNo} really did not run, say so — the report will show it sold nothing and it will not be charged its 5 litre test draw, and that is recorded against your name. If it did run, check the paper and type this morning’s reading.`,
+      message: `Exactly the same as yesterday. If nozzle ${nozzleNo} really did not run, accept it as it stands — the report will show it sold nothing and it will not be charged its 5 litre test draw. If it did run, check the paper and type this morning’s reading.`,
     };
   }
 
