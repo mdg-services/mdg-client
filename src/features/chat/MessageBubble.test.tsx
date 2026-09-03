@@ -325,7 +325,8 @@ describe('MessageBubble — a reply the first line wrote', () => {
 
   interface AiBlock {
     turnId: string;
-    kind: 'answer' | 'handoff' | 'reshare';
+    /** `'written'` is v2's: prose the writer composed and the fence passed. */
+    kind: 'answer' | 'written' | 'handoff' | 'reshare';
     intent: string;
     templateId: string;
   }
@@ -428,6 +429,61 @@ describe('MessageBubble — a reply the first line wrote', () => {
     );
     expect(screen.getByText('Instant reply')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Talk to a person' })).toBeInTheDocument();
+  });
+
+  /**
+   * v2: the reply is written, not chosen from a list of about thirty sentences.
+   *
+   * Three things changed underneath this bubble and none of them may change the
+   * bubble: it is longer (two or three sentences, and Hindi runs about 35%
+   * longer than English again), it can carry ONE newline — the `partial` line
+   * code appends after the prose — and it arrives under a new `kind`. The
+   * bubble has no fixed height, no line clamp and `whitespace-pre-wrap`, so all
+   * three are already handled; these tests are here to keep it that way.
+   */
+  it('labels prose the writer composed, and still offers a person', () => {
+    render(
+      <MessageBubble
+        message={aiMessage({ ...aiAnswer, kind: 'written' })}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Talk to a person' }),
+    ).toBeInTheDocument();
+  });
+
+  it('draws a long Hindi reply whole, and keeps the appended line', () => {
+    // 300 characters is the fence's Hindi ceiling, and the last line is
+    // `partial.rest_to_team` — appended by the backend AFTER the prose, by code,
+    // so the model cannot soften or drop it. If the bubble ever clamps or
+    // truncates, that is the line that disappears.
+    const prose =
+      'कल की रिपोर्ट बन गई है और MDG उसे देख रहा है। आपकी तरफ़ से डेंसिटी रजिस्टर का कल ' +
+      'वाला पन्ना अभी बाकी है — वो भेज दीजिए।';
+    const appended = 'बाक़ी बात MDG की टीम को भेज दी है — कोई यहीं जवाब देगा।';
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          id: 'ai-long',
+          senderId: 'system-user',
+          senderRole: 'admin',
+          body: `${prose}\n${appended}`,
+          ai: { ...aiAnswer, kind: 'written' },
+        })}
+        mine={false}
+        currentUserId="me"
+      />,
+    );
+    const bubble = container.querySelector('.whitespace-pre-wrap');
+    expect(bubble?.textContent).toBe(`${prose}\n${appended}`);
+    // No clamp, no fixed height: the two rules that would swallow the tail.
+    const cls = bubble?.getAttribute('class') ?? '';
+    expect(cls).not.toMatch(/line-clamp|max-h-|overflow-hidden/);
+    expect(cls).toContain('break-words');
   });
 
   it('draws a message with no ai field exactly as it drew it yesterday', () => {

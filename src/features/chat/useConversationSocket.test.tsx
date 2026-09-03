@@ -23,16 +23,20 @@ type Pages = InfiniteData<Message[]>;
 const ME = 'u1';
 const OTHER = 'u2';
 
-function mount(seedMsgs: Message[] = [], connected = true) {
+function mount(
+  seedMsgs: Message[] = [],
+  connected = true,
+  kind?: 'support' | 'manager',
+) {
   h.socket = makeFakeSocket(connected);
   const qc = makeTestQueryClient();
   if (seedMsgs.length) {
     qc.setQueryData<Pages>(KEY, { pages: [seedMsgs], pageParams: [undefined] });
   }
-  const view = renderHookWithProviders(() => useConversationSocket('c1', ME), {
-    queryClient: qc,
-    withRouter: false,
-  });
+  const view = renderHookWithProviders(
+    () => useConversationSocket('c1', ME, kind),
+    { queryClient: qc, withRouter: false },
+  );
   return { qc, ...view };
 }
 const msgs = (qc: ReturnType<typeof makeTestQueryClient>) =>
@@ -139,32 +143,99 @@ describe('useConversationSocket', () => {
     expect(m1.readBy).toContain(OTHER);
   });
 
-  it('typing shows the indicator then auto-clears after 3s, resetting on new events', () => {
+  /** One `typing` event from the other side of the thread. */
+  function serverTyping() {
+    act(() => {
+      h.socket.server('typing', {
+        conversationId: 'c1',
+        userId: OTHER,
+        userName: 'Support',
+      });
+    });
+  }
+
+  it('holds a person’s typing dots for 3s, resetting on every keystroke', () => {
     vi.useFakeTimers();
     try {
-      const { result } = mount([]);
-      act(() => {
-        h.socket.server('typing', {
-          conversationId: 'c1',
-          userId: OTHER,
-          userName: 'Support',
-        });
-      });
+      // A manager's GROUP thread: the AI first line stands down there, so the
+      // only thing that can be typing is another person at the pump, and a
+      // person emits on every keystroke.
+      const { result } = mount([], true, 'manager');
+      serverTyping();
       expect(result.current.typing.active).toBe(true);
 
       act(() => vi.advanceTimersByTime(2000));
-      // another event resets the 3s window
-      act(() => {
-        h.socket.server('typing', {
-          conversationId: 'c1',
-          userId: OTHER,
-          userName: 'Support',
-        });
-      });
+      serverTyping(); // another keystroke resets the window
       act(() => vi.advanceTimersByTime(2000));
-      expect(result.current.typing.active).toBe(true); // still typing (reset)
+      expect(result.current.typing.active).toBe(true);
 
       act(() => vi.advanceTimersByTime(1000));
+      expect(result.current.typing.active).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('holds the machine’s dots past 3s — its turn is two model calls', () => {
+    // THE REGRESSION THIS GUARDS. The server emits `typing` ONCE, at the top of
+    // the turn, and then thinks: a router call and then a writer call, under a
+    // nine-second wall clock. A three-second window dropped the dots while MDG
+    // was still composing, and the answer then landed into a thread that had
+    // been silent — which is the exact "reads as a machine" failure the emit
+    // exists to prevent.
+    vi.useFakeTimers();
+    try {
+      const { result } = mount([]); // no kind: a support thread
+      serverTyping();
+
+      act(() => vi.advanceTimersByTime(5000));
+      expect(result.current.typing.active).toBe(true);
+
+      act(() => vi.advanceTimersByTime(5000));
+      expect(result.current.typing.active).toBe(false); // the backstop still fires
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('drops the dots the moment the answer lands', () => {
+    // A message is proof they stopped writing. Without this the dots would sit
+    // under the answer they announced for the rest of the ten-second hold.
+    vi.useFakeTimers();
+    try {
+      const { result } = mount([]);
+      serverTyping();
+      expect(result.current.typing.active).toBe(true);
+
+      act(() => {
+        h.socket.server('message:new', {
+          message: makeMessage({ id: 'a1', senderId: OTHER }),
+          conversation: {},
+        });
+      });
+      expect(result.current.typing.active).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('takes the dots down with the room when the thread changes', () => {
+    // The leak: switching threads used to clear the TIMER and leave the STATE,
+    // so dots raised on the thread you left were still drawn on the thread you
+    // opened — with nothing left running to ever take them away. The hook stays
+    // MOUNTED across that switch (same route component, new :id), which is why
+    // this rerenders rather than unmounting.
+    vi.useFakeTimers();
+    try {
+      h.socket = makeFakeSocket(true);
+      const { result, rerender } = renderHookWithProviders(
+        ({ id }: { id: string }) => useConversationSocket(id, ME),
+        { withRouter: false, initialProps: { id: 'c1' } },
+      );
+      serverTyping();
+      expect(result.current.typing.active).toBe(true);
+
+      act(() => rerender({ id: 'c2' }));
       expect(result.current.typing.active).toBe(false);
     } finally {
       vi.useRealTimers();

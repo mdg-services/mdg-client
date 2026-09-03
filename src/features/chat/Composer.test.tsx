@@ -238,7 +238,11 @@ describe('Composer quick-reply chips', () => {
     useLangStore.setState({ lang: 'en', explicit: true });
   });
 
-  const CHIPS = ["Today's report?", "Sent today's photo?", 'Talk to support'];
+  // "Sent today's photo?" was the middle one until the conversational writer
+  // shipped: `AskBar` already states that chore above this thread and opens the
+  // camera, while "What do I need to do?" is the question the live incident at
+  // 1E was handed to a person over.
+  const CHIPS = ["Today's report?", 'What do I need to do?', 'Talk to support'];
 
   it('offers the three questions while the box is empty', () => {
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);

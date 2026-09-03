@@ -99,6 +99,26 @@ describe('ChatListPage', () => {
     expect(await screen.findByText('thread-page')).toBeInTheDocument();
   });
 
+  it('keeps a long written reply to one line in the list', () => {
+    // From v2 the first line composes its own prose, so `lastMessagePreview` is
+    // no longer one of about thirty short hand-written sentences — it is up to
+    // 280 characters of Hindi, which runs roughly 35% longer than English again.
+    // The row must stay one line high whatever lands in it: two rows for one
+    // thread pushes the rest of the list off a 360px screen. jsdom has no
+    // layout, so the assertion is on the class that enforces it.
+    const long =
+      'कल की रिपोर्ट बन गई है और MDG उसे देख रहा है। आपकी तरफ़ से अभी डेंसिटी रजिस्टर का ' +
+      'कल वाला पन्ना बाकी है, वो भेज दीजिए तो बाकी काम आगे बढ़ जाएगा।';
+    h.result = loaded([
+      conv({ id: 'support', kind: 'support', lastMessagePreview: long }),
+      conv({ id: 'mgr', kind: 'manager', userId: 'manager' }),
+    ]);
+    const { container } = renderList();
+    const preview = container.querySelector(`[class*="text-xs"][class*="truncate"]`);
+    expect(preview?.textContent).toBe(long);
+    expect(preview?.getAttribute('class') ?? '').toContain('truncate');
+  });
+
   /**
    * The reported bug: the fetch failed and the dealer was told "No chats yet".
    * Their chats were all still on the server — the page turned a transport

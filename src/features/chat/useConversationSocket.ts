@@ -5,20 +5,75 @@ import { messagesQueryKey } from '@/hooks/api/useMessages';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
-import type { Conversation, Message, MessageReaction } from '@dk/shared/types';
+import type {
+  Conversation,
+  ConversationKind,
+  Message,
+  MessageReaction,
+} from '@dk/shared/types';
 
 export interface TypingState {
   active: boolean;
   userName?: string;
 }
 
+/**
+ * How long the dots stay up after ONE `typing` event — and why the two numbers
+ * are so far apart.
+ *
+ * A PERSON emits `typing` on every keystroke (the Composer's textarea calls
+ * `onTyping` in its `onChange`), so a stream of events keeps refreshing the
+ * window and three seconds of silence really does mean they stopped writing.
+ *
+ * THE MACHINE EMITS EXACTLY ONCE and then thinks. `emitTypingAs` on the server
+ * is called at stage 4 of the AI first line and never again. Under v1 the turn
+ * was one model call and usually landed inside three seconds, so nobody noticed.
+ * v2's turn is TWO calls — a router and then a writer, deliberately serial —
+ * under a nine-second wall clock, and its own budget puts the median at about
+ * 2.6 s and the worst case at 8.65 s. A three-second window therefore drops the
+ * dots while MDG is still composing, and the answer lands into a thread that has
+ * been silent for six seconds. That is exactly the "reads as a machine" failure
+ * the server-side emit was written to prevent, so the hold has to cover the
+ * server's own deadline.
+ *
+ * WHICH SOURCE IT IS, IS DECIDED BY THE THREAD, NOT BY THE PAYLOAD, and that is
+ * sound rather than a guess. The first line stands down on a manager's group
+ * thread (`convo.kind === 'manager'` → reason `group_thread`; it posts nothing
+ * at all), and mdg-admin never emits `typing` — it only listens. So in a support
+ * thread the only thing that can be writing is the machine, and in a group
+ * thread the only thing that can be writing is another person at the pump.
+ *
+ * The long hold is a BACKSTOP and almost never runs to the end: an arriving
+ * message clears the dots immediately (see `onNewMessage`). It only plays out in
+ * full on the paths where the turn posts nothing after the dot was raised.
+ */
+const TYPING_HOLD_MS = {
+  /** Three seconds after the last keystroke. Unchanged behaviour. */
+  person: 3_000,
+  /** The server's whole turn deadline (9 s) plus the post. */
+  machine: 10_000,
+} as const;
+
 export function useConversationSocket(
   conversationId: string | undefined,
   currentUserId: string | undefined,
+  /**
+   * The thread kind, for the typing hold above. Optional and defaulting to the
+   * machine's window, because it arrives with `/conversations/mine` and is
+   * routinely still undefined when the socket joins — and a support thread is
+   * both the common case and the one that needs the long hold.
+   */
+  conversationKind?: ConversationKind,
 ) {
   const qc = useQueryClient();
   const [typing, setTyping] = React.useState<TypingState>({ active: false });
   const typingTimer = React.useRef<number | null>(null);
+  // Read through a ref inside the socket handlers rather than closed over, so
+  // that the thread kind resolving a moment after mount never re-runs the effect
+  // below — that would leave and re-join the room for a cosmetic timeout.
+  const typingHoldMs = React.useRef<number>(TYPING_HOLD_MS.machine);
+  typingHoldMs.current =
+    conversationKind === 'manager' ? TYPING_HOLD_MS.person : TYPING_HOLD_MS.machine;
 
   // Merge a delivery/read receipt into the cached messages: append `userId` to
   // the given field (deliveredTo | readBy) for every message in `ids`.
@@ -98,6 +153,17 @@ export function useConversationSocket(
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {
         socket.emit('read', { conversationId, messageIds: [payload.message.id] });
       }
+      // A MESSAGE IS PROOF THEY HAVE STOPPED WRITING, so the dots come down with
+      // it rather than waiting out the hold. Under a three-second window this
+      // was invisible; with the machine's ten-second window the dots would
+      // otherwise sit under the answer they were announcing for the rest of it.
+      // The functional update returns the same object when nothing was showing,
+      // so an ordinary message costs no re-render.
+      if (payload.message.senderId !== currentUserId) {
+        if (typingTimer.current) window.clearTimeout(typingTimer.current);
+        typingTimer.current = null;
+        setTyping((prev) => (prev.active ? { active: false } : prev));
+      }
     };
 
     const onTyping = (payload: { conversationId: string; userId: string; userName: string }) => {
@@ -107,7 +173,7 @@ export function useConversationSocket(
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = window.setTimeout(() => {
         setTyping({ active: false });
-      }, 3000);
+      }, typingHoldMs.current);
     };
 
     const onDelivered = (payload: {
@@ -178,6 +244,13 @@ export function useConversationSocket(
       socket.off('read', onRead);
       socket.off('message:reaction', onReaction);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
+      typingTimer.current = null;
+      // THE DOTS COME DOWN WITH THE ROOM. This used to clear the TIMER and leave
+      // the state, so dots raised on the thread you were leaving were still
+      // drawn on the thread you opened — and with the timer gone, nothing was
+      // ever going to take them away again. Rare while the hold was three
+      // seconds; ordinary now that a support thread holds them for ten.
+      setTyping((prev) => (prev.active ? { active: false } : prev));
     };
   }, [conversationId, currentUserId, qc, applyReceipt]);
 

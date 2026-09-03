@@ -263,10 +263,34 @@ export function Composer({
   // still on screen beside a half-typed sentence is a one-tap way to lose it.
   // The gate is `text.length`, not `text.trim().length`: the first keystroke
   // hides them, whatever it was.
+  //
+  // WHY THESE THREE, AND WHY "Sent today's photo?" IS NO LONGER ONE OF THEM.
+  // A chip is worth its row only if it is a question a dealer actually asks AND
+  // one nothing else on the screen already answers. The photo chip failed the
+  // second test twice over. `features/asks/AskBar` sits directly above this
+  // conversation and, whenever a paper is owed, says so in one line and opens
+  // the camera on tap — so the chip asked the machine to describe a chore the
+  // bar was already showing, which is the same "two lines about one chore"
+  // mistake that got `DensityChatPin` unmounted. And when nothing was owed, its
+  // answer was one fixed sentence.
+  //
+  // "What do I need to do?" replaces it because it is the question the live
+  // incident was about: at dealer 1E it was answered with "I couldn't check this
+  // one myself. I've passed it to the MDG team…" and the thread went to a person
+  // on the dealer's SECOND message. It now has a label of its own that answers
+  // it — the papers owed, the register page, and where the report stands — so
+  // the chip finally names something the machine can do and the bar cannot.
+  //
+  // STILL THREE, AND THEY STILL ONLY FILL THE BOX. A conversational first line
+  // is an argument for FEWER fixed chips, not more: the whole point is that the
+  // dealer can now type their own question and be understood, so a menu of
+  // canned ones would teach them the opposite. These three earn their place as a
+  // keyboard shortcut for the three things typed most often on a Devanagari
+  // phone keyboard — not as the interface. The composer is the interface.
   const quickReplies = React.useMemo(
     () => [
       t('chat.quickTodayReport'),
-      t('chat.quickTodayPhoto'),
+      t('chat.quickWhatNow'),
       t('chat.quickTalkSupport'),
     ],
     [t],

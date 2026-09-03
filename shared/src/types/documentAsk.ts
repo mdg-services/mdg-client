@@ -676,11 +676,7 @@ export interface DealerDocumentAskList {
  *                       shown as missing for doing exactly the right thing.
  *  - anything else    — the real ask's own state.
  */
-export type DocumentAskEstateStatus =
-  | 'NOT_ON_SERVICE'
-  | 'NOT_SENT'
-  | 'RECEIVED'
-  | DocumentAskState;
+export type DocumentAskEstateStatus = 'NOT_ON_SERVICE' | 'NOT_SENT' | 'RECEIVED' | DocumentAskState;
 
 /** One dealer's line in the estate view for a single (kind, period). */
 export interface DocumentAskEstateRow {
@@ -956,10 +952,7 @@ export interface DocumentAskAge {
  * column shows a dash) and when no usable clock is on the row. A wrong number
  * here is worse than no number: this one drives which dealer gets phoned.
  */
-export function documentAskAge(
-  input: DocumentAskAgeInput,
-  nowMs: number,
-): DocumentAskAge | null {
+export function documentAskAge(input: DocumentAskAgeInput, nowMs: number): DocumentAskAge | null {
   if (input.waitingOn === 'none') return null;
 
   const candidates: { iso: string | undefined; basis: DocumentAskAge['basis'] }[] =
@@ -971,7 +964,10 @@ export function documentAskAge(
         [{ iso: input.submittedAt, basis: 'sent' }]
       : [
           { iso: input.askedAt, basis: 'asked' },
-          { iso: input.periodDay ? `${input.periodDay}T00:00:00+05:30` : undefined, basis: 'period' },
+          {
+            iso: input.periodDay ? `${input.periodDay}T00:00:00+05:30` : undefined,
+            basis: 'period',
+          },
         ];
 
   for (const candidate of candidates) {

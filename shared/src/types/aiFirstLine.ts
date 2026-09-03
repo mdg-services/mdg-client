@@ -9,12 +9,13 @@
  *
  * THE THREE PROPERTIES THIS FILE EXISTS TO ENFORCE
  * ------------------------------------------------
- * 1. THE MODEL CANNOT WRITE. Its entire output is {@link AiPlan}: one label out
- *    of {@link AI_FIRSTLINE_INTENTS} and a few scalars. There is no field on it
- *    a sentence fits in. Code maps the label to a lookup and fills a
- *    hand-written bilingual template, so every number a dealer reads traces back
- *    to a value a lookup returned. "The model cannot write" is a far stronger
- *    guarantee than "the model wrote and we checked it".
+ * 1. THE ROUTER CANNOT WRITE, AND THE WRITER CANNOT READ. The routing model's
+ *    entire output is {@link AiPlan}: labels out of {@link AI_FIRSTLINE_INTENTS}
+ *    and a few scalars. There is no field on it a sentence fits in. Code maps
+ *    each label to a lookup, runs it, and only THEN hands the facts to a second
+ *    model that writes the reply — a model with no tools, no database, and
+ *    nothing in front of it but this turn's own figures. So no sentence a dealer
+ *    writes can point a lookup at another outlet: the parameter does not exist.
  * 2. AN AI MESSAGE IS AN ADMIN MESSAGE. There is no `'ai'` sender role — see
  *    {@link MessageAiMeta} for the screen that would break if there were.
  * 3. AN AI THREAD IS AN ORDINARY OPEN THREAD. There is no fourth
@@ -22,6 +23,18 @@
  *    {@link ConversationAiState} block instead. A fifth status would drop the
  *    thread out of every inbox tab and four of the five counts while the dealer
  *    sat waiting.
+ *
+ * WHAT V2 CHANGED, AND WHAT IT DID NOT
+ * ------------------------------------
+ * v1 could only emit one of about thirty sentences a person wrote, so two
+ * different questions that landed on the same fact got the SAME sentence, word
+ * for word. That happened at a live outlet on the first real conversation and it
+ * is what this version exists to fix. The templates did not go anywhere: they
+ * are now the FALLBACK. If the written reply fails any check in `fence.ts`, the
+ * hand-written sentence for that same fact is posted instead and the dealer is
+ * told nothing. That is the hinge of the whole design — it is what lets the
+ * fence be brutally strict, because being strict costs a nicer sentence and
+ * never an answer.
  *
  * Nothing here reaches a dealer until that dealer's own
  * {@link DealerFirstLineMode} is switched on, and it is `'OFF'` for everybody
@@ -101,6 +114,19 @@ export const AI_FIRSTLINE_INTENTS = [
   /** "kisi se baat karao", "call me" — an explicit request for a person. */
   'talk_to_human',
   /**
+   * "ab kya karna hai", "kuch pending hai kya", "what do I need to do now" —
+   * what is outstanding, either way.
+   *
+   * The label the production incident was missing. "What do I need to do now?"
+   * is an ordinary follow-up and v1 had nothing to place it on, so it fell to
+   * `other` and the thread went to a person on the dealer's second message.
+   */
+  'todo',
+  /** "thank you", "shukriya", "theek hai", "ok ji" — an acknowledgement with no question in it. */
+  'thanks',
+  /** Friendly talk with no question about their outlet in it. */
+  'smalltalk',
+  /**
    * None of the above.
    *
    * The give-up label, and it must stay cheap to reach. A model that is rewarded
@@ -128,23 +154,17 @@ export const AI_PRODUCT_HINTS = ['MS', 'HSD', 'XP', 'XG'] as const;
 export type AiProductHint = (typeof AI_PRODUCT_HINTS)[number];
 
 /**
- * The model's ENTIRE output. There is nothing else it may return.
+ * ONE thing the dealer asked about, with the scalars that belong to THAT ask.
  *
- * THIS IS THE CENTRAL SAFETY PROPERTY OF THE WHOLE FEATURE, not a convenience or
- * a first cut to be relaxed later. There is no free-text field on this object,
- * so there is no path by which a sentence the model composed can reach a dealer.
- * The plan selects a lookup and parameterises it; a hand-written bilingual
- * template does the writing. Adding a `note`, a `summary`, an `answer` or a
- * `reason` string here would quietly convert this feature from "a machine that
- * chooses between twenty-one hand-written answers" into "a machine that talks to
- * our customers", and those are different products with different risks.
- *
- * `personName` is the one string, and it is not an exception — see its comment.
+ * The scalars are per-ask and not on the plan, and that is not tidiness. "22
+ * tarikh ka DSR bhejo aur aaj ki density batao" carries two different days; a
+ * flat `date` forces one of them onto both lookups, and the answer then names a
+ * day the lookup never read. That is the authoritative-figure fault in
+ * miniature — a sentence saying a figure matters while the calculation read
+ * another — and this codebase has been audited for it once already.
  */
-export interface AiPlan {
+export interface AiPlanAsk {
   intent: AiFirstLineIntent;
-  /** The language THIS message was written in, which is the language to answer in. */
-  lang: AiFirstLineLang;
   /**
    * An IST calendar day, `YYYY-MM-DD`. IST days are strings everywhere in this
    * codebase and this is no exception: the moment a business day becomes a
@@ -166,6 +186,37 @@ export interface AiPlan {
   /** Which grade the question was about, when it named one. */
   productHint?: AiProductHint;
 }
+
+/**
+ * The router model's ENTIRE output. There is still no field on this object a
+ * sentence fits in, and `aiPlanSchema` is `.strict()` at BOTH levels.
+ *
+ * WHAT CHANGED AND WHAT DID NOT. v1 carried one label; this carries up to three.
+ * That widens what the machine may SELECT, not what it may SAY. The sentence a
+ * dealer reads is written by a SECOND call that has no tools and no database,
+ * and these labels are what decides which facts that call is allowed to see.
+ *
+ * Adding a `note`, a `summary`, an `answer` or a `reason` string HERE would
+ * still be the mistake it always was: it would let the routing call — the one
+ * that reads the dealer's raw text — put words in a reply, bypassing every fact
+ * lookup and every fence downstream of it.
+ */
+export interface AiPlan {
+  /** The language THIS message was written in, which is the language to answer in. */
+  lang: AiFirstLineLang;
+  /** Ordered, 1..{@link AI_PLAN_MAX_ASKS}. `asks[0]` is the primary; the reply leads with it. */
+  asks: AiPlanAsk[];
+}
+
+/**
+ * Three. The bound is the WRITER's attention, not the database's.
+ *
+ * Lookups run in parallel, so four cost the latency of the slowest and not the
+ * sum. What bounds this is that a writer handed five unrelated fact blocks
+ * starts attaching one block's date to another block's subject, and NO FENCE
+ * CATCHES THAT — the date is sourced, it is merely on the wrong noun.
+ */
+export const AI_PLAN_MAX_ASKS = 3;
 
 /**
  * What became of one turn of the first line.
@@ -222,14 +273,40 @@ export const AI_HANDOFF_REASONS = [
   /** The machine has already answered this thread more times than it should have. */
   'repeat',
   /**
-   * The dealer wrote again, soon, on a thread the machine had just answered.
-   *
-   * The strongest signal available that the answer missed, and it costs nothing
-   * to read: no model call, no paise. It exists because clearing the SLA clock is
-   * exactly right when the dealer got what they needed and catastrophic when they
-   * did not, and this is the moment we find out which.
+   * @deprecated Emitted by v1 only. The premise it stood on — a second message
+   * means the first answer missed — is false in a conversational product, and it
+   * fired on "What do I need to do now?" on the very first real conversation.
+   * Replaced by `dissatisfied`, `repeat_miss`, `same_answer` and the
+   * `quickFollowUp` review flag. Never emitted again; never removed either — a
+   * month of production rows carry it and the admin log renders a label per
+   * reason, so deleting the value would blank those rows.
    */
   'follow_up',
+  /**
+   * The dealer said the answer was wrong, in words that judge the ANSWER.
+   *
+   * Matched against a code-side bilingual phrase list before any model call, and
+   * only on a thread the machine had just answered. A bare "nahi" is NOT on that
+   * list and must never be: "abhi tak nahi aaya" means "it hasn't arrived yet",
+   * which is a question, not a complaint.
+   */
+  'dissatisfied',
+  /**
+   * Two turns running the machine failed to produce a fact.
+   *
+   * `streak` counts successes and a handoff resets it to zero, so under v1 an
+   * endlessly failing thread tripped nothing at all. Nobody gets three apologies.
+   */
+  'repeat_miss',
+  /**
+   * The body about to be posted is byte-identical to one we posted here inside
+   * half an hour.
+   *
+   * This is the production incident turned into its own permanent detector: two
+   * different questions produced the same sentence because both resolved to the
+   * same underlying fact. Accurate; reads as the machine not listening.
+   */
+  'same_answer',
   /** The model returned `other`, or no label the code could place. */
   'no_intent',
   /** The lookup ran and declined — no such employee, no report for that day, service not on. */
@@ -246,6 +323,60 @@ export const AI_HANDOFF_REASONS = [
   'vendor_busy',
 ] as const;
 export type AiHandoffReason = (typeof AI_HANDOFF_REASONS)[number];
+
+/**
+ * What happened to the writer on this turn. ONE enum rather than two booleans,
+ * so the states cannot contradict each other, and `'skipped'` carries WHY —
+ * a writer that silently degrades to v1 under vendor latency looks exactly like
+ * the feature working, because every dealer gets a correct template and nobody
+ * complains.
+ */
+export const AI_WRITER_DISPOSITIONS = [
+  /** The writer's sentence was posted. */
+  'prose',
+  /** The writer ran and the fence (or a timeout, or bad JSON) rejected it. */
+  'fallback',
+  /** Never called — see {@link AI_WRITER_SKIPS}. */
+  'skipped',
+  /** The switch or the writer budget. */
+  'off',
+] as const;
+export type AiWriterDisposition = (typeof AI_WRITER_DISPOSITIONS)[number];
+
+/**
+ * Why the writer was never called on a turn that could otherwise have used it.
+ *
+ * A named field rather than an absent one, because "the writer keeps timing out"
+ * and "the writer is working perfectly" are indistinguishable from the dealer's
+ * side: both produce a correct template and nobody complains.
+ */
+export const AI_WRITER_SKIPS = [
+  /** `thanks` — a template is the whole right answer, and 5 paise of nothing is not. */
+  'no_facts',
+  /** Less than `AI_FIRSTLINE_WRITER_MIN_MS` of the turn deadline was left. */
+  'deadline',
+  /** Too many facts, too many numbers, or over 6 KB. */
+  'envelope_caps',
+  /** The reshare path posts its own message and its own lead-in. */
+  'reshare',
+  /** The turn is standing down; there is no fact to phrase. */
+  'handoff',
+
+  /* ── The three ways `writer: 'off'` happens ──────────────────────────── */
+  //
+  // `'off'` on its own conflates three genuinely different events, and an admin
+  // looking at a day of template-only turns needs to know which: a PERSON
+  // pressed the middle notch, we RAN OUT OF MONEY, or THE MACHINE TURNED ITS
+  // OWN PROSE OFF. The first is a decision, the second is a forecast that was
+  // wrong, and the third is a fault. They are not the same conversation.
+  /** `AI_FIRSTLINE_WRITER_ENABLED` is false, or the database switch is at "Templates only". */
+  'switch_off',
+  /** The soft lid. Past ₹150 the templates take over and only variety is lost. */
+  'writer_budget',
+  /** The writer's own breaker: it has been failing the fence too often. */
+  'fallback_breaker',
+] as const;
+export type AiWriterSkip = (typeof AI_WRITER_SKIPS)[number];
 
 /**
  * The `ai` block on a Message — the ONLY thing that marks a message as machine-made.
@@ -273,11 +404,17 @@ export interface MessageAiMeta {
   /** Joins this message to its {@link AiTurn}. One turn posts at most one message. */
   turnId: string;
   /**
-   * What this message IS. `'answer'` carries figures; `'handoff'` is the one warm
-   * line before a person takes over; `'reshare'` re-sends something MDG already
-   * sent, which is a different act from answering and is counted separately.
+   * What this message IS. `'answer'` is a hand-written template filled with
+   * figures; `'written'` is prose the writer model composed from this turn's
+   * facts and the fence passed; `'handoff'` is the one warm line before a person
+   * takes over; `'reshare'` re-sends something MDG already sent, which is a
+   * different act from answering and is counted separately.
+   *
+   * `'written'` is separate from `'answer'` so that no later count of what the
+   * machine said can silently merge template answers with composed ones. The two
+   * carry different risk and are reviewed differently.
    */
-  kind: 'answer' | 'handoff' | 'reshare';
+  kind: 'answer' | 'written' | 'handoff' | 'reshare';
   intent: AiFirstLineIntent;
   /** Which hand-written template filled this message. The wording is auditable from here. */
   templateId: string;
@@ -324,6 +461,43 @@ export interface ConversationAiState {
   streak: number;
   /** Why it stood down last, when it did. */
   lastReason?: AiHandoffReason;
+  /**
+   * Turns in a row the machine FAILED to produce a fact.
+   *
+   * `streak` counts successes; this counts failures, which is the thing worth
+   * counting — a handoff resets `streak` to 0, so under v1 an endlessly failing
+   * thread never tripped anything at all. At
+   * `AI_FIRSTLINE_MISS_STREAK_MAX` the next dealer message goes straight to a
+   * person with no model call at all.
+   */
+  missStreak: number;
+  /**
+   * The last body the machine posted here, truncated.
+   *
+   * Backs the `same_answer` guard with one string comparison and no second
+   * `messages` query per turn.
+   */
+  lastAnswerBody?: string;
+  /**
+   * SECURITY OBSERVATIONS, and deliberately NOT `Conversation.flagged`.
+   *
+   * `flagged` means one thing — an assigned ticket missed its reply SLA — and it
+   * is cleared by pickup, by any admin reply, by resolve, by reopen and by a
+   * records post. Storing a security marker there would mean an admin ANSWERING
+   * THE DEALER silently erases it. An operational alarm should clear when the
+   * work is done; an observation about a person's behaviour must survive being
+   * replied to. Cleared by exactly one thing: `POST …/ai-guard/clear`.
+   *
+   * A counter, not a boolean: one injection attempt is a curious dealer and a
+   * pattern is a person's job.
+   */
+  abuse?: {
+    count: number;
+    firstAt: string;
+    lastAt: string;
+    /** Rule NAMES only. Never the dealer's text — that is on the turn row. */
+    lastRules: string[];
+  };
 }
 
 /**
@@ -353,8 +527,20 @@ export const DEALER_FIRSTLINE_MODE_DEFAULT: DealerFirstLineMode = 'OFF';
  * `'SHOULD_HAVE_HANDED_OFF'` says the answer was not wrong, it was merely the
  * wrong thing to do — the dealer needed a person and got a correct paragraph
  * about density instead.
+ *
+ * `'POORLY_WORDED'` says EVERY FACT WAS RIGHT AND THE SENTENCE WAS BAD, and it
+ * exists because v2's writer composes free prose. Without it a reviewer marking
+ * a clumsy-but-true reply has only `WRONG` to reach for, and three of those in a
+ * day switch the whole first line off — so a fortnight of careful review would
+ * disable the feature for being well supervised. It deliberately does NOT trip
+ * the breaker; see {@link aiVerdictTripsBreaker}.
  */
-export const AI_TURN_VERDICTS = ['RIGHT', 'WRONG', 'SHOULD_HAVE_HANDED_OFF'] as const;
+export const AI_TURN_VERDICTS = [
+  'RIGHT',
+  'WRONG',
+  'POORLY_WORDED',
+  'SHOULD_HAVE_HANDED_OFF',
+] as const;
 export type AiTurnVerdict = (typeof AI_TURN_VERDICTS)[number];
 
 export interface AiTurnReview {
@@ -369,9 +555,17 @@ export interface AiTurnReview {
  *
  * "This should have been a handoff" is a tuning signal, not evidence the machine
  * lied — the figures it printed were right and traceable, it just should have
- * stayed quiet. Counting those would mean the breaker fires hardest in exactly
- * the week the team is reviewing most carefully and finding the most nuance, and
- * the feature would be switched off for being too well supervised.
+ * stayed quiet. `POORLY_WORDED` is the same kind of signal about the new writer:
+ * every fact was right and the sentence was bad. Counting either would mean the
+ * breaker fires hardest in exactly the week the team is reviewing most carefully
+ * and finding the most nuance, and the feature would be switched off for being
+ * too well supervised.
+ *
+ * The three in twenty-four hours is UNCHANGED and stays unchanged. Raising it
+ * lets a genuinely lying machine run longer, which is the one thing the breaker
+ * exists to prevent. The number was never the problem; the word was becoming
+ * ambiguous once answers were freely written, which is what `POORLY_WORDED`
+ * fixes.
  *
  * A helper rather than a comparison at the call site because the breaker, the
  * admin's turn list, and any later dashboard must all agree on what "wrong"
@@ -460,4 +654,58 @@ export interface AiTurn {
   istDate: string;
   createdAt: string;
   review?: AiTurnReview;
+
+  /* ── v2: the writer, the fence, and the guard ─────────────────────────── */
+
+  /**
+   * Did the writer's prose go out, or did we post a template instead?
+   *
+   * THE COLUMN THIS WHOLE VERSION IS MEASURED BY. `prose ÷ ANSWERED` below about
+   * 70% means nothing has changed: dealers are still reading v1's sentences and
+   * we are paying for a writer whose output is being thrown away. Watch it split
+   * by `lang`, not only in aggregate — a systematically high rejection rate on
+   * Hindi would quietly mean Hindi dealers get templates while English dealers
+   * get prose.
+   */
+  writer?: AiWriterDisposition;
+  /** Why the writer was skipped, when `writer` is `'skipped'`. */
+  writerSkip?: AiWriterSkip;
+  /**
+   * Which fence rules refused the prose. RULE NAMES ONLY — never the offending
+   * number, the same doctrine `verify.ts` states for its own detail field: the
+   * value is the thing we have just decided we cannot account for, and a log
+   * line is not a safer place for it than a chat bubble.
+   */
+  fenceFailure?: string[];
+  /**
+   * What the writer produced when it was refused.
+   *
+   * Precisely the text a reviewer needs to judge whether the fence was right,
+   * and it exists nowhere else — the dealer never saw it and it was never
+   * posted. Absent on a turn whose prose went out, because that text is already
+   * in `answer`.
+   */
+  writerProse?: string;
+  /**
+   * The dealer wrote again on this thread within
+   * `AI_FIRSTLINE_QUICK_FOLLOWUP_MINUTES` of a machine answer.
+   *
+   * CHANGES NO BEHAVIOUR. It is the dispute window's real value — the evidence —
+   * kept, while the handoff that used to destroy the answer is gone. Under v1
+   * this rate was unmeasurable, because the window handed off instead of
+   * recording.
+   */
+  quickFollowUp?: boolean;
+  /** An ask was refused or dropped, and the reply carries the `partial` line. */
+  partial?: boolean;
+  /**
+   * A guard fired. Written for every turn that hit anything, blocking or
+   * advisory, and it carries rule NAMES and never the dealer's text.
+   */
+  guard?: {
+    stage: 'input' | 'writer';
+    rules: string[];
+    action: 'handoff' | 'fallback' | 'advisory';
+    at: string;
+  };
 }

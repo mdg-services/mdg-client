@@ -55,9 +55,13 @@ export function ChatPage() {
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage();
   const { mutate: reactMutate } = useReactToMessage();
   const download = useAttachmentDownload();
+  // The thread kind rides along because it decides how long the typing dots are
+  // held: only the AI first line writes into a support thread, and it now thinks
+  // for two model calls. See TYPING_HOLD_MS.
   const { typing, emitTyping, markRead } = useConversationSocket(
     conversationId,
     userId,
+    conversation?.kind,
   );
 
   const [composerSeed, setComposerSeed] = React.useState<string | undefined>(

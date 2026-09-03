@@ -19,11 +19,14 @@ import {
   AI_FIRSTLINE_INTENTS,
   AI_FIRSTLINE_LANGS,
   AI_HANDOFF_REASONS,
+  AI_PLAN_MAX_ASKS,
   AI_PRODUCT_HINTS,
   AI_TURN_OUTCOMES,
   AI_TURN_VERDICTS,
+  AI_WRITER_DISPOSITIONS,
   DEALER_FIRSTLINE_MODES,
   type AiPlan,
+  type AiPlanAsk,
 } from '../types/aiFirstLine';
 
 import { paginationSchema } from './common';
@@ -61,15 +64,37 @@ const personNameSchema = z
   .regex(/^[\p{L}\p{M}][\p{L}\p{M} .'-]*$/u, 'Not a name');
 
 /**
- * The model's entire output.
+ * ONE thing the dealer asked about, with the scalars that belong to that ask.
  *
- * `.strict()` IS THE POINT OF THIS SCHEMA. An unknown key is not tolerated and
- * not stripped — it fails, and a failed plan is a `bad_router_output` handoff to
- * a person. If a model ever returns `{ intent: 'dsr_status', answer: "Your DSR
- * is ready, sir" }`, the extra field must stop the turn dead rather than ride
- * along ignored until somebody later finds it convenient to use. Zod's default
- * is to strip unknown keys silently, which would make that field invisible
- * instead of fatal.
+ * `.strict()` here as well as on the plan, and that is the point of splitting
+ * the schema in two: an `answer` key smuggled onto an ASK would be exactly as
+ * fatal as one on the plan, and a single flat schema with a nested `z.object()`
+ * left un-strict is the shape that would have let it through.
+ */
+export const aiPlanAskSchema: z.ZodType<AiPlanAsk> = z
+  .object({
+    intent: aiFirstLineIntentSchema,
+    date: istDaySchema.optional(),
+    month: istMonthSchema.optional(),
+    personName: personNameSchema.optional(),
+    productHint: z.enum(AI_PRODUCT_HINTS).optional(),
+  })
+  .strict();
+
+/**
+ * The router model's entire output.
+ *
+ * `.strict()` IS THE POINT OF THIS SCHEMA, AT BOTH LEVELS. An unknown key is not
+ * tolerated and not stripped — it fails, and a failed plan is a
+ * `bad_router_output` handoff to a person. If a model ever returns
+ * `{ lang: 'en', asks: [...], answer: "Your DSR is ready, sir" }`, the extra
+ * field must stop the turn dead rather than ride along ignored until somebody
+ * later finds it convenient to use. Zod's default is to strip unknown keys
+ * silently, which would make that field invisible instead of fatal.
+ *
+ * `min(1)` because a plan with no asks is not a plan; `max(AI_PLAN_MAX_ASKS)`
+ * because a writer handed five unrelated fact blocks starts attaching one
+ * block's date to another block's subject, and no fence catches that.
  *
  * Typed as `z.ZodType<AiPlan>` rather than left to inference so the schema and
  * the interface cannot drift: add a required field to `AiPlan` and this line
@@ -77,12 +102,8 @@ const personNameSchema = z
  */
 export const aiPlanSchema: z.ZodType<AiPlan> = z
   .object({
-    intent: aiFirstLineIntentSchema,
     lang: aiFirstLineLangSchema,
-    date: istDaySchema.optional(),
-    month: istMonthSchema.optional(),
-    personName: personNameSchema.optional(),
-    productHint: z.enum(AI_PRODUCT_HINTS).optional(),
+    asks: z.array(aiPlanAskSchema).min(1).max(AI_PLAN_MAX_ASKS),
   })
   .strict();
 
@@ -139,6 +160,14 @@ export const aiTurnListQuerySchema = paginationSchema.extend({
   verdict: aiTurnVerdictSchema.optional(),
   /** `false` is the review queue: everything a person has not yet judged. */
   reviewed: queryBoolean,
+  /**
+   * Did the writer's prose go out, or did a template?
+   *
+   * The one filter this version adds, and the one the first fortnight is spent
+   * inside: `?writer=fallback` is "every reply the fence refused", which is where
+   * the prompt and the envelope get tuned from.
+   */
+  writer: z.enum(AI_WRITER_DISPOSITIONS).optional(),
   from: istDaySchema.optional(),
   to: istDaySchema.optional(),
 });

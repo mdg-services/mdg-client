@@ -221,15 +221,29 @@ export const messages = {
   // way a dealer writes ("I want…"), not the way a button label reads ("Talk
   // to…"). It also has to be plain enough that the backend reads it as a
   // request for a person and hands the thread over.
+  //
+  // BOTH SPELLINGS ARE MATCHED WORD-FOR-WORD BY THE BACKEND'S PRE-MODEL PHRASE
+  // LIST (`assist/firstline/dissatisfied.ts`, HUMAN_PHRASES: 'talk to a person',
+  // 'किसी से बात'), and that is the entire reason the Hindi reads "किसी से"
+  // rather than "किसी व्यक्ति से". The English button already hit that list; the
+  // Hindi one missed it by one word, so a Hindi dealer's tap for a person went
+  // through the router while an English dealer's did not — and the whole point
+  // of that list is that a request for a person never depends on a model call.
+  // If either string is reworded, check it still matches, or add the new wording
+  // to HUMAN_PHRASES in the same commit.
   'chat.aiTalkToHumanBody': {
     en: 'I want to talk to a person.',
-    hi: 'मुझे किसी व्यक्ति से बात करनी है।',
+    hi: 'मुझे किसी से बात करनी है।',
   },
   // The two chips above the composer, alongside `chat.quickTalkSupport`. Both
   // are questions a dealer asks most mornings and both are a nuisance to type
   // on a Devanagari phone keyboard, which is the entire point of a chip.
   'chat.quickTodayReport': { en: "Today's report?", hi: 'आज की रिपोर्ट?' },
-  'chat.quickTodayPhoto': { en: "Sent today's photo?", hi: 'आज की फोटो भेजी?' },
+  // REPLACED "Sent today's photo?" — see the note on `quickReplies` in
+  // Composer.tsx. The wording is deliberately the glossary's own example for the
+  // `todo` label ("ab kya karna hai" / "what do I need to do now"), so the chip
+  // lands on the one intent that was written to answer it.
+  'chat.quickWhatNow': { en: 'What do I need to do?', hi: 'अब क्या करना है?' },
 
   'chat.loadEarlier': {
     en: 'Load earlier messages',
