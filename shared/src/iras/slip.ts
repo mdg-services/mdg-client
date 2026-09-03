@@ -810,6 +810,13 @@ export interface SlipReadingForNozzle {
   fromLineNos: number[];
   /** Plain words. Always non-empty when outcome is not 'PROVED'. */
   message: string;
+  /**
+   * Whether this reading goes into its box. See {@link fillsItsBox} — this is
+   * the ONLY thing the screen has to look at, decided once, here.
+   */
+  fills: boolean;
+  /** Why the box was left alone, for the diagnostics block. Null when it fills. */
+  whyNotFilled: string | null;
 }
 
 export type SlipProblem =
@@ -1250,7 +1257,14 @@ function describeOneNozzle(
   previousLabel: string,
 ): SlipReadingForNozzle {
   const reading = readingForOneNozzle(entry, all, model, previousLabel);
-  return { ...reading, acceptable: canBeAcceptedAsRead(reading) };
+  const withAccept = { ...reading, acceptable: canBeAcceptedAsRead(reading) };
+  // The one decision, made here and nowhere else. The screen reads `fills` and
+  // has nothing left to work out.
+  return {
+    ...withAccept,
+    fills: fillsItsBox(withAccept),
+    whyNotFilled: whyItWasLeft(withAccept),
+  };
 }
 
 /**
@@ -1278,11 +1292,64 @@ function describeOneNozzle(
  * A refused figure is still shown, still explained and still typeable. Typing
  * always beats the photograph.
  */
-function canBeAcceptedAsRead(reading: Omit<SlipReadingForNozzle, 'acceptable'>): boolean {
+function canBeAcceptedAsRead(
+  reading: Omit<SlipReadingForNozzle, 'acceptable' | 'fills' | 'whyNotFilled'>,
+): boolean {
   if (reading.value === null) return false;
   if (!OFFERS_THE_READ_FIGURE.has(reading.outcome)) return false;
   if (reading.source === 'MODEL_ONLY' && reading.proof.kind !== 'PROVED') return false;
   return true;
+}
+
+/**
+ * THE ONE DECISION: does this reading go into its box, or is the box left alone?
+ *
+ * The whole feature is this rule and nothing else. A reading fills when both
+ * readers produced the same digits and the money printed on the same block did
+ * not contradict them. Anything else leaves the box exactly as it was, and the
+ * screen says NOTHING about it — the operator types that one as they always did.
+ *
+ * Stricter than what it replaces, not looser. The review this removes would let
+ * a figure only ONE reader had seen be accepted a card at a time; here such a
+ * figure never lands. That matters because the readers fail differently: on a
+ * blurred slip the on-box reader returns nothing while the second returns a
+ * confident, stable 54,979.890 where the truth is 48,615.550. They disagree, so
+ * nothing is filled and nothing is said.
+ *
+ * The money is a VETO, not a requirement. `DISAGREES` refuses; `NO_ANCHOR`,
+ * `NO_PRICE` and `NO_MONEY` still fill. Requiring a proof that cannot exist yet
+ * would make the feature do nothing on a dealer's very first morning, which is
+ * the day somebody is most likely to be watching it.
+ */
+function fillsItsBox(reading: Omit<SlipReadingForNozzle, 'fills' | 'whyNotFilled'>): boolean {
+  if (!reading.acceptable) return false;
+  if (reading.source !== 'BOTH_AGREED') return false;
+  return reading.proof.kind !== 'DISAGREES';
+}
+
+/**
+ * Why a box was left alone, in a few plain words, for the diagnostics block.
+ *
+ * Never shown beside the box and never as a warning — it is written down so the
+ * next person debugging a slip that filled nothing can see what happened, and
+ * for no other reason.
+ */
+function whyItWasLeft(
+  reading: Omit<SlipReadingForNozzle, 'fills' | 'whyNotFilled'>,
+): string | null {
+  if (fillsItsBox(reading)) return null;
+  if (reading.value === null) return 'nothing was read for this nozzle';
+  if (reading.outcome === 'BACKWARDS') return 'the reading is below yesterday’s';
+  if (reading.outcome === 'DUPLICATE') return 'the slip prints this nozzle twice';
+  if (reading.outcome === 'IDENTITY_CONFLICT') return 'the reading fits a different pump';
+  if (reading.outcome === 'UNREADABLE') return 'the figure could not be read';
+  if (reading.proof.kind === 'DISAGREES') {
+    return 'the money on the slip does not agree with the litres';
+  }
+  if (reading.source === 'OCR_ONLY') return 'only one of the two readings found it';
+  if (reading.source === 'MODEL_ONLY') return 'only one of the two readings found it';
+  if (reading.source === null) return 'the two readings of the slip differ';
+  return 'it could not be checked';
 }
 
 function readingForOneNozzle(
@@ -1290,7 +1357,7 @@ function readingForOneNozzle(
   all: readonly ResolvedNozzle[],
   model: SlipModelAnswer | null,
   previousLabel: string,
-): Omit<SlipReadingForNozzle, 'acceptable'> {
+): Omit<SlipReadingForNozzle, 'acceptable' | 'fills' | 'whyNotFilled'> {
   const nozzleNo = entry.reference.nozzleNo;
   const previousReading = trimmedOrNull(entry.reference.previousReading);
   const lines = entry.block?.lines ?? [];
@@ -1550,22 +1617,28 @@ function summarise(
     return `No date could be read at the top of this slip, so nothing here can tell this morning’s slip from yesterday’s. Check the paper is this morning’s${entering} before you fill anything in.`;
   }
 
-  const proved = readings.filter((r) => r.batchable).length;
-  const read = readings.filter((r) => r.value !== null).length;
-  const missing = readings.filter((r) => r.outcome === 'MISSING_FROM_SLIP').map((r) => r.nozzleNo);
-  const tail =
-    missing.length === 0
-      ? ''
-      : ` ${missing.length === 1 ? `Nozzle ${missing[0]} is` : `Nozzles ${joinList(missing.map(String))} are`} not on this slip.`;
+  /*
+   * ONE sentence, and it says only what was FILLED.
+   *
+   * It used to name the nozzles the slip did not carry and tell the operator to
+   * check the unproved ones against the paper — a list of chores for figures
+   * they were about to type anyway. A slip that fills four of six boxes is a
+   * good outcome and the sentence reads like one; what it did not fill is left
+   * to the boxes, which are already empty and already asking.
+   *
+   * Everything not said here is in the diagnostics block, per reading, with the
+   * reason it was left. That is a record for whoever debugs a slip, not a
+   * conversation with the person holding the phone.
+   */
+  const filled = readings.filter((r) => r.fills).length;
+  const asked = readings.length;
 
-  if (read === 0) return `Nothing could be read off this slip.${tail}`;
-  if (proved === 0) {
-    return `${read} ${read === 1 ? 'reading' : 'readings'} read off the slip. Nothing here has been proved — check each one against the paper.${tail}`;
+  if (filled === 0)
+    return 'Nothing on this slip could be filled in. Type this morning’s figures in yourself.';
+  if (filled === asked) {
+    return `All ${filled} ${filled === 1 ? 'reading' : 'readings'} filled in from the slip.`;
   }
-  if (proved === read) {
-    return `All ${read} ${read === 1 ? 'reading checks' : 'readings check'} out against the money the slip prints.${tail}`;
-  }
-  return `${proved} of ${read} readings check out against the money the slip prints. Check the other ${read - proved} against the paper.${tail}`;
+  return `${filled} of ${asked} readings filled in from the slip. Type the rest in yourself.`;
 }
 
 /* ─────────────────────── the one write to the sheet ─────────────────────── */
@@ -1595,7 +1668,6 @@ function summarise(
  */
 export function slipFillsForSheet(
   reading: SlipReading,
-  accepted: ReadonlyArray<{ nozzleNo: number; value: string; source: 'read' | 'typed' }>,
   /**
    * The operator's answer to a question only they can settle: yes, this is the
    * right morning's paper.
@@ -1610,39 +1682,33 @@ export function slipFillsForSheet(
    * Read figures only. A figure the operator typed is theirs whatever the paper
    * is dated.
    */
-  dayConfirmed = false,
+  opts: {
+    dayConfirmed?: boolean;
+    /**
+     * The only nozzles whose box may be written, when the caller wants to
+     * narrow it — the ones still holding what the system carried in.
+     *
+     * A figure a person typed is never replaced by a photograph without being
+     * asked, and it is this list that keeps "read another slip" filling only the
+     * boxes the first one missed. Left off, every reading that fills is filled.
+     */
+    onlyNozzleNos?: readonly number[];
+  } = {},
 ): Array<{ nozzleNo: number; field: 'TOT_READING'; value: string; source: 'read' | 'typed' }> {
   if (!reading || reading.refuseWholeSlip) return [];
+  const dayConfirmed = opts.dayConfirmed === true;
+  const only =
+    opts.onlyNozzleNos === undefined
+      ? null
+      : new Set(opts.onlyNozzleNos.map((n) => irasRowIdentity(n)));
 
   const dateUnsettled =
     (reading.problems ?? []).includes('DATED_ANOTHER_DAY') ||
     (reading.problems ?? []).includes('DATE_NOT_READ');
 
-  const byNozzle = new Map<string, SlipReadingForNozzle>();
-  for (const entry of reading.readings ?? []) {
-    byNozzle.set(irasRowIdentity(entry.nozzleNo), entry);
-  }
-
-  const chosen = new Map<string, { nozzleNo: number; value: string; source: 'read' | 'typed' }>();
-  for (const entry of accepted ?? []) {
-    const identity = irasRowIdentity(entry?.nozzleNo);
-    if (!identity || chosen.has(identity)) continue;
-    const found = byNozzle.get(identity);
-    if (!found) continue;
-
-    const value = slipValueForCell(String(entry?.value ?? ''));
-    if (!value || validateIrasCell('TOT', 'TOT_READING', value)) continue;
-
-    if (entry.source === 'read') {
-      if (found.value === null || value !== found.value) continue;
-      // The card's own answer, not a second copy of the rule. See
-      // {@link canBeAcceptedAsRead} for what it refuses and why.
-      if (!found.acceptable) continue;
-      // And the day, which no card can answer.
-      if (dateUnsettled && !dayConfirmed) continue;
-    }
-    chosen.set(identity, { nozzleNo: found.nozzleNo, value, source: entry.source });
-  }
+  // The day is the one thing no reading can answer for itself, so it gates the
+  // lot rather than any one of them.
+  if (dateUnsettled && !dayConfirmed) return [];
 
   const out: Array<{
     nozzleNo: number;
@@ -1650,15 +1716,19 @@ export function slipFillsForSheet(
     value: string;
     source: 'read' | 'typed';
   }> = [];
+  const seen = new Set<string>();
   for (const entry of reading.readings ?? []) {
-    const pick = chosen.get(irasRowIdentity(entry.nozzleNo));
-    if (!pick) continue;
-    out.push({
-      nozzleNo: pick.nozzleNo,
-      field: 'TOT_READING',
-      value: pick.value,
-      source: pick.source,
-    });
+    // `fills` IS the decision — made once, in `fillsItsBox`, and not re-derived
+    // here or anywhere on the screen. Nothing is passed in to be trusted.
+    if (!entry.fills || entry.value === null) continue;
+    const identity = irasRowIdentity(entry.nozzleNo);
+    if (!identity || seen.has(identity)) continue;
+    if (only && !only.has(identity)) continue;
+    const value = slipValueForCell(entry.value);
+    // The box's own validator has the last word, as it does for a typed figure.
+    if (!value || validateIrasCell('TOT', 'TOT_READING', value)) continue;
+    seen.add(identity);
+    out.push({ nozzleNo: entry.nozzleNo, field: 'TOT_READING', value, source: 'read' });
   }
   return out;
 }
