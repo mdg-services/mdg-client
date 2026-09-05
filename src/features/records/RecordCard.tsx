@@ -55,11 +55,24 @@ export interface RecordCardData {
 export function RecordCard({
   record,
   url,
+  failed = false,
+  onRetry,
+  onOpen,
   compact = false,
 }: {
   record: RecordCardData;
   /** Signed file URL. When present, tapping the card opens it. */
   url?: string;
+  /**
+   * The URL could not be fetched. WITHOUT this the card sat greyed out reading
+   * "Preparing…" forever, and nothing was being prepared — the request had
+   * failed. A dealer waiting for a report that will never arrive has no way to
+   * tell that from one that is genuinely still being made.
+   */
+  failed?: boolean;
+  onRetry?: () => void;
+  /** Fetch a fresh signed URL and open it. Preferred over the embedded `url`. */
+  onOpen?: () => void | Promise<void>;
   compact?: boolean;
 }) {
   const t = useT();
@@ -67,7 +80,18 @@ export function RecordCard({
   const Icon = style.icon;
 
   const open = () => {
+    if (failed) {
+      onRetry?.();
+      return;
+    }
     if (!url) return;
+    // `onOpen` presigns at tap time; `url` is only the tell that there IS a
+    // file, because the one it carries was signed when the list was fetched and
+    // may be a quarter of an hour old by now.
+    if (onOpen) {
+      void onOpen();
+      return;
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -75,10 +99,10 @@ export function RecordCard({
     <button
       type="button"
       onClick={open}
-      disabled={!url}
+      disabled={!url && !failed}
       className={cn(
         'flex w-full items-center gap-3 rounded-2xl border border-border bg-surface text-left shadow-sm transition-colors',
-        url ? 'hover:bg-surface-2 active:bg-surface-2' : 'cursor-default',
+        url || failed ? 'hover:bg-surface-2 active:bg-surface-2' : 'cursor-default',
         compact ? 'min-h-[44px] p-3' : 'min-h-[44px] p-4',
       )}
     >
@@ -112,8 +136,17 @@ export function RecordCard({
             {record.periodLabel}
           </span>
         ) : null}
-        <span className="mt-1 block text-xs font-medium text-brand">
-          {url ? t('records.tapToView') : t('records.preparing')}
+        <span
+          className={cn(
+            'mt-1 block text-xs font-medium',
+            failed ? 'text-danger' : 'text-brand',
+          )}
+        >
+          {failed
+            ? t('common.retry')
+            : url
+              ? t('records.tapToView')
+              : t('records.preparing')}
         </span>
       </span>
     </button>

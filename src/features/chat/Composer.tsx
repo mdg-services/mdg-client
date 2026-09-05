@@ -24,6 +24,7 @@ import {
   type OutgoingAttachment,
 } from '@/lib/uploadAttachment';
 import { useVoiceRecorder } from '@/lib/useVoiceRecorder';
+import { MAX_VOICE_DURATION_MS } from '@dk/shared/schemas';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 import { type ReplyPreviewIcon } from './replyContext';
@@ -41,6 +42,12 @@ export interface ComposerProps {
   disabled?: boolean;
   sending?: boolean;
   initialText?: string;
+  /**
+   * Bumped by the caller on every seed, so the SAME chip tapped twice still
+   * refills the box. Without it the effect below compares two identical strings,
+   * decides nothing changed, and the chip reads as broken.
+   */
+  initialTextKey?: number;
   /** When set, a quote strip renders above the input (replying to a message). */
   replyingTo?: ComposerReplyPreview | null;
   onCancelReply?: () => void;
@@ -189,6 +196,7 @@ export function Composer({
   disabled,
   sending,
   initialText,
+  initialTextKey,
   replyingTo,
   onCancelReply,
   showQuickReplies,
@@ -225,7 +233,8 @@ export function Composer({
 
   React.useEffect(() => {
     if (initialText !== undefined) setText(initialText);
-  }, [initialText]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the key is the signal
+  }, [initialText, initialTextKey]);
 
   // auto-resize
   React.useEffect(() => {
@@ -355,12 +364,26 @@ export function Composer({
       durationMs: s.durationMs,
       peaks: s.peaks,
     }));
-    staged.forEach((s) => {
-      if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
-    });
+    // Clear optimistically — the bubble appears at once and the box is ready for
+    // the next line — but PUT IT BACK if the send throws. A dealer on a 2G
+    // forecourt who has just typed a paragraph and watched it vanish, with only
+    // "Please check your network and try again" to show for it, has nothing left
+    // to try again WITH; the only way back was to type the whole thing a second
+    // time. The preview URLs are revoked only once the send has actually
+    // succeeded, for the same reason: a restored photo has to still be viewable.
     setText('');
     setStaged([]);
-    await onSend(body, outgoing);
+    try {
+      await onSend(body, outgoing);
+      staged.forEach((s) => {
+        if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+      });
+    } catch {
+      setText((current) => (current ? current : body));
+      setStaged((current) => (current.length > 0 ? current : items));
+      // Swallowed on purpose: the chat screen has already shown the failure
+      // toast, and two of the three callers here fire this without awaiting.
+    }
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -376,7 +399,13 @@ export function Composer({
   const stopAndSend = async () => {
     const rec = await recorder.stop();
     recStartedRef.current = false;
-    if (!rec || rec.blob.size === 0) return;
+    if (!rec || rec.blob.size === 0) {
+      // Silence here was indistinguishable from a send that worked: the bar
+      // disappeared, no bubble arrived, and nothing said why. Usually the hold
+      // was too short for the recorder to produce a frame.
+      toast.error(t('chat.voiceTooShort'));
+      return;
+    }
     // Normalise to a clean base audio MIME: strip any ";codecs=…" suffix and
     // guarantee an audio/* type, so the presign allowlist accepts it and the
     // S3 PUT Content-Type matches what was signed. Some Android WebViews report
@@ -772,6 +801,37 @@ export function Composer({
     void stopAndSend();
   };
 
+  /**
+   * Stop a hands-free recording before it becomes unsendable.
+   *
+   * Locked mode has no natural end: a brushed mic button can leave the phone
+   * recording in a pocket. Past ten minutes the clip fails the schema, and the
+   * way it failed was the worst possible order — the whole file went UP over 2G
+   * first, then came back rejected as "your message didn't go through", which
+   * reads as a network problem and invites a retry that cannot succeed. Ending
+   * it a few seconds short sends what was actually said.
+   *
+   * Through a REF, not a dependency: `sendLocked` closes over the composer's
+   * current text and staged files and is rebuilt every render, so listing it
+   * would re-run this on every keystroke, and freezing it with `[]` would send
+   * the state as it was when the screen mounted. `firedRef` covers the gap
+   * between the timer ticking past the limit and `recMode` becoming 'idle'.
+   */
+  const sendLockedRef = React.useRef(sendLocked);
+  sendLockedRef.current = sendLocked;
+  const maxReachedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (recMode !== 'locked') {
+      maxReachedRef.current = false;
+      return;
+    }
+    if (maxReachedRef.current) return;
+    if (recorder.elapsedMs < MAX_VOICE_DURATION_MS - 5000) return;
+    maxReachedRef.current = true;
+    toast.info(t('chat.voiceMaxReached'));
+    sendLockedRef.current();
+  }, [recMode, recorder.elapsedMs, toast, t]);
+
   const ReplyIcon = replyingTo?.icon ? REPLY_ICONS[replyingTo.icon] : null;
 
   return (
@@ -988,10 +1048,16 @@ export function Composer({
                 <Trash2 width={18} strokeWidth={1.75} />
               </span>
               <div className={cn(cancelArmed ? 'text-danger' : 'text-text')}>
+                {/* Ten bars, not sixteen. The row is bin + waveform + timer +
+                    "slide to cancel" inside 360px, and on a 360px phone the one
+                    instruction telling a first-time user how to abandon a
+                    recording was running off the right edge — in Hindi it read
+                    "◀ रद्द करने के लि". The waveform is the only decorative
+                    element in the row, so it gives up the space. */}
                 <LiveWaveform
                   getLevels={recorder.getLevels}
                   active={recorder.status === 'recording'}
-                  bars={16}
+                  bars={10}
                 />
               </div>
               <span className="shrink-0 text-sm font-medium tabular-nums text-text">
@@ -1000,12 +1066,12 @@ export function Composer({
               <div
                 ref={hintRef}
                 className={cn(
-                  'ml-auto mr-12 flex items-center gap-1',
+                  'ml-auto mr-11 flex min-w-0 items-center gap-1',
                   cancelArmed ? 'text-danger' : 'text-text-subtle',
                 )}
               >
-                <ChevronLeft width={16} strokeWidth={2} />
-                <span className="whitespace-nowrap text-sm">
+                <ChevronLeft width={16} strokeWidth={2} className="shrink-0" />
+                <span className="truncate text-sm">
                   {cancelArmed ? t('chat.releaseToCancel') : t('chat.slideToCancel')}
                 </span>
               </div>

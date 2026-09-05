@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Attachment } from '@dk/shared/types';
 
-import { downloadAttachment, fetchFreshDownloadUrl } from './downloadAttachment';
+import {
+  downloadAttachment,
+  fetchFreshDownloadUrl,
+  type AttachmentSource,
+} from './downloadAttachment';
 
 const api = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api }));
@@ -17,6 +21,23 @@ const attachment: Attachment = {
   url: 'https://s3.test/stale?sig=old',
 };
 
+/** Where it was found. Presigning is authorised through the message, not the key. */
+const source: AttachmentSource = { conversationId: 'c1', messageId: 'm1' };
+
+/**
+ * A DSR card: same shape, but stored under the RUN's prefix rather than the
+ * conversation's. `GET /uploads/download-url` refuses `dealers/` outright, which
+ * is why the download button under every shared report used to fail.
+ */
+const dsrCard: Attachment = {
+  storageKey: 'dealers/64f000000000000000000001/dsr-cards/r1/dsr-sales-2026-09-01.png',
+  filename: 'dsr-sales-2026-09-01.png',
+  contentType: 'image/png',
+  size: 4096,
+  kind: 'image',
+  url: 'https://s3.test/card?sig=old',
+};
+
 afterEach(() => {
   delete (window as { ReactNativeWebView?: unknown }).ReactNativeWebView;
 });
@@ -24,13 +45,41 @@ afterEach(() => {
 describe('fetchFreshDownloadUrl', () => {
   it('presigns a fresh attachment-disposition URL for the storage key', async () => {
     api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
-    const url = await fetchFreshDownloadUrl(attachment);
+    const url = await fetchFreshDownloadUrl(attachment, source);
+    expect(api.get).toHaveBeenCalledWith(
+      '/v1/conversations/c1/messages/m1/download-url',
+      { key: attachment.storageKey, disposition: 'attachment' },
+    );
+    expect(url).toBe('https://s3.test/fresh?sig=new');
+  });
+
+  it('falls back to the generic route for a message the server has not seen yet', async () => {
+    api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
+    // The optimistic bubble the composer just put in the thread: there is no
+    // message row to authorise through, and the key is this dealer's own chat
+    // upload, which the generic route does authorise.
+    await fetchFreshDownloadUrl(attachment, {
+      conversationId: 'c1',
+      messageId: 'temp-1757000000000',
+    });
     expect(api.get).toHaveBeenCalledWith('/v1/uploads/download-url', {
       key: attachment.storageKey,
       disposition: 'attachment',
       filename: attachment.filename,
     });
-    expect(url).toBe('https://s3.test/fresh?sig=new');
+  });
+
+  it('presigns a service card the same way — the key prefix is not consulted', async () => {
+    api.get.mockResolvedValue({ url: 'https://s3.test/card?sig=new' });
+    const url = await fetchFreshDownloadUrl(dsrCard, {
+      conversationId: 'c9',
+      messageId: 'm9',
+    });
+    expect(api.get).toHaveBeenCalledWith(
+      '/v1/conversations/c9/messages/m9/download-url',
+      { key: dsrCard.storageKey, disposition: 'attachment' },
+    );
+    expect(url).toBe('https://s3.test/card?sig=new');
   });
 });
 
@@ -38,7 +87,7 @@ describe('downloadAttachment', () => {
   it('opens the FRESH url (not the stale embedded one) in a plain browser', async () => {
     api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
-    const mode = await downloadAttachment(attachment);
+    const mode = await downloadAttachment(attachment, source);
     expect(mode).toBe('browser');
     expect(open).toHaveBeenCalledWith(
       'https://s3.test/fresh?sig=new',
@@ -76,7 +125,7 @@ describe('downloadAttachment', () => {
     };
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-    const mode = await downloadAttachment(attachment);
+    const mode = await downloadAttachment(attachment, source);
     expect(mode).toBe('gallery');
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(open).not.toHaveBeenCalled();
@@ -91,7 +140,7 @@ describe('downloadAttachment', () => {
       };
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-      const promise = downloadAttachment(attachment);
+      const promise = downloadAttachment(attachment, source);
       await vi.advanceTimersByTimeAsync(3000);
       const mode = await promise;
       expect(mode).toBe('browser');
@@ -132,7 +181,7 @@ describe('downloadAttachment', () => {
       };
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-      const promise = downloadAttachment(attachment);
+      const promise = downloadAttachment(attachment, source);
       await vi.advanceTimersByTimeAsync(10_000);
       expect(open).not.toHaveBeenCalled(); // still waiting, no double download
       await vi.advanceTimersByTimeAsync(40_000);
@@ -163,7 +212,7 @@ describe('downloadAttachment', () => {
       };
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-      const promise = downloadAttachment(attachment);
+      const promise = downloadAttachment(attachment, source);
       const outcome = expect(promise).rejects.toThrow('timeout');
       await vi.advanceTimersByTimeAsync(120_000);
       await outcome;
@@ -189,6 +238,6 @@ describe('downloadAttachment', () => {
         });
       }),
     };
-    await expect(downloadAttachment(attachment)).rejects.toThrow('denied');
+    await expect(downloadAttachment(attachment, source)).rejects.toThrow('denied');
   });
 });

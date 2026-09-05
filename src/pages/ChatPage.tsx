@@ -64,9 +64,11 @@ export function ChatPage() {
     conversation?.kind,
   );
 
-  const [composerSeed, setComposerSeed] = React.useState<string | undefined>(
-    undefined,
-  );
+  // The nonce is what makes the SAME chip work twice: the composer seeds off a
+  // string, and two identical strings look to an effect like nothing happened.
+  const [composerSeed, setComposerSeed] = React.useState<
+    { text: string; n: number } | undefined
+  >(undefined);
 
   // WhatsApp-style interactions, all owned here so MessageList/MessageBubble
   // get a single stable callback each (both are memo-sensitive).
@@ -177,20 +179,34 @@ export function ChatPage() {
     const replyTarget = replyTo;
     setReplyTo(null);
 
-    try {
-      const attachments: AttachmentInput[] = [];
-      for (const item of files) {
-        try {
-          const att = await uploadAttachment(item, conversationId);
-          attachments.push(att);
-        } catch {
-          toast.error(
-            item.kind === 'audio'
-              ? t('chat.voiceSendFailed')
-              : t('chat.fileSendFailed', { name: item.file.name }),
-          );
-        }
+    const attachments: AttachmentInput[] = [];
+    for (const item of files) {
+      try {
+        const att = await uploadAttachment(item, conversationId);
+        attachments.push(att);
+      } catch {
+        toast.error(
+          item.kind === 'audio'
+            ? t('chat.voiceSendFailed')
+            : t('chat.fileSendFailed', { name: item.file.name }),
+        );
       }
+    }
+
+    // NOTHING SURVIVED THE UPLOAD, and there is no text either — so there is no
+    // message to post. Posting the empty one anyway is what produced the second
+    // red toast: "We couldn't send your voice message…" followed a moment later
+    // by "Your message didn't go through…", two failures reported for one.
+    //
+    // Throwing rather than returning is what puts the recording back in the
+    // composer: the composer clears itself optimistically and restores on a
+    // rejection, so a swallowed failure here would destroy the clip.
+    if (!text && attachments.length === 0) {
+      setReplyTo(replyTarget);
+      throw new Error('nothing to send');
+    }
+
+    try {
       await sendMessage({
         conversationId,
         body: text || undefined,
@@ -202,8 +218,12 @@ export function ChatPage() {
             }
           : {}),
       });
-    } catch {
+    } catch (err) {
       toast.error(t('chat.sendFailed'));
+      // Give the reply target back too — a failed send that also silently
+      // dropped "replying to…" left the retry answering nobody.
+      setReplyTo(replyTarget);
+      throw err;
     }
   };
 
@@ -303,12 +323,17 @@ export function ChatPage() {
         currentUserId={userId ?? ''}
         conversationId={conversationId}
         loading={messagesQuery.isLoading}
+        failed={messagesQuery.isError}
+        onRetry={() => void messagesQuery.refetch()}
         hasMore={!!messagesQuery.hasNextPage}
         loadingMore={messagesQuery.isFetchingNextPage}
+        loadMoreFailed={messagesQuery.isFetchNextPageError}
         onLoadMore={() => void messagesQuery.fetchNextPage()}
         onFetchOlder={messagesQuery.fetchNextPage}
         typing={typing}
-        onQuickAction={(quick) => setComposerSeed(quick)}
+        onQuickAction={(quick) =>
+          setComposerSeed((prev) => ({ text: quick, n: (prev?.n ?? 0) + 1 }))
+        }
         showSenderNames={conversation?.kind === 'manager'}
         onAction={handleAction}
         onOpenReactions={handleOpenReactions}
@@ -320,7 +345,8 @@ export function ChatPage() {
         onSend={handleSend}
         onTyping={emitTyping}
         sending={sending}
-        initialText={composerSeed}
+        initialText={composerSeed?.text}
+        initialTextKey={composerSeed?.n}
         disabled={!conversationId}
         replyingTo={replyingTo}
         onCancelReply={cancelReply}

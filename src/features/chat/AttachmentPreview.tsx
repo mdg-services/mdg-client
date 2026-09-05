@@ -3,8 +3,10 @@ import * as React from 'react';
 
 
 import { cn } from '@/lib/cn';
+import { useAttachmentDownload, type AttachmentSource } from '@/lib/downloadAttachment';
 import { useT } from '@/lib/i18n';
 import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
+import { useFreshImageSrc } from '@/lib/useFreshImageSrc';
 import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
 import type { Attachment, AttachmentKind } from '@dk/shared/types';
 
@@ -269,46 +271,80 @@ export function VoiceMessage({
   );
 }
 
-export function MessageAttachment({
+/**
+ * A picture in a bubble, which re-signs its own link when it goes stale.
+ *
+ * The URL that rode in with the message is presigned for 900 seconds. A thread
+ * held open longer than that — the ordinary case for a dealer who reads a report
+ * and comes back to it — serves a 403 to the next `<img>` request, and
+ * `loading="lazy"` makes that request happen at the moment the picture is
+ * scrolled into view, which is exactly when it is furthest past its signature.
+ * The result was a grey broken box where the DSR card had been, and no way back
+ * short of leaving the screen.
+ *
+ * So it recovers the way the full-screen viewer already does: one fresh presign
+ * through the message that carries the key, once, guarded by a ref so a
+ * genuinely dead object cannot loop.
+ */
+function ImageAttachment({
   attachment,
-  mine,
+  source,
   onOpenImage,
 }: {
   attachment: Attachment;
-  mine?: boolean;
+  source?: AttachmentSource;
   onOpenImage?: (attachment: Attachment) => void;
 }) {
-  if (attachment.kind === 'audio' && attachment.url) {
-    return <VoiceMessage attachment={attachment} mine={mine} />;
-  }
-  if (attachment.kind === 'image' && attachment.url) {
-    return (
-      <button
-        type="button"
-        onClick={() => onOpenImage?.(attachment)}
-        className="block overflow-hidden rounded-xl border border-border bg-surface-2"
-      >
-        {/* lazy + async decode keeps image-heavy threads from janking / spiking
-            memory; min height reserves space so late-loading images don't shift
-            the scroll position. */}
-        <img
-          src={attachment.url}
-          alt={attachment.filename}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          className="max-h-72 min-h-[6rem] w-auto max-w-full object-cover"
-        />
-      </button>
-    );
-  }
+  const { src, onError } = useFreshImageSrc(attachment, source);
   return (
-    <a
-      href={attachment.url}
-      target="_blank"
-      rel="noreferrer"
-      className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm hover:bg-surface"
+    <button
+      type="button"
+      onClick={() => onOpenImage?.(attachment)}
+      className="block overflow-hidden rounded-xl border border-border bg-surface-2"
+    >
+      {/* lazy + async decode keeps image-heavy threads from janking / spiking
+          memory; min height reserves space so late-loading images don't shift
+          the scroll position. */}
+      <img
+        src={src}
+        alt={attachment.filename}
+        loading="lazy"
+        decoding="async"
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
+        onError={onError}
+        className="max-h-72 min-h-[6rem] w-auto max-w-full object-cover"
+      />
+    </button>
+  );
+}
+
+/**
+ * A document in a bubble.
+ *
+ * A button rather than a link, and the same download path the action sheet and
+ * the Docs tab use. As an `<a href={attachment.url}>` it pointed at the same
+ * 900-second signature the picture above does: tapping a PDF that had been in
+ * the thread for a quarter of an hour left the app and landed the dealer on an
+ * S3 page reading "Request has expired" — while the identical file, opened from
+ * the Docs tab two taps away, downloaded fine. Presigning at tap time removes
+ * the difference, and hands the native shell its gallery/browser split and its
+ * failure toast for nothing.
+ */
+function FileAttachment({
+  attachment,
+  source,
+}: {
+  attachment: Attachment;
+  source?: AttachmentSource;
+}) {
+  const download = useAttachmentDownload();
+  return (
+    <button
+      type="button"
+      disabled={!source}
+      onClick={() => source && void download(attachment, source)}
+      className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-left text-sm hover:bg-surface disabled:opacity-70"
     >
       <FileText width={18} strokeWidth={1.75} className="text-text-muted" />
       <span className="min-w-0">
@@ -319,6 +355,33 @@ export function MessageAttachment({
           {formatBytes(attachment.size)}
         </span>
       </span>
-    </a>
+    </button>
   );
+}
+
+export function MessageAttachment({
+  attachment,
+  mine,
+  source,
+  onOpenImage,
+}: {
+  attachment: Attachment;
+  mine?: boolean;
+  /** The message carrying it — how a stale link gets re-signed. */
+  source?: AttachmentSource;
+  onOpenImage?: (attachment: Attachment) => void;
+}) {
+  if (attachment.kind === 'audio' && attachment.url) {
+    return <VoiceMessage attachment={attachment} mine={mine} />;
+  }
+  if (attachment.kind === 'image' && attachment.url) {
+    return (
+      <ImageAttachment
+        attachment={attachment}
+        source={source}
+        onOpenImage={onOpenImage}
+      />
+    );
+  }
+  return <FileAttachment attachment={attachment} source={source} />;
 }

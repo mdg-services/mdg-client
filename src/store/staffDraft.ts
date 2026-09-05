@@ -20,7 +20,16 @@ import type {
  * the server and clears `dirty` once the sent snapshot lands unchanged.
  */
 
-export type DraftSyncState = 'idle' | 'saving' | 'saved' | 'offline';
+/**
+ * `rejected` is NOT `offline`, and conflating them cost a dealer their morning.
+ *
+ * Every failed autosave used to become 'offline', so a list the server REFUSED
+ * — a missing description on a catch-all work, a validation change — showed the
+ * amber "Offline — will sync" chip and greyed out Final submit with "You're
+ * offline, reconnect to submit", on a phone with four bars. Nothing the dealer
+ * could do would clear it, because nothing was wrong with the network.
+ */
+export type DraftSyncState = 'idle' | 'saving' | 'saved' | 'offline' | 'rejected';
 
 /** The last-known draft for one dealer — the working copy the UI renders. */
 export interface DealerDraftSlice {
@@ -53,8 +62,20 @@ interface StaffDraftState {
     employeeId: string,
     workItemCode: string,
     patch: { quantity?: number; amountRupees?: number },
+    note?: string,
   ) => void;
-  removeLine: (dealerId: string, employeeId: string, workItemCode: string) => void;
+  /**
+   * `note` is part of a line's IDENTITY, not decoration — see `sameEntry`. A
+   * dealer can record "Other cleaning work: washed the forecourt" and "Other
+   * cleaning work: cleaned the toilet" for the same man, and matching on
+   * (employee, work) alone made the bin icon on either row delete both.
+   */
+  removeLine: (
+    dealerId: string,
+    employeeId: string,
+    workItemCode: string,
+    note?: string,
+  ) => void;
   setWorkDate: (dealerId: string, workDate: string) => void;
   setNote: (dealerId: string, note: string) => void;
   /** Wipe the local draft (after a successful finalize or an explicit clear). */
@@ -187,6 +208,13 @@ export const useStaffDraftStore = create<StaffDraftState>()(
                 entries[idx] = {
                   employeeId: prev.employeeId,
                   workItemCode: prev.workItemCode,
+                  // CARRY THE DESCRIPTION. `sameEntry` matches on the note, so
+                  // the two being merged already have the identical one — and
+                  // omitting it here deleted it from both. The three catch-all
+                  // works REQUIRE a description at submit time, so a dealer who
+                  // recorded the same catch-all job twice with the same wording
+                  // ended up with one line the server would refuse.
+                  note: prev.note,
                   quantity: addOptional(prev.quantity, next.quantity),
                   amountRupees: addOptional(prev.amountRupees, next.amountRupees),
                 };
@@ -202,14 +230,17 @@ export const useStaffDraftStore = create<StaffDraftState>()(
           });
         },
 
-        updateLine: (dealerId, employeeId, workItemCode, patch) => {
+        updateLine: (dealerId, employeeId, workItemCode, patch, note) => {
           patchSlice(dealerId, (slice) => ({
             ...slice,
             entries: slice.entries.map((e) =>
-              e.employeeId === employeeId && e.workItemCode === workItemCode
+              e.employeeId === employeeId &&
+              e.workItemCode === workItemCode &&
+              (e.note ?? '') === (note ?? '')
                 ? {
                     employeeId,
                     workItemCode,
+                    note: e.note,
                     quantity:
                       patch.quantity !== undefined ? patch.quantity : e.quantity,
                     amountRupees:
@@ -222,12 +253,16 @@ export const useStaffDraftStore = create<StaffDraftState>()(
           }));
         },
 
-        removeLine: (dealerId, employeeId, workItemCode) => {
+        removeLine: (dealerId, employeeId, workItemCode, note) => {
           patchSlice(dealerId, (slice) => ({
             ...slice,
             entries: slice.entries.filter(
               (e) =>
-                !(e.employeeId === employeeId && e.workItemCode === workItemCode),
+                !(
+                  e.employeeId === employeeId &&
+                  e.workItemCode === workItemCode &&
+                  (e.note ?? '') === (note ?? '')
+                ),
             ),
           }));
         },

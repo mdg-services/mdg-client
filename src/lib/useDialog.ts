@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { useBackToClose } from './useBackToClose';
 import { useScrollLock } from './useScrollLock';
 
 /**
@@ -49,6 +50,9 @@ export function useDialog(onClose: () => void): React.RefObject<HTMLDivElement> 
   closeRef.current = onClose;
 
   useScrollLock();
+  // 5. The phone's Back button closes it. On Android that is the same gesture
+  //    as Escape, and it is the one a dealer actually has.
+  useBackToClose(onClose);
 
   React.useEffect(() => {
     const panel = panelRef.current;

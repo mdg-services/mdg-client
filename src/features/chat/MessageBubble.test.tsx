@@ -276,7 +276,12 @@ describe('MessageBubble system notices', () => {
       />,
     );
     fireEvent.click(screen.getByAltText(card.filename));
-    expect(onOpenImage).toHaveBeenCalledWith(card);
+    // The MESSAGE rides along with the picture: presigning a fresh URL for a
+    // service card is authorised through the message that carries the key.
+    expect(onOpenImage).toHaveBeenCalledWith(
+      card,
+      expect.objectContaining({ id: 'sys-2', conversationId: 'c1' }),
+    );
   });
 
   it('shows no reactions and no delivery ticks — a notice is not a message you reply to', () => {

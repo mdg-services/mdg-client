@@ -3,7 +3,11 @@ import { ChevronDown, MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
-import { useAttachmentDownload } from '@/lib/downloadAttachment';
+import { cn } from '@/lib/cn';
+import {
+  useAttachmentDownload,
+  type AttachmentSource,
+} from '@/lib/downloadAttachment';
 import { useT, type TFunction } from '@/lib/i18n';
 import type { Attachment, Message } from '@dk/shared/types';
 
@@ -64,6 +68,12 @@ export interface MessageListProps {
   onTalkToHuman?: () => void;
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
+  /** The history could not be loaded — say so instead of showing an empty thread. */
+  failed?: boolean;
+  /** Retry that load. */
+  onRetry?: () => void;
+  /** The last "Load earlier" attempt failed. */
+  loadMoreFailed?: boolean;
 }
 
 export function MessageList({
@@ -82,6 +92,9 @@ export function MessageList({
   onReply,
   onTalkToHuman,
   onFetchOlder,
+  failed,
+  onRetry,
+  loadMoreFailed,
 }: MessageListProps) {
   const t = useT();
   const toast = useToast();
@@ -91,10 +104,19 @@ export function MessageList({
   // Whether the user is parked at the bottom of the thread. Kept current on
   // scroll so we know whether to re-pin when the viewport shrinks.
   const stick = React.useRef(true);
-  const [lightbox, setLightbox] = React.useState<Attachment | null>(null);
+  // The viewer needs the message as well as the picture: a fresh presign is
+  // authorised through the message that carries the key, not by the key alone.
+  const [lightbox, setLightbox] = React.useState<{
+    attachment: Attachment;
+    source: AttachmentSource;
+  } | null>(null);
   // Stable so the memoized MessageBubble doesn't re-render on every keystroke.
   const openImage = React.useCallback(
-    (attachment: Attachment) => setLightbox(attachment),
+    (attachment: Attachment, message: Message) =>
+      setLightbox({
+        attachment,
+        source: { conversationId: message.conversationId, messageId: message.id },
+      }),
     [],
   );
 
@@ -319,6 +341,36 @@ export function MessageList({
     );
   }
 
+  // A THREAD THAT FAILED TO LOAD IS NOT A NEW THREAD.
+  //
+  // Both arrive here as `messages.length === 0`, and the empty state says "How
+  // can we help? Send a message and a real person will reply" with three
+  // starter chips — told to a dealer whose entire correspondence with MDG is
+  // sitting on the server, unreachable because a 2G request timed out. The
+  // chat list already makes this distinction; the thread did not.
+  if (failed && messages.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <EmptyState
+          icon={<MessageCircleHeart width={28} strokeWidth={1.5} />}
+          title={t('chat.historyLoadFailed')}
+          description={t('common.helpDesc')}
+          cta={
+            onRetry ? (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+              >
+                {t('common.retry')}
+              </button>
+            ) : null
+          }
+        />
+      </div>
+    );
+  }
+
   if (!loading && messages.length === 0) {
     return (
       <div className="flex flex-1 items-center justify-center px-4">
@@ -364,9 +416,20 @@ export function MessageList({
               type="button"
               onClick={onLoadMore}
               disabled={loadingMore}
-              className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted hover:bg-surface-2 disabled:opacity-60"
+              className={cn(
+                'rounded-full border bg-surface px-3 py-1 text-xs hover:bg-surface-2 disabled:opacity-60',
+                // Forty seconds of a greyed-out button and then nothing new is
+                // indistinguishable from "there is nothing older". Say which.
+                loadMoreFailed
+                  ? 'border-danger/40 text-danger'
+                  : 'border-border text-text-muted',
+              )}
             >
-              {loadingMore ? t('common.loading') : t('chat.loadEarlier')}
+              {loadingMore
+                ? t('common.loading')
+                : loadMoreFailed
+                  ? t('common.retry')
+                  : t('chat.loadEarlier')}
             </button>
           </div>
         ) : null}
@@ -410,7 +473,8 @@ export function MessageList({
       ) : null}
       {lightbox ? (
         <ImageLightbox
-          attachment={lightbox}
+          attachment={lightbox.attachment}
+          source={lightbox.source}
           onClose={() => setLightbox(null)}
           onDownload={download}
         />

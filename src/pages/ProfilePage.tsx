@@ -93,13 +93,22 @@ function ChangePasswordCard() {
     mutationFn: (values: PasswordValues) =>
       api.patch<User>(`/v1/dealer-users/${user?.id}`, {
         password: values.newPassword,
+        // Actually sent now. The form has always asked for it; until this line
+        // it went nowhere, and any text at all changed the password.
+        currentPassword: values.currentPassword,
       }),
     onSuccess: () => {
       toast.success(t('profile.passwordChanged'));
       reset();
     },
-    onError: () => {
-      toast.error(t('profile.passwordChangeFailed'));
+    onError: (err) => {
+      // 401 is the one failure the dealer can do something about.
+      const wrongCurrent = err instanceof ApiError && err.status === 401;
+      toast.error(
+        wrongCurrent
+          ? t('profile.currentPasswordWrong')
+          : t('profile.passwordChangeFailed'),
+      );
     },
   });
 
@@ -331,6 +340,23 @@ function TeamSection() {
         {teamQuery.isLoading ? (
           <div className="flex justify-center py-6">
             <Spinner size={16} />
+          </div>
+        ) : teamQuery.isError ? (
+          // NOT "No teammates yet". That is a confident statement about the
+          // dealer's own staff, and a wrong one when the request simply failed —
+          // the obvious next move is to invite the manager again, which then
+          // fails on a duplicate email.
+          <div className="flex flex-col items-center gap-2 py-4">
+            <p className="text-center text-xs text-text-subtle">
+              {t('common.loadFailed')}
+            </p>
+            <button
+              type="button"
+              onClick={() => void teamQuery.refetch()}
+              className="rounded-full border border-border px-3 py-1 text-xs text-text-muted active:bg-surface-2"
+            >
+              {t('common.retry')}
+            </button>
           </div>
         ) : !teamQuery.data || teamQuery.data.length === 0 ? (
           <p className="py-4 text-center text-xs text-text-subtle">

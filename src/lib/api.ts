@@ -1,4 +1,4 @@
-import { clearAuth, getAuthToken } from '@/store/auth';
+import { clearAuth, getAuthToken, useAuthStore } from '@/store/auth';
 import type { ApiError as ApiErrorEnvelope, ApiResponse } from '@dk/shared/types';
 
 
@@ -111,6 +111,18 @@ export async function apiFetch<T>(
     );
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+  }
+
+  // THE ROLLING SESSION. Once a token is an hour old the server hands back a
+  // fresh one on this header; storing it is what stops a dealer who uses the
+  // app every day from ever meeting a login screen again. Best-effort by
+  // design: a missing or unreadable header just means the current token is
+  // still young, and the request itself already succeeded.
+  try {
+    const refreshed = res.headers.get('X-Refreshed-Token');
+    if (refreshed) useAuthStore.getState().setToken(refreshed);
+  } catch {
+    // A header a browser will not expose is not worth a failed request.
   }
 
   let payload: ApiResponse<T> | null = null;

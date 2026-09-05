@@ -15,6 +15,7 @@ import {
   perEmployeePoints,
   totalAwardPointsForWorks,
 } from '@/lib/staff';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore } from '@/store/staffDraft';
 import type {
@@ -76,6 +77,8 @@ export function GivePointsFlow({
   const addEntries = useStaffDraftStore((s) => s.addEntries);
   // Lock the StaffPage behind this full-screen flow so its scroll doesn't leak.
   useScrollLock();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
 
   const [step, setStep] = React.useState<Step>('worker');
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);

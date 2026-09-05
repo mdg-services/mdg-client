@@ -8,6 +8,7 @@ import { type ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { uploadDensityPhoto } from '@/lib/uploadDensityPhoto';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { useAuthStore } from '@/store/auth';
 import type { TtRegisterPhotoInput } from '@dk/shared/schemas';
@@ -84,6 +85,8 @@ export function DensityCaptureSheet({
   // The sheet covers the page; without this the page scrolls behind it when the
   // backdrop is dragged.
   useScrollLock();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
 
   const online = useOnline();
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);

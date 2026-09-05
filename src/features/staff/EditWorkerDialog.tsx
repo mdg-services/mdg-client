@@ -13,6 +13,7 @@ import {
 } from '@/hooks/api/useEmployees';
 import { useT } from '@/lib/i18n';
 import { istDate } from '@/lib/staff';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { createEmployeeSchema } from '@dk/shared/schemas';
 import type { EmployeeWithPoints } from '@dk/shared/types';
@@ -44,6 +45,8 @@ export function EditWorkerDialog({
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   // Lock the StaffPage behind the dialog so its backdrop doesn't scroll the page.
   useScrollLock();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
 
   const {
     register,

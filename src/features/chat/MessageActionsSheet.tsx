@@ -4,7 +4,9 @@ import * as React from 'react';
 import { useToast } from '@/components/ui';
 import { copyText } from '@/lib/clipboard';
 import { cn } from '@/lib/cn';
+import type { AttachmentSource } from '@/lib/downloadAttachment';
 import { useT } from '@/lib/i18n';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { QUICK_REACTIONS, type Attachment, type Message } from '@dk/shared/types';
 
 /**
@@ -29,10 +31,12 @@ export function MessageActionsSheet({
   onClose: () => void;
   onReply: (message: Message) => void;
   onToggleReaction: (message: Message, emoji: string) => void;
-  onDownload: (attachment: Attachment) => void;
+  onDownload: (attachment: Attachment, source: AttachmentSource) => void;
   onInfo: (message: Message) => void;
 }) {
   const t = useT();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
   const toast = useToast();
 
   const myReaction = message.reactions?.find((r) => r.userId === currentUserId)?.emoji;
@@ -111,7 +115,10 @@ export function MessageActionsSheet({
             type="button"
             onClick={() => {
               onClose();
-              onDownload(a);
+              onDownload(a, {
+                conversationId: message.conversationId,
+                messageId: message.id,
+              });
             }}
             className={rowClass}
           >

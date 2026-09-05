@@ -1,4 +1,4 @@
-import { Check, CloudOff, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
+import { AlertCircle, Check, CloudOff, Loader2, Minus, Plus, Trash2 } from 'lucide-react';
 import * as React from 'react';
 
 
@@ -127,23 +127,40 @@ export function PendingSubmissionPanel({
               <ul className="flex flex-col gap-1.5">
                 {g.lines.map((line) => (
                   <PendingLineRow
-                    key={`${line.employeeId}:${line.workItemCode}`}
+                    // The description is part of the line's identity: two
+                    // "Other cleaning work" rows for the same man differ only
+                    // by what was written on them, and a key without it made
+                    // React treat them as one row.
+                    key={`${line.employeeId}:${line.workItemCode}:${line.note ?? ''}`}
                     line={line}
                     lang={lang}
                     t={t}
                     disabled={finalizeOpen}
                     onRemove={() =>
-                      removeLine(dealerId, line.employeeId, line.workItemCode)
+                      removeLine(
+                        dealerId,
+                        line.employeeId,
+                        line.workItemCode,
+                        line.note,
+                      )
                     }
                     onQuantity={(qty) =>
-                      updateLine(dealerId, line.employeeId, line.workItemCode, {
-                        quantity: qty,
-                      })
+                      updateLine(
+                        dealerId,
+                        line.employeeId,
+                        line.workItemCode,
+                        { quantity: qty },
+                        line.note,
+                      )
                     }
                     onAmount={(amountRupees) =>
-                      updateLine(dealerId, line.employeeId, line.workItemCode, {
-                        amountRupees,
-                      })
+                      updateLine(
+                        dealerId,
+                        line.employeeId,
+                        line.workItemCode,
+                        { amountRupees },
+                        line.note,
+                      )
                     }
                   />
                 ))}
@@ -230,6 +247,13 @@ function SyncChip({
       icon: <CloudOff width={12} strokeWidth={2} />,
       label: t('staff.draftOffline'),
       className: 'bg-warning-soft text-warning',
+    },
+    // NOT the amber "will sync" chip. The server refused this list and will go
+    // on refusing it, so waiting is not the answer and must not be implied.
+    rejected: {
+      icon: <AlertCircle width={12} strokeWidth={2} />,
+      label: t('staff.draftRejected'),
+      className: 'bg-danger-soft text-danger',
     },
   }[state];
   return (

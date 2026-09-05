@@ -34,9 +34,18 @@ export const messages = {
     en: "Please check your network and try again. If it keeps happening, send us a message in Chat and we'll help.",
     hi: 'कृपया अपना नेटवर्क जांचें और फिर कोशिश करें। अगर बार-बार हो, तो चैट में हमें लिखें, हम मदद करेंगे।',
   },
+  'common.retry': { en: 'Try again', hi: 'फिर कोशिश करें' },
+  'common.loadFailed': {
+    en: "Couldn't load this. Check your network and try again.",
+    hi: 'यह लोड नहीं हो सका। नेटवर्क जांचें और फिर कोशिश करें।',
+  },
 
   /* ── app / nav ──────────────────────────────────────────────────────── */
   'app.brand': { en: 'Dealer Kavach', hi: 'डीलर कवच' },
+  'app.stillLoading': {
+    en: 'Still loading — the connection is slow.',
+    hi: 'अभी लोड हो रहा है — नेटवर्क धीमा है।',
+  },
   'nav.chat': { en: 'Chat', hi: 'चैट' },
   'nav.reports': { en: 'Reports', hi: 'रिपोर्ट' },
   'nav.kavach': { en: 'Kavach', hi: 'कवच' },
@@ -253,6 +262,31 @@ export const messages = {
   'chat.yesterday': { en: 'Yesterday', hi: 'कल' },
   'chat.isTyping': { en: '{name} is typing', hi: '{name} लिख रहे हैं' },
   'chat.imagePreview': { en: 'Image preview', hi: 'फोटो पूर्वावलोकन' },
+  'chat.resetZoom': { en: 'Fit to screen', hi: 'पूरी तस्वीर दिखाएँ' },
+  'chat.imageFailed': {
+    en: "This picture didn't open. Check your network and try again.",
+    hi: 'यह तस्वीर नहीं खुली। नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+  'chat.mediaLoadFailed': {
+    en: "Couldn't load the photos",
+    hi: 'फोटो लोड नहीं हो सके',
+  },
+  'chat.historyLoadFailed': {
+    en: "Couldn't load this chat",
+    hi: 'यह चैट लोड नहीं हो सकी',
+  },
+  'chat.voiceTooShort': {
+    en: 'Nothing was recorded. Hold the mic a little longer.',
+    hi: 'कुछ रिकॉर्ड नहीं हुआ। माइक थोड़ी देर और दबाए रखें।',
+  },
+  'chat.voiceMaxReached': {
+    en: 'Ten minutes is the limit — sending what you recorded.',
+    hi: 'दस मिनट की सीमा पूरी — जो रिकॉर्ड हुआ वह भेजा जा रहा है।',
+  },
+  'chat.sessionExpired': {
+    en: 'You were signed out — this happens if you sign in on another phone. Please sign in again.',
+    hi: 'आप साइन आउट हो गए — ऐसा तब होता है जब किसी दूसरे फ़ोन पर साइन इन किया जाए। कृपया दोबारा साइन इन करें।',
+  },
   'chat.chatsTitle': { en: 'Chats', hi: 'बातचीत' },
   'chat.managerThread': { en: 'Manager chat', hi: 'मैनेजर चैट' },
   'chat.noConversations': { en: 'No chats yet', hi: 'अभी कोई चैट नहीं' },
@@ -581,6 +615,10 @@ export const messages = {
     en: "We couldn't change your password. Please try again, or message us in Chat.",
     hi: 'आपका पासवर्ड नहीं बदल पाए। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
   },
+  'profile.currentPasswordWrong': {
+    en: 'That current password is not right.',
+    hi: 'मौजूदा पासवर्ड सही नहीं है।',
+  },
   'profile.updatePassword': {
     en: 'Update password',
     hi: 'पासवर्ड अपडेट करें',
@@ -828,6 +866,10 @@ export const messages = {
     en: 'Offline — will sync',
     hi: 'ऑफलाइन — बाद में सिंक होगा',
   },
+  'staff.draftRejected': {
+    en: "Couldn't be saved",
+    hi: 'सेव नहीं हो सका',
+  },
 
   /* ── final submit + hardcopy photo ──────────────────────────────────── */
   'staff.finalSubmit': { en: 'Final submit', hi: 'फ़ाइनल जमा करें' },
@@ -865,6 +907,10 @@ export const messages = {
   'staff.offlineSubmit': {
     en: "You're offline — reconnect to submit.",
     hi: 'आप ऑफलाइन हैं — जमा करने के लिए दोबारा कनेक्ट करें।',
+  },
+  'staff.rejectedSubmit': {
+    en: 'MDG could not save this list. Check that every "Other work" line has a description, or message us in Chat.',
+    hi: 'MDG यह सूची सेव नहीं कर सका। देखें कि हर "अन्य काम" वाली लाइन में विवरण लिखा है, या चैट में हमें लिखें।',
   },
   'staff.waitSaving': {
     en: 'Saving your changes…',

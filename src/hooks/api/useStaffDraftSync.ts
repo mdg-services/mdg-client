@@ -1,5 +1,6 @@
 import * as React from 'react';
 
+import { ApiError } from '@/lib/api';
 import {
   draftSignature,
   useStaffDraftStore,
@@ -98,8 +99,16 @@ export function useStaffDraftSync(
         note: current.note,
       });
       useStaffDraftStore.getState().markSaved(dealerId, sent, view);
-    } catch {
-      useStaffDraftStore.getState().setSync(dealerId, 'offline');
+    } catch (err) {
+      // A 4xx is the SERVER refusing this list — it will refuse it again in ten
+      // seconds and again tonight, and calling that "offline" told a dealer with
+      // four bars of signal to reconnect. Only a transport failure or a 5xx is
+      // something waiting can fix.
+      const status = err instanceof ApiError ? err.status : 0;
+      const rejected = status >= 400 && status < 500;
+      useStaffDraftStore
+        .getState()
+        .setSync(dealerId, rejected ? 'rejected' : 'offline');
     }
   }, [dealerId]);
 

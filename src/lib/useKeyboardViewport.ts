@@ -37,17 +37,41 @@ export function useKeyboardViewport(): { keyboardOpen: boolean } {
         el.tagName === 'INPUT' ||
         (el as HTMLElement).isContentEditable === true);
 
+    // The tallest the visible viewport has been at this width — i.e. what it
+    // measures with no keyboard. Reset when the width changes, because a
+    // rotation legitimately changes the height for good.
+    let maxH = 0;
+    let lastW = 0;
+
     let raf = 0;
     const compute = () => {
       raf = 0;
       const h = vv ? vv.height : window.innerHeight;
+      const w = vv ? vv.width : window.innerWidth;
       const top = vv ? vv.offsetTop : 0;
       // Bottom overlap of the keyboard. ~0 under adjustResize (innerHeight has
       // already shrunk to match); the true keyboard height under adjustPan.
       const kb = Math.max(0, window.innerHeight - h - top);
       root.style.setProperty('--vvh', `${Math.round(h)}px`);
       root.style.setProperty('--kb', `${Math.round(kb)}px`);
-      setKeyboardOpen(isEditable(document.activeElement) || kb > 60);
+      if (w !== lastW) {
+        lastW = w;
+        maxH = 0;
+      }
+      maxH = Math.max(maxH, h);
+
+      // FOCUS ALONE IS NOT PROOF THE KEYBOARD IS UP.
+      //
+      // The Android Back key closes the keyboard WITHOUT blurring the field —
+      // the reflex every Android user has, and the one WhatsApp honours. Reading
+      // `activeElement` on its own, the app concluded the keyboard was still
+      // there and left the tab bar slid off the bottom of the screen: Chat,
+      // Reports, Kavach and Profile simply gone, with no way to get them back
+      // short of tapping the field and dismissing the keyboard the app's way.
+      // So focus only counts while the viewport is ACTUALLY shorter than its
+      // own no-keyboard height.
+      const shrunk = maxH - h > 60;
+      setKeyboardOpen(kb > 60 || (isEditable(document.activeElement) && shrunk));
     };
     const schedule = () => {
       if (raf) return;

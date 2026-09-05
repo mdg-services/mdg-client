@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { Spinner } from '@/components/ui';
+import { useT } from '@/lib/i18n';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { setMonitoringUser } from '@/lib/monitoring';
 import { useAuthStore } from '@/store/auth';
@@ -48,10 +49,38 @@ const ProfilePage = lazyWithRetry(() =>
   import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
 );
 
+/**
+ * What a screen looks like while its code is coming down the wire.
+ *
+ * A bare spinner is fine for the second or two this takes on wifi. On a 2G
+ * forecourt link the first tap on Reports or Kavach could sit here for a minute
+ * with nothing but a small grey dot on an empty screen — no words, no way to
+ * tell it apart from a broken app, and nothing to press. After six seconds it
+ * says what is happening and offers the reload, which is the same escape the
+ * chunk-error boundary gives when the download fails outright.
+ */
 function FullScreenSpinner() {
+  const t = useT();
+  const [slow, setSlow] = React.useState(false);
+  React.useEffect(() => {
+    const id = window.setTimeout(() => setSlow(true), 6000);
+    return () => window.clearTimeout(id);
+  }, []);
   return (
-    <div className="flex min-h-full items-center justify-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 px-8">
       <Spinner size={22} />
+      {slow ? (
+        <>
+          <p className="text-center text-sm text-text-muted">{t('app.stillLoading')}</p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+          >
+            {t('common.retry')}
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

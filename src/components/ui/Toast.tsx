@@ -48,8 +48,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const push = React.useCallback(
     (partial: Omit<Toast, 'id'>): string => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      // An error toast used to live FOREVER (`0`), on the theory that a failure
+      // deserves to be read. What it actually did was park a card over the
+      // bottom of the screen — over the tab bar, and over the composer with the
+      // keyboard up — that swallowed taps until somebody hit a 22px ✕. A dealer
+      // who missed that ✕ had a dead strip across the bottom of their app.
+      // Eight seconds is long enough to read a sentence twice; a caller that
+      // genuinely needs a sticky toast still passes `duration: 0` explicitly
+      // (the "Saving…" toast does).
       const duration =
-        partial.duration ?? (partial.intent === 'danger' ? 0 : 3500);
+        partial.duration ?? (partial.intent === 'danger' ? 8000 : 3500);
       const next: Toast = { ...partial, id, duration };
       setToasts((curr) => [...curr, next]);
       if (duration > 0) window.setTimeout(() => dismiss(id), duration);
@@ -73,7 +81,9 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={ctx}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto flex w-full max-w-sm flex-col gap-2 px-4">
+      {/* Clear of the bottom tab bar (h-14 + the safe-area inset), so a toast
+          never sits on top of Chat / Reports / Kavach / Profile. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 mx-auto flex w-full max-w-sm flex-col gap-2 px-4">
         {toasts.map((item) => (
           <div
             key={item.id}
@@ -120,9 +130,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               type="button"
               aria-label={t('common.dismiss')}
               onClick={() => dismiss(item.id)}
-              className="rounded-full p-1 text-text-muted hover:bg-surface-2"
+              // A 44px target inside the card's own padding: the negative
+              // margin absorbs the extra size, so the card keeps its shape.
+              className="-m-1.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
             >
-              <X width={14} height={14} strokeWidth={1.75} />
+              <X width={16} height={16} strokeWidth={1.75} />
             </button>
           </div>
         ))}

@@ -2,6 +2,7 @@ import { Check, CheckCheck, X } from 'lucide-react';
 import * as React from 'react';
 
 import { useT, type TFunction } from '@/lib/i18n';
+import { useBackToClose } from '@/lib/useBackToClose';
 import type { Conversation, Message } from '@dk/shared/types';
 
 function formatWhen(iso: string): string {
@@ -48,6 +49,8 @@ export function MessageInfoSheet({
   onClose: () => void;
 }) {
   const t = useT();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
 
   const readIds = (message.readBy ?? []).filter((id) => id !== message.senderId);
   const readSet = new Set(readIds);

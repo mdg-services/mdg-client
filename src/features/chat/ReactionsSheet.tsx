@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 
 import { useT } from '@/lib/i18n';
+import { useBackToClose } from '@/lib/useBackToClose';
 import type { Conversation, Message } from '@dk/shared/types';
 
 /**
@@ -23,6 +24,8 @@ export function ReactionsSheet({
   onClose: () => void;
 }) {
   const t = useT();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
   const reactions = message.reactions ?? [];
 
   const nameFor = (userId: string, wireName?: string): string => {

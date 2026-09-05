@@ -12,6 +12,7 @@ import { useT } from '@/lib/i18n';
 import { queryClient } from '@/lib/queryClient';
 import { fmtPoints, istDate } from '@/lib/staff';
 import { uploadStaffHardcopy } from '@/lib/uploadStaffHardcopy';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore, type DraftSyncState } from '@/store/staffDraft';
 
@@ -59,6 +60,8 @@ export function FinalizeSubmitSheet({
   // Lock the StaffPage behind the sheet so dragging the backdrop / overscrolling
   // the sheet body doesn't scroll the page underneath.
   useScrollLock();
+  // The phone's Back button closes the sheet, not the screen behind it.
+  useBackToClose(onClose);
 
   const [file, setFile] = React.useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
@@ -71,6 +74,9 @@ export function FinalizeSubmitSheet({
   const today = istDate();
 
   const offline = syncState === 'offline';
+  // A list the server refused. Same block on submitting, different sentence:
+  // "reconnect" is advice a dealer on four bars cannot act on.
+  const rejected = syncState === 'rejected';
   const notSynced = dirty || syncState === 'saving';
 
   // Keep a single object URL for the preview; revoke the old one on change/unmount.
@@ -93,8 +99,8 @@ export function FinalizeSubmitSheet({
 
   const handleSubmit = async () => {
     if (!dealerId || !file || submitting) return;
-    if (offline) {
-      toast.error(t('staff.offlineSubmit'));
+    if (offline || rejected) {
+      toast.error(rejected ? t('staff.rejectedSubmit') : t('staff.offlineSubmit'));
       return;
     }
     setSubmitting(true);
@@ -150,7 +156,7 @@ export function FinalizeSubmitSheet({
   };
 
   // Confirm is unavailable until the draft is fully in sync and a photo is set.
-  const submitDisabled = !file || notSynced || offline;
+  const submitDisabled = !file || notSynced || offline || rejected;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end">
@@ -279,7 +285,11 @@ export function FinalizeSubmitSheet({
         </div>
 
         <footer className="flex flex-col gap-2 border-t border-border p-3">
-          {offline ? (
+          {rejected ? (
+            <p className="px-1 text-center text-xs text-danger">
+              {t('staff.rejectedSubmit')}
+            </p>
+          ) : offline ? (
             <p className="px-1 text-center text-xs text-warning">
               {t('staff.offlineSubmit')}
             </p>

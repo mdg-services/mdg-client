@@ -11,6 +11,12 @@ interface AuthState {
   login: (payload: { token: string; user: User }) => void;
   logout: () => void;
   setUser: (user: User) => void;
+  /**
+   * Swap in a token the server rolled forward (see `REFRESHED_TOKEN_HEADER`).
+   * Ignored when signed out, so a response that overtakes a logout cannot sign
+   * the dealer back in.
+   */
+  setToken: (token: string) => void;
 }
 
 /**
@@ -82,6 +88,10 @@ export const useAuthStore = create<AuthState>()(
         queryClient.clear();
       },
       setUser: (user) => set({ user }),
+      setToken: (token) => {
+        if (!get().token) return;
+        set({ token });
+      },
     }),
     {
       name: 'mdg.client.auth',
@@ -95,6 +105,27 @@ export function getAuthToken(): string | null {
   return useAuthStore.getState().token;
 }
 
+/** Where an involuntary logout leaves its note for the login screen. */
+export const SESSION_EXPIRED_KEY = 'mdg.client.sessionExpired';
+
+/**
+ * Sign the dealer out because the server said the token is no longer good.
+ *
+ * DIFFERENT FROM PRESSING "Log out", and the difference has to reach the user.
+ * A dealer who opens the app and finds a blank "Welcome back" form, with nothing
+ * anywhere saying what happened, has been given no reason to trust it.
+ *
+ * This is now RARE. A dealer's token lives a year and rolls forward on use, so
+ * running out of one takes a year of not opening the app. What is left is
+ * signing in on another phone, which retires the session on this one. The
+ * marker is one-shot: the login screen reads it and clears it, so it cannot
+ * haunt a later deliberate logout.
+ */
 export function clearAuth(): void {
+  try {
+    sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+  } catch {
+    // Private mode / storage disabled: the sign-out still has to happen.
+  }
   useAuthStore.getState().logout();
 }

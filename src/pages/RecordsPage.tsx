@@ -4,7 +4,7 @@ import * as React from 'react';
 
 import { EmptyState, Spinner } from '@/components/ui';
 import { RecordCard } from '@/features/records/RecordCard';
-import { useRecords } from '@/hooks/api/useRecords';
+import { useOpenRecord, useRecords } from '@/hooks/api/useRecords';
 import { useT } from '@/lib/i18n';
 import { RECORD_TYPES } from '@dk/shared/types';
 import type { DealerRecord, RecordType } from '@dk/shared/types';
@@ -16,6 +16,7 @@ function byNewest(a: DealerRecord, b: DealerRecord): number {
 export function RecordsPage() {
   const t = useT();
   const recordsQuery = useRecords();
+  const openRecord = useOpenRecord();
 
   const grouped = React.useMemo(() => {
     const map = new Map<RecordType, DealerRecord[]>();
@@ -72,6 +73,8 @@ export function RecordsPage() {
                         periodLabel: rec.periodLabel,
                       }}
                       url={rec.attachment.url}
+                      onOpen={() => openRecord(rec.id)}
+                      onRetry={() => void recordsQuery.refetch()}
                     />
                   ))}
                 </div>

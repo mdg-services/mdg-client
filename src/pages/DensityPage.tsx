@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { EmptyState, Spinner } from '@/components/ui';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { DensityLatestStrip } from '@/features/density/DensityLatestStrip';
 import { DensityTodayCard } from '@/features/density/DensityTodayCard';
 import { DensityWeekStrip } from '@/features/density/DensityWeekStrip';
@@ -12,6 +13,7 @@ import {
   useDensityMe,
 } from '@/hooks/api/useDensity';
 import { useLang, useT } from '@/lib/i18n';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 
 function HelpFooter() {
@@ -30,13 +32,16 @@ function HelpFooter() {
 }
 
 /**
- * The register photo a day already carries, full screen.
+ * The register photo a day already carries, full screen — and zoomable, which is
+ * the whole point of opening it: a register page is a grid of handwritten
+ * figures photographed at arm's length, and at fit-to-screen size on a phone a
+ * density reading is a smudge.
  *
- * Written here rather than reusing the chat lightbox because that one recovers
- * an expired link through `/uploads/download-url`, and register photos are
- * deliberately NOT reachable from that route — reading one goes through the
- * dealer-scoped day endpoint, where the ownership check and the audit row live.
- * Reusing it would have shipped a refresh path that always fails.
+ * The chat lightbox is not reused, only its gesture layer is. That one recovers
+ * an expired link through the message that carries the attachment, and a
+ * register photo is on no message — reading one goes through the dealer-scoped
+ * day endpoint, where the ownership check and the audit row live. So this keeps
+ * its own fetch and borrows `ZoomableImage`.
  */
 function DayPhotoViewer({
   businessDate,
@@ -53,13 +58,14 @@ function DayPhotoViewer({
   // Full-screen overlay on a page whose body scrolls: without this the register
   // page slides around behind the photo when the backdrop is dragged.
   useScrollLock();
+  // The phone's Back button closes the photo, not the register screen.
+  useBackToClose(onClose);
 
   return (
     <div
       role="dialog"
       aria-label={densityDayLabel(lang, businessDate, 'full')}
       className="fixed inset-0 z-50 flex flex-col bg-black/90"
-      onClick={onClose}
     >
       <div className="safe-top flex items-center justify-between gap-2 px-4 py-3">
         <div className="min-w-0">
@@ -82,25 +88,23 @@ function DayPhotoViewer({
         </button>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-4">
-        {isLoading ? (
+      {isLoading ? (
+        <div className="flex flex-1 items-center justify-center p-4">
           <Spinner size={24} />
-        ) : isError || !data ? (
+        </div>
+      ) : isError || !data ? (
+        <div className="flex flex-1 items-center justify-center p-4">
           <p className="max-w-xs text-center text-sm text-white/80">
             {t('common.helpDesc')}
           </p>
-        ) : (
-          <img
-            src={data.viewUrl}
-            alt={densityDayLabel(lang, businessDate, 'full')}
-            decoding="async"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-full max-w-full rounded-xl object-contain"
-          />
-        )}
-      </div>
+        </div>
+      ) : (
+        <ZoomableImage
+          src={data.viewUrl}
+          alt={densityDayLabel(lang, businessDate, 'full')}
+          onDismiss={onClose}
+        />
+      )}
     </div>
   );
 }

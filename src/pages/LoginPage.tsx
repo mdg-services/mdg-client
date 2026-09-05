@@ -10,7 +10,7 @@ import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { postToNative } from '@/lib/nativeBridge';
-import { useAuthStore } from '@/store/auth';
+import { SESSION_EXPIRED_KEY, useAuthStore } from '@/store/auth';
 import type { AuthLoginResponse } from '@dk/shared/types';
 
 type FormValues = { email: string; password: string };
@@ -19,6 +19,16 @@ export function LoginPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const t = useT();
+  // Read once and cleared, so a later deliberate logout does not inherit it.
+  const [expired] = React.useState(() => {
+    try {
+      const was = sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1';
+      if (was) sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+      return was;
+    } catch {
+      return false;
+    }
+  });
   const login = useAuthStore((s) => s.login);
   const token = useAuthStore((s) => s.token);
 
@@ -73,6 +83,13 @@ export function LoginPage() {
           </h1>
           <p className="text-sm text-text-muted">{t('auth.subtitle')}</p>
         </div>
+        {expired ? (
+          // Why they are looking at this screen at all. A session lasts twelve
+          // hours, so this is the ordinary morning experience, not an incident.
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-sm text-info">
+            {t('chat.sessionExpired')}
+          </p>
+        ) : null}
         <Card>
           <CardContent>
             <form

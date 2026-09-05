@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
 import { RecordCard } from '@/features/records/RecordCard';
-import { useRecord } from '@/hooks/api/useRecords';
+import { useOpenRecord, useRecord } from '@/hooks/api/useRecords';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
@@ -31,7 +31,11 @@ function CardMessage({ message }: { message: Message }) {
   const card = message.card!;
   // Resolve the signed file URL so the card is tappable.
   const recordQuery = useRecord(card.recordId);
+  const openRecord = useOpenRecord();
   const url = recordQuery.data?.attachment.url;
+  // A failed lookup used to render as "Preparing…" — a card that looks like it
+  // is on its way and is in fact stuck, on a screen with nothing to press.
+  const failed = recordQuery.isError;
 
   return (
     <div className="flex w-full flex-col items-center gap-1.5 animate-in">
@@ -48,6 +52,9 @@ function CardMessage({ message }: { message: Message }) {
             periodLabel: card.periodLabel,
           }}
           url={url}
+          onOpen={() => openRecord(card.recordId)}
+          failed={failed}
+          onRetry={() => void recordQuery.refetch()}
           compact
         />
       </div>
@@ -83,6 +90,10 @@ function SystemMessage({
   message: Message;
   onOpenImage?: (attachment: Attachment) => void;
 }) {
+  const source = {
+    conversationId: message.conversationId,
+    messageId: message.id,
+  };
   return (
     <div className="flex w-full flex-col items-center gap-1.5 animate-in">
       {message.attachments.length > 0 ? (
@@ -91,6 +102,7 @@ function SystemMessage({
             <MessageAttachment
               key={a.storageKey}
               attachment={a}
+              source={source}
               onOpenImage={onOpenImage}
             />
           ))}
@@ -247,7 +259,9 @@ export const MessageBubble = React.memo(function MessageBubble({
   showSender?: boolean;
   /** True while the quote's original is being paged in (spinner on the quote). */
   quoteLoading?: boolean;
-  onOpenImage?: (attachment: Attachment) => void;
+  /** Tap on an image → the full-screen viewer. The message comes along: a
+   *  fresh presign is authorised through the message that carries the key. */
+  onOpenImage?: (attachment: Attachment, message: Message) => void;
   /** Long-press → the message action sheet. */
   onAction?: (message: Message) => void;
   /** Tap on the reaction chips → the who-reacted sheet. */
@@ -261,6 +275,11 @@ export const MessageBubble = React.memo(function MessageBubble({
   onTalkToHuman?: () => void;
 }) {
   const t = useT();
+  // Bound once per render: the attachment's own children only know the
+  // attachment, and the viewer needs the message it hangs off.
+  const openImage = onOpenImage
+    ? (attachment: Attachment) => onOpenImage(attachment, message)
+    : undefined;
   const actionable =
     !!onAction &&
     !message.system &&
@@ -274,7 +293,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     return <CardMessage message={message} />;
   }
   if (message.system) {
-    return <SystemMessage message={message} onOpenImage={onOpenImage} />;
+    return <SystemMessage message={message} onOpenImage={openImage} />;
   }
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
@@ -331,7 +350,11 @@ export const MessageBubble = React.memo(function MessageBubble({
                 key={a.storageKey}
                 attachment={a}
                 mine={mine}
-                onOpenImage={onOpenImage}
+                source={{
+                  conversationId: message.conversationId,
+                  messageId: message.id,
+                }}
+                onOpenImage={openImage}
               />
             ))}
           </div>

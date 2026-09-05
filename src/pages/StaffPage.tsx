@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
 import { EditWorkerDialog } from '@/features/staff/EditWorkerDialog';
 import { GivePointsFlow } from '@/features/staff/GivePointsFlow';
@@ -31,6 +32,7 @@ import { useStaffDraftSync } from '@/hooks/api/useStaffDraftSync';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { fmtPoints } from '@/lib/staff';
+import { useBackToClose } from '@/lib/useBackToClose';
 import { useAuthStore } from '@/store/auth';
 import { useStaffDraftStore } from '@/store/staffDraft';
 import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
@@ -238,6 +240,20 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
           <div className="flex justify-center py-4">
             <Spinner size={16} />
           </div>
+        ) : batchesQuery.isError ? (
+          // NOT "no past submissions". A dealer who has submitted every day for
+          // a month, told there is no record of any of it, has been given a
+          // reason to stop trusting the screen.
+          <div className="flex flex-col items-start gap-2 px-1 py-2">
+            <p className="text-xs text-text-subtle">{t('common.loadFailed')}</p>
+            <button
+              type="button"
+              onClick={() => void batchesQuery.refetch()}
+              className="rounded-full border border-border px-3 py-1 text-xs text-text-muted active:bg-surface-2"
+            >
+              {t('common.retry')}
+            </button>
+          </div>
         ) : batches.length === 0 ? (
           <p className="px-1 py-2 text-xs text-text-subtle">
             {t('staff.pastEmpty')}
@@ -275,31 +291,38 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
       ) : null}
 
       {lightbox ? (
-        <div
-          role="dialog"
-          aria-label={t('staff.viewHardcopy')}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
-          onClick={() => setLightbox(null)}
-        >
-          <button
-            type="button"
-            aria-label={t('common.cancel')}
-            onClick={() => setLightbox(null)}
-            className="safe-top absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20"
-          >
-            <X width={22} strokeWidth={2} />
-          </button>
-          <img
-            src={lightbox}
-            alt=""
-            decoding="async"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-full max-w-full rounded-xl object-contain"
-          />
-        </div>
+        // Zoomable, because a hardcopy is a photographed sheet of handwriting:
+        // fit to a phone screen it is legible only to whoever wrote it.
+        <HardcopyViewer src={lightbox} onClose={() => setLightbox(null)} />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The hardcopy of a submitted points sheet, full screen and zoomable — it is a
+ * photograph of handwriting, and fit to a phone it is legible only to whoever
+ * wrote it. A component of its own so it can own the Back button like every
+ * other overlay in the app.
+ */
+function HardcopyViewer({ src, onClose }: { src: string; onClose: () => void }) {
+  const t = useT();
+  useBackToClose(onClose);
+  return (
+    <div
+      role="dialog"
+      aria-label={t('staff.viewHardcopy')}
+      className="fixed inset-0 z-50 flex flex-col bg-black/85"
+    >
+      <button
+        type="button"
+        aria-label={t('common.cancel')}
+        onClick={onClose}
+        className="safe-top absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20"
+      >
+        <X width={22} strokeWidth={2} />
+      </button>
+      <ZoomableImage src={src} alt={t('staff.viewHardcopy')} onDismiss={onClose} />
     </div>
   );
 }
