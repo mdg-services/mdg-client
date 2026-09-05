@@ -2,6 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- The preconnect to the API origin is injected here at build time by the
+         `apiPreconnect` plugin in vite.config.ts, which reads VITE_API_BASE_URL
+         so no host is hardcoded. It is NOT written literally in this file: a
+         `%VITE_API_BASE_URL%` in a <link href> makes `vite build` run decodeURI
+         over `%VI`, which is not a valid escape, and the build dies with
+         `[vite:build-html] URI malformed` — naming this file and never the
+         variable. The plugin emits nothing when the variable is unset, so a
+         local build without it still works. -->
     <!-- interactive-widget=resizes-content: when the on-screen keyboard opens,
          shrink the LAYOUT viewport (not just the visual one). This makes 100dvh /
          100% / innerHeight reflect the space above the keyboard on every device —

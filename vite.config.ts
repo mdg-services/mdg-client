@@ -1,5 +1,5 @@
 import { sentryVitePlugin } from '@sentry/vite-plugin';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,9 +42,60 @@ const sourcemapUpload = process.env.SENTRY_AUTH_TOKEN
     ]
   : [];
 
+/**
+ * Preconnect to whatever origin VITE_API_BASE_URL points at, resolved at build
+ * time so no host is hardcoded.
+ *
+ * Nothing opens a connection to the API until the bundle has downloaded, parsed
+ * and mounted — the first byte leaves only when the app asks for it. In a
+ * WebView on 2G that is a DNS lookup, a TCP handshake and a TLS negotiation,
+ * three round trips, all of them serialised after the JavaScript. This hint
+ * starts them in parallel with the bundle download instead.
+ *
+ * `crossorigin` is load-bearing, not decoration: every call this app makes to
+ * the API is a CORS fetch, and a connection opened without the attribute lands
+ * in a different pool and is never reused — the preconnect would be theatre.
+ * Socket.IO dials the same origin, so it inherits the warm socket too.
+ *
+ * Emits nothing when the variable is unset, malformed or same-origin. A missing
+ * preconnect costs only what it would have saved; a wrong one wastes a socket.
+ * Doing this in a plugin rather than as a `%VITE_API_BASE_URL%` placeholder in
+ * index.html is deliberate — the placeholder form breaks `vite build` outright
+ * when the variable is absent.
+ */
+function apiPreconnect(): Plugin {
+  let origin: string | null = null;
+  return {
+    name: 'api-preconnect',
+    configResolved(config) {
+      const raw = config.env.VITE_API_BASE_URL as string | undefined;
+      try {
+        origin = raw ? new URL(raw).origin : null;
+      } catch {
+        origin = null;
+      }
+    },
+    transformIndexHtml() {
+      if (!origin) return [];
+      return [
+        {
+          tag: 'link',
+          attrs: { rel: 'dns-prefetch', href: origin },
+          injectTo: 'head-prepend' as const,
+        },
+        {
+          tag: 'link',
+          attrs: { rel: 'preconnect', href: origin, crossorigin: '' },
+          injectTo: 'head-prepend' as const,
+        },
+      ];
+    },
+  };
+}
+
 export default defineConfig({
   // The Sentry plugin must come last so it sees the final, emitted bundle.
-  plugins: [react(), ...sourcemapUpload],
+  plugins: [react(), apiPreconnect(), ...sourcemapUpload],
   define: {
     // Sentry's documented tree-shaking flags. Without them the SDK ships its
     // debug logging and its whole performance-tracing tree, neither of which this

@@ -54,6 +54,27 @@ const TYPING_HOLD_MS = {
   machine: 10_000,
 } as const;
 
+/**
+ * How often a person who is typing tells the room about it.
+ *
+ * The textarea calls `onTyping` on EVERY keystroke, and each event is a socket
+ * frame up a 2G link plus a `ConversationModel.exists()` on the server (the
+ * `typing` handler authorises before it fans out) — so a 60-character message
+ * was 60 database round trips to raise a dot that was already up.
+ *
+ * NOTHING SENDS A "STOPPED TYPING" EVENT, here or on the admin side: the dots
+ * come down on a timer after the LAST event, TYPING_HOLD_MS.person = 3 s on both
+ * receivers. So the only way a throttle can break them is by letting the gap
+ * between two emits reach that hold; 1.5 s leaves a whole event of slack for a
+ * frame that arrives late off a bad link. The cost is that the dots now linger
+ * up to one interval longer after the real last keystroke — 4.5 s instead of
+ * 3 s in the worst case, which nobody can tell from a pause for thought.
+ *
+ * Leading edge, so the FIRST keystroke still raises the dots instantly; a
+ * trailing throttle would read as 1.5 s of lag every time a reply begins.
+ */
+const TYPING_EMIT_INTERVAL_MS = 1_500;
+
 export function useConversationSocket(
   conversationId: string | undefined,
   currentUserId: string | undefined,
@@ -254,8 +275,15 @@ export function useConversationSocket(
     };
   }, [conversationId, currentUserId, qc, applyReceipt]);
 
+  // Keyed on the conversation as well as the clock, so opening a different
+  // thread and typing at once is not swallowed by the previous thread's window.
+  const lastTypingEmit = React.useRef<{ id?: string; at: number }>({ at: 0 });
   const emitTyping = React.useCallback(() => {
     if (!conversationId) return;
+    const now = Date.now();
+    const last = lastTypingEmit.current;
+    if (last.id === conversationId && now - last.at < TYPING_EMIT_INTERVAL_MS) return;
+    lastTypingEmit.current = { id: conversationId, at: now };
     const socket = getSocket();
     socket?.emit('typing', conversationId);
   }, [conversationId]);

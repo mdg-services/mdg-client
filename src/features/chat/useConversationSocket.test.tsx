@@ -254,6 +254,52 @@ describe('useConversationSocket', () => {
     expect(result.current.typing.active).toBe(false);
   });
 
+  it('sends at most one typing frame per 1.5s, starting on the first keystroke', () => {
+    // The Composer calls this from the textarea's onChange, so a 60-character
+    // message used to be 60 frames up a 2G link and 60 `exists()` queries on the
+    // server. The receiver holds the dots for 3s after the last event, so the
+    // other 59 said nothing it did not already know.
+    vi.useFakeTimers();
+    try {
+      const { result } = mount([]);
+      const typingEmits = () =>
+        h.socket.emit.mock.calls.filter(([event]) => event === 'typing').length;
+
+      for (let i = 0; i < 10; i += 1) result.current.emitTyping();
+      // Leading edge: the first keystroke goes out at once, the rest are dropped.
+      expect(typingEmits()).toBe(1);
+
+      act(() => vi.advanceTimersByTime(1600));
+      result.current.emitTyping();
+      expect(typingEmits()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not swallow the first keystroke in a freshly opened thread', () => {
+    // The window is keyed on the conversation too: leaving c1 mid-window and
+    // typing into c2 straight away must still raise the dots there.
+    vi.useFakeTimers();
+    try {
+      h.socket = makeFakeSocket(true);
+      const { result, rerender } = renderHookWithProviders(
+        ({ id }: { id: string }) => useConversationSocket(id, ME),
+        { withRouter: false, initialProps: { id: 'c1' } },
+      );
+      result.current.emitTyping();
+      act(() => rerender({ id: 'c2' }));
+      result.current.emitTyping();
+
+      const targets = h.socket.emit.mock.calls
+        .filter(([event]) => event === 'typing')
+        .map(([, id]) => id);
+      expect(targets).toEqual(['c1', 'c2']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('message:reaction replaces that message’s reactions wholesale (idempotent)', () => {
     const seeded = makeMessage({
       id: 'm1',
