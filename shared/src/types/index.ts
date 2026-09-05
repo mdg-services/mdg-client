@@ -18,6 +18,7 @@ export * from './bankHoliday';
 export * from './irasData';
 export * from './dsrReport';
 export * from './inspectionReport';
+export * from './roSupplyStatus';
 export * from './waterIngress';
 export * from './festival';
 export * from './assist';
