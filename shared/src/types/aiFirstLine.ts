@@ -101,6 +101,21 @@ export const AI_FIRSTLINE_INTENTS = [
   'staff_leave',
   /** "points kab submit hue the" — when the last batch was finalised. */
   'staff_last_batch',
+  /**
+   * "water ingress ka status kya hai", "kal pani ki jaanch hui thi kya" — where
+   * their own tank-water checks stand for a day.
+   *
+   * THE BIGGEST SINGLE HOLE THE FIRST REAL PRODUCTION LOG FOUND. Two dealers
+   * asked this in eleven turns and both went to a person as `no_intent`: the
+   * router understood the question perfectly and had no label to put it on,
+   * because the label set is derived from what the lookups can answer and there
+   * was no lookup. What a dealer may be told is COUNTS AND THEIR OWN SCHEDULE —
+   * how many of a day's windows are recorded out of how many the day has, and
+   * which window is open right now. A percentage, a named missed window from a
+   * past day and any compliance finding are NOT on that list; see
+   * `tools.ts::waterIngressDay`, which is where the line is actually drawn.
+   */
+  'water_ingress_status',
   /** "hamari kaunsi services chalu hain" — which services this outlet is on. */
   'services_list',
   /** "aaj ka kaam hua kya" — whether a named service ran, and what it did. */

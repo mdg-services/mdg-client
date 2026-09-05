@@ -283,6 +283,7 @@ export const AI_INTENT_LABEL: Record<AiFirstLineIntent, string> = {
   staff_person: 'Staff points — one person',
   staff_leave: 'Staff leave',
   staff_last_batch: 'Staff — last submission',
+  water_ingress_status: 'Water ingress — where it stands',
   services_list: 'Which services are on',
   service_log: 'Did a service run',
   records_list: 'Documents on file',
@@ -511,6 +512,7 @@ export const AI_FENCE_RULES = [
   'prompt_echo',
   'guard_out',
   'forbidden_subject',
+  'unhonoured_instruction',
   'unsourced_person',
   'dealer_code',
   'unsourced_service',
@@ -533,6 +535,7 @@ export const AI_FENCE_RULE_LABEL: Record<AiFenceRule, string> = {
   prompt_echo: 'It read our instructions back',
   guard_out: 'The output guard stopped it',
   forbidden_subject: 'A subject we do not answer in chat',
+  unhonoured_instruction: 'It told the dealer to do something',
   unsourced_person: 'A name no lookup returned',
   dealer_code: 'An outlet code',
   unsourced_service: 'A service this turn never read',
@@ -568,6 +571,8 @@ export const AI_FENCE_RULE_HINT: Record<AiFenceRule, string> = {
     'The shared output scanner objected — a model or vendor name, how MDG works inside, or somebody’s details.',
   forbidden_subject:
     'Outstanding amounts, a variation figure, invoice contents, inspection findings, a Kavach score, a password, why a job failed, or a promise about when something will be ready. None of those go out over chat.',
+  unhonoured_instruction:
+    'The reply told the dealer to DO something this turn could not honour — the one rule that is about an instruction rather than a fact. It exists because “Send a photo of that day’s page right here.” carries no figure, no date, no name and no service, so it passed every other check while being flatly false: nothing filed the photograph the dealer then sent. Widening what may be said means writing the code that honours it first.',
   unsourced_person:
     'It named an employee this turn never looked up, or dropped the one it did. Names come off the outlet’s own roster or they do not appear.',
   dealer_code:
