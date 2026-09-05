@@ -38,6 +38,25 @@ export const aiTurnOutcomeSchema = z.enum(AI_TURN_OUTCOMES);
 export const aiTurnVerdictSchema = z.enum(AI_TURN_VERDICTS);
 export const dealerFirstLineModeSchema = z.enum(DEALER_FIRSTLINE_MODES);
 
+/**
+ * The outlet-profile field an ask named: a catalog key (`explosiveLicenceNo`) or
+ * the slug of an admin-added pair (`fire-noc`).
+ *
+ * SHAPED, NOT ENUMERATED, and the reason is on `AiPlanAsk.profileFieldHint`:
+ * half the fields this addresses are per-dealer data that does not exist at
+ * build time. The shape is the guard — letters, digits and hyphens, sixty
+ * characters — which both spellings fit and a sentence does not, the same line
+ * `personNameSchema` above draws around the only other string the model may
+ * emit. A key that matches nothing on the outlet is not a guess; it produces the
+ * answer to an unspecific question.
+ */
+const profileFieldKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(60)
+  .regex(/^[A-Za-z0-9-]+$/, 'Not an outlet field key');
+
 /** An IST calendar day. Days are strings in this codebase and stay strings. */
 const istDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 /** An IST calendar month. */
@@ -78,6 +97,13 @@ export const aiPlanAskSchema: z.ZodType<AiPlanAsk> = z
     month: istMonthSchema.optional(),
     personName: personNameSchema.optional(),
     productHint: z.enum(AI_PRODUCT_HINTS).optional(),
+    /**
+     * A catalog key, and only a catalog key. Built from the array rather than
+     * typed out, so a field added to the outlet profile becomes askable in the
+     * same edit that adds it — and a field REMOVED stops being askable rather
+     * than lingering as a label with no lookup behind it.
+     */
+    profileFieldHint: profileFieldKeySchema.optional(),
   })
   .strict();
 

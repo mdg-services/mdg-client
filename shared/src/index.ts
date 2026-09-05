@@ -23,6 +23,11 @@ export * from './iras/slip';
 export * from './iras/decant';
 export * from './iras/dayState';
 export * from './dealer/code';
+// The outlet's own paperwork: the twenty-five-row catalog, its resolver and its
+// expiry arithmetic. Shared because the admin Info tab renders from it, the
+// dealer PATCH schema is built from it, and the AI first line decides what a
+// dealer may be told from it — three surfaces, one definition of a field.
+export * from './dealer/profile';
 export * from './tt/materials';
 export * from './lib/serviceLabel';
 // The admin's view of the AI first line: the inbox chip, the turn log's
