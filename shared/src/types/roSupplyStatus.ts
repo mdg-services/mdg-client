@@ -129,6 +129,19 @@ export interface RoSupplyStatusSummary {
   unknownCount: number;
   failureReason?: string | null;
   failureCode?: string | null;
+  /**
+   * The most recent failed check, kept even when the data below it is good.
+   *
+   * This is what lets a screen distinguish "checked at 14:20 and all was well"
+   * from "last GOOD check was 14:20, and every check since has failed" — two
+   * very different situations that look identical without it.
+   */
+  lastFailure?: {
+    at: string;
+    reason: string;
+    code: string;
+    runId?: string | null;
+  } | null;
 }
 
 /** Per-dealer configuration stored on the `ro-supply-status` attachment. */

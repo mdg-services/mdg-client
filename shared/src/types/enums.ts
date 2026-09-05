@@ -220,6 +220,8 @@ export const AUDIT_ACTIONS = [
   'AI_FIRSTLINE_KILL_SWITCH',
   /** One dealer was moved between OFF, SHADOW and ON. */
   'AI_FIRSTLINE_MODE_SET',
+  /** An admin asked for this outlet's supply-block state to be re-read now. */
+  'RO_SUPPLY_STATUS_COLLECT',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -250,6 +252,8 @@ export const AUDIT_ENTITIES = [
   'DocumentKind',
   /** One turn of the AI first line — what a review row is written against. */
   'AiTurn',
+  /** Whether the portal is currently blocking supply to an outlet. */
+  'RoSupplyStatus',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
