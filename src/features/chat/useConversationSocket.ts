@@ -5,6 +5,7 @@ import { messagesQueryKey } from '@/hooks/api/useMessages';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
+import { useAuthStore } from '@/store/auth';
 import type {
   Conversation,
   ConversationKind,
@@ -87,6 +88,8 @@ export function useConversationSocket(
   conversationKind?: ConversationKind,
 ) {
   const qc = useQueryClient();
+  // Not read below — it is a dependency, and the effect says why.
+  const token = useAuthStore((s) => s.token);
   const [typing, setTyping] = React.useState<TypingState>({ active: false });
   const typingTimer = React.useRef<number | null>(null);
   // Read through a ref inside the socket handlers rather than closed over, so
@@ -273,7 +276,14 @@ export function useConversationSocket(
       // seconds; ordinary now that a support thread holds them for ten.
       setTyping((prev) => (prev.active ? { active: false } : prev));
     };
-  }, [conversationId, currentUserId, qc, applyReceipt]);
+    // `token` earns its place here even though nothing in the effect reads it.
+    // `getSocket()` returns whatever instance is current, and a token change is
+    // the one event that can replace that instance underneath a subscription —
+    // so this is what guarantees the listeners are re-bound to the socket that
+    // is actually connected, whatever `socket.ts` decides to do with the old
+    // one. Re-running is cheap and idempotent: `conversation:join` is a
+    // `socket.join()` server-side, and the cache is untouched.
+  }, [conversationId, currentUserId, qc, applyReceipt, token]);
 
   // Keyed on the conversation as well as the clock, so opening a different
   // thread and typing at once is not swallowed by the previous thread's window.

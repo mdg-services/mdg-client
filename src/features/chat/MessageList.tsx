@@ -339,6 +339,10 @@ export function MessageList({
     handleJumpTo,
     quoteLoadingId,
     showSenderNames,
+    // Reached today only because it is derived from `messages`, which `ordered`
+    // already tracks. Named anyway: the day somebody sets it from anything else,
+    // the offer of a person would stay lit after it had been taken.
+    humanAsked,
   ]);
 
   if (loading && messages.length === 0) {

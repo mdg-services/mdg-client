@@ -80,10 +80,23 @@ export function AskBar() {
 
   const capture = useAskCapture(list);
 
+  // EVERY ONE OF THESE IS CALLED ON EVERY RENDER, AND THAT IS NOT A STYLE
+  // CHOICE. `useMatch` is a hook, and these used to be written as
+  // `Boolean(useMatch('/asks')) || Boolean(useMatch('/documents'))` — which
+  // skips the second call the moment the first one matches. This bar stays
+  // MOUNTED across a navigation (it lives in the shell, above the page), so
+  // walking into /asks took the same component from four hooks to three, React
+  // counted the missing one, and the whole app fell over into "Something
+  // didn't load" on every tap of this bar. Read the matches first, decide
+  // afterwards.
+  const asksMatch = useMatch('/asks');
+  const documentsMatch = useMatch('/documents');
+  const densityMatch = useMatch('/density');
+
   // The two screens that already say all of this at full size. A bar pointing at
   // the page you are standing on is a tap that does nothing.
-  const onAskList = Boolean(useMatch('/asks')) || Boolean(useMatch('/documents'));
-  const onDensity = Boolean(useMatch('/density'));
+  const onAskList = Boolean(asksMatch) || Boolean(documentsMatch);
+  const onDensity = Boolean(densityMatch);
 
   const onTap = () => {
     // Decided HERE, inside the tap, and not in a memo: when the answer is

@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
+import { Link, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as AsksModule from '@/hooks/api/useAsks';
@@ -138,6 +138,44 @@ describe('AskBar — the three faces', () => {
     h.list = makeAskList({ rows: [makeAskRow()] });
     renderBar('/density');
     expectNoBar();
+  });
+
+  /**
+   * THE BAR IS STILL THERE AFTER THE TAP, AND THAT IS WHY THIS TEST EXISTS.
+   *
+   * Every other test here renders the bar INSIDE a route, so a navigation
+   * unmounts it and nothing about the second render is ever exercised. The real
+   * app mounts it once, in the shell, above the page — so it re-renders on
+   * every navigation and must call the same hooks each time.
+   *
+   * It did not. `useMatch('/asks') || useMatch('/documents')` skipped the
+   * second call the moment the first one matched, which took the bar from four
+   * hooks to three on the way in and back up to four on the way out. Both
+   * directions threw, and the app answered a tap on this bar with "Something
+   * didn't load".
+   */
+  it('survives the walk into the ask list and back out again', async () => {
+    h.list = makeAskList({
+      rows: [makeAskRow({ id: 'a' }), makeAskRow({ id: 'b', periodKey: YESTERDAY })],
+    });
+    signIn({ id: 'owner', dealerId: 'd1' });
+    useLangStore.setState({ lang: 'en', explicit: true });
+    renderWithProviders(
+      <>
+        <AskBar />
+        <Routes>
+          <Route path="/chat" element={<Link to="/asks">go-asks</Link>} />
+          <Route path="/asks" element={<Link to="/chat">go-chat</Link>} />
+        </Routes>
+      </>,
+      { route: '/chat', withRouter: true },
+    );
+
+    expect(screen.getByRole('button', { name: '2 things to send' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('link', { name: 'go-asks' }));
+    expectNoBar();
+    await userEvent.click(screen.getByRole('link', { name: 'go-chat' }));
+    expect(screen.getByRole('button', { name: '2 things to send' })).toBeInTheDocument();
   });
 
   it('speaks Hindi when the dealer does', () => {

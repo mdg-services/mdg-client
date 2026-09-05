@@ -14,10 +14,13 @@ vi.mock('socket.io-client', () => ({
     disconnect: vi.fn(),
     removeAllListeners: vi.fn(),
     connected: false,
+    // Socket.IO reads this at handshake time; a refresh re-arms it in place.
+    auth: {} as Record<string, unknown>,
   })),
 }));
 
 type WithDisconnect = { disconnect: ReturnType<typeof vi.fn> };
+type WithAuth = { auth: Record<string, unknown> };
 
 describe('socket.ts singleton lifecycle', () => {
   beforeEach(() => {
@@ -54,11 +57,30 @@ describe('socket.ts singleton lifecycle', () => {
     expect(getSocket()).toBe(getSocket());
   });
 
-  it('tears down and recreates the socket when the token changes', () => {
+  /**
+   * THE HOUR-LONG BUG. `requireAuth` re-stamps a dealer's token roughly every
+   * hour and the client swaps it in from `X-Refreshed-Token`. Rebuilding the
+   * socket on that signal called `removeAllListeners()` on the connection every
+   * live subscription was bound to — so the open chat went deaf until a reload,
+   * and MDG's reply looked like it had never arrived.
+   */
+  it('keeps the live socket when the same person\'s token is re-stamped', () => {
+    signIn({ id: 'u1' }, 'token-A');
+    const a = getSocket() as unknown as WithDisconnect & WithAuth;
+
+    useAuthStore.setState({ token: 'token-B' }); // rolling refresh, same account
+
+    expect(getSocket()).toBe(a);
+    expect(a.disconnect).not.toHaveBeenCalled();
+    // Re-armed for the NEXT handshake, so a later reconnect is authenticated.
+    expect(a.auth).toEqual({ token: 'token-B' });
+  });
+
+  it('tears down and recreates the socket when a different account signs in', () => {
     signIn({ id: 'u1' }, 'token-A');
     const a = getSocket() as unknown as WithDisconnect;
 
-    useAuthStore.setState({ token: 'token-B' }); // subscription reconnects
+    signIn({ id: 'u2' }, 'token-B'); // a different person, not a refresh
     const b = getSocket();
 
     expect(b).not.toBe(a);

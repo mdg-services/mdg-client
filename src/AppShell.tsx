@@ -2,6 +2,7 @@ import { FileText, MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-r
 import * as React from 'react';
 import { NavLink, Outlet, useMatch } from 'react-router-dom';
 
+import { BrandMark } from '@/components/BrandMark';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { Avatar, Spinner } from '@/components/ui';
 import { AskBar } from '@/features/asks/AskBar';
@@ -67,9 +68,13 @@ export function AppShell() {
       <header className="sticky top-0 z-30 border-b border-border bg-surface">
         <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">
           <div className="flex min-w-0 items-center gap-2">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-brand text-text-inverse text-xs font-semibold">
-              DK
-            </div>
+            {/* The MDG Services mark, drawn rather than downloaded (see
+                BrandMark) and painted in the text colour, so it inverts with
+                the theme instead of needing a second asset. It sits bare rather
+                than inside the dark tile the "DK" placeholder used: at the 20px
+                a 32px tile leaves for its contents this artwork collapses into
+                a blob. */}
+            <BrandMark size={32} className="shrink-0 text-text" />
             <span className="truncate text-sm font-semibold tracking-tight text-text">
               {t('app.brand')}
             </span>

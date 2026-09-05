@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 
+import { BrandMark } from '@/components/BrandMark';
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ApiError, api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -75,17 +76,16 @@ export function LoginPage() {
     <div className="flex min-h-full items-center justify-center bg-bg px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-1">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand text-text-inverse text-lg font-semibold tracking-tight">
-            DK
-          </div>
+          <BrandMark size={48} className="text-text" />
           <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">
             {t('auth.welcome')}
           </h1>
           <p className="text-sm text-text-muted">{t('auth.subtitle')}</p>
         </div>
         {expired ? (
-          // Why they are looking at this screen at all. A session lasts twelve
-          // hours, so this is the ordinary morning experience, not an incident.
+          // Why they are looking at this screen at all. A dealer session lasts
+          // a year and refreshes itself, so this is now almost always the
+          // single-active-session rule: somebody signed in on another phone.
           <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-sm text-info">
             {t('chat.sessionExpired')}
           </p>

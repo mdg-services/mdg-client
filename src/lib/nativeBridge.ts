@@ -48,6 +48,45 @@ export function isNativeShell(): boolean {
   return typeof window !== 'undefined' && !!window.ReactNativeWebView;
 }
 
+/**
+ * Ask the shell for this phone's push token.
+ *
+ * WHY THIS EXISTS AT ALL, WHEN LOGIN ALREADY ASKS
+ * -----------------------------------------------
+ * It used to be asked for in exactly one place: the moment the login form
+ * succeeded. That was survivable while a session lasted twelve hours and every
+ * dealer met the login screen each morning. A session now lasts a year, so a
+ * dealer who signed in once may never see that screen again — and the token
+ * lives on `window`, which a WebView throws away on every cold start. The
+ * result was a production database with ZERO registered devices: not one
+ * notification was ever deliverable to anyone.
+ *
+ * So the ask moved to "whenever an authenticated screen is on the phone",
+ * which also covers the cases login never could: a dealer who declined the OS
+ * prompt the first time and is now willing, a token Expo has rotated, and a
+ * row the server dropped after Expo reported the device gone.
+ *
+ * FIRE AND FORGET. The answer does not come back to this call — it arrives as
+ * an `expo-push-token` event, exactly as it does after login, so both routes
+ * end at the same handler. A shell too old to know this message ignores it,
+ * and login still works there.
+ */
+export function requestNativePushToken(): void {
+  if (!isNativeShell()) return;
+  postToNative({ type: 'push:register' });
+}
+
+/** Why the shell could not hand over a push token. */
+export interface NativePushBlocked {
+  /**
+   * A short machine-readable cause: `expo-go`, `no-module`, `permission`, or
+   * `token-failed`. Never a sentence — it is a tag, and Sentry groups on it.
+   */
+  reason?: string;
+  /** The underlying error text, when there was one. */
+  detail?: string;
+}
+
 // A single in-flight request, so rapid repeated mic taps coalesce into ONE
 // native prompt and ONE result (no stacked duplicate toasts, and only one
 // 'native-mic-permission' listener alive at a time — the untagged event can't

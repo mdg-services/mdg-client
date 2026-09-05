@@ -13,6 +13,10 @@ import type { Conversation, Message } from '@dk/shared/types';
  */
 export function useDeliveryAck() {
   const userId = useAuthStore((s) => s.user?.id);
+  // Re-subscribe if the token is ever re-stamped: `getSocket()` may hand back a
+  // different instance than the one this listener was bound to, and a listener
+  // on a discarded socket is a tick that silently stops advancing.
+  const token = useAuthStore((s) => s.token);
 
   React.useEffect(() => {
     if (!userId) return;
@@ -33,5 +37,5 @@ export function useDeliveryAck() {
     return () => {
       socket.off('message:new', onMessage);
     };
-  }, [userId]);
+  }, [userId, token]);
 }
