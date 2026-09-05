@@ -251,6 +251,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   onOpenReactions,
   onJumpTo,
   onTalkToHuman,
+  humanAsked = false,
 }: {
   message: Message;
   mine: boolean;
@@ -273,6 +274,16 @@ export const MessageBubble = React.memo(function MessageBubble({
    * it because it sends an ORDINARY message — there is no endpoint behind this.
    */
   onTalkToHuman?: () => void;
+  /**
+   * A person has already been asked for on this thread.
+   *
+   * The offer stays VISIBLE and goes quiet rather than disappearing: a control
+   * that vanishes under the thumb reads as a misfire, and the dealer needs to
+   * see that the thing they pressed did something. Every older answer in the
+   * thread carries this button, so without it a dealer who has already asked
+   * scrolls up and asks twice.
+   */
+  humanAsked?: boolean;
 }) {
   const t = useT();
   // Bound once per render: the attachment's own children only know the
@@ -411,9 +422,19 @@ export const MessageBubble = React.memo(function MessageBubble({
           <button
             type="button"
             onClick={onTalkToHuman}
-            className="flex min-h-[44px] items-center rounded-full border border-border bg-surface px-4 text-sm font-medium text-text shadow-sm active:bg-surface-2"
+            disabled={humanAsked}
+            // A QUIET LINK, NOT A SECOND BUBBLE. Bordered, filled and shadowed,
+            // this drew as a box the same weight as the answer above it, so the
+            // eye read two messages and the offer competed with the thing the
+            // dealer actually asked for. It is an aside; it should look like one.
+            // The 44px stays — it is the floor for a thumb on a forecourt, and
+            // the padding buys the height without the chrome.
+            className={cn(
+              'flex min-h-[44px] items-center self-start px-1 text-sm font-medium underline underline-offset-4 active:opacity-60',
+              humanAsked ? 'text-text-subtle no-underline' : 'text-brand',
+            )}
           >
-            {t('chat.aiTalkToHuman')}
+            {humanAsked ? t('chat.aiHumanComing') : t('chat.aiTalkToHuman')}
           </button>
         ) : null}
         <div
@@ -424,12 +445,18 @@ export const MessageBubble = React.memo(function MessageBubble({
         >
           <span>{formatTime(message.createdAt)}</span>
           {mine ? <MessageTicks message={message} /> : null}
-          {ai ? (
+          {ai && ai.kind !== 'handoff' ? (
             // On the timestamp's line rather than a line of its own, because a
             // footnote that gets its own row starts reading as a banner. A
             // Lucide glyph and not the ⚡ character: an emoji renders as a
             // colour picture on an Android WebView, which is the opposite of
             // quiet, and its width varies by font.
+            //
+            // NOT ON A HANDOFF. "Instant reply" under "I've passed this to the
+            // MDG team" tells a dealer the machine answered them at the exact
+            // moment it is saying it could not — and the handoff line is the one
+            // a dealer reads while already unsatisfied, so it is the worst place
+            // in the product to look pleased with ourselves.
             <span className="flex items-center gap-0.5">
               <Zap width={11} strokeWidth={2} className="shrink-0" />
               {t('chat.aiInstantReply')}

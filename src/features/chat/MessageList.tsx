@@ -66,6 +66,12 @@ export interface MessageListProps {
    * bubble, so it must be referentially stable or every bubble re-renders.
    */
   onTalkToHuman?: () => void;
+  /**
+   * A person has already been asked for, so every offer in the thread goes
+   * quiet at once. Computed here rather than per bubble: the answer is about
+   * the THREAD, and asking each bubble to work it out would have them disagree.
+   */
+  humanAsked?: boolean;
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
   /** The history could not be loaded — say so instead of showing an empty thread. */
@@ -91,6 +97,7 @@ export function MessageList({
   onOpenReactions,
   onReply,
   onTalkToHuman,
+  humanAsked,
   onFetchOlder,
   failed,
   onRetry,
@@ -314,6 +321,7 @@ export function MessageList({
             onOpenReactions={onOpenReactions}
             onJumpTo={handleJumpTo}
             onTalkToHuman={onTalkToHuman}
+            humanAsked={humanAsked}
           />
         </SwipeToReply>,
       );

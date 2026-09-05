@@ -122,6 +122,25 @@ export function ChatPage() {
     [messagesQuery.data],
   );
 
+  /**
+   * Has a person already been asked for, and not yet arrived?
+   *
+   * Read off the LAST first-line message rather than off any handoff in the
+   * history: once an admin replies the machine starts answering again, and a
+   * thread that was handed over last week must not have every offer in it
+   * greyed out forever. A handoff as the machine's most recent word is exactly
+   * "somebody is on their way and has not spoken yet".
+   *
+   * `messages` is newest-last, so this walks from the end.
+   */
+  const humanAsked = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const ai = messages[i]?.ai;
+      if (ai) return ai.kind === 'handoff';
+    }
+    return false;
+  }, [messages]);
+
   // Sheets hold a message SNAPSHOT; keep them live against the cache so e.g.
   // the who-reacted list updates in place as reactions land.
   const liveReactionsMessage = React.useMemo(
@@ -339,6 +358,7 @@ export function ChatPage() {
         onOpenReactions={handleOpenReactions}
         onReply={handleReply}
         onTalkToHuman={handleTalkToHuman}
+        humanAsked={humanAsked}
       />
 
       <Composer

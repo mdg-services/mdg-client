@@ -487,6 +487,19 @@ export interface ConversationAiState {
    */
   missStreak: number;
   /**
+   * When the run of misses last grew, as an ISO instant.
+   *
+   * The count alone is a lifetime tally, and read that way the gate above can
+   * never lift: only an answer clears the streak, and the gate is what stops an
+   * answer being attempted. A thread that reached the limit stayed dead — which
+   * is exactly what happened to a dealer who asked twice about water ingress
+   * before we had a lookup for it, and was still being refused after we built
+   * one. Read together with `AI_FIRSTLINE_MISS_STREAK_WINDOW_MINUTES`, this makes
+   * "twice running" mean twice recently. Absent on every thread that predates
+   * the field, which correctly reads as long ago.
+   */
+  missStreakAt?: string;
+  /**
    * The last body the machine posted here, truncated.
    *
    * Backs the `same_answer` guard with one string comparison and no second

@@ -240,9 +240,19 @@ export const messages = {
   // of that list is that a request for a person never depends on a model call.
   // If either string is reworded, check it still matches, or add the new wording
   // to HUMAN_PHRASES in the same commit.
+  // What the button actually sends. It IS a real message from the dealer — that
+  // is what makes the button work with the first line switched off, and it is
+  // why it must read like something a person would type rather than like a form
+  // being submitted on their behalf.
   'chat.aiTalkToHumanBody': {
-    en: 'I want to talk to a person.',
-    hi: 'मुझे किसी से बात करनी है।',
+    en: 'Please connect me to someone from the team.',
+    hi: 'कृपया मुझे टीम के किसी व्यक्ति से जोड़ दीजिए।',
+  },
+  // Shown in place of the offer once a person has been asked for, so a dealer
+  // scrolling back does not ask twice and does not wonder whether it worked.
+  'chat.aiHumanComing': {
+    en: 'Someone from MDG is coming',
+    hi: 'MDG से कोई आ रहा है',
   },
   // The two chips above the composer, alongside `chat.quickTalkSupport`. Both
   // are questions a dealer asks most mornings and both are a nuisance to type

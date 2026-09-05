@@ -419,7 +419,32 @@ describe('MessageBubble — a reply the first line wrote', () => {
         onTalkToHuman={vi.fn()}
       />,
     );
-    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    // AND NO "Instant reply" FOOTNOTE EITHER. This assertion used to require the
+    // opposite, and the owner caught it in production: the handoff bubble read
+    // "I've passed it to the MDG team" with a lightning bolt under it saying the
+    // machine had answered instantly. It is the one line a dealer reads while
+    // already unsatisfied, and it was the one place the product looked pleased
+    // with itself. The old expectation was the bug, written down.
+    expect(screen.queryByText('Instant reply')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
+  });
+
+  it('goes quiet once a person has been asked for, rather than vanishing', () => {
+    // Every older answer in the thread carries this offer, so a dealer who has
+    // already pressed it scrolls up and presses it again. Removing it outright
+    // reads as a misfire — the control they just touched is gone and nothing
+    // says it worked. It stays, disabled, and says what is happening instead.
+    render(
+      <MessageBubble
+        message={aiMessage(aiAnswer)}
+        mine={false}
+        currentUserId="me"
+        onTalkToHuman={vi.fn()}
+        humanAsked
+      />,
+    );
+    const btn = screen.getByRole('button', { name: 'Someone from MDG is coming' });
+    expect(btn).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
   });
 
