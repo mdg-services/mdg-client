@@ -1,5 +1,14 @@
 import { z } from 'zod';
 
+import {
+  DEALER_CUSTOM_FIELDS_MAX,
+  DEALER_CUSTOM_FIELD_LABEL_MAX,
+  DEALER_CUSTOM_FIELD_VALUE_MAX,
+  DEALER_PROFILE_FIELD_KEYS,
+  dealerProfileField,
+  isDealerProfileFieldKey,
+} from '../dealer/profile';
+
 import { dealerStatusSchema, listQuerySchema, slaTierSchema } from './common';
 
 export const phoneSchema = z
@@ -106,6 +115,210 @@ export const dealerCreateSchema = z.object({
 });
 export type DealerCreateInput = z.infer<typeof dealerCreateSchema>;
 
+/* ────────────────────────────────────────────────────────────────────────
+ * The outlet profile — validation BUILT FROM the catalog
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/**
+ * A `YYYY-MM-DD` calendar day, with impossible dates rejected.
+ *
+ * The `.refine` is not decoration: the shape regex alone admits `2026-02-30`,
+ * and `Date.UTC` then rolls it silently into March — so a licence would show an
+ * expiry a day nobody typed. Same guard `bankHolidayDateSchema` and
+ * `ttBusinessDateSchema` already carry, kept local for the same reason they are:
+ * each schema module owns its own dates.
+ */
+const profileDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD')
+  .refine((s) => {
+    const y = Number(s.slice(0, 4));
+    const mo = Number(s.slice(5, 7));
+    const d = Number(s.slice(8, 10));
+    const dt = new Date(Date.UTC(y, mo - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() + 1 === mo && dt.getUTCDate() === d;
+  }, 'Not a real calendar date');
+
+/**
+ * Check one submitted value against its catalog row.
+ *
+ * THE CATALOG IS THE SCHEMA. Every rule below reads a property of the field
+ * definition rather than naming a field, so adding a row to
+ * `DEALER_PROFILE_FIELDS` extends this validator with no edit here at all — and,
+ * more to the point, an admin cannot be shown an input the server will refuse.
+ */
+function checkAgainstCatalog(
+  entry: { key: string; value: string; expiresOn?: string },
+  ctx: z.RefinementCtx,
+): void {
+  const def = dealerProfileField(entry.key);
+  if (!def) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['key'],
+      message: `Unknown outlet field "${entry.key}"`,
+    });
+    return;
+  }
+  /**
+   * A catalog row whose value lives on a canonical field must NOT arrive in this
+   * array. GST and PAN have their own PATCH keys, their own format checks and,
+   * in GST's case, a unique index; accepting a copy here would store a second
+   * answer to the same question that nothing validates and nothing reads.
+   */
+  if (def.source !== 'profile') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['key'],
+      message: `"${def.label}" is set through the "${def.source}" field, not the outlet profile`,
+    });
+    return;
+  }
+  if (entry.value.length > def.maxLength) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['value'],
+      message: `${def.label} must be ${def.maxLength} characters or fewer`,
+    });
+  }
+  if (entry.expiresOn !== undefined && !def.expiryLabel) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['expiresOn'],
+      message: `${def.label} does not carry an expiry date`,
+    });
+  }
+  const check = (schema: z.ZodTypeAny, message: string) => {
+    if (!schema.safeParse(entry.value).success) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['value'], message });
+    }
+  };
+  switch (def.kind) {
+    case 'phone':
+      check(phoneSchema, `${def.label} must be a phone number`);
+      break;
+    case 'email':
+      check(z.string().email(), `${def.label} must be an email address`);
+      break;
+    case 'date':
+      check(profileDateSchema, `${def.label} must be a date`);
+      break;
+    case 'choice':
+      if (def.choices && !def.choices.includes(entry.value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['value'],
+          message: `${def.label} must be one of: ${def.choices.join(', ')}`,
+        });
+      }
+      break;
+    case 'text':
+    case 'code':
+      break;
+  }
+}
+
+/**
+ * One stored outlet-profile row.
+ *
+ * `value` is `.min(1)` on purpose: a row with nothing in it is a row that should
+ * not have been sent. The editor drops emptied fields rather than submitting
+ * blanks, so an empty value can only be a bug, and storing one would leave the
+ * resolver unable to tell "never filled in" from "cleared".
+ */
+export const dealerProfileEntrySchema = z
+  .object({
+    key: z.string().trim().min(1).max(80),
+    value: z.string().trim().min(1),
+    expiresOn: blankToUndefined(profileDateSchema),
+  })
+  .superRefine(checkAgainstCatalog);
+
+export const dealerOutletProfileSchema = z
+  .array(dealerProfileEntrySchema)
+  .max(DEALER_PROFILE_FIELD_KEYS.length)
+  .superRefine((rows, ctx) => {
+    const seen = new Set<string>();
+    rows.forEach((row, i) => {
+      if (seen.has(row.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [i, 'key'],
+          message: `"${row.key}" appears twice`,
+        });
+      }
+      seen.add(row.key);
+    });
+  });
+
+/**
+ * One admin-authored pair.
+ *
+ * `dealerVisible` has no default here and is required on the wire. A default of
+ * `false` would be the safe value, but it would also let a client that forgot
+ * the field silently overwrite a deliberate "yes, the dealer may ask about this"
+ * on every subsequent save — the whole array is replaced, so an omitted flag is
+ * a lost decision, not an unchanged one.
+ */
+export const dealerCustomFieldSchema = z
+  .object({
+    /**
+     * Every message here is written for the ADMIN who typed the box, because
+     * that is who reads it: the editor maps each issue back on to the field that
+     * caused it. Zod's own English ("String must contain at most 60
+     * character(s)") names a constraint rather than a fix, and it names the KEY,
+     * which is derived and which nobody typed.
+     */
+    key: z
+      .string()
+      .trim()
+      .min(1, 'Give this detail a name with a letter or a number in it')
+      .max(DEALER_CUSTOM_FIELD_LABEL_MAX, 'That name is too long')
+      .regex(/^[a-z0-9-]+$/, 'Give this detail a name with a letter or a number in it'),
+    label: z
+      .string()
+      .trim()
+      .min(1, 'Give this detail a name')
+      .max(DEALER_CUSTOM_FIELD_LABEL_MAX, `Keep the name under ${DEALER_CUSTOM_FIELD_LABEL_MAX} characters`),
+    value: z
+      .string()
+      .trim()
+      .min(1, 'Fill this in, or remove the row')
+      .max(DEALER_CUSTOM_FIELD_VALUE_MAX, `Keep this under ${DEALER_CUSTOM_FIELD_VALUE_MAX} characters`),
+    expiresOn: blankToUndefined(profileDateSchema),
+    dealerVisible: z.boolean(),
+  })
+  .superRefine((row, ctx) => {
+    // A custom pair may not shadow a catalog field: two rows with the same key
+    // would render twice on the Info tab and answer the same question twice in
+    // chat, with nothing to say which one is authoritative.
+    if (isDealerProfileFieldKey(row.key)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['label'],
+        message: `"${row.label}" is already an outlet field — edit it above instead`,
+      });
+    }
+  });
+
+export const dealerCustomFieldsSchema = z
+  .array(dealerCustomFieldSchema)
+  .max(DEALER_CUSTOM_FIELDS_MAX)
+  .superRefine((rows, ctx) => {
+    const seen = new Set<string>();
+    rows.forEach((row, i) => {
+      if (seen.has(row.key)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [i, 'label'],
+          message: `"${row.label}" is already used — give it a different name`,
+        });
+      }
+      seen.add(row.key);
+    });
+  });
+
 /**
  * Ad-hoc PATCH payload for correcting any field on a dealer. Every field is
  * optional but at least one must be provided.
@@ -122,11 +335,30 @@ export const dealerUpdateSchema = z
     phone: phoneSchema.optional(),
     ownerContact: ownerContactSchema.partial().optional(),
     pumpLocation: pumpLocationSchema.partial().optional(),
-    gst: gstSchema.optional(),
-    pan: panSchema.optional(),
+    /**
+     * `null` CLEARS the field; `undefined` (absent) leaves it alone.
+     *
+     * The outlet-profile editor draws GST and PAN alongside the other
+     * twenty-three, so emptying one of those two boxes has to mean the same
+     * thing emptying any other box means. Without an explicit null there is no
+     * way to say it: a blank string fails the format check, and omitting the key
+     * is indistinguishable from not touching it. Both partial-unique indexes
+     * exclude an absent value (`{ $type: 'string' }`), so clearing releases the
+     * GSTIN for another outlet rather than colliding with it.
+     */
+    gst: gstSchema.nullable().optional(),
+    pan: panSchema.nullable().optional(),
     status: dealerStatusSchema.optional(),
     bankDetails: bankDetailsSchema.optional(),
     complianceDocs: z.array(complianceDocSchema).max(50).optional(),
+    /**
+     * The whole outlet-profile array, replaced. Not a patch of one row:
+     * the editor holds every field on screen at once and saves what it
+     * shows, so a row that is gone from the payload is a row the admin
+     * cleared. Same shape `complianceDocs` above already uses.
+     */
+    outletProfile: dealerOutletProfileSchema.optional(),
+    customFields: dealerCustomFieldsSchema.optional(),
     slaTier: slaTierSchema.optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {

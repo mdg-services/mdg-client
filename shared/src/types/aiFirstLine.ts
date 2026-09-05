@@ -116,6 +116,23 @@ export const AI_FIRSTLINE_INTENTS = [
    * `tools.ts::waterIngressDay`, which is where the line is actually drawn.
    */
   'water_ingress_status',
+  /**
+   * "hamara GST number kya hai", "explosive licence kab tak valid hai", "pump ka
+   * SAP code batao" — one fact off their own outlet's registration file.
+   *
+   * The twenty-five fields an admin fills in on the Info tab, plus whatever
+   * pairs an admin has added by hand and marked as the dealer's to see. These
+   * are facts the dealer FILED — their own GSTIN, their own licence number —
+   * and the commonest reason a pump owner opens a chat window is that the paper
+   * with it on is at home and the tanker driver is at the gate.
+   *
+   * WHAT DECIDES WHAT MAY BE SAID IS THE CATALOG, NOT THIS COMMENT. Every field
+   * carries `dealerVisible` in `dealer/profile.ts`, and the lookup filters on
+   * it. An admin-authored pair is OFF until somebody turns it on, because a pair
+   * somebody typed by hand is as likely to be MDG's note about a dealer as it is
+   * to be a fact belonging to them.
+   */
+  'outlet_profile',
   /** "hamari kaunsi services chalu hain" — which services this outlet is on. */
   'services_list',
   /** "aaj ka kaam hua kya" — whether a named service ran, and what it did. */
@@ -200,6 +217,35 @@ export interface AiPlanAsk {
   personName?: string;
   /** Which grade the question was about, when it named one. */
   productHint?: AiProductHint;
+  /**
+   * WHICH outlet-profile field an `outlet_profile` ask named, when it named one.
+   *
+   * A SHAPED STRING AND NOT A CLOSED ENUM, and it is the second such field on
+   * this object after `personName` — for exactly the reason that one gives, and
+   * with exactly the same guarantee. It is a LOOKUP KEY, never output: it is
+   * matched against the keys THIS OUTLET actually holds, and what a dealer reads
+   * back is the label stored on that record. A value that matches nothing is not
+   * a guess, it is the unspecific answer — the list of what is on file.
+   *
+   * IT CANNOT BE AN ENUM, because half the fields it addresses do not exist at
+   * build time. Twenty-five come from the catalog and are keys any enum could
+   * carry; the rest are pairs an admin typed for one dealer, whose keys are
+   * slugs of their own labels. An enum over the catalog alone would mean ticking
+   * "the dealer may ask about this" on a custom pair bought nothing at all — the
+   * label would be listed as held and could never be retrieved.
+   *
+   * THE SHAPE IS THE GUARD. Letters, digits and hyphens, sixty characters: a
+   * catalog key (`explosiveLicenceNo`) and a slug (`fire-noc`) both fit, and a
+   * sentence does not. A value shaped like prose is evidence the model is trying
+   * to write, and the right answer to that is to reject the plan.
+   *
+   * IT IS ALSO WHAT KEEPS THE FENCE FROM COSTING AN ANSWER. `templates.ts` may
+   * not name a field it was not told about, so without this a refused reply
+   * about a GSTIN would fall back to a sentence that answers nothing, and this
+   * subsystem's governing promise — a fence failure costs fluency, never an
+   * answer — would stop being true for one whole label.
+   */
+  profileFieldHint?: string;
 }
 
 /**
@@ -376,6 +422,18 @@ export const AI_WRITER_SKIPS = [
   'reshare',
   /** The turn is standing down; there is no fact to phrase. */
   'handoff',
+  /**
+   * The answer IS an identifier, and it has to come out character for character.
+   *
+   * `outlet_profile` — a GSTIN, a licence reference, a terminal id. There is
+   * nothing for a writer to improve about one and everything for it to get
+   * wrong, and the fence's rule against restyling covers dates, not codes. Half
+   * of these values are also letterless digit runs the fence correctly refuses
+   * to source at all, so the writer would be overruled on every second turn and
+   * the log would fill with refusals somebody would eventually "fix" by widening
+   * a regex. This is the honest version of the same outcome, at half the cost.
+   */
+  'verbatim_fact',
 
   /* ── The three ways `writer: 'off'` happens ──────────────────────────── */
   //

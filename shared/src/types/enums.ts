@@ -48,6 +48,18 @@ export const AUDIT_ACTIONS = [
   'STEP_COMPLETE',
   'STEP_REOPEN',
   'STEP_REOPEN_FORCED',
+  /**
+   * An edit to the outlet's registration file — the licence numbers, the codes,
+   * the registered contacts, and any pair an admin added by hand.
+   *
+   * Its own action rather than a plain `UPDATE`, because the audit row itself
+   * carries NO VALUES: they are a registered mobile, a registered email, three
+   * licence references and two payment terminal ids, and a hand-typed pair can
+   * hold anything at all, so `redactDealerAudit` strips both arrays and keeps
+   * only the list of keys that changed. What is left has to be findable, and an
+   * action nobody can filter on is a change nobody can find.
+   */
+  'DEALER_PROFILE_UPDATE',
   // Kavach Programme (ADR 0006)
   'KAVACH_INITIATE',
   'KAVACH_MARK_DONE',
