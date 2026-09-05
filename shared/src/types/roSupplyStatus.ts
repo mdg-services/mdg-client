@@ -107,6 +107,14 @@ export interface RoSupplyStatusSnapshot {
     code: string;
     runId?: string | null;
   } | null;
+  /** The shared PNG, if one has been drawn for this capture. */
+  card?: {
+    key: string;
+    size: number;
+    renderedAt: string;
+    /** The `capturedAt` this picture was drawn from; a mismatch means redraw. */
+    forCapturedAt: string;
+  } | null;
   createdAt: string;
   updatedAt: string;
 }

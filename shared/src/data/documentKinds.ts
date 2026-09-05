@@ -46,13 +46,31 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
   {
     code: 'tt-register-page',
     srNo: 1,
-    titleEn: "Today's register page",
-    titleHi: 'आज के रजिस्टर का पन्ना',
+    /**
+     * THE TITLE NAMES THE PAPER; THE PERIOD NAMES THE DAY. It used to say
+     * "Today's register page", and every surface that renders one of these
+     * prints the title with the period after it — so a dealer four days behind
+     * read "Today's register page (28 Aug)", and an ask raised for the current
+     * day read "Today's register page (Today)". The day was never the title's to
+     * carry: `documentPeriodLabel` already renders "Today", "Yesterday" or the
+     * date, and it is right in all three cases.
+     *
+     * The hint and the confirm follow the title for the same reason — an ask may
+     * be raised for any day up to today, so neither may assume it is this one.
+     *
+     * RENAMING THIS ROW IS A DATA CHANGE, NOT A DEPLOY. The seeder writes every
+     * label under `$setOnInsert` so an admin's edit survives a release, which
+     * means a catalogue row that already exists ignores this file. The per-ask
+     * `labelSnapshot` is frozen as well. `scripts/rename-tt-register-page.ts`
+     * does both.
+     */
+    titleEn: 'Density register page',
+    titleHi: 'डेंसिटी रजिस्टर का पन्ना',
     hintEn:
-      "One flat photo of today's density register page, with the date and every line readable.",
-    hintHi: 'आज के डेंसिटी रजिस्टर का पूरा पन्ना — तारीख़ और हर लाइन साफ़ दिखे।',
-    confirmEn: "Send today's register page?",
-    confirmHi: 'आज के रजिस्टर का पन्ना भेजें?',
+      'One flat photo of that day’s density register page, with the date and every line readable.',
+    hintHi: 'उस दिन के डेंसिटी रजिस्टर का पूरा पन्ना — तारीख़ और हर लाइन साफ़ दिखे।',
+    confirmEn: 'Send this register page?',
+    confirmHi: 'रजिस्टर का यह पन्ना भेजें?',
     periodKind: 'DAY',
     freeform: false,
     recurring: true,

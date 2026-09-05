@@ -234,6 +234,8 @@ export const AUDIT_ACTIONS = [
   'AI_FIRSTLINE_MODE_SET',
   /** An admin asked for this outlet's supply-block state to be re-read now. */
   'RO_SUPPLY_STATUS_COLLECT',
+  /** An admin took the shareable image of an outlet's pending supply work. */
+  'RO_SUPPLY_STATUS_CARD_VIEW',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
