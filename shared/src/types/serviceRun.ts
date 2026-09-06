@@ -41,6 +41,23 @@ export type ServiceRunTrigger = 'manual' | 'scheduled' | 'backfill' | 'attach';
 export interface ServiceRun {
   id: string;
   dealerId: string;
+  /**
+   * The dealer's CODE ("15E") — the only thing that identifies a dealer in this
+   * product. A run row that prints the tail of a Mongo ObjectId identifies
+   * nothing to the person reading it.
+   *
+   * RESOLVED ON READ, never stored on the ServiceRun document. Twelve
+   * `ServiceRunModel.create` sites would each have to remember to stamp it, and
+   * a dealer whose code is later corrected would leave every historical run
+   * showing the old one — which is the authoritative-figure fault this codebase
+   * keeps re-learning.
+   *
+   * `null` when the dealer is archived, deleted, or never existed (several test
+   * seeds point a run at an id with no Dealer behind it). Optional so every
+   * existing producer still compiles. Render it through `dealerCodeLabel`,
+   * which gives an em dash rather than a guess.
+   */
+  dealerCode?: string | null;
   serviceId: string;
   dealerServiceId: string;
   startedAt: string;

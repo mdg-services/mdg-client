@@ -24,6 +24,11 @@ export * from './iras/slip';
 export * from './iras/decant';
 export * from './iras/dayState';
 export * from './dealer/code';
+// What an audit row points at and which screen opens it. Shared because the
+// server has to know which entities are dealer-keyed before it can batch a
+// lookup, and the admin has to build the same links from the same table — two
+// copies of that is how the two ends stop agreeing.
+export * from './audit/entityRef';
 // The outlet's own paperwork: the twenty-five-row catalog, its resolver and its
 // expiry arithmetic. Shared because the admin Info tab renders from it, the
 // dealer PATCH schema is built from it, and the AI first line decides what a

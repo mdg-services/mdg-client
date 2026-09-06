@@ -268,6 +268,13 @@ export const AUDIT_ENTITIES = [
   'AiTurn',
   /** Whether the portal is currently blocking supply to an outlet. */
   'RoSupplyStatus',
+  // Written by exactly one file each, and absent from this list until now — so
+  // none of them could be chosen in the Activity screen's entity filter.
+  'LedgerFlag',
+  'LedgerMovementRule',
+  'LedgerWatch',
+  'DsrReport',
+  'WaterIngressDayLog',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
