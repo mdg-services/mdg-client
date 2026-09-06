@@ -1,6 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, FileText, Gauge, LogOut, Users, UserPlus, Wrench } from 'lucide-react';
+import {
+  ChevronRight,
+  ExternalLink,
+  FileText,
+  Gauge,
+  GraduationCap,
+  LogOut,
+  Users,
+  UserPlus,
+  Wrench,
+} from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -21,9 +31,21 @@ import {
 import { useDensityMe } from '@/hooks/api/useDensity';
 import { ApiError, api } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { useT } from '@/lib/i18n';
+import { useLang, useT } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
 import type { User } from '@dk/shared/types';
+
+/**
+ * The public video guide.
+ *
+ * An env override so a preview build can point at a Vercel URL while the
+ * `guide.` CNAME is being set up — the same escape hatch the admin portal uses
+ * for the same site.
+ */
+const GUIDE_URL: string = (
+  (import.meta.env.VITE_GUIDE_BASE_URL as string | undefined) ??
+  'https://guide.mdgservices.in'
+).replace(/\/$/, '') + '/';
 
 type PasswordValues = {
   currentPassword: string;
@@ -407,6 +429,10 @@ function TeamSection() {
 export function ProfilePage() {
   const navigate = useNavigate();
   const t = useT();
+  // Above the not-signed-in early return, like densityAttached below and for
+  // the same reason: a hook called on some renders and not others changes the
+  // hook count and takes the tree down.
+  const lang = useLang();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   // Must stay above the not-signed-in early return below, or the hook count
@@ -551,6 +577,44 @@ export function ProfilePage() {
           </button>
         </Card>
       ) : null}
+
+      {/* The way into the video guide.
+          Until now nothing in this app pointed at guide.mdgservices.in at all —
+          the videos existed and the only route to one was somebody sending the
+          link on WhatsApp. A dealer who has forgotten how to submit the day's
+          points has no way to find the video that shows them.
+          It carries the dealer's chosen language across (`?lang=`), because the
+          guide keeps its own preference and would otherwise open in Hindi for
+          someone who has just been reading the app in English.
+          `window.open` and not a router push: this leaves the app, and inside
+          the native shell the nav gate is what hands the URL to Chrome — the
+          same path every other outward link here takes. */}
+      <Card>
+        <button
+          type="button"
+          onClick={() =>
+            window.open(`${GUIDE_URL}?lang=${lang}`, '_blank', 'noopener')
+          }
+          className="flex w-full items-center gap-3 p-5 text-left active:bg-surface-2"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted">
+            <GraduationCap width={18} strokeWidth={1.75} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold text-text">
+              {t('profile.guide')}
+            </span>
+            <span className="block text-xs text-text-muted">
+              {t('profile.guideDesc')}
+            </span>
+          </span>
+          <ExternalLink
+            width={16}
+            strokeWidth={1.75}
+            className="shrink-0 text-text-subtle"
+          />
+        </button>
+      </Card>
 
       <Card>
         <CardContent>

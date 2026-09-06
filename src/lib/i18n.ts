@@ -980,6 +980,11 @@ export const messages = {
     en: 'This reading is {n} days old',
     hi: 'यह रीडिंग {n} दिन पुरानी है',
   },
+  'profile.guide': { en: 'Learn the app', hi: 'ऐप चलाना सीखिए' },
+  'profile.guideDesc': {
+    en: 'Short Hindi videos, one task at a time',
+    hi: 'छोटे-छोटे हिंदी वीडियो — एक बार में एक काम',
+  },
   'profile.density': { en: 'Density register', hi: 'डेंसिटी रजिस्टर' },
   'profile.densityDesc': {
     en: "Send today's register page",
