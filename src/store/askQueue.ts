@@ -91,6 +91,21 @@ export interface QueuedAskPhoto {
   periodKey: string;
   /** The admin's words, needed to re-mint a freeform ask. */
   label?: string;
+  /**
+   * The date printed on the paper, IF THE DEALER READ IT OFF AND TYPED IT.
+   *
+   * Advisory and never authoritative — whoever accepts it at MDG confirms or
+   * corrects it and THEIR value governs (ADR 0011: admin or automation
+   * certifies, never the dealer). It rides in the queue rather than being
+   * re-asked at send time for the obvious reason: the send happens minutes or
+   * hours later, from a background loop, with nobody looking at the sheet.
+   *
+   * Already validated as a real `YYYY-MM-DD` before it was written here — see
+   * `AskSheet`. Nothing downstream re-checks it, so nothing downstream should
+   * be handed a value that would make the submit 400 over a field the dealer
+   * was told they could leave blank.
+   */
+  validUntil?: string;
   filename: string;
   contentType: DocumentAskMime;
   kind: 'image' | 'file';

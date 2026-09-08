@@ -122,6 +122,22 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
     reviewRequired: true,
     dealerVisible: true,
     active: true,
+    /**
+     * THE WORKED EXAMPLE OF A PAPER THAT RUNS OUT, and the reason `periodKind`
+     * above is NONE rather than YEAR. A fire NOC is either on file or it is not;
+     * what makes it come round again is the date printed on it, not the
+     * calendar. Filing it under `2026` would invent a period the certificate
+     * does not have and make it owed again every January whether or not the one
+     * we hold is still good.
+     *
+     * So the renewal is driven by `validUntil` and the ladder below, and the
+     * renewal ask lands under its own `:renew-<date>` key — which is how last
+     * year's NOC and this year's stay separate rows with separate evidence.
+     */
+    tracksValidity: true,
+    /** A district fire NOC commonly runs a year. A prefill; the paper governs. */
+    validityMonths: 12,
+    autoRenew: true,
   },
   {
     code: 'other-document',
@@ -148,6 +164,99 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
     dealerVisible: true,
     active: true,
   },
+  /**
+   * THE THREE PAPERS THAT ALREADY HAVE A DATE BOX ON THE INFO TAB.
+   *
+   * Each names the profile field it OWNS. The Info tab has stored an expiry
+   * beside the explosive licence, the DTO trade licence and the W&M licence
+   * since long before any of them could be filed as a document, and two homes
+   * for one date is the authoritative-figure fault this codebase has been
+   * audited against once already — a screen saying a figure matters while the
+   * calculation reads another.
+   *
+   * `profileFieldKey` settles it in the only direction that can be settled:
+   * the filed paper wins and the profile entry MIRRORS it. Accepting one of
+   * these writes its `validUntil` onto that field's `expiresOn`, so the Info
+   * tab, the documents tab, the reminder and the AI's `outlet_profile` answer
+   * are all quoting one number that one person read off one certificate.
+   *
+   * All three are `periodKind: 'NONE'`, `freeform: false`, `source: 'own'` and
+   * `reviewRequired: true`, for the reason the fire NOC is: a licence has no
+   * period, and nothing but a person at MDG can certify that the scan in front
+   * of them is the licence it claims to be.
+   */
+  {
+    code: 'explosive-licence',
+    srNo: 4,
+    titleEn: 'Explosive (PESO) licence',
+    titleHi: 'विस्फोटक (PESO) लाइसेंस',
+    hintEn: 'Every page of the PESO licence, with the date it runs to clearly readable.',
+    hintHi: 'PESO लाइसेंस के सारे पन्ने — जिस तारीख़ तक चालू है वह साफ़ पढ़ी जाए।',
+    confirmEn: 'Send your explosive licence?',
+    confirmHi: 'अपना विस्फोटक लाइसेंस भेजें?',
+    periodKind: 'NONE',
+    freeform: false,
+    recurring: false,
+    source: 'own',
+    reviewRequired: true,
+    dealerVisible: true,
+    active: true,
+    tracksValidity: true,
+    /**
+     * Three years, and the ladder starts further out than the shipped 15 days
+     * for the reason `DEALER_PROFILE_EXPIRY_SOON_DAYS` is sixty: a PESO renewal
+     * is a district-office errand with a queue in it, and a fortnight's warning
+     * is a warning nobody can act on.
+     */
+    validityMonths: 36,
+    reminderOffsetDays: [60, 30, 15, 7, 3, 1],
+    autoRenew: true,
+    profileFieldKey: 'explosiveLicenceNo',
+  },
+  {
+    code: 'dto-trade-licence',
+    srNo: 5,
+    titleEn: 'DTO trade licence',
+    titleHi: 'DTO ट्रेड लाइसेंस',
+    hintEn: 'The whole trade licence, with the date it runs to clearly readable.',
+    hintHi: 'पूरा ट्रेड लाइसेंस — जिस तारीख़ तक चालू है वह साफ़ पढ़ी जाए।',
+    confirmEn: 'Send your trade licence?',
+    confirmHi: 'अपना ट्रेड लाइसेंस भेजें?',
+    periodKind: 'NONE',
+    freeform: false,
+    recurring: false,
+    source: 'own',
+    reviewRequired: true,
+    dealerVisible: true,
+    active: true,
+    tracksValidity: true,
+    validityMonths: 12,
+    reminderOffsetDays: [30, 15, 7, 3, 1],
+    autoRenew: true,
+    profileFieldKey: 'dtoTradeLicenceNo',
+  },
+  {
+    code: 'wm-licence',
+    srNo: 6,
+    titleEn: 'Weights & Measures licence',
+    titleHi: 'नाप-तौल लाइसेंस',
+    hintEn: 'The whole W&M licence, with the date it is valid till clearly readable.',
+    hintHi: 'पूरा नाप-तौल लाइसेंस — जिस तारीख़ तक वैध है वह साफ़ पढ़ी जाए।',
+    confirmEn: 'Send your Weights & Measures licence?',
+    confirmHi: 'अपना नाप-तौल लाइसेंस भेजें?',
+    periodKind: 'NONE',
+    freeform: false,
+    recurring: false,
+    source: 'own',
+    reviewRequired: true,
+    dealerVisible: true,
+    active: true,
+    tracksValidity: true,
+    validityMonths: 12,
+    reminderOffsetDays: [30, 15, 7, 3, 1],
+    autoRenew: true,
+    profileFieldKey: 'wmLicenceNo',
+  },
 ];
 
 /**
@@ -169,4 +278,4 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
  * seeded after the release, and to make `version` on a row say which release
  * first wrote it.
  */
-export const DOCUMENT_KIND_SEED_VERSION = 1;
+export const DOCUMENT_KIND_SEED_VERSION = 2;

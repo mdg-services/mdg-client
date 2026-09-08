@@ -23,6 +23,7 @@ export * from './iras/dayPlan';
 export * from './iras/slip';
 export * from './iras/decant';
 export * from './iras/dayState';
+export * from './iras/tankCalibration';
 export * from './dealer/code';
 // What an audit row points at and which screen opens it. Shared because the
 // server has to know which entities are dealer-keyed before it can batch a
@@ -36,6 +37,13 @@ export * from './audit/entityRef';
 export * from './dealer/profile';
 export * from './tt/materials';
 export * from './lib/serviceLabel';
+// Day arithmetic on `YYYY-MM-DD` strings, and the single verdict on whether a
+// dated paper is still good. Shared because the outlet Info tab, the documents
+// filing cabinet and the reminder sweep all answer that question about the same
+// certificates — and a second copy of the subtraction is how one screen calls a
+// licence valid on the morning another calls it lapsed.
+export * from './lib/isoDays';
+export * from './lib/expiry';
 // The admin's view of the AI first line: the inbox chip, the turn log's
 // vocabulary, and the rule for whether a composed answer is still usable. Here
 // rather than in `mdg-admin` because that app has no test runner at all — see

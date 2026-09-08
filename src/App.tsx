@@ -42,8 +42,8 @@ const StaffPage = lazyWithRetry(() =>
 const DensityPage = lazyWithRetry(() =>
   import('@/pages/DensityPage').then((m) => ({ default: m.DensityPage })),
 );
-const AsksPage = lazyWithRetry(() =>
-  import('@/pages/AsksPage').then((m) => ({ default: m.AsksPage })),
+const DocumentsPage = lazyWithRetry(() =>
+  import('@/pages/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
 );
 const ProfilePage = lazyWithRetry(() =>
   import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
@@ -142,19 +142,28 @@ export function App() {
             {/* The daily density-register photo. Reached from Profile and from
                 a push — the tab bar stays four. */}
             <Route path="/density" element={<DensityPage />} />
-            {/* Every paper MDG is asking this dealer for. Reached from the ask
-                bar under the header, from Profile, and from a push.
+            {/* Every paper in this dealer's life — what MDG is waiting for, and
+                what MDG already holds. Reached from the ask bar under the
+                header, from Profile, and from a push.
 
                 TWO PATHS, ONE PAGE, and the second is not a nicety. The server
                 builds its deep link as `/documents?ask=<id>`
                 (`services/documents/notify.ts`), which is the string the native
                 bridge hands the WebView untouched — so a push that landed on a
                 route this app did not have would drop the dealer on the chat
-                list with no idea why. `/asks` is the name the app uses for
-                itself; `/documents` is the name already baked into notifications
-                that are on their way. Both must resolve. */}
-            <Route path="/asks" element={<AsksPage />} />
-            <Route path="/documents" element={<AsksPage />} />
+                list with no idea why. `/asks` is the name the app used for
+                itself before the screen grew a filing cabinet; `/documents` is
+                the name already baked into notifications that are on their way.
+                Both must resolve, and both must keep answering `?ask=<id>`.
+
+                `/asks` is a SECOND MOUNT AND NOT A REDIRECT. A redirect would
+                have to carry the query string across by hand — and the day
+                somebody wrote `<Navigate to="/documents" replace />` without
+                it, every push already on a phone would land on the list with
+                its scroll position thrown away and nothing to say why. Two
+                mounts cannot lose a parameter neither of them touches. */}
+            <Route path="/asks" element={<DocumentsPage />} />
+            <Route path="/documents" element={<DocumentsPage />} />
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/chat" replace />} />

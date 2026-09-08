@@ -36,6 +36,7 @@
  * `data/documentKinds.ts` keeps its shapes out of the catalog — the schema there
  * is BUILT from this array, so the two cannot drift.
  */
+import { EXPIRY_STATES, expiryState, type ExpiryState } from '../lib/expiry';
 import type { Dealer, DealerProfileEntry } from '../types/dealer';
 
 /**
@@ -462,8 +463,17 @@ export const DEALER_CUSTOM_FIELD_LABEL_MAX = 60;
  * Expiry
  * ──────────────────────────────────────────────────────────────────────── */
 
-export const DEALER_PROFILE_EXPIRY_STATES = ['expired', 'expiring', 'valid'] as const;
-export type DealerProfileExpiryState = (typeof DEALER_PROFILE_EXPIRY_STATES)[number];
+/**
+ * The three words, re-exported rather than re-declared.
+ *
+ * They now live in `lib/expiry.ts`, because the document filing cabinet answers
+ * the same question about the same certificates and a second spelling of
+ * `expired` / `expiring` / `valid` would mean every reader had to learn which
+ * surface used which. The names here are kept as aliases so no call site had to
+ * move.
+ */
+export const DEALER_PROFILE_EXPIRY_STATES = EXPIRY_STATES;
+export type DealerProfileExpiryState = ExpiryState;
 
 /**
  * How many days ahead counts as "expiring soon".
@@ -488,28 +498,7 @@ export function dealerProfileExpiryState(
   expiresOn: string | undefined,
   today: string,
 ): DealerProfileExpiryState | undefined {
-  if (!expiresOn || !today) return undefined;
-  const days = daysBetweenIsoDays(today, expiresOn);
-  // Unreadable is not "fine". No verdict at all, so the screen says nothing and
-  // the machine has nothing to quote.
-  if (Number.isNaN(days)) return undefined;
-  if (days < 0) return 'expired';
-  return days <= DEALER_PROFILE_EXPIRY_SOON_DAYS ? 'expiring' : 'valid';
-}
-
-/**
- * Whole days from `from` to `to`, both `YYYY-MM-DD`. Negative if `to` is earlier.
- *
- * `NaN` for a date that will not parse, and the caller turns that into NO STATE
- * rather than a good one. It used to return `+Infinity`, which read as "more
- * than sixty days away" and painted a green "Valid" badge on a licence whose
- * expiry we cannot even read. A compliance verdict must fail closed.
- */
-function daysBetweenIsoDays(from: string, to: string): number {
-  const a = Date.parse(`${from}T00:00:00Z`);
-  const b = Date.parse(`${to}T00:00:00Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) return Number.NaN;
-  return Math.round((b - a) / 86_400_000);
+  return expiryState(expiresOn, today, DEALER_PROFILE_EXPIRY_SOON_DAYS);
 }
 
 /**
@@ -790,9 +779,7 @@ export function profileDraftToPatch(
 }
 
 /** The stored profile, back in the shape the editor's boxes read from. */
-export function profileToDraft(
-  dealer: ProfileSource,
-): Record<string, DealerProfileDraftRow> {
+export function profileToDraft(dealer: ProfileSource): Record<string, DealerProfileDraftRow> {
   const draft: Record<string, DealerProfileDraftRow> = {};
   for (const field of resolveDealerProfile(dealer)) {
     if (field.custom) continue;

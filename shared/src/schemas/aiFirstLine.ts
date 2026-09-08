@@ -57,6 +57,23 @@ const profileFieldKeySchema = z
   .max(60)
   .regex(/^[A-Za-z0-9-]+$/, 'Not an outlet field key');
 
+/**
+ * The filed paper an ask named: a `DocumentKind` code (`fire-noc`).
+ *
+ * THE SAME SHAPE AS `profileFieldKeySchema`, DELIBERATELY AND NOT BY ACCIDENT,
+ * so it is that constant rather than a second regex somebody would one day
+ * tighten on one side only. Both namespaces are slugs of an admin-typed label,
+ * both are database rows no build-time enum can carry, and `route.ts` folds an
+ * awkward spelling of either with the same normaliser — `Fire NOC` reaches the
+ * catalog row filed under `fire-noc` by exactly one path.
+ *
+ * It is a SEPARATE NAME because the two are separate namespaces: an outlet-file
+ * key and a document-kind code are matched against different collections, and a
+ * single name used for both would invite the next reader to assume one lookup
+ * can answer the other.
+ */
+const documentKindCodeSchema = profileFieldKeySchema;
+
 /** An IST calendar day. Days are strings in this codebase and stay strings. */
 const istDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 /** An IST calendar month. */
@@ -104,6 +121,13 @@ export const aiPlanAskSchema: z.ZodType<AiPlanAsk> = z
      * than lingering as a label with no lookup behind it.
      */
     profileFieldHint: profileFieldKeySchema.optional(),
+    /**
+     * WHICH filed paper, for `records_list` and `record_send`. A catalog CODE
+     * and nothing else — see `AiPlanAsk.documentKindHint` for why a value
+     * shaped like prose is evidence the model is trying to write rather than a
+     * key it is trying to name, and why the answer to that is to fail the plan.
+     */
+    documentKindHint: documentKindCodeSchema.optional(),
   })
   .strict();
 

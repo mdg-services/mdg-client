@@ -122,6 +122,34 @@ export const PAIRED_CLASSES = ['FUEL_PURCHASE', 'DEALER_DEPOSIT'] as const;
 export type PairedMovementClass = (typeof PAIRED_CLASSES)[number];
 
 /**
+ * Everything that is ROUTINE traffic on a PAD ledger — the pair, plus fleet-card
+ * settlements. These raise no finding; what is left over is what Ledger Watch is
+ * about.
+ *
+ * WHY A SETTLEMENT IS ROUTINE AND NOT A MOVEMENT. It looked like one at first,
+ * because it is neither a fuel invoice nor a deposit. But it is not IndianOil
+ * doing anything to the account: it is the dealer's OWN card sales being paid
+ * through, arriving most days, on their own schedule, at whatever size that
+ * day's fleet customers happened to buy. It sits beside "fuel out, money in" as
+ * a third ordinary thing that happens to a pump, and the dealer already
+ * understands it perfectly well.
+ *
+ * The numbers say the same thing. Settlements are 1,247 of the 3,163 rows
+ * production held — more than the fuel invoices and more than the deposits.
+ * Treated as movements they were 577 INFO findings and, before the severity was
+ * corrected, 714 of 816 notices: a to-do list made almost entirely of the one
+ * item nobody can act on.
+ *
+ * WHAT IS NOT LOST BY IT. Routine means "raises no finding of its own", not
+ * "unexamined". A settlement posted on the side it never uses is still an ALERT
+ * from the wrong-side detector — which is how the one that DEBITED ₹7,118.26
+ * was found — because what is wrong with a settlement is never its size or its
+ * frequency, only its direction.
+ */
+export const ROUTINE_CLASSES = ['FUEL_PURCHASE', 'DEALER_DEPOSIT', 'CARD_SETTLEMENT'] as const;
+export type RoutineMovementClass = (typeof ROUTINE_CLASSES)[number];
+
+/**
  * Which column of the statement the rupees landed in.
  *
  * Read off the row's own `debit` / `credit` amounts — never inferred from the
@@ -256,6 +284,19 @@ export function sameMoney(a: number, b: number, epsilon: number = LEDGER_MONEY_E
 /** Is this one of the two classes that make up the buy/pay pair? */
 export function isPairedClass(movementClass: MovementClass): boolean {
   return (PAIRED_CLASSES as readonly string[]).includes(movementClass);
+}
+
+/**
+ * Is this ordinary ledger traffic — the pair, or a fleet-card settlement?
+ *
+ * THIS, NOT {@link isPairedClass}, IS WHAT DECIDES WHETHER A ROW RAISES A
+ * FINDING. The two differ by exactly `CARD_SETTLEMENT`, and the difference is
+ * 1,247 rows of production. `isPairedClass` still answers its own narrower
+ * question — "is this one of the two figures the DOD engine reports on" — which
+ * is what the summary's `fuelPurchased` / `deposited` are built from.
+ */
+export function isRoutineClass(movementClass: MovementClass): boolean {
+  return (ROUTINE_CLASSES as readonly string[]).includes(movementClass);
 }
 
 /**
@@ -789,9 +830,34 @@ export interface LedgerPeriodSummaryDto {
   deposited: number;
   /** Σ debits of every NON-pair class, in rupees. Excludes fuel invoices. */
   charged: number;
-  /** Σ credits of every NON-pair class, in rupees. Excludes deposits. */
+  /**
+   * Σ credits of every NON-ROUTINE class, in rupees.
+   *
+   * Excludes deposits AND fleet-card settlements — see {@link isRoutineClass}.
+   * What is left is what IndianOil actually paid this dealer: commission,
+   * rebates and the like. It was every non-PAIR credit at first, which on outlet
+   * 5E in August 2026 made it ₹1,22,92,358.61 of which roughly ₹30,000 was real
+   * commission — a true sum under a label that made it read as income.
+   */
   received: number;
-  /** `received − charged`. Negative means the month took money off the dealer. */
+  /**
+   * Σ `CARD_SETTLEMENT` credits, in rupees — the dealer's own fleet-card sales
+   * routed back through IndianOil.
+   *
+   * A ROUTINE figure, reported beside {@link fuelPurchased} and
+   * {@link deposited} rather than inside {@link received}. It is not money
+   * IndianOil paid the dealer and it is not a movement anybody needs to act on;
+   * it is simply the third ordinary thing that happens on a pump's ledger.
+   */
+  cardSettled: number;
+  /**
+   * `received − charged`. Negative means the month took money off the dealer.
+   *
+   * Both sides now exclude routine traffic, so this IS the headline a screen
+   * shows — no subtraction on the way out. An earlier version computed it over a
+   * `received` that still carried card settlements, which made the screens
+   * subtract on their own and put the arithmetic in two places.
+   */
   netOther: number;
   /**
    * The breakdown behind `charged` and `received`, one entry per class present.

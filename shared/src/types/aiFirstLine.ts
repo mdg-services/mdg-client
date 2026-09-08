@@ -137,9 +137,40 @@ export const AI_FIRSTLINE_INTENTS = [
   'services_list',
   /** "aaj ka kaam hua kya" — whether a named service ran, and what it did. */
   'service_log',
-  /** "purane papers kahan hain" — what documents are filed for this outlet. */
+  /**
+   * "purane papers kahan hain", "kaunsa paper expire ho raha hai", "meri fire
+   * NOC kab tak valid hai", "papers ki tarikh batao" — what is on file for this
+   * outlet, and how long each of it is still good for.
+   *
+   * ONE LABEL FOR BOTH HALVES OF THAT QUESTION, NOT TWO. "What do I hold" and
+   * "when does it run out" are the same sentence to a dealer, and a second
+   * label would mean the router picking between them on wording — which is
+   * exactly how one licence comes to have two answers depending on how it was
+   * asked about.
+   *
+   * WHERE THE DATE COMES FROM, AND WHY IT CANNOT DISAGREE WITH `outlet_profile`.
+   * The validity lives on the FILED PAPER. Accepting a paper of a kind that
+   * names a `profileFieldKey` writes that date onto the outlet file's matching
+   * field, one way and never back — so for the three catalog licences the Info
+   * tab is a COPY of what this label reads, and the two paths are quoting one
+   * number. A paper whose kind names no profile field (a Fire NOC) has no entry
+   * on the Info tab to disagree with.
+   */
   'records_list',
-  /** "wo licence wali file bhej do" — send one filed document again. */
+  /**
+   * "wo licence wali file bhej do", "fire NOC bhej do" — send one filed
+   * document back into the chat.
+   *
+   * NO LONGER A PERMANENT HANDOFF, and the one thing that changed is that the
+   * plan can now say WHICH paper: {@link AiPlanAsk.documentKindHint}. Until it
+   * could, the only available behaviours were "guess" and "stand down", and
+   * re-sending the WRONG filed document is a data-handling incident rather
+   * than a bad answer — nothing in this product can recall a message.
+   *
+   * IT STILL STANDS DOWN ON ANYTHING BUT A CLEAN MATCH. One paper of that kind
+   * on file sends; none, or more than one, is a person. That is the line
+   * `matchEmployee` draws for two Rameshes, applied to a certificate.
+   */
   'record_send',
   /** "kya kya paper baaki hai" — which papers MDG is still waiting for. */
   'docs_pending',
@@ -246,6 +277,38 @@ export interface AiPlanAsk {
    * answer — would stop being true for one whole label.
    */
   profileFieldHint?: string;
+  /**
+   * WHICH filed paper a `records_list` or `record_send` ask named — the
+   * `DocumentKind` code, `fire-noc`.
+   *
+   * THE FIELD THAT UNBLOCKS SENDING A DOCUMENT, and it is worth saying what it
+   * does NOT do. `record_send` stood down on every message for one reason: the
+   * plan carried nothing that said which paper, so the only two behaviours
+   * available were to guess and to stand down. This does not make guessing
+   * safe; it makes the ambiguity VISIBLE, so code can refuse it. One paper of
+   * that kind on file sends. None, or more than one, is a person.
+   *
+   * A LOOKUP KEY, NEVER OUTPUT, exactly like the two strings above it. It is
+   * matched — exactly, never fuzzily — against the codes of the papers THIS
+   * OUTLET actually holds, and what a dealer reads back is the title stored on
+   * the catalog row. Fuzzy matching is how the wrong certificate gets sent, and
+   * nothing here can be recalled.
+   *
+   * SHAPED, NOT ENUMERATED, for the same reason `profileFieldHint` is: document
+   * kinds are database rows an admin adds without a deploy, so no build-time
+   * enum can carry them. The shape is the guard, and it happens to be the SAME
+   * shape — every seeded code (`fire-noc`, `dto-trade-licence`) is already the
+   * slug of its own title, which is also what `route.ts` already teaches the
+   * model to emit for a name it does not recognise. A value shaped like prose
+   * is evidence the model is trying to write, and the answer to that is to
+   * reject the plan.
+   *
+   * A KEY THAT MATCHES NOTHING IS NOT A GUESS. On `records_list` it produces
+   * the unspecific answer — everything on file, with where each stands — and
+   * never "MDG does not hold your fire NOC", which would assert more than we
+   * know and could contradict the outlet file. On `record_send` it stands down.
+   */
+  documentKindHint?: string;
 }
 
 /**

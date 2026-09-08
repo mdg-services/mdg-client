@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/ui';
 import { useAskQueueStore } from '@/store/askQueue';
 import { useLangStore } from '@/store/lang';
-import { TODAY, YESTERDAY, makeAskList, makeAskRow } from '@/test/askFixtures';
+import { PESO_KIND, TODAY, YESTERDAY, makeAskList, makeAskRow } from '@/test/askFixtures';
 import { resetStores, signIn } from '@/test/utils';
 
 import { AskSheet } from './AskSheet';
@@ -260,5 +260,98 @@ describe('AskSheet — sending', () => {
     // …but the queue still keys on the composed one, so two "other document"
     // asks made on the same day stay two photographs.
     expect(item?.matchKey).toBe(`other-document|${TODAY}:bijli-ka-bil`);
+  });
+});
+
+/**
+ * The optional date box.
+ *
+ * ADR 0011 is the thing being defended: admin or automation certifies, never
+ * the dealer. So every assertion below is about the box being a COURTESY — it
+ * appears only for a kind the catalog says carries a date, it never blocks the
+ * send, and a value that would not survive the route is dropped rather than
+ * allowed to fail a photograph over a field the dealer was told was optional.
+ */
+describe('AskSheet — the date on the paper', () => {
+  /** A certificate that runs out, and its row on the dealer's list. */
+  function peso() {
+    return makeAskRow({
+      id: 'ask-peso',
+      kindCode: PESO_KIND.code,
+      titleEn: PESO_KIND.titleEn,
+      titleHi: PESO_KIND.titleHi,
+      confirmEn: PESO_KIND.confirmEn,
+      confirmHi: PESO_KIND.confirmHi,
+      periodKind: 'NONE',
+      periodKey: '',
+    });
+  }
+
+  it('offers a date box only for a paper the catalog says carries a date', async () => {
+    signedIn();
+    const row = peso();
+    render(<Harness row={row} rows={[row]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'opener' }));
+
+    const box = await screen.findByLabelText('Date on the paper (not needed)');
+    expect(box).toBeInTheDocument();
+    // And it says, in the dealer's own words, that MDG is the one who checks it.
+    expect(await screen.findByRole('dialog')).toHaveTextContent(
+      'MDG will check it against the paper',
+    );
+  });
+
+  /** A register page has no expiry, so asking for one would be asking for nothing. */
+  it('offers no date box for a paper that does not run out', async () => {
+    signedIn();
+    render(<Harness />);
+    await userEvent.click(screen.getByRole('button', { name: 'opener' }));
+    await screen.findByRole('dialog');
+
+    expect(
+      screen.queryByLabelText('Date on the paper (not needed)'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('carries the date to the queue when the dealer types one', async () => {
+    signedIn();
+    const row = peso();
+    render(<Harness row={row} rows={[row]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'opener' }));
+
+    const box = await screen.findByLabelText('Date on the paper (not needed)');
+    // `fireEvent`-style direct set: `userEvent.type` on a native date input is
+    // locale-dependent, and this assertion is about what the sheet does with a
+    // value, not about how a picker produces one.
+    await userEvent.click(box);
+    fireEvent.change(box, { target: { value: '2027-03-31' } });
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, send this' }));
+
+    await waitFor(() => expect(useAskQueueStore.getState().items).toHaveLength(1));
+    expect(useAskQueueStore.getState().items[0]?.validUntil).toBe('2027-03-31');
+  });
+
+  /**
+   * THE RULE THAT MATTERS. The photograph is the thing MDG needs and the dealer
+   * is standing at a forecourt; a date they could not get right must cost them
+   * the date, never the paper.
+   */
+  it('still sends the photo when the date will not do, and drops the date', async () => {
+    signedIn();
+    const row = peso();
+    render(<Harness row={row} rows={[row]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'opener' }));
+
+    const box = await screen.findByLabelText('Date on the paper (not needed)');
+    // Two hundred years out — the typo that would silence every reminder while
+    // every screen went on looking perfectly right.
+    fireEvent.change(box, { target: { value: '2226-03-31' } });
+    expect(
+      await screen.findByText('That date does not look right. You can leave it blank.'),
+    ).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Yes, send this' }));
+    await waitFor(() => expect(useAskQueueStore.getState().items).toHaveLength(1));
+    expect(useAskQueueStore.getState().items[0]?.validUntil).toBeUndefined();
   });
 });

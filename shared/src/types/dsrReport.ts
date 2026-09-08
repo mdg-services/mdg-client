@@ -54,6 +54,26 @@ export type DsrReceiptSource = 'iras' | 'manual' | 'inferred';
  * row's {@link DsrDayRow.openingStock}: this is a disclosure of what that number
  * is made of, never a second, competing figure.
  */
+/**
+ * Where a tank's `stock` figure on a row came from.
+ *
+ * `reported` — the litres were STATED: sent by the portal, or typed in by a
+ * person on a hand-entered day. The ordinary case, and the only one where
+ * nothing of ours is in the number — which is the distinction that matters, not
+ * which of the two stated it.
+ * `converted` — the litres did not arrive but the DEPTH did, so the litres were
+ * read off this tank's own dip-to-litres chart. The measurement is still the
+ * dealer's dipstick; only the units are ours.
+ * `carried` — the portal reports this tank as OUT OF SERVICE and sends zeros for
+ * it, so the last figure anybody confirmed was carried forward. Nothing was
+ * measured on this day; see {@link DsrTankReading.stockConfirmedOn} for when it
+ * last was.
+ *
+ * Absent on rows written before the fill existed. Read a missing value as
+ * `reported`, which is what those rows were.
+ */
+export type DsrTankStockSource = 'reported' | 'converted' | 'carried';
+
 export interface DsrTankReading {
   /** IRAS tank number, e.g. 6. */
   tankNo: number;
@@ -72,6 +92,26 @@ export interface DsrTankReading {
   waterDip: number | null;
   /** Net product quantity in THIS tank (litres); `null` if unreported. */
   stock: number | null;
+  /**
+   * Where {@link stock} came from. Absent on rows written before the fill
+   * existed; read a missing value as `reported`.
+   */
+  stockSource?: DsrTankStockSource;
+  /**
+   * The business date this tank's stock was last stated by the portal or by a
+   * person — NOT the date it was carried onto.
+   *
+   * It exists because a carry is self-perpetuating. Once a carried figure is
+   * written to the ledger, the next day reads it back as that day's stock, and a
+   * `from` date taken off the row it was read from would say "yesterday" forever:
+   * a figure nobody has confirmed since June would look one day old. Carrying the
+   * ORIGINAL date instead is what lets a stale carry be seen as stale, by an
+   * admin and by the checks.
+   *
+   * Absent on a `reported` row (the row's own date is the answer) and on every
+   * row written before this field existed.
+   */
+  stockConfirmedOn?: string | null;
 }
 
 /** One pump nozzle's cumulative totaliser reading at the shift instant. */
@@ -284,6 +324,52 @@ export interface DsrProductReport {
   variation: DsrVariationSummary;
 }
 
+/** Why a tank's stock could not be filled in, when it could not. */
+export type DsrStockFillRefusal =
+  /** Neither litres nor a depth arrived for this tank. */
+  | 'NO_DIP'
+  /** A depth arrived, but this tank has too few past readings to convert it. */
+  | 'NO_CURVE'
+  /** A depth arrived, but outside anything this tank has ever been seen at. */
+  | 'DIP_OUTSIDE_RANGE'
+  /** The tank is out of service and has never been read, so there is nothing to carry. */
+  | 'OUT_OF_SERVICE_NO_HISTORY';
+
+/**
+ * What happened to one tank's stock figure on this report's own business date.
+ *
+ * REPORT-LEVEL, not per product, because the fill happens on the raw stock rows
+ * before anything knows which product a tank belongs to. A reader that wants the
+ * product looks the tank up in {@link DsrProductReport.tankNos}.
+ *
+ * Only tanks that were NOT simply reported appear here. An empty or absent array
+ * means every tank sent its own litres and nothing was filled — which is the
+ * normal day and deserves no entry.
+ */
+export interface DsrStockFillEntry {
+  tankNo: number;
+  kind: DsrTankStockSource | 'unfilled';
+  /** The litres the tank ended up standing at; `null` when nothing could be filled. */
+  litres: number | null;
+  /** The depth the litres were read from. */
+  dip?: number | null;
+  /**
+   * For a `converted` figure, the distance between the two chart readings it was
+   * interpolated between — `0` when the depth matched a reading outright.
+   *
+   * The one number that says how much to trust the conversion: a depth landing
+   * between two readings a few units apart is all but measured, one landing in a
+   * 300-unit hole is a straight line drawn across a curve.
+   */
+  gap?: number | null;
+  /** For a `carried` figure, the business date it was last confirmed on. */
+  confirmedOn?: string | null;
+  /** For a `carried` figure, how many days ago that was. */
+  ageDays?: number | null;
+  /** For an `unfilled` tank, why. */
+  refusal?: DsrStockFillRefusal;
+}
+
 /**
  * The generated report for one dealer for one business date — the service's
  * deliverable and the shape the Vault renders and the exporters consume.
@@ -315,6 +401,18 @@ export interface DsrReportDigest {
    * for a clean one.
    */
   warnings: string[];
+  /**
+   * Every tank whose stock figure this report did not simply take from the
+   * portal — converted from a depth, carried from an earlier day, or left
+   * unmeasured.
+   *
+   * Structured beside {@link warnings} rather than only inside them, because
+   * {@link warnings} are sentences for a person and this has to be read by the
+   * correctness checks and cited by the reviewer. Absent on reports generated
+   * before the fill existed; an empty array means an ordinary day where every
+   * tank sent its own litres.
+   */
+  stockFill?: DsrStockFillEntry[];
 }
 
 // ------------------------------------------------------------------ config

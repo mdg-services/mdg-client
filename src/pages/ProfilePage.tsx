@@ -531,11 +531,19 @@ export function ProfilePage() {
           outstanding, and it disappears the moment the last paper is sent — so
           without this row there is no way back to the screen that says what was
           sent and what MDG made of it. Unconditional, because "nothing is owed"
-          is exactly the state a dealer might want to check. */}
+          is exactly the state a dealer might want to check.
+
+          IT IS ALSO THE ONLY DOOR TO THE FILING CABINET. That screen carries
+          both halves now — what is still to send, and every paper MDG holds
+          with the date it runs out — and the bottom bar deliberately stays at
+          four tabs, so this row is how a dealer with nothing outstanding gets
+          to their own licences. `/documents` and not `/asks`: both routes
+          render the same page, and this is the name the notifications already
+          on phones use. */}
       <Card>
         <button
           type="button"
-          onClick={() => navigate('/asks')}
+          onClick={() => navigate('/documents')}
           className="flex w-full items-center gap-3 p-5 text-left active:bg-surface-2"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-2 text-text-muted">

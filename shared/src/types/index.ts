@@ -24,6 +24,7 @@ export * from './festival';
 export * from './assist';
 export * from './ttDensity';
 export * from './documentAsk';
+export * from './documentValidity';
 export * from './aiFirstLine';
 export * from './ledgerWatch';
 export * from './overview';

@@ -131,6 +131,11 @@ export function useAskQueueSync(): AskQueueSync {
           // while its response was lost is recognised as the same send rather
           // than refused as a second one.
           clientRef: item.clientRef,
+          // The date the dealer read off the paper, when they offered one. It
+          // is replayed on every attempt like the rest of the body: dropping it
+          // on a retry would mean a photograph that went first time carried the
+          // date and the identical one that went on the third try did not.
+          ...(item.validUntil ? { validUntil: item.validUntil } : {}),
         });
 
         applyAskRow(qc, row);

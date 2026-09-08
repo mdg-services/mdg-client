@@ -1,7 +1,7 @@
 import { FileText } from 'lucide-react';
 import * as React from 'react';
 
-import { Button, useToast } from '@/components/ui';
+import { Button, Input, useToast } from '@/components/ui';
 import { pick, useLang, useT } from '@/lib/i18n';
 import { formatBytes } from '@/lib/uploadAttachment';
 import { prepareAskFile, type DocumentAskMime } from '@/lib/uploadDocumentAsk';
@@ -9,6 +9,10 @@ import { useDialog } from '@/lib/useDialog';
 import { useOnline } from '@/lib/useOnline';
 import { fileToBase64, useAskQueueStore } from '@/store/askQueue';
 import { useAuthStore } from '@/store/auth';
+// `isIsoDay` lives in `shared/lib/isoDays` and is only on the package ROOT —
+// `@dk/shared/types` does not re-export it, unlike everything else on this line.
+import { isIsoDay } from '@dk/shared';
+import { DOCUMENT_VALIDITY_MAX_DAY } from '@dk/shared/schemas';
 import {
   documentPeriodBaseKey,
   documentPeriodLabel,
@@ -81,6 +85,22 @@ export interface AskSheetProps {
  * targets, so it is used when present and a time-plus-random string stands in
  * when it is not. Uniqueness only has to hold within one dealer's own queue.
  */
+/**
+ * The far end of what may be typed as a validity date.
+ *
+ * IMPORTED, NOT RESTATED. It is the server's own bound — the same declaration
+ * `documentValidityDateSchema` refines against — so the picker and the route
+ * refuse exactly the same set of days rather than the route refusing a body the
+ * screen was happy to send. It was a local literal for one afternoon and that
+ * was one afternoon too long: two copies of a bound drift, and the drift is
+ * silent in the direction that matters.
+ *
+ * The bound exists at all because a typo of `2226-03-31` for `2026-03-31`
+ * silences every reminder on that paper for two hundred years, and nothing on
+ * any screen would look wrong — the badge would simply read valid, for ever.
+ */
+const VALID_UNTIL_MAX = DOCUMENT_VALIDITY_MAX_DAY;
+
 function mintClientRef(): string {
   const c = typeof crypto !== 'undefined' ? crypto : undefined;
   if (c && typeof c.randomUUID === 'function') return c.randomUUID();
@@ -105,6 +125,7 @@ export function AskSheet({
   const enqueue = useAskQueueStore((s) => s.enqueue);
   const panelRef = useDialog(onClose);
   const titleId = React.useId();
+  const dateId = React.useId();
 
   // Which row the photograph will actually be filed against. It starts as the
   // one the dealer tapped and only moves if they say so.
@@ -112,6 +133,9 @@ export function AskSheet({
   const [choosing, setChoosing] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  // The date printed on the paper, if the dealer chooses to read it off. Empty
+  // is the expected answer and is not a failure — see the block that renders it.
+  const [validUntil, setValidUntil] = React.useState('');
 
   // One object URL, revoked when the file changes and again on unmount — a
   // low-RAM phone otherwise holds the decoded bitmap for the life of the session.
@@ -136,6 +160,24 @@ export function AskSheet({
   const title = pick(lang, target.titleEn, target.titleHi);
   const hint = pick(lang, target.hintEn, target.hintHi);
   const period = dayLabel(target);
+
+  /* ─────────────── The date on the paper, offered not demanded ────────────── */
+
+  // ASKED FROM THE CATALOG, NEVER FROM A LIST OF CODES IN THIS APP. The catalog
+  // is admin-editable, so a client deciding for itself which papers carry a date
+  // would stop asking the day somebody adds a new certificate — silently, with
+  // the paper filed and no expiry on it. `tracksValidity` rides on the option
+  // for exactly this reason. A kind that does not resolve (a Kavach row, whose
+  // code is a task template and not a document kind) gets no box, which is the
+  // safe direction.
+  const tracksValidity =
+    list.kinds.find((k) => k.code === target.kindCode)?.tracksValidity === true;
+  const typedDate = validUntil.trim();
+  // The far bound is the server's own (`documentValidityDateSchema`): a typo of
+  // `2226-03-31` for `2026-03-31` would silence every reminder for two hundred
+  // years and nothing on any screen would look wrong.
+  const dateUsable = typedDate !== '' && isIsoDay(typedDate) && typedDate <= VALID_UNTIL_MAX;
+  const dateBad = typedDate !== '' && !dateUsable;
 
   const send = async () => {
     if (busy) return;
@@ -170,6 +212,13 @@ export function AskSheet({
         // one request into two rows or two into one.
         periodKey: documentPeriodBaseKey(target.periodKey),
         ...(target.label ? { label: target.label } : {}),
+        // ADVISORY, AND ONLY WHEN IT IS A REAL DAY. A date that will not parse
+        // is dropped rather than sent, because the send is not blocked on it
+        // (the paper is what matters and the dealer is standing at a forecourt)
+        // and a body the route would refuse would fail the whole submit over a
+        // field nobody asked for. The inline line under the box has already
+        // told them it does not look right.
+        ...(dateUsable ? { validUntil: typedDate } : {}),
         filename: photo.filename,
         contentType,
         kind,
@@ -255,6 +304,50 @@ export function AskSheet({
           </p>
 
           {hint ? <p className="mt-2 text-xs text-text-muted">{hint}</p> : null}
+
+          {/* THE DATE BOX, AND IT IS A COURTESY AND NOT A DECLARATION.
+              ADR 0011 is that admin or automation certifies and never the
+              dealer, and a validity date is exactly the kind of claim that rule
+              is about: it decides when a reminder fires and what the outlet's
+              Info tab says. So this box saves whoever accepts the paper a
+              squint at a photograph, and nothing more — its label says "not
+              needed", its help line says MDG checks it against the paper, and
+              the send button does not care whether it was filled in.
+
+              A native `<input type="date">` rather than three number fields,
+              because it is what `FinalizeSubmitSheet` already uses and because
+              the Android WebView hands it the phone's own date picker — a
+              55-year-old typing `31/12/2027` into a free-text box is a worse
+              bet than the wheel they already know from every other app.
+
+              NO `min`. A dealer photographing a licence that has already lapsed
+              is one of the cases this whole feature exists for, and a floor at
+              today would refuse the very paper MDG most wants dated. */}
+          {tracksValidity ? (
+            <div className="mt-4 flex flex-col gap-1.5">
+              <label
+                htmlFor={dateId}
+                className="px-1 text-xs font-semibold text-text-muted"
+              >
+                {t('asks.validUntilLabel')}
+              </label>
+              <Input
+                id={dateId}
+                type="date"
+                value={validUntil}
+                max={VALID_UNTIL_MAX}
+                invalid={dateBad}
+                disabled={busy}
+                onChange={(e) => setValidUntil(e.target.value)}
+              />
+              <p className="px-1 text-xs text-text-muted">{t('asks.validUntilHelp')}</p>
+              {dateBad ? (
+                <p className="px-1 text-xs font-medium text-warning-strong">
+                  {t('asks.validUntilBad')}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {choosing ? (
             <div className="mt-3 rounded-xl border border-border p-2">

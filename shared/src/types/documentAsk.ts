@@ -33,6 +33,7 @@
  * first model use. Zero migrations.
  */
 import { compareDealerCodes } from '../dealer/code';
+import type { ExpiryState } from '../lib/expiry';
 
 import type { Attachment } from './conversation';
 
@@ -208,6 +209,113 @@ export interface DocumentKind {
   dealerVisible: boolean;
   /** Retired kinds stay in the catalog so old asks still resolve their name. */
   active: boolean;
+
+  /* ─────────────────── Validity: does this paper run out? ─────────────────── */
+
+  /**
+   * True when a paper of this kind carries a date it is good until.
+   *
+   * A Fire NOC does; a register page does not. The flag mirrors `expiryLabel?`
+   * on `DealerProfileFieldDef`, which is the shipped precedent for "this field
+   * carries a date beside it", and it is what decides whether the accept dialog
+   * asks a person for one and whether the reminder sweep considers the row at
+   * all.
+   *
+   * OPTIONAL, NOT REQUIRED, and that is a deployment fact rather than a
+   * preference. The seeder writes new catalog columns under `$setOnInsert`,
+   * which never reaches a row that already exists — so the three kinds already
+   * seeded in production will read `undefined` here until an admin edits them.
+   * Every reader must therefore treat absent as false, which a required boolean
+   * would have hidden behind a type that lies.
+   */
+  tracksValidity?: boolean;
+  /**
+   * How long a paper of this kind is typically good for, in CALENDAR months.
+   *
+   * A PREFILL AND NOTHING MORE. It fills the date box on the accept dialog so
+   * somebody does not have to count three months forward from an issue date in
+   * their head; the date that governs is the one printed on the certificate,
+   * which that person then confirms. It is never applied behind anybody's back,
+   * because a validity we computed is a validity nobody read off the paper.
+   */
+  validityMonths?: number;
+  /**
+   * When to chase the dealer, in days before the validity ends.
+   *
+   * Absent means {@link DOCUMENT_REMINDER_OFFSETS_DEFAULT}. Resolve it through
+   * `resolveReminderOffsets` and never read it raw — an individual ask may
+   * override it, and the amber badge and the notification are both derived from
+   * the first step, so a second resolution site is how a screen comes to say a
+   * certificate is fine on the morning a push says it is not.
+   *
+   * ADMIN-EDITABLE, which is what puts it under `$setOnInsert` in the seeder. A
+   * cadence under `$set` would be reverted on the next deploy with nothing in
+   * any log — an admin fixes it, watches it save, and finds 15/3/2/1 back next
+   * Tuesday.
+   */
+  reminderOffsetDays?: number[];
+  /**
+   * Whether the first reminder also opens the renewal request by itself.
+   *
+   * Absent means true: a dealer told their NOC expires in three days needs
+   * somewhere to put the new one, and a warning with no upload slot behind it is
+   * a worry rather than a job. Switched off for the papers MDG would rather
+   * raise by hand.
+   */
+  autoRenew?: boolean;
+  /**
+   * The outlet-profile field whose expiry date this kind OWNS.
+   *
+   * THE ANSWER TO "WHICH NUMBER IS THE REAL ONE". The Info tab already stores an
+   * expiry beside the explosive licence, the DTO trade licence and the W&M
+   * licence, and it did so before any of these papers could be filed. Two homes
+   * for one date is the authoritative-figure fault this codebase has been
+   * audited against once already: a screen saying a figure matters while the
+   * calculation reads another.
+   *
+   * So the filed paper wins and the profile entry MIRRORS it. Accepting a
+   * document of this kind writes its `validUntil` onto that profile field's
+   * `expiresOn`, which means the Info tab, the documents tab and the AI's
+   * `outlet_profile` answer are all quoting one number that one person read off
+   * one certificate. Absent for every kind that maps to no profile field, which
+   * is most of them.
+   */
+  profileFieldKey?: string;
+}
+
+/**
+ * One reminder step already settled for one filed paper.
+ *
+ * Declared HERE rather than beside the rest of the validity logic in
+ * `documentValidity.ts` because it is a field on {@link DocumentAsk}, and
+ * putting it there would make the two modules import each other — which in a
+ * barrel-re-exported package is how one of them ends up `undefined` at
+ * module-evaluation time with a stack trace pointing nowhere useful.
+ *
+ * BOTH OUTCOMES ARE RECORDED, and `skipped` is the load-bearing half. When the
+ * box has been down for a week the sweep comes back to find four steps overdue
+ * at once; it fires ONE and writes the other three off. Without that row they
+ * are unsettled again tomorrow and the dealer gets the same certificate pushed
+ * at them four mornings running — which is not a worse version of the feature,
+ * it is the thing that makes people turn notifications off.
+ */
+export interface DocumentReminderEntry {
+  /** Which step of the ladder this row settles. */
+  offsetDays: number;
+  /** ISO instant the decision was taken. */
+  at: string;
+  /** `sent` — somebody was told. `skipped` — the window had already gone by. */
+  outcome: 'sent' | 'skipped';
+  /**
+   * How many days were ACTUALLY left when it fired.
+   *
+   * Recorded because it is very often not `offsetDays`, and the sentence the
+   * dealer read was built from this number rather than the step's. A sweep
+   * resuming on the tenth day before an expiry fires the fifteen-day step and
+   * says "10 days left", because that is what is true. Storing only the step
+   * would make the audit trail claim we told them something we did not.
+   */
+  daysLeft: number;
 }
 
 /**
@@ -279,6 +387,51 @@ export interface DocumentAsk {
   reviewedByName?: string;
   /** Shown to the dealer VERBATIM, so it has to read as a sentence. */
   rejectReason?: string;
+
+  /* ──────────────── The filed paper's own life, once accepted ─────────────── */
+
+  /**
+   * IST calendar day (`YYYY-MM-DD`) the paper is good until.
+   *
+   * NOT `expiresAt`, and the distinction is the sharpest one in this file.
+   * `expiresAt` on the model is the ASK's lifetime — "stop chasing this
+   * unanswered request after thirty days" — and the state `EXPIRED` means the
+   * REQUEST lapsed, not that the paper did. A validity named `expiresAt` would
+   * be swept by `services/documents/expire.ts`, indexed by its sparse index and
+   * rendered by the estate table as a dead request. Two different facts, and
+   * only one of them is about the certificate.
+   *
+   * A calendar day and never a timestamp, for the reason `DealerProfileEntry`
+   * gives about the same dates: a licence expires on a date printed on a
+   * certificate, and putting that through a timezone is how it expires a day
+   * early. Absent means the paper does not run out — which is the honest reading
+   * for most of them.
+   */
+  validUntil?: string;
+  /**
+   * This ask's own reminder ladder, overriding its kind's.
+   *
+   * `undefined` means "use the kind's". `[]` means "never remind about this
+   * particular paper" and is a different, deliberate setting — what an admin
+   * wants for the one certificate a dealer has already said is being replaced.
+   */
+  reminderOffsetDays?: number[];
+  /** Every reminder step already settled for this paper, sent or skipped. */
+  remindersSent?: DocumentReminderEntry[];
+  /** ISO instant the "this has lapsed" notice went out. Once, ever. */
+  lapsedNoticeAt?: string;
+  /**
+   * The renewal ask opened for this paper. Set on the OLD row.
+   *
+   * THE IDEMPOTENCY GUARD. Two schedulers on two replicas both reach a
+   * certificate on the morning its first reminder is due; the one that loses the
+   * conditional write finds this field set and opens nothing. Without it a
+   * dealer gets two identical requests to renew one NOC.
+   */
+  renewedByAskId?: string;
+  /** The paper this ask renews. Set on the NEW row, so the chain reads backwards. */
+  renewalOfAskId?: string;
+
   createdAt: string;
   updatedAt: string;
 }
@@ -625,6 +778,36 @@ export interface DealerDocumentAskRow {
   reviewedByKind?: 'admin' | 'system';
   reviewedAt?: string;
   updatedAt?: string;
+
+  /* ─────────── Validity, for the papers that are on file and dated ────────── */
+
+  /**
+   * The day this paper runs out, `YYYY-MM-DD`.
+   *
+   * SENT AS THE RAW DAY AND NEVER RENDERED AS ONE. Both `AsksPage.test.tsx` and
+   * the shared tests assert that no ISO date reaches a dealer's screen in either
+   * language; this rides along so the card can sort, badge and — where it really
+   * must print the date — run it through `dealerProfileDateLabel`, which carries
+   * the YEAR. Never `documentPeriodLabel`, which deliberately omits it: a licence
+   * good until 31 December 2027 shown as "31 Dec" reads as this year to anybody.
+   */
+  validUntil?: string;
+  /**
+   * `expired` | `expiring` | `valid`, decided on the SERVER against the server's
+   * IST day.
+   *
+   * The phone's clock is never allowed to decide whether something has lapsed —
+   * the same rule `askRules.ts` follows, where `istHour` may reorder options and
+   * nothing more. A dealer whose phone is a day fast must not see a valid
+   * certificate badged red.
+   */
+  validityState?: ExpiryState;
+  /** Whole days left; negative once gone. Computed server-side from one `today`. */
+  daysToExpiry?: number | null;
+  /** `8 days left` · `Expires today` · `Expired 2 days ago`, already in their language. */
+  validityLabel?: string;
+  /** The renewal request opened for this paper, so the card can link to the job. */
+  renewedByAskId?: string;
 }
 
 /** A kind the dealer may send unprompted, in their own language, in list order. */
@@ -639,6 +822,15 @@ export interface DealerDocumentKindOption {
   periodKind: DocumentPeriodKind;
   freeform: boolean;
   srNo: number;
+  /**
+   * Whether the confirm sheet should offer a date box.
+   *
+   * Rides on the OPTION rather than being looked up by code in the client,
+   * because the catalog is admin-editable and a client that decided this from a
+   * hard-coded list would stop asking for a date the day somebody adds a new
+   * certificate — silently, with the paper filed and no expiry on it.
+   */
+  tracksValidity?: boolean;
 }
 
 /**
@@ -714,6 +906,27 @@ export interface AdminDocumentAskRow extends DocumentAsk {
   late: boolean;
   /** True when the live submission is an image the reviewer can render in place. */
   hasFile: boolean;
+
+  /**
+   * `expired` | `expiring` | `valid`, and the days behind it — DERIVED SERVER
+   * SIDE from one `todayYmd` per response.
+   *
+   * Every row on a page is measured against the same instant for the reason
+   * `documentAskAge` takes `nowMs` as an argument: a screen of a hundred rows
+   * must not show two of them judged against two different days. `undefined`
+   * when the paper carries no validity, and also when the stored date will not
+   * parse — no verdict beats a green one.
+   */
+  validityState?: ExpiryState;
+  daysToExpiry?: number | null;
+  /**
+   * The reminder ladder actually in force, override already resolved.
+   *
+   * Sent so the admin table can show what WILL happen without re-deriving it
+   * from the kind plus the row — the second resolution site that would let this
+   * screen disagree with the sweep about when a dealer next hears from us.
+   */
+  cadence?: number[];
 }
 
 /**

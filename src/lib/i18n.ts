@@ -1088,11 +1088,14 @@ export const messages = {
   // by `documentPeriodLabel` from `shared`, which is also what the server's push
   // notification uses — so the card and the notification that opened it can
   // never name the same period two different ways.
-  'asks.pageTitle': { en: 'Papers MDG needs', hi: 'MDG को चाहिए काग़ज़' },
-  'profile.asks': { en: 'Papers MDG needs', hi: 'MDG को चाहिए काग़ज़' },
+  // The Profile row into the papers screen. It names BOTH halves now — what is
+  // still to send AND what MDG already holds — because the screen behind it
+  // grew a filing cabinet, and a row that still promised only the chore would
+  // hide the half a dealer opens the app to check.
+  'profile.asks': { en: 'Your papers', hi: 'आपके काग़ज़' },
   'profile.asksDesc': {
-    en: 'What you have sent, and what is still to send',
-    hi: 'क्या भेज दिया, क्या अभी बाकी है',
+    en: 'What is still to send, and what MDG holds for you',
+    hi: 'क्या भेजना बाकी है, और MDG के पास क्या रखा है',
   },
 
   // The bar under the header. `{name}` is the paper's own title from the
@@ -1162,6 +1165,27 @@ export const messages = {
   'asks.takeAgain': { en: 'Take again', hi: 'दोबारा लें' },
   'asks.sending': { en: 'Sending your photo…', hi: 'फोटो भेजी जा रही है…' },
 
+  // THE DATE BOX ON THE CONFIRM SHEET, and the copy is doing compliance work.
+  // ADR 0011 is that admin or automation certifies and never the dealer, so
+  // this box may not read as the dealer declaring anything: it is offered as a
+  // favour ("अगर लिखी है तो डाल दीजिए"), it says out loud that MDG checks it,
+  // and it says out loud that it can be left blank. A required-looking box here
+  // would turn a courtesy into a claim, and the claim would be the dealer's.
+  'asks.validUntilLabel': {
+    en: 'Date on the paper (not needed)',
+    hi: 'काग़ज़ पर लिखी तारीख़ (ज़रूरी नहीं)',
+  },
+  'asks.validUntilHelp': {
+    en: 'If the paper says a date it is good until, put it here. MDG will check it against the paper. Leaving it blank is fine.',
+    hi: 'काग़ज़ पर जिस तारीख़ तक चालू लिखा है, वह यहाँ डाल दीजिए। MDG काग़ज़ से मिलाकर देख लेगा। खाली छोड़ दें तो भी चलेगा।',
+  },
+  // Never "invalid": what the dealer needs is permission to move on, which is
+  // the second sentence. The send is not blocked on this — see `AskSheet`.
+  'asks.validUntilBad': {
+    en: 'That date does not look right. You can leave it blank.',
+    hi: 'यह तारीख़ ठीक नहीं लग रही। इसे खाली छोड़ सकते हैं।',
+  },
+
   // The offline pair. Neither says "error" or "failed": the first is a promise
   // the app can keep, the second is an instruction the dealer can follow.
   'asks.queued': {
@@ -1192,6 +1216,48 @@ export const messages = {
     hi: 'जो फोटो भेजनी है',
   },
   'asks.pdfPicked': { en: 'A PDF is ready to send', hi: 'एक PDF भेजने को तैयार है' },
+
+  /* ── papers on file, and when they run out ──────────────────────────── */
+  // The same copy law as the `asks.*` block above, and for the same screen:
+  // no database state name in either language, never the words "error" or
+  // "failed", and NO DATE SPELLED OUT HERE. There is one difference worth
+  // stating, because it is the exception that proves the rule.
+  //
+  // A filing cabinet is the one dealer screen where the DATE ITSELF is the
+  // answer — "when does my PESO licence run out" cannot be answered with "8
+  // days left" alone, because a dealer standing in front of the inspector
+  // needs the day. So `{day}` here is filled by `dealerProfileDateLabel` from
+  // `shared`, which CARRIES THE YEAR, and never by `documentPeriodLabel`,
+  // which deliberately omits it: a licence good until 31 December 2027 printed
+  // as "31 Dec" reads as this year to anybody, and one that lapsed on 31
+  // August 2026 printed as "31 Aug" reads as though it had not lapsed at all.
+  //
+  // The COUNT beside it ("8 days left") is `documentValidityLabel`, formatted
+  // on this phone from the day count the SERVER computed. The server decides
+  // the number; the phone only decides the words. See `ValidityChip`.
+  'documents.pageTitle': { en: 'Your papers', hi: 'आपके काग़ज़' },
+  'documents.onFileTitle': { en: 'With MDG on file', hi: 'MDG के पास जमा' },
+  'documents.onFileDesc': {
+    en: 'What MDG holds for you, and how long each one is good for.',
+    hi: 'MDG के पास आपके जो काग़ज़ हैं, और हर एक कब तक चालू है।',
+  },
+  'documents.onFileEmptyTitle': { en: 'Nothing on file yet', hi: 'अभी कुछ जमा नहीं है' },
+  'documents.onFileEmptyDesc': {
+    en: 'Papers you send are kept here once MDG has checked them.',
+    hi: 'आप जो काग़ज़ भेजेंगे, MDG के देख लेने के बाद वे यहाँ रखे रहेंगे।',
+  },
+  'documents.validUntil': { en: 'Good until {day}', hi: '{day} तक चालू' },
+  // Past tense, deliberately. "Good until 31 Aug 2026" on a lapsed licence is a
+  // true sentence that reads as a reassuring one.
+  'documents.wasValidUntil': { en: 'Was good until {day}', hi: '{day} तक चालू था' },
+
+  // A renewal is already open for this paper, so the card points at the job
+  // instead of leaving the dealer to work out that the red badge and the
+  // request higher up the same screen are about one certificate.
+  'documents.renewalOpen': {
+    en: 'MDG has asked you for the new one',
+    hi: 'MDG ने नया काग़ज़ माँग लिया है',
+  },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

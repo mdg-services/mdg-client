@@ -2,6 +2,7 @@ import { Camera, CheckCircle2, Clock3, FileText, ImageIcon, ShieldCheck } from '
 import * as React from 'react';
 
 import { Button, Spinner } from '@/components/ui';
+import { ValidityChip } from '@/features/documents/ValidityChip';
 import { cn } from '@/lib/cn';
 import { pick, useLang, useT } from '@/lib/i18n';
 import { useOnline } from '@/lib/useOnline';
@@ -99,11 +100,29 @@ export function AskCard({ row, today, queued, onCamera, onFiles, onKavach }: Ask
             <p className="mt-1 text-sm font-medium text-text">{row.label}</p>
           ) : null}
         </div>
-        {row.late && mine ? (
-          <span className="shrink-0 rounded-full bg-warning-strong px-2 py-0.5 text-[11px] font-medium text-white">
-            {t('asks.lateBadge')}
-          </span>
-        ) : null}
+        {/* Two badges, one column, and they answer two different questions.
+            "Late" is about MDG's deadline for getting the PAPER; the validity
+            chip is about how long the paper itself is good for. They are never
+            drawn together, and the guard is `waitingOn === 'none'` rather than
+            "has a validity".
+
+            An admin may put a `validUntil` on a request at the moment they make
+            it — a renewal raised off an inspection letter, where MDG already
+            knows the date. On a row it is still the dealer's turn on, "8 days
+            left" beside "Wanted by Today" is two countdowns about two different
+            things on one card, and the one a dealer would read as the deadline
+            is the wrong one. So the chip waits until MDG actually holds the
+            paper, which is exactly what it means six rows down in the cabinet.
+            A settled row lingers on this list for a few days after it lands,
+            which is when a dealer most wants to see it. */}
+        <span className="flex shrink-0 flex-col items-end gap-1">
+          {row.late && mine ? (
+            <span className="rounded-full bg-warning-strong px-2 py-0.5 text-[11px] font-medium text-white">
+              {t('asks.lateBadge')}
+            </span>
+          ) : null}
+          {row.waitingOn === 'none' ? <ValidityChip row={row} /> : null}
+        </span>
       </div>
 
       {row.note ? (

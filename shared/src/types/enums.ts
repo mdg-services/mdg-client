@@ -208,6 +208,40 @@ export const AUDIT_ACTIONS = [
    * discoverable only by somebody who already suspected it.
    */
   'DOCUMENT_ASK_FILE_MISMATCH',
+  /**
+   * An admin filed the paper on the dealer's behalf, rather than asking for it.
+   *
+   * Its own action and not `DOCUMENT_ASK_SUBMIT`, for the same reason
+   * `DOCUMENT_ASK_AUTO_ACCEPT` is kept apart from `DOCUMENT_ASK_ACCEPT`: the
+   * Activity page must be able to tell a paper the dealer sent from one MDG
+   * typed in for them. Collapsed into one action, "the dealer sent it" becomes
+   * unfalsifiable — and that is exactly the claim a compliance record exists to
+   * support.
+   */
+  'DOCUMENT_ASK_FILE_FOR_DEALER',
+  /**
+   * Somebody recorded, or corrected, the date the PAPER runs out.
+   *
+   * Audited on its own because this one date drives the whole reminder ladder
+   * AND — where the kind names a `profileFieldKey` — overwrites the expiry shown
+   * on the outlet Info tab. A silent correction here changes what a dealer is
+   * told and when, and changes a second screen as a side effect.
+   */
+  'DOCUMENT_ASK_VALIDITY_SET',
+  /** Somebody changed how often this one paper's dealer gets chased. */
+  'DOCUMENT_ASK_CADENCE_SET',
+  /**
+   * The nightly pass told a dealer their paper is running out.
+   *
+   * Written by the SYSTEM actor, one row per step fired, and it is the only
+   * record of what a dealer was told and when. "Nobody warned me" is the single
+   * likeliest dispute this feature produces, and the answer to it has to be
+   * findable on the Activity page rather than inferred from a push log nobody
+   * keeps.
+   */
+  'DOCUMENT_ASK_REMINDER',
+  /** The nightly pass opened the renewal request, so the dealer has somewhere to upload. */
+  'DOCUMENT_ASK_RENEWAL_OPEN',
   /** Catalog edits — these change what every dealer can be asked for. */
   'DOCUMENT_KIND_CREATE',
   'DOCUMENT_KIND_UPDATE',
@@ -236,6 +270,31 @@ export const AUDIT_ACTIONS = [
   'RO_SUPPLY_STATUS_COLLECT',
   /** An admin took the shareable image of an outlet's pending supply work. */
   'RO_SUPPLY_STATUS_CARD_VIEW',
+  /*
+   * ── Ledger Watch ─────────────────────────────────────────────────────────
+   * This list drives the Activity page's action FILTER. An action missing from
+   * it is still recorded and still listed — it simply cannot be filtered for,
+   * which is how these four went unnoticed until the card work needed them.
+   */
+  /** An admin acknowledged, resolved or ignored one ledger finding. */
+  'LEDGER_FLAG_STATUS',
+  /*
+   * Three verbs for the rule catalogue rather than one, matching what the route
+   * actually writes: the Activity log is read by somebody asking "who turned
+   * this on", and one verb over all three makes them open every row to find out.
+   */
+  /** An admin confirmed a proposed rule — it now classifies rows. */
+  'LEDGER_RULE_CONFIRM',
+  /** An admin rejected a proposal, or switched a live rule off. */
+  'LEDGER_RULE_REJECT',
+  /** An admin corrected a rule's wording or class without changing whether it is on. */
+  'LEDGER_RULE_UPDATE',
+  /** An admin ran the fleet pass: peer comparison, and naming what is unnamed. */
+  'LEDGER_WATCH_SWEEP',
+  /** An admin took the shareable image of a dealer's other movements. */
+  'LEDGER_WATCH_CARD_VIEW',
+  /** An admin SENT that image into the dealer's chat. */
+  'LEDGER_WATCH_CARD_SHARE',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

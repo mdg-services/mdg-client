@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { EXPIRY_STATES } from '../lib/expiry';
 import {
   DOCUMENT_ASK_OPENED_BY,
   DOCUMENT_ASK_STATES,
@@ -10,6 +11,10 @@ import {
   isValidPeriodKey,
   type DocumentPeriodKind,
 } from '../types/documentAsk';
+import {
+  DOCUMENT_REMINDER_OFFSETS_MAX,
+  DOCUMENT_REMINDER_OFFSET_MAX_DAYS,
+} from '../types/documentValidity';
 
 import { attachmentSchema } from './chat';
 import { ttBusinessDateSchema } from './ttDensity';
@@ -20,12 +25,18 @@ import { ttBusinessDateSchema } from './ttDensity';
  *
  * TWO THINGS THIS FILE DELIBERATELY DOES NOT DO
  * ---------------------------------------------
- *  1. It does NOT validate dates itself. `ttBusinessDateSchema` in
+ *  1. It does NOT validate PERIOD dates itself. `ttBusinessDateSchema` in
  *     `./ttDensity` is the repo's one date validator: it round-trips a
  *     `YYYY-MM-DD` through IST midday so `2026-06-31` cannot slide through as
  *     1 July, and it refuses a day that has not happened. Every period here is
  *     checked by feeding it to that schema. A second date validator is how a
  *     screen and a route come to disagree about which days exist.
+ *
+ *     THE ONE EXEMPTION, ADDED WITH VALIDITY DATES AND STATED HERE SO NOBODY
+ *     "FIXES" IT BACK: a validity END date is a day that has NOT happened, and
+ *     `ttBusinessDateSchema` refuses the future by design. See
+ *     `documentValidityDateSchema` below, which keeps the round-trip check and
+ *     drops only that clause. Periods still go to `ttBusinessDateSchema`.
  *  2. It does NOT let a client compose an ask's identity. A body carries the
  *     BASE period key and, separately, the admin's words; the route builds the
  *     final key with `periodKeyFor`. A client that composed its own key would
@@ -199,6 +210,71 @@ const documentLabelSchema = z.string().trim().min(3).max(DOCUMENT_PERIOD_SLUG_MA
 export const DOCUMENT_ASK_NOTE_MAX = 500;
 
 /**
+ * THE FURTHEST DAY A VALIDITY MAY NAME — the one declaration of it.
+ *
+ * Exported for the reason `DOCUMENT_ASK_NOTE_MAX` is, and with the same
+ * asymmetric failure: the dealer app validates the date box before it sends, and
+ * a client whose ceiling drifts BELOW this one merely refuses a date the server
+ * would have taken, while one that drifts ABOVE lets a person type a value they
+ * watch fail with a message about a field they cannot see. Import it; do not
+ * retype it.
+ *
+ * A typo of `2226-03-31` for `2026-03-31` silences every reminder on that paper
+ * for two hundred years, and nothing on any screen looks wrong — the badge simply
+ * reads `valid` for ever.
+ */
+export const DOCUMENT_VALIDITY_MAX_DAY = '2099-12-31';
+
+/**
+ * A VALIDITY END DATE, AND IT IS THE ONE DATE IN THIS FILE THAT MAY NOT USE
+ * `ttBusinessDateSchema`.
+ *
+ * Read the file header above: it tells you to feed every date to that schema,
+ * and for every date in it that came before this one, that was right. But
+ * `ttBusinessDateSchema`'s third refine is `v <= istDateKeyUtc(new Date())` — it
+ * REFUSES THE FUTURE, deliberately, because a business date is a day that has
+ * already happened. A validity end date is by definition a day that has not.
+ * Reusing it here would reject every certificate that is still any good and
+ * accept only the lapsed ones.
+ *
+ * So this is a second date validator in a file whose header warns against
+ * second date validators, and the exemption is narrow and stated: it keeps the
+ * SAME round-trip check — `2027-02-31` cannot slide through as 3 March — and
+ * drops ONLY the not-in-the-future clause. It matches `profileDateSchema` in
+ * `./dealer`, which is the shipped precedent for exactly this and for exactly
+ * these certificates.
+ *
+ * The far bound is not decoration. A typo of `2226-03-31` for `2026-03-31`
+ * silences every reminder for two hundred years, and nothing on any screen would
+ * look wrong — the badge would simply read `valid` forever.
+ */
+const documentValidityDateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+  .refine((v) => {
+    const t = Date.parse(`${v}T00:00:00Z`);
+    // Round-trip: a day that does not survive the trip did not exist.
+    return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === v;
+  }, 'That day does not exist')
+  .refine((v) => v <= DOCUMENT_VALIDITY_MAX_DAY, 'That is too far ahead to be a real expiry');
+
+/**
+ * The reminder ladder as a body may send it.
+ *
+ * The bounds are imported from `types/documentValidity.ts` rather than typed
+ * again, for the reason `DOCUMENT_ASK_NOTE_MAX` gives one screen up: three
+ * layers have to agree on them, and a literal retyped here is a cap that drifts
+ * from the one the normaliser enforces without anything failing.
+ *
+ * An EMPTY ARRAY IS LEGAL AND MEANINGFUL — "never remind about this one" — which
+ * is why there is no `.min(1)`. See `resolveReminderOffsets`.
+ */
+const reminderOffsetDaysSchema = z
+  .array(z.number().int().min(0).max(DOCUMENT_REMINDER_OFFSET_MAX_DAYS))
+  .max(DOCUMENT_REMINDER_OFFSETS_MAX);
+
+/**
  * Body for the admin's "we need this paper from you".
  *
  * `dueInDays` and not `dueOn`. The due date is an IST calendar day and the
@@ -219,6 +295,34 @@ export const createDocumentAskSchema = z
      */
     note: z.string().trim().max(DOCUMENT_ASK_NOTE_MAX).optional(),
     dueInDays: z.number().int().min(0).max(365).optional(),
+    /**
+     * This one paper's reminder ladder, set at the moment MDG asks for it.
+     *
+     * THERE IS DELIBERATELY NO `validUntil` HERE, and it was removed rather than
+     * never added. You cannot know the date printed on a certificate before you
+     * have the certificate — the expiry is read at ACCEPT time by the person
+     * looking at the scan, which is where `acceptDocumentAskSchema` takes it.
+     * A `validUntil` on a row still waiting for its photograph would be a date
+     * nobody read, sitting on a screen looking authoritative, and the nightly
+     * pass ignores it anyway because it only ever considers ACCEPTED rows.
+     *
+     * The ladder is different and does belong here: it is a decision about how
+     * hard to chase, which an admin can reasonably make at the moment they ask.
+     */
+    reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+    /**
+     * Skip the "MDG needs a paper from you" push for this one request.
+     *
+     * FOR ONE CALLER: an admin who ALREADY HAS the paper and is filing it on the
+     * dealer's behalf. That flow has to create the ask before there is anywhere
+     * to put the file, then close it a second later — so without this the dealer
+     * gets a notification asking for a certificate that was already on file
+     * before their phone finished buzzing.
+     *
+     * The socket event still fires either way. This suppresses the PUSH, not the
+     * record: the ask is made, audited and visible exactly as any other.
+     */
+    silent: z.boolean().optional(),
   })
   .superRefine(refineDocumentPeriod);
 export type CreateDocumentAskInput = z.infer<typeof createDocumentAskSchema>;
@@ -252,8 +356,93 @@ export const submitDocumentAskSchema = z.object({
    * fresh uuid, and then this is the only thing that knows the two are one send.
    */
   clientRef: z.string().trim().min(8).max(64).optional(),
+  /**
+   * The date printed on the paper, IF THE DEALER READ IT OFF AND TYPED IT.
+   *
+   * Optional and advisory, never authoritative. The dealer is standing at a
+   * forecourt photographing a certificate; asking them for a date is a courtesy
+   * that saves MDG a squint, not a compliance record. Whoever accepts the ask
+   * sees this value prefilled and confirms or corrects it, and THEIR value is
+   * the one that governs — ADR 0011, admin or automation certifies, never the
+   * dealer.
+   */
+  validUntil: documentValidityDateSchema.optional(),
 });
 export type SubmitDocumentAskInput = z.infer<typeof submitDocumentAskSchema>;
+
+/**
+ * Body for the admin's "this is good" — and, for a paper that runs out, the date
+ * it runs out on.
+ *
+ * A BODY WHERE THERE USED TO BE NONE. Accept was a bare POST, and it stays one
+ * for every kind that does not track validity: both fields are optional here and
+ * the ROUTE requires `validUntil` when the kind says the paper carries a date.
+ * The schema cannot make that call because it cannot see the catalog, and
+ * guessing it here — say, by making the field mandatory for everything — would
+ * block the acceptance of a register page on a date it does not have.
+ *
+ * WHY THE DATE IS TAKEN AT ACCEPT AND NOT AT SUBMIT. The person accepting is
+ * looking at the certificate. The dealer photographing it at a forecourt may
+ * type one too (see `submitDocumentAskSchema`), and that value is prefilled here
+ * as a courtesy — but ADR 0011 is explicit that admin or automation certifies
+ * and never the dealer, and a validity is exactly the kind of claim that rule is
+ * about: it decides when a reminder fires and, where the kind names one, what
+ * the outlet Info tab says.
+ */
+export const acceptDocumentAskSchema = z.object({
+  /** The day printed on the paper. Required by the route when the kind tracks validity. */
+  validUntil: documentValidityDateSchema.optional(),
+  /**
+   * This one paper's reminder ladder, overriding its kind's. Absent leaves the
+   * kind's in force; `[]` means never remind about this particular certificate.
+   */
+  reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+});
+export type AcceptDocumentAskInput = z.infer<typeof acceptDocumentAskSchema>;
+
+/**
+ * Body for correcting a filed paper's validity, or its ladder, after the fact.
+ *
+ * SEPARATE FROM ACCEPT because the two are different acts with different audit
+ * rows. Accepting is a verdict on a paper; this is fixing a date somebody
+ * mistyped, or quietening the reminders on the one certificate a dealer has
+ * already said is being replaced. Folding it into accept would mean reopening a
+ * closed compliance record to change a number.
+ *
+ * `validUntil: null` clears the date — the honest move when somebody realises
+ * the paper carries no expiry after all. It also clears the mirrored date on the
+ * Info tab, because a mirror that kept showing a date the document no longer
+ * claims is the two-homes fault again, one release later.
+ */
+export const setDocumentValiditySchema = z
+  .object({
+    validUntil: documentValidityDateSchema.nullable().optional(),
+    reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to change' });
+export type SetDocumentValidityInput = z.infer<typeof setDocumentValiditySchema>;
+
+/**
+ * Body for the admin's "we already have this paper; here it is".
+ *
+ * The upload-on-behalf path. It is `submitDocumentAskSchema` plus the accept
+ * body, because filing a paper MDG already holds is both halves of the
+ * transaction in one act: the submission and the verdict on it are made by the
+ * same person in the same second, and asking them to press Accept afterwards on
+ * a paper they just typed in is ceremony with no reviewer in it.
+ *
+ * `submission.byKind` on the row still records `admin`, and the audit row is
+ * `DOCUMENT_ASK_FILE_FOR_DEALER` rather than `DOCUMENT_ASK_SUBMIT`, so nothing
+ * anywhere claims the dealer sent it. That distinction is the whole reason this
+ * is not just the dealer's submit route with a wider role gate.
+ */
+export const fileForDealerSchema = z.object({
+  attachment: documentAskAttachmentSchema,
+  note: z.string().trim().max(1000).optional(),
+  validUntil: documentValidityDateSchema.optional(),
+  reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+});
+export type FileForDealerInput = z.infer<typeof fileForDealerSchema>;
 
 /**
  * Body for the admin's "this will not do".
@@ -344,6 +533,19 @@ export const documentAskListQuerySchema = z
     to: ttBusinessDateSchema.optional(),
     /** Only rows whose due date has gone by and that are still the dealer's turn. */
     late: queryBoolean,
+    /**
+     * Papers on file whose validity runs out within N days — the estate
+     * Documents page's whole reason for existing.
+     *
+     * DELIBERATELY NOT FOLDED INTO `from`/`to`. Those two bound DAY *period*
+     * keys (see their comment above) and a period is when the paper was FOR,
+     * not when it runs out. Overloading them would mean a filter for "expiring
+     * this fortnight" silently dropping every fire NOC, whose period key is the
+     * empty string.
+     */
+    expiringWithinDays: z.coerce.number().int().min(0).max(365).optional(),
+    /** `expired` | `expiring` | `valid` — the same three words the Info tab uses. */
+    validityState: z.enum(EXPIRY_STATES).optional(),
     cursor: z.string().trim().max(200).optional(),
     limit: z.coerce.number().int().min(1).max(200).default(50),
   })
@@ -390,6 +592,26 @@ const documentKindAuthorShape = {
    */
   dealerVisible: z.boolean(),
   active: z.boolean(),
+  /**
+   * Whether a paper of this kind carries a date it is good until — see the
+   * field's comment in `types/documentAsk.ts`. Optional rather than required
+   * because the seeder writes new catalog columns under `$setOnInsert`, which
+   * never reaches a row that already exists: the kinds already in production
+   * will read `undefined` until an admin edits them, and a required boolean
+   * would be a type that lies about that.
+   */
+  tracksValidity: z.boolean().optional(),
+  /** Calendar months a paper of this kind usually runs for. Prefills a box; governs nothing. */
+  validityMonths: z.number().int().min(1).max(600).optional(),
+  /** Days before expiry to chase the dealer. Absent means the shipped ladder. */
+  reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+  /** Whether the first reminder also opens the renewal request. Absent means yes. */
+  autoRenew: z.boolean().optional(),
+  /**
+   * The outlet-profile field whose expiry this kind owns, so the Info tab
+   * mirrors the filed paper instead of holding a second, rival date.
+   */
+  profileFieldKey: z.string().trim().min(1).max(80).optional(),
 };
 
 /** A kind may only be gated on a service if it names one. */
@@ -497,6 +719,22 @@ export const updateDocumentKindSchema = z
     active: z.boolean().optional(),
     /** Only ever true — see `createDocumentKindSchema`. */
     reviewRequired: z.literal(true).optional(),
+    /**
+     * THE CADENCE EDITOR'S FIELD, and the reason this route exists at all.
+     *
+     * These five are re-declared by hand because this object does not spread
+     * `documentKindAuthorShape` — every field in it is optional here and
+     * required there. That hand-copy is this file's one drift risk and it is
+     * called out in the header of the shape above: a field added there and
+     * forgotten here is silently uneditable, which for a cadence means an admin
+     * changing 15/3/2/1 in the UI and watching the request 400 with a message
+     * about an unrecognised key.
+     */
+    tracksValidity: z.boolean().optional(),
+    validityMonths: z.number().int().min(1).max(600).nullable().optional(),
+    reminderOffsetDays: reminderOffsetDaysSchema.optional(),
+    autoRenew: z.boolean().optional(),
+    profileFieldKey: z.string().trim().min(1).max(80).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: 'Nothing to update' });
 export type UpdateDocumentKindInput = z.infer<typeof updateDocumentKindSchema>;
