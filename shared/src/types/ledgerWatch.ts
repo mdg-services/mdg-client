@@ -458,6 +458,11 @@ export const MOVEMENT_RULE_SEEDS: readonly MovementRuleSeed[] = [
    * the spread of this signature's history is exactly zero, so the robust test
    * `|x − median| > 4 × MAD` can never fire, and any deviation at all — ₹1,062
    * becoming ₹1,602 — has to be flagged on the ≥ ₹1 rule instead.
+   * TITLED FOR WHAT IT IS, NOT FOR WHAT THE PORTAL CALLS IT. The ledger says
+   * `K1 PARTICIPATION FEE`; the money is the monthly rental on the Xtra Power
+   * card machine standing at the outlet, and "K1 participation fee" means
+   * nothing to the dealer paying it. The signature below still has to be the
+   * portal's exact wording — it is the matcher key — so only the two titles move.
    * Sample doc: `K1 PARTICIPATION FEE`.
    */
   {
@@ -466,8 +471,8 @@ export const MOVEMENT_RULE_SEEDS: readonly MovementRuleSeed[] = [
     side: 'DEBIT',
     movementClass: 'FEE',
     direction: 'CHARGED',
-    titleEn: 'K1 participation fee',
-    titleHi: 'K1 पार्टिसिपेशन फ़ीस',
+    titleEn: 'Xtra Power machine monthly rental',
+    titleHi: 'एक्स्ट्रा पावर मशीन का मासिक किराया',
     recurrence: 'IRREGULAR',
   },
   /*
