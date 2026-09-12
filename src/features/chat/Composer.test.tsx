@@ -7,24 +7,62 @@ import { renderWithProviders } from '@/test/utils';
 
 import { Composer } from './Composer';
 
+/**
+ * The recorder stub MODELS SESSIONS, because sessions are the contract.
+ *
+ * The old stub returned a bare boolean and the suite could not express the
+ * difference between "the mic was refused" and "this attempt was abandoned" —
+ * which is the difference the composer used to get wrong, and the reason a
+ * dealer cancelling a voice note was told their microphone was blocked. A
+ * counter here costs three lines and makes that testable.
+ */
 const recorder = vi.hoisted(() => ({
   supported: true,
   status: 'idle' as 'idle' | 'recording' | 'error',
   elapsedMs: 0,
+  session: 0,
   start: vi.fn(),
   stop: vi.fn(),
   cancel: vi.fn(),
   getLevels: vi.fn(() => [] as number[]),
-  /** The DOMException name from the last failed start(), e.g. 'NotReadableError'. */
-  lastError: vi.fn((): string | null => null),
+  currentSession: vi.fn((): number => recorder.session),
 }));
 vi.mock('@/lib/useVoiceRecorder', () => ({
   useVoiceRecorder: () => recorder,
 }));
 
+/** A start() that claims the mic, exactly as the real hook does. */
+function startSucceeds() {
+  recorder.start.mockImplementation(() => {
+    recorder.session += 1;
+    return Promise.resolve({ ok: true as const, session: recorder.session });
+  });
+}
+/** A start() that fails for a named reason (the DOMException name). */
+function startFails(name: string) {
+  recorder.start.mockImplementation(() => {
+    recorder.session += 1;
+    return Promise.resolve({ ok: false as const, cause: 'error' as const, name });
+  });
+}
+/** A start() that hangs, as it does while the OS permission dialog is up. */
+function startHangs() {
+  recorder.start.mockImplementation(() => {
+    recorder.session += 1;
+    return new Promise(() => {});
+  });
+}
+/** `cancel()` invalidates whatever was opening — the real hook bumps here too. */
+function cancelBumpsSession() {
+  recorder.cancel.mockImplementation(() => {
+    recorder.session += 1;
+  });
+}
+
 const bridge = vi.hoisted(() => ({
   isNativeShell: vi.fn(() => true),
   requestNativeMicPermission: vi.fn(),
+  openNativeAppSettings: vi.fn(),
   postToNative: vi.fn(),
   detectPlatform: vi.fn(() => 'android'),
   getInjectedPushToken: vi.fn(() => null),
@@ -46,9 +84,13 @@ describe('Composer voice recording — a mic that never opens', () => {
     useLangStore.setState({ lang: 'en', explicit: true });
     recorder.start.mockReset();
     recorder.cancel.mockReset();
+    recorder.currentSession.mockClear();
+    recorder.session = 0;
     recorder.status = 'idle';
+    cancelBumpsSession();
     bridge.isNativeShell.mockReturnValue(true);
     bridge.requestNativeMicPermission.mockReset();
+    bridge.openNativeAppSettings.mockReset();
   });
 
   function pressMic() {
@@ -59,9 +101,7 @@ describe('Composer voice recording — a mic that never opens', () => {
 
   it('recovers the composer when getUserMedia never resolves', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    // A promise that never settles — exactly what the hung permission flow does.
-    recorder.start.mockReturnValue(new Promise<boolean>(() => {}));
-    bridge.requestNativeMicPermission.mockResolvedValue(false);
+    startHangs();
 
     renderWithProviders(<Composer onSend={vi.fn()} />);
     pressMic();
@@ -78,13 +118,214 @@ describe('Composer voice recording — a mic that never opens', () => {
       expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument();
     });
     expect(recorder.cancel).toHaveBeenCalled();
-    expect(bridge.requestNativeMicPermission).toHaveBeenCalled();
+    // A HANG IS NOT A REFUSAL. This used to re-prompt for a permission that was
+    // never the problem — and that request, racing the WebView's own, is the
+    // chain that could wedge the microphone for the life of the screen.
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+    expect(await screen.findByText("The microphone didn't open")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
+  /**
+   * THE ORIGINAL FROZEN-OVERLAY BUG, kept alive by the mechanism added to stop
+   * it. One untagged watchdog slot was shared by every attempt: a superseded
+   * attempt disarmed BEFORE it checked whether it had been superseded, so it
+   * cleared the live attempt's timer on its way out. Press twice — which is
+   * what anyone does when the first press looks frozen — and nothing was left
+   * to rescue the composer.
+   */
+  it('a second press does not strip the live attempt of its watchdog', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let releaseFirst: (() => void) | null = null;
+    let call = 0;
+    recorder.start.mockImplementation(() => {
+      call += 1;
+      recorder.session += 1;
+      if (call === 1) {
+        return new Promise((resolve) => {
+          releaseFirst = () => resolve({ ok: false, cause: 'superseded' });
+        });
+      }
+      return new Promise(() => {});
+    });
+
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    await act(async () => {
+      fireEvent.pointerUp(mic, { pointerId: 1 });
+    });
+    // It still looks frozen, so press again.
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 2, clientX: 0, clientY: 0 });
+    });
+    // The abandoned first attempt now settles, on its way out.
+    await act(async () => {
+      releaseFirst?.();
+    });
+
+    expect(screen.getByText('Slide to cancel')).toBeInTheDocument();
+    await act(async () => {
+      vi.advanceTimersByTime(12_000);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument();
+    });
+    vi.useRealTimers();
+  });
+
+  /**
+   * A TAP IS A TAP EVEN WHEN THE MIC IS SLOW. The hold length used to be
+   * measured when the gesture was RESOLVED, which — if the mic was still
+   * opening at release — is whenever getUserMedia happened to settle. A 150ms
+   * tap on a cheap phone measured as a 750ms hold, so the composer stopped a
+   * recorder that had just started, got no audio frames back, and told the
+   * dealer their recording was too short. It reproduces on their hardware and
+   * never on ours, which is how it survived review.
+   */
+  it('a quick tap goes hands-free even when the mic opens slowly', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let openMic: (() => void) | null = null;
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      const session = recorder.session;
+      return new Promise((resolve) => {
+        openMic = () => resolve({ ok: true, session });
+      });
+    });
+
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    await act(async () => {
+      vi.advanceTimersByTime(150);
+      fireEvent.pointerUp(mic, { pointerId: 1 });
+    });
+    // The mic finally opens, well past the tap threshold.
+    await act(async () => {
+      vi.advanceTimersByTime(600);
+      openMic?.();
+    });
+
+    expect(
+      await screen.findByRole('button', { name: 'Send voice message' }),
+    ).toBeInTheDocument();
+    expect(recorder.stop).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  /**
+   * CANCELLING IS NOT REFUSING, and telling a dealer their microphone is
+   * blocked at the exact moment they chose not to use it is the report that
+   * started this. Discarding a note while the mic was still opening left the
+   * abandoned attempt to report a failure nobody had suffered: it returned
+   * false with no error name, and "no error name" was read as "refused".
+   */
+  it('discarding a note while the mic is opening says nothing and asks nothing', async () => {
+    let abandon: (() => void) | null = null;
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      return new Promise((resolve) => {
+        abandon = () => resolve({ ok: false, cause: 'superseded' });
+      });
+    });
+
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    // Slide up to hands-free while it is still opening, then bin it.
+    await act(async () => {
+      fireEvent.pointerMove(mic, { pointerId: 1, clientX: 0, clientY: -120 });
+    });
+    const bin = await screen.findByRole('button', { name: 'Cancel recording' });
+    await act(async () => {
+      fireEvent.pointerDown(bin, { pointerId: 2 });
+      fireEvent.click(bin);
+    });
+    await act(async () => {
+      abandon?.();
+    });
+
+    expect(recorder.cancel).toHaveBeenCalled();
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+    expect(screen.queryByText("Can't access the microphone")).not.toBeInTheDocument();
+    // And the bin worked first time: a blanket 500ms guard used to make the
+    // natural "oops, cancel" tap do nothing at all.
+    expect(
+      screen.queryByRole('button', { name: 'Cancel recording' }),
+    ).not.toBeInTheDocument();
+  });
+
+  /** The ordinary case, which had no coverage either: hold, speak, release. */
+  it('a genuine hold sends the note when the finger lifts', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    startSucceeds();
+    recorder.stop.mockResolvedValue({
+      blob: new Blob(['audio'], { type: 'audio/webm' }),
+      durationMs: 900,
+      mimeType: 'audio/webm',
+      peaks: [],
+    });
+    const onSend = vi.fn().mockResolvedValue(undefined);
+
+    renderWithProviders(<Composer onSend={onSend} />);
+    const mic = pressMic();
+    await act(async () => {
+      vi.advanceTimersByTime(900);
+    });
+    await act(async () => {
+      fireEvent.pointerUp(mic, { pointerId: 1 });
+    });
+
+    await waitFor(() => expect(recorder.stop).toHaveBeenCalled());
+    await waitFor(() => expect(onSend).toHaveBeenCalled());
+    expect(screen.queryByText('Recording too short')).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  /**
+   * A pointer gesture arms a click suppressor so the keyboard path does not
+   * also fire. It was only ever cleared where a click arrived — and the mic
+   * button unmounts on every hands-free swap, so that click frequently never
+   * came. The flag stayed set and silently ate the NEXT genuine keyboard or
+   * TalkBack activation, which reads as "the mic sometimes does nothing".
+   */
+  it('a keyboard activation still works after a pointer gesture', async () => {
+    startSucceeds();
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+
+    // A pointer gesture that ends by handing over to hands-free, then binned.
+    const mic = pressMic();
+    await act(async () => {
+      fireEvent.pointerMove(mic, { pointerId: 1, clientX: 0, clientY: -120 });
+    });
+    const bin = await screen.findByRole('button', { name: 'Cancel recording' });
+    await act(async () => {
+      fireEvent.pointerDown(bin, { pointerId: 2 });
+      fireEvent.click(bin);
+    });
+
+    // Now activate the mic the way a keyboard or TalkBack does: click alone.
+    recorder.start.mockClear();
+    const micAgain = await screen.findByRole('button', { name: 'Record voice message' });
+    await act(async () => {
+      fireEvent.click(micAgain);
+    });
+
+    expect(recorder.start).toHaveBeenCalled();
+  });
+
   it('starts recording once the native shell grants the mic', async () => {
-    recorder.start.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    bridge.requestNativeMicPermission.mockResolvedValue(true);
+    let call = 0;
+    recorder.start.mockImplementation(() => {
+      call += 1;
+      recorder.session += 1;
+      if (call === 1) {
+        return Promise.resolve({ ok: false, cause: 'error', name: 'NotAllowedError' });
+      }
+      return Promise.resolve({ ok: true, session: recorder.session });
+    });
+    bridge.requestNativeMicPermission.mockResolvedValue({
+      granted: true,
+      permanentlyDenied: false,
+    });
 
     renderWithProviders(<Composer onSend={vi.fn()} />);
     pressMic();
@@ -151,16 +392,18 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     useLangStore.setState({ lang: 'en', explicit: true });
     recorder.start.mockReset();
     recorder.cancel.mockReset();
-    recorder.lastError.mockReset();
+    recorder.currentSession.mockClear();
+    recorder.session = 0;
     recorder.status = 'idle';
+    cancelBumpsSession();
     bridge.isNativeShell.mockReturnValue(true);
     bridge.requestNativeMicPermission.mockReset();
+    bridge.openNativeAppSettings.mockReset();
   });
 
   /** Hold the mic, let start() fail, release. */
   async function failWith(name: string) {
-    recorder.lastError.mockReturnValue(name);
-    recorder.start.mockResolvedValue(false);
+    startFails(name);
     renderWithProviders(<Composer onSend={vi.fn()} />);
     const mic = screen.getByRole('button', { name: 'Record voice message' });
     await act(async () => {
@@ -203,10 +446,12 @@ describe('Composer — the mic failure message matches the actual cause', () => 
   });
 
   it('a REFUSED mic — the one case Settings actually fixes — still says Settings', async () => {
-    recorder.lastError.mockReturnValue('NotAllowedError');
-    recorder.start.mockResolvedValue(false);
+    startFails('NotAllowedError');
     // The native re-prompt is offered, and refused again.
-    bridge.requestNativeMicPermission.mockResolvedValue(false);
+    bridge.requestNativeMicPermission.mockResolvedValue({
+      granted: false,
+      permanentlyDenied: false,
+    });
 
     renderWithProviders(<Composer onSend={vi.fn()} />);
     const mic = screen.getByRole('button', { name: 'Record voice message' });
@@ -220,6 +465,34 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     // Only here is it right to re-ask, and only here is Settings the answer.
     await waitFor(() => expect(bridge.requestNativeMicPermission).toHaveBeenCalled());
     expect(await screen.findByText(/in your phone Settings/)).toBeInTheDocument();
+    // Android will still ask, so there is nothing for a Settings button to fix.
+    expect(screen.queryByRole('button', { name: 'Open settings' })).not.toBeInTheDocument();
+  });
+
+  /**
+   * Once Android has stopped asking, pressing the mic can never show the prompt
+   * again — the settings page is the only way back, and telling somebody to
+   * find it themselves on a forecourt is where this trail goes cold.
+   */
+  it('offers a way in when Android has stopped asking', async () => {
+    startFails('NotAllowedError');
+    bridge.requestNativeMicPermission.mockResolvedValue({
+      granted: false,
+      permanentlyDenied: true,
+    });
+
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await act(async () => {
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+
+    const open = await screen.findByRole('button', { name: 'Open settings' });
+    fireEvent.click(open);
+    expect(bridge.openNativeAppSettings).toHaveBeenCalled();
   });
 });
 

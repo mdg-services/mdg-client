@@ -17,13 +17,21 @@ import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { micDiagnostics } from '@/lib/micDiagnostics';
 import { addCrumb, reportIssue } from '@/lib/monitoring';
-import { isNativeShell, requestNativeMicPermission } from '@/lib/nativeBridge';
+import {
+  isNativeShell,
+  openNativeAppSettings,
+  requestNativeMicPermission,
+} from '@/lib/nativeBridge';
 import {
   formatDuration,
   resolveFileType,
   type OutgoingAttachment,
 } from '@/lib/uploadAttachment';
-import { useVoiceRecorder } from '@/lib/useVoiceRecorder';
+import {
+  useVoiceRecorder,
+  type StartFailure,
+  type StartResult,
+} from '@/lib/useVoiceRecorder';
 import { MAX_VOICE_DURATION_MS } from '@dk/shared/schemas';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
@@ -91,6 +99,18 @@ interface Gesture {
   startY: number;
   startedAt: number;
   pointerId: number;
+  /**
+   * When the finger actually came up, or null while it is still down.
+   *
+   * THIS IS NOT THE SAME AS "when we got round to resolving the gesture", and
+   * conflating the two is why a tap produced "Recording too short". The hold
+   * length used to be measured at resolve time — which, when the mic was still
+   * opening at release, is whenever getUserMedia happened to settle. A 150ms
+   * tap on a slow phone measured 600ms, missed the tap threshold, and was
+   * treated as a deliberate hold: stop a recorder that had just started, get
+   * zero audio frames back, and tell the dealer their recording was too short.
+   */
+  releasedAt: number | null;
 }
 
 function extForMime(mimeType: string): string {
@@ -220,16 +240,50 @@ export function Composer({
   const recStartedRef = React.useRef(false);
   // A pointer sequence fires a synthetic click afterwards; suppress it so the
   // keyboard/AT `onClick` path only runs for genuine keyboard activation.
+  // Cleared wherever a gesture ENDS, not only where a click arrives — the mic
+  // button unmounts on every hold→locked swap, so the click it was waiting for
+  // frequently never came and the flag stayed set, swallowing the next genuine
+  // keyboard or TalkBack activation.
   const suppressClickRef = React.useRef(false);
-  // Ignore the ghost click that lands right after we swap to the locked bar.
-  const clickGuardUntilRef = React.useRef(0);
-  // Watchdog for a mic that never opens (see START_TIMEOUT_MS).
-  const startTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Identifies the current start attempt. Bumped by every new attempt and by
-  // resetRecording(), so a getUserMedia that resolves late — after the watchdog
-  // gave up, or after the user pressed again — can tell it has been superseded
-  // and must not touch the composer.
-  const attemptRef = React.useRef(0);
+  /**
+   * Swallow exactly ONE click: the ghost that a pointer sequence fires at
+   * whatever is now under the finger after the bar swaps to hands-free mode.
+   *
+   * This used to be a blunt 500ms window, which also ate the dealer's own
+   * deliberate tap — press the mic, immediately think better of it, tap the
+   * bin, and nothing at all happened. A one-shot flag cannot outlive the event
+   * it exists for.
+   */
+  const swallowClickRef = React.useRef(false);
+  /** Undoes the arming above; held so unmount can run it. */
+  const disarmGhostRef = React.useRef<(() => void) | null>(null);
+  /**
+   * Watchdog for a mic that never opens (see START_TIMEOUT_MS), TAGGED WITH THE
+   * ATTEMPT IT BELONGS TO.
+   *
+   * One untagged slot was shared by every attempt, and arming a second one
+   * cleared the first. Worse, a superseded attempt disarmed before it checked
+   * whether it had been superseded — so pressing twice left the live attempt
+   * with no watchdog at all, and a mic that then hung froze the composer
+   * permanently. That is the original "the mic does nothing" report, kept alive
+   * by the mechanism added to prevent it.
+   */
+  const startTimerRef = React.useRef<{
+    session: number;
+    timer: ReturnType<typeof setTimeout>;
+  } | null>(null);
+  /**
+   * The recorder session this composer believes it owns.
+   *
+   * There is exactly one source of truth for "is my attempt still current", and
+   * it lives in the recorder. There used to be two counters bumped by disjoint
+   * sets of callers, and every place they disagreed was a bug — most visibly
+   * the one where cancelling a recording made the app announce that the
+   * microphone was blocked.
+   */
+  const sessionRef = React.useRef(0);
+  /** Never touch composer state from an async tail after unmount. */
+  const unmountedRef = React.useRef(false);
 
   React.useEffect(() => {
     if (initialText !== undefined) setText(initialText);
@@ -399,6 +453,7 @@ export function Composer({
   const stopAndSend = async () => {
     const rec = await recorder.stop();
     recStartedRef.current = false;
+    if (unmountedRef.current) return;
     if (!rec || rec.blob.size === 0) {
       // Silence here was indistinguishable from a send that worked: the bar
       // disappeared, no bubble arrived, and nothing said why. Usually the hold
@@ -426,64 +481,123 @@ export function Composer({
     await doSend([item]);
   };
 
-  const withinClickGuard = () => Date.now() < clickGuardUntilRef.current;
+  /**
+   * Arm the swallow, and disarm it the moment a real finger goes down.
+   *
+   * THE GHOST CLICK HAS NO POINTERDOWN OF ITS OWN — that is the only reliable
+   * thing about it. It is the tail of the gesture that started on the mic
+   * button, dispatched at whatever is under the finger once the bar has swapped
+   * over. A deliberate tap always begins with its own `pointerdown`, so
+   * listening for one tells the two apart exactly, where a time window only
+   * guesses. The timer is a backstop for the case where the ghost never comes
+   * at all and nobody touches the screen again.
+   */
+  const armGhostClickSwallow = () => {
+    disarmGhostRef.current?.();
+    swallowClickRef.current = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const disarm = () => {
+      swallowClickRef.current = false;
+      disarmGhostRef.current = null;
+      window.removeEventListener('pointerdown', disarm, true);
+      if (timer) clearTimeout(timer);
+    };
+    timer = setTimeout(disarm, 400);
+    window.addEventListener('pointerdown', disarm, true);
+    disarmGhostRef.current = disarm;
+  };
 
-  // Resolve a finished press-and-hold: cancel, tap→lock, or hold→send.
-  const finishGesture = (g: Gesture) => {
-    const heldMs = Date.now() - g.startedAt;
+  /** True if this click was the ghost one, which is then spent. */
+  const consumeGhostClick = () => {
+    if (!swallowClickRef.current) return false;
+    disarmGhostRef.current?.();
+    return true;
+  };
+
+  /** Throw the current recording away and return the composer to normal. */
+  const discardRecording = () => {
+    recorder.cancel();
     gestureRef.current = null;
-    if (g.cancelArmed) {
-      recorder.cancel();
-      setRecMode('idle');
-      setCancelArmed(false);
-      return;
-    }
-    if (heldMs < TAP_MS) {
-      // Quick tap → hands-free locked mode (so a tap isn't a stuck/empty blip).
-      clickGuardUntilRef.current = Date.now() + 500;
-      setCancelArmed(false);
-      setRecMode('locked');
-      return;
-    }
-    // Genuine hold → release to send.
+    recStartedRef.current = false;
+    suppressClickRef.current = false;
+    setRecMode('idle');
+    setCancelArmed(false);
+  };
+
+  /** End the recording and send what was captured. */
+  const finishAndSend = () => {
+    gestureRef.current = null;
+    suppressClickRef.current = false;
     setRecMode('idle');
     setCancelArmed(false);
     void stopAndSend();
   };
 
+  /** Hand the recording over to the hands-free bar. */
+  const promoteToLocked = () => {
+    gestureRef.current = null;
+    // The mic button is unmounting and Send mounts in the same place, directly
+    // under the finger. Spend one click on nothing rather than on sending.
+    armGhostClickSwallow();
+    suppressClickRef.current = false;
+    setCancelArmed(false);
+    setRecMode('locked');
+  };
+
+  // Resolve a finished press-and-hold: cancel, tap→lock, or hold→send.
+  const finishGesture = (g: Gesture) => {
+    // Measured from when the FINGER came up, which is not when we got here.
+    const heldMs = (g.releasedAt ?? Date.now()) - g.startedAt;
+    gestureRef.current = null;
+    suppressClickRef.current = false;
+    if (g.cancelArmed) {
+      discardRecording();
+      return;
+    }
+    if (heldMs < TAP_MS) {
+      // Quick tap → hands-free locked mode (so a tap isn't a stuck/empty blip).
+      promoteToLocked();
+      return;
+    }
+    // Genuine hold → release to send.
+    finishAndSend();
+  };
+
   /** Put the composer back in a usable state, whatever the recorder was doing. */
   const resetRecording = () => {
-    attemptRef.current += 1;
-    if (startTimerRef.current) {
-      clearTimeout(startTimerRef.current);
-      startTimerRef.current = null;
-    }
+    disarmStartWatchdog();
+    // `cancel()` bumps the recorder session, which is what invalidates any
+    // getUserMedia still in flight — there is no second counter to keep in step.
     recorder.cancel();
     gestureRef.current = null;
     recStartedRef.current = false;
+    suppressClickRef.current = false;
     setRecMode('idle');
     setCancelArmed(false);
   };
 
-  // The mic couldn't start (permission denied / unsupported / never opened).
-  // Instead of silently opening the image/file picker (which read as "why is the
-  // camera opening?"), try a just-in-time OS permission re-request inside the
-  // native shell — the WebView's getUserMedia can't trigger the Android runtime
-  // prompt itself. Once granted we START RECORDING rather than only announcing
-  // success: the user already asked for a voice note, so making them press again
-  // reads as "the mic still doesn't work". In a plain browser
-  // requestNativeMicPermission resolves false, so it goes straight to the hint.
   /**
-   * Say what is actually wrong.
+   * Say what is actually wrong — from the failure in hand, not from a ref.
    *
    * Every one of these used to produce "allow microphone access in Settings",
-   * which is only true when the mic was refused. A dealer whose mic is busy — on a
-   * call, or with a voice assistant holding it — goes to Settings, finds the
-   * permission already granted, and reports the mic as broken again. Which is
-   * roughly what has been happening.
+   * which is true only when the mic was refused. A dealer whose mic is busy
+   * goes to Settings, finds the permission already granted, and reports the
+   * mic broken again. Which is roughly what has been happening.
+   *
+   * It takes the failure as an ARGUMENT because the previous version read a
+   * `lastError` ref at toast time — up to a minute after the failure it was
+   * describing, by which point it could belong to a completely different
+   * attempt. A cause that travels with its own result cannot drift.
    */
-  const micMessage = () => {
-    switch (recorder.lastError()) {
+  const micMessage = (failure: StartFailure) => {
+    if (failure.cause === 'unsupported') {
+      return { title: t('chat.micUnavailable'), hint: t('chat.micUnavailableHint') };
+    }
+    if (failure.cause === 'superseded') {
+      // Should never reach a human: nothing failed. Reported, not shown.
+      return null;
+    }
+    switch (failure.name) {
       case 'NotReadableError':
       case 'AbortError':
         // The mic is allowed and present; something else has it open.
@@ -493,126 +607,181 @@ export function Composer({
         return { title: t('chat.micMissing'), hint: t('chat.micMissingHint') };
       case 'SecurityError':
       case 'TypeError':
-      case 'Unsupported':
-        // Insecure context, or a WebView with no mediaDevices at all. Nothing the
-        // dealer can do about either — don't send them somewhere pointless.
+        // Insecure context, or a WebView with no mediaDevices at all. Nothing
+        // the dealer can do — don't send them somewhere pointless.
         return { title: t('chat.micUnavailable'), hint: t('chat.micUnavailableHint') };
+      case 'Timeout':
+        // The request never settled. Not a refusal, not a busy mic — we simply
+        // never heard back, and trying again is the only thing that helps.
+        return { title: t('chat.micTimeout'), hint: t('chat.micTimeoutHint') };
       default:
-        // NotAllowedError, and anything we haven't seen: it was refused.
+        // NotAllowedError, and anything new: it was refused.
         return { title: t('chat.micBlocked'), hint: t('chat.micBlockedHint') };
     }
   };
 
-  const tellMicFailed = () => {
-    const { title, hint } = micMessage();
-    toast.error(title, { description: hint });
+  const tellMicFailed = (failure: StartFailure, withSettings = false) => {
+    const message = micMessage(failure);
+    if (!message) return;
+    toast.error(message.title, {
+      description: message.hint,
+      // Offered only where it is the ONLY thing that can help: Android has
+      // stopped asking, so no amount of pressing the mic will ever show the
+      // prompt again. Everywhere else a button to a settings screen with the
+      // permission already granted is a dead end dressed as a fix.
+      ...(withSettings
+        ? { action: { label: t('chat.micOpenSettings'), onClick: openNativeAppSettings } }
+        : {}),
+    });
   };
 
-  const notifyMicBlocked = async () => {
-    // Only a REFUSAL can be fixed by asking again. Re-prompting for a mic that is
-    // busy or missing just makes the dealer tap through a dialog for nothing.
-    const refused = recorder.lastError() === 'NotAllowedError' || recorder.lastError() === null;
+  /**
+   * The mic did not open. Decide whether that is worth asking the OS about, and
+   * say something true either way.
+   *
+   * ONLY AN EXPLICIT REFUSAL RE-PROMPTS. This used to treat "no error name" as
+   * a refusal, and "no error name" is exactly what a CANCELLED attempt looks
+   * like — so discarding a voice note fired the Android permission dialog and a
+   * "microphone is blocked" toast at a dealer whose microphone was working
+   * perfectly, at the moment they chose not to use it. A superseded attempt now
+   * returns early and says nothing at all, which is the only correct response
+   * to something that did not fail.
+   */
+  const notifyMicBlocked = async (failure: StartFailure, session: number) => {
+    if (failure.cause === 'superseded') return;
+    const refused = failure.cause === 'error' && failure.name === 'NotAllowedError';
 
     if (isNativeShell() && refused) {
       addCrumb('mic: re-requesting the native permission');
-      const granted = await requestNativeMicPermission();
-      addCrumb('mic: native permission answered', { granted });
+      const answer = await requestNativeMicPermission();
+      addCrumb('mic: native permission answered', { ...answer });
+      // The prompt can sit on screen for a minute. Anything the dealer did in
+      // the meantime owns the composer now — a stale resume must not seize it,
+      // restart the mic underneath a live recording, or throw a toast over one.
+      if (unmountedRef.current || session !== recorder.currentSession()) return;
 
-      if (granted) {
-        const attempt = attemptRef.current + 1;
-        attemptRef.current = attempt;
-        const ok = await recorder.start();
-        if (attempt !== attemptRef.current) return;
-        if (ok) {
+      if (answer.granted) {
+        // They asked for a voice note and then did what we asked. Start
+        // recording rather than announcing success and making them press again.
+        const result = await startWithWatchdog();
+        if (unmountedRef.current) return;
+        if (result.ok) {
           recStartedRef.current = true;
+          sessionRef.current = result.session;
           setCancelArmed(false);
           setRecMode('locked');
           return;
         }
-        // Granted at the OS level and the mic STILL won't open. This is the case
-        // worth shouting about: the permission is not the problem, so whatever is
-        // wrong is ours or the device's, and we have no other way to find out.
+        if (result.cause === 'superseded') return;
+        // Granted at the OS level and the mic STILL won't open. This is the
+        // case worth shouting about: permission is not the problem, so whatever
+        // is wrong is ours or the device's, and we have no other way to find out.
         reportIssue({
           name: 'mic.granted-but-unopenable',
           level: 'error',
-          tags: { 'mic.error': recorder.lastError() ?? 'none' },
+          tags: { 'mic.error': result.cause === 'error' ? result.name : result.cause },
         });
-        tellMicFailed();
+        resetRecording();
+        tellMicFailed(result);
         return;
       }
+      tellMicFailed(failure, answer.permanentlyDenied);
+      return;
     }
 
-    tellMicFailed();
+    tellMicFailed(failure);
   };
 
-  const disarmStartWatchdog = () => {
-    if (startTimerRef.current) {
-      clearTimeout(startTimerRef.current);
-      startTimerRef.current = null;
-    }
+  /** Clear the watchdog — or only the one belonging to `session`, if given. */
+  const disarmStartWatchdog = (session?: number) => {
+    const armed = startTimerRef.current;
+    if (!armed) return;
+    if (session !== undefined && armed.session !== session) return;
+    clearTimeout(armed.timer);
+    startTimerRef.current = null;
   };
 
   /**
-   * Give up on a mic that never opens. Only counts time the WebView is actually
-   * in the FOREGROUND: while the OS permission dialog is on screen we are waiting
-   * on a human, not hung, so the watchdog is disarmed (see the effect below).
+   * Give up on a mic that never opens.
+   *
+   * Only counts time the WebView is actually in the FOREGROUND: while the OS
+   * permission dialog is on screen we are waiting on a human, not on a hung
+   * mic, so the watchdog is disarmed (see the effect below) and re-armed on
+   * return.
    */
-  const armStartWatchdog = () => {
+  const armStartWatchdog = (session: number) => {
     disarmStartWatchdog();
-    startTimerRef.current = setTimeout(() => {
-      startTimerRef.current = null;
-      // getUserMedia never settled, in the foreground, for 12 seconds. It did not
-      // reject — it simply never answered, which no error name will ever explain.
-      // Nothing else in the app can see this, so it has to be reported here.
-      void micDiagnostics().then((diag) => {
-        reportIssue({
-          name: 'mic.never-settled',
-          level: 'error',
-          tags: {
-            nativeShell: diag.nativeShell,
-            'mic.permission': diag.permissionState,
-            audioInputs: diag.audioInputs,
-          },
-          extra: {
-            ...(diag as unknown as Record<string, unknown>),
-            timeoutMs: START_TIMEOUT_MS,
-          },
+    startTimerRef.current = {
+      session,
+      timer: setTimeout(() => {
+        startTimerRef.current = null;
+        // Someone else owns the mic now; their attempt carries its own clock.
+        if (session !== recorder.currentSession()) return;
+        // getUserMedia never settled, in the foreground, for 12 seconds. It did
+        // not reject — it simply never answered, which no error name explains.
+        // Nothing else in the app can see this, so it is reported here.
+        void micDiagnostics().then((diag) => {
+          reportIssue({
+            name: 'mic.never-settled',
+            level: 'error',
+            tags: {
+              nativeShell: diag.nativeShell,
+              'mic.permission': diag.permissionState,
+              audioInputs: diag.audioInputs,
+            },
+            extra: {
+              ...(diag as unknown as Record<string, unknown>),
+              timeoutMs: START_TIMEOUT_MS,
+            },
+          });
         });
-      });
-      resetRecording(); // bumps attemptRef → any pending start becomes a no-op
-      void notifyMicBlocked();
-    }, START_TIMEOUT_MS);
+        resetRecording(); // cancels the recorder → the pending start is void
+        tellMicFailed({ cause: 'error', name: 'Timeout' });
+      }, START_TIMEOUT_MS),
+    };
+  };
+
+  /**
+   * Open the mic with a hang watchdog around it. EVERY start goes through here.
+   *
+   * Two of the three start paths used to have no watchdog at all — including
+   * the one that runs straight after a dealer taps "Allow", where a hang meant
+   * they did exactly what was asked and the app then sat in silence forever.
+   */
+  const startWithWatchdog = async (): Promise<StartResult> => {
+    const session = recorder.currentSession() + 1;
+    armStartWatchdog(session);
+    const result = await recorder.start();
+    disarmStartWatchdog(session);
+    return result;
   };
 
   const beginRecorder = async () => {
     recStartedRef.current = false;
-    const attempt = attemptRef.current + 1;
-    attemptRef.current = attempt;
 
-    // Never let a mic that won't open strand the composer in the hold overlay.
-    armStartWatchdog();
+    const result = await startWithWatchdog();
+    if (unmountedRef.current) return;
 
-    const ok = await recorder.start();
-
-    disarmStartWatchdog();
-    // Superseded: the watchdog gave up, or the user started a new attempt.
-    if (attempt !== attemptRef.current) return;
-
-    const g = gestureRef.current;
-    if (!ok) {
-      // Mic blocked (permission denied / unsupported) — reset and tell the user
-      // how to enable it, rather than silently opening the image/file picker.
+    if (!result.ok) {
+      if (result.cause === 'superseded') return;
+      // Mic genuinely refused / missing / unusable — put the composer back and
+      // say which of those it was.
       resetRecording();
-      void notifyMicBlocked();
+      void notifyMicBlocked(result, recorder.currentSession());
       return;
     }
+
+    sessionRef.current = result.session;
+    // A newer attempt claimed the mic while this one was opening.
+    if (result.session !== recorder.currentSession()) return;
+
     recStartedRef.current = true;
+    const g = gestureRef.current;
     if (!g) {
       // The gesture was torn down while we waited (pointer lost to the OS
-      // permission dialog). We are recording, so hand the user the hands-free
-      // bar instead of a dead press-and-hold overlay they can never release.
-      setCancelArmed(false);
-      setRecMode('locked');
+      // permission dialog). We are recording, so hand over the hands-free bar
+      // instead of a dead press-and-hold overlay that can never be released.
+      promoteToLocked();
       return;
     }
     // The gesture already ended (quick tap / release) before the mic was ready.
@@ -624,8 +793,11 @@ export function Composer({
   const onMicPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (disabled) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    // A second finger must not take over the first one's recording. Without
+    // this, a thumb resting on the screen re-based the slide deltas and armed
+    // cancel by itself — the note vanished and nobody had touched the bin.
+    if (gestureRef.current?.active) return;
     suppressClickRef.current = true;
-    clickGuardUntilRef.current = 0;
     try {
       micBtnRef.current?.setPointerCapture(e.pointerId);
     } catch {
@@ -639,6 +811,7 @@ export function Composer({
       startY: e.clientY,
       startedAt: Date.now(),
       pointerId: e.pointerId,
+      releasedAt: null,
     };
     setCancelArmed(false);
     setRecMode('hold');
@@ -649,6 +822,7 @@ export function Composer({
   const onMicPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
     const g = gestureRef.current;
     if (!g || !g.active) return;
+    if (e.pointerId !== g.pointerId) return;
     const dx = e.clientX - g.startX;
     const dy = e.clientY - g.startY;
     const slide = Math.max(-160, Math.min(0, dx));
@@ -666,16 +840,14 @@ export function Composer({
       } catch {
         /* ignore */
       }
-      gestureRef.current = null;
-      clickGuardUntilRef.current = Date.now() + 500;
-      setCancelArmed(false);
-      setRecMode('locked');
+      promoteToLocked();
     }
   };
 
   const endGesture = (cancel: boolean, pointerId: number) => {
     const g = gestureRef.current;
     if (!g || !g.active) return;
+    if (pointerId !== g.pointerId) return;
     try {
       micBtnRef.current?.releasePointerCapture(pointerId);
     } catch {
@@ -683,6 +855,9 @@ export function Composer({
     }
     g.active = false;
     g.released = true;
+    // Stamped HERE, where the finger actually left, so a mic that opens late
+    // cannot turn a tap into a hold.
+    g.releasedAt = Date.now();
     if (cancel) g.cancelArmed = true;
     // If the mic hasn't finished starting, beginRecorder resolves the action.
     if (!recStartedRef.current) return;
@@ -707,10 +882,10 @@ export function Composer({
       const g = gestureRef.current;
       if (recStartedRef.current) {
         // Already recording: hand over the hands-free bar so send/cancel stay
-        // reachable, rather than an overlay that can never be released.
-        gestureRef.current = null;
-        setCancelArmed(false);
-        setRecMode('locked');
+        // reachable, rather than an overlay that can never be released. The
+        // finger may still be down and Send is about to mount underneath it,
+        // which is why this swallows a click like every other promotion.
+        promoteToLocked();
         return;
       }
       // Still opening the mic — mark it released so beginRecorder() resolves the
@@ -718,6 +893,7 @@ export function Composer({
       if (g) {
         g.active = false;
         g.released = true;
+        g.releasedAt = Date.now();
         gestureRef.current = null;
       }
     };
@@ -734,7 +910,13 @@ export function Composer({
       release();
     };
     const onWindowBack = () => {
-      if (recMode === 'hold' && !recStartedRef.current) armStartWatchdog();
+      // Back in the foreground with the mic still not open: put the clock back
+      // on the attempt that is actually waiting. `recMode` is guaranteed 'hold'
+      // by the effect's own guard above, so it is not re-checked here — it read
+      // like a condition and guarded nothing.
+      if (!recStartedRef.current && startTimerRef.current === null) {
+        armStartWatchdog(recorder.currentSession());
+      }
     };
     const onVisibility = () => {
       if (document.visibilityState === 'hidden') onWindowLost();
@@ -755,13 +937,17 @@ export function Composer({
     };
   }, [recMode]);
 
-  // Never leave a watchdog running after the composer goes away.
-  React.useEffect(
-    () => () => {
-      if (startTimerRef.current) clearTimeout(startTimerRef.current);
-    },
-    [],
-  );
+  // Never leave a watchdog running — or an async tail writing state — after the
+  // composer goes away.
+  React.useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      if (startTimerRef.current) clearTimeout(startTimerRef.current.timer);
+      startTimerRef.current = null;
+      disarmGhostRef.current?.();
+    };
+  }, []);
 
   const onMicClick = () => {
     if (suppressClickRef.current) {
@@ -774,31 +960,27 @@ export function Composer({
   };
 
   const startLockedRecording = async () => {
-    const attempt = attemptRef.current + 1;
-    attemptRef.current = attempt;
-    const ok = await recorder.start();
-    if (attempt !== attemptRef.current) return;
-    if (!ok) {
-      void notifyMicBlocked();
+    const result = await startWithWatchdog();
+    if (unmountedRef.current) return;
+    if (!result.ok) {
+      if (result.cause === 'superseded') return;
+      resetRecording();
+      void notifyMicBlocked(result, recorder.currentSession());
       return;
     }
+    sessionRef.current = result.session;
     recStartedRef.current = true;
     setRecMode('locked');
   };
 
   const cancelLocked = () => {
-    if (withinClickGuard()) return;
-    recorder.cancel();
-    recStartedRef.current = false;
-    setRecMode('idle');
-    setCancelArmed(false);
+    if (consumeGhostClick()) return;
+    discardRecording();
   };
 
   const sendLocked = () => {
-    if (withinClickGuard()) return;
-    setRecMode('idle');
-    setCancelArmed(false);
-    void stopAndSend();
+    if (consumeGhostClick()) return;
+    finishAndSend();
   };
 
   /**
@@ -817,11 +999,16 @@ export function Composer({
    * the state as it was when the screen mounted. `firedRef` covers the gap
    * between the timer ticking past the limit and `recMode` becoming 'idle'.
    */
-  const sendLockedRef = React.useRef(sendLocked);
-  sendLockedRef.current = sendLocked;
+  const finishAndSendRef = React.useRef(finishAndSend);
+  finishAndSendRef.current = finishAndSend;
   const maxReachedRef = React.useRef(false);
   React.useEffect(() => {
-    if (recMode !== 'locked') {
+    // BOTH recording modes, not just hands-free. The cap used to be enforced
+    // only in locked mode, so a finger held past ten minutes uploaded the whole
+    // clip over 2G and had it rejected on arrival — the exact failure this cap
+    // exists to prevent, reported to the dealer as "your message didn't go
+    // through", which reads as a network problem and invites a doomed retry.
+    if (recMode === 'idle') {
       maxReachedRef.current = false;
       return;
     }
@@ -829,7 +1016,7 @@ export function Composer({
     if (recorder.elapsedMs < MAX_VOICE_DURATION_MS - 5000) return;
     maxReachedRef.current = true;
     toast.info(t('chat.voiceMaxReached'));
-    sendLockedRef.current();
+    finishAndSendRef.current();
   }, [recMode, recorder.elapsedMs, toast, t]);
 
   const ReplyIcon = replyingTo?.icon ? REPLY_ICONS[replyingTo.icon] : null;
@@ -991,7 +1178,11 @@ export function Composer({
             disabled={disabled}
           />
 
-          {canSend ? (
+          {/* A WebView with no MediaRecorder cannot record at all. The hook has
+              always exposed `supported` and nothing read it, so the button was
+              offered and failed on press — with a toast, which is a worse
+              answer than not asking. */}
+          {canSend || !recorder.supported ? (
             <button
               type="button"
               aria-label={t('chat.send')}

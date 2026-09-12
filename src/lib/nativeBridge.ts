@@ -87,11 +87,22 @@ export interface NativePushBlocked {
   detail?: string;
 }
 
+/** What the shell's OS permission prompt came back with. */
+export interface MicPermissionResult {
+  granted: boolean;
+  /**
+   * Android has stopped asking ("Don't allow" twice, or "Never ask again").
+   * Re-prompting from here can never show a dialog again — only the OS
+   * settings page can turn it back on.
+   */
+  permanentlyDenied: boolean;
+}
+
 // A single in-flight request, so rapid repeated mic taps coalesce into ONE
 // native prompt and ONE result (no stacked duplicate toasts, and only one
 // 'native-mic-permission' listener alive at a time — the untagged event can't
 // then resolve a stale request from a different tap).
-let micRequestInFlight: Promise<boolean> | null = null;
+let micRequestInFlight: Promise<MicPermissionResult> | null = null;
 
 /**
  * Ask the native shell to request the OS microphone permission (the Android
@@ -114,18 +125,20 @@ let micRequestInFlight: Promise<boolean> | null = null;
  * as `granted: false` immediately, so the legitimate "enable it in Settings"
  * message is unaffected.
  */
-export function requestNativeMicPermission(timeoutMs = 60_000): Promise<boolean> {
+export function requestNativeMicPermission(
+  timeoutMs = 60_000,
+): Promise<MicPermissionResult> {
   if (!isNativeShell() || typeof window === 'undefined') {
-    return Promise.resolve(false);
+    return Promise.resolve({ granted: false, permanentlyDenied: false });
   }
   if (micRequestInFlight) return micRequestInFlight;
 
-  micRequestInFlight = new Promise<boolean>((resolve) => {
+  micRequestInFlight = new Promise<MicPermissionResult>((resolve) => {
     let settled = false;
     // Holder so the timer id can be set after `finish` is defined while keeping
     // the binding const (finish clears it once the promise settles).
     const timer: { id?: ReturnType<typeof window.setTimeout> } = {};
-    const finish = (granted: boolean) => {
+    const finish = (result: MicPermissionResult) => {
       if (settled) return;
       settled = true;
       if (timer.id !== undefined) window.clearTimeout(timer.id);
@@ -134,17 +147,41 @@ export function requestNativeMicPermission(timeoutMs = 60_000): Promise<boolean>
         onResult as EventListener,
       );
       micRequestInFlight = null;
-      resolve(granted);
+      resolve(result);
     };
     const onResult = (e: Event) => {
-      const detail = (e as CustomEvent<{ granted?: boolean }>).detail;
-      finish(!!detail?.granted);
+      const detail = (
+        e as CustomEvent<{ granted?: boolean; permanentlyDenied?: boolean }>
+      ).detail;
+      finish({
+        granted: !!detail?.granted,
+        // Only a shell new enough to report this can set it, so an older
+        // binary during a Play rollout simply never offers the Settings
+        // button rather than offering one that does nothing.
+        permanentlyDenied: detail?.permanentlyDenied === true,
+      });
     };
     window.addEventListener('native-mic-permission', onResult as EventListener);
     postToNative({ type: 'permission:requestMic' });
-    timer.id = window.setTimeout(() => finish(false), timeoutMs);
+    timer.id = window.setTimeout(
+      () => finish({ granted: false, permanentlyDenied: false }),
+      timeoutMs,
+    );
   });
   return micRequestInFlight;
+}
+
+/**
+ * Open this app's OS settings page.
+ *
+ * Only worth offering when Android has stopped asking (`permanentlyDenied`):
+ * that is the one state where "turn it on in Settings" is both the correct
+ * advice and impossible to act on from inside the app. Silently ignored by a
+ * shell too old to know the message.
+ */
+export function openNativeAppSettings(): void {
+  if (!isNativeShell()) return;
+  postToNative({ type: 'permission:openSettings' });
 }
 
 /** What the shell did with a requested media download. */

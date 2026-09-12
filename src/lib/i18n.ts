@@ -148,6 +148,19 @@ export const messages = {
     en: 'You can still type your message, or send a photo.',
     hi: 'आप संदेश टाइप कर सकते हैं, या फोटो भेज सकते हैं।',
   },
+  // The request never came back at all — no refusal, no busy mic, no answer.
+  // Sending someone to Settings for this is the wrong advice: there is nothing
+  // there to change. Trying again genuinely does work, because the usual cause
+  // is a permission dialog whose result never reached the page.
+  'chat.micOpenSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
+  'chat.micTimeout': {
+    en: "The microphone didn't open",
+    hi: 'माइक्रोफ़ोन चालू नहीं हो पाया',
+  },
+  'chat.micTimeoutHint': {
+    en: 'Press and hold the mic again. If it keeps happening, type your message.',
+    hi: 'माइक को दोबारा दबाकर रखिए। फिर भी न हो तो संदेश टाइप कीजिए।',
+  },
   'chat.micUnavailable': {
     en: "Voice notes don't work on this phone",
     hi: 'इस फ़ोन में वॉइस नोट नहीं चलते',
