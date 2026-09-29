@@ -444,6 +444,40 @@ export interface DsrMonthOpening {
   sales: number;
 }
 
+/**
+ * A nozzle on a dispenser that has been removed from the forecourt.
+ *
+ * Replacing a dispenser takes its nozzles off the portal for good. Left in the
+ * setup as they were, every later day waits on a reading that will never come
+ * and the report stops closing; taken out of the setup, whatever they sold since
+ * the inspection drops out of the variation and reads as a loss. This is the
+ * third option: the nozzle stays, frozen at the figure it finished on.
+ */
+export interface DsrRetiredNozzle {
+  /** Its final totaliser reading, in true litres (already scaled, like the inspection baselines). */
+  lastReading: number;
+  /** The first business date it is gone, `YYYY-MM-DD`. Days before this read the portal as usual. */
+  from: string;
+}
+
+/**
+ * A nozzle put on the forecourt after the setup was written — the other half of
+ * a replaced dispenser.
+ *
+ * Dated because an addition without a date reaches back over every report ever
+ * generated: each rebuilt day before the nozzle existed has no reading for it
+ * and cannot close. With a date, days before it do not expect the nozzle at all,
+ * and the day it arrives counts from {@link firstReading} rather than from
+ * whatever the portal showed the day before — which, for a new unit, can be a
+ * figure copied from another pump.
+ */
+export interface DsrAddedNozzle {
+  /** Its reading on {@link from}, in true litres — what it is counted from. */
+  firstReading: number;
+  /** The first business date its readings are its own, `YYYY-MM-DD`. */
+  from: string;
+}
+
 /** One product's layout + policy within a dealer's DSR config. */
 export interface DsrProductConfig {
   /** Stable key, e.g. `HSD`, `MS`. */
@@ -474,6 +508,19 @@ export interface DsrProductConfig {
    * baselines are therefore stored in LITRES too, already scaled.
    */
   meterScale?: Record<string, number>;
+  /**
+   * Nozzles whose dispenser has been taken out, keyed by nozzle number — see
+   * {@link DsrRetiredNozzle}. Each stays in {@link nozzleNos} and reads its
+   * final reading from the day it was gone, so what it sold since the last
+   * inspection stays in the variation and it adds no sales after.
+   */
+  retiredNozzles?: Record<string, DsrRetiredNozzle>;
+  /**
+   * Nozzles added to the forecourt since the setup was written, keyed by nozzle
+   * number — see {@link DsrAddedNozzle}. Each is in {@link nozzleNos}, but only
+   * counts from its `from` day, starting at its first reading of its own.
+   */
+  addedNozzles?: Record<string, DsrAddedNozzle>;
   /** Evaporation/leakage allowance as a percent of throughput, e.g. 0.25. */
   leakagePct: number;
   /** Permissible band as a percent of current stock, e.g. 4. */
