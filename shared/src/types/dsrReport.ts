@@ -312,6 +312,13 @@ export interface DsrProductReport {
    * it.
    */
   tankNos?: number[];
+  /**
+   * Nozzles retired by this report's business date — their dispenser was taken
+   * out, and they print their final reading and add nothing. Carried so anything
+   * reading the report alone (the assurance review) does not mistake a frozen
+   * meter it was told to freeze for a pump that stopped. Absent when none.
+   */
+  retiredNozzles?: number[];
   /** The ledger window shown, oldest first — typically [yesterday, today]. */
   rows: DsrDayRow[];
   /**
