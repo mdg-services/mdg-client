@@ -180,6 +180,8 @@ export const AUDIT_ENTITY_REFS: Record<string, AuditEntityRef> = {
   AssistKnowledgeBase: { label: 'assistant knowledge', shape: 'opaque' },
   BankHoliday: { label: 'bank holiday', shape: 'objectId', href: () => '/bank-holidays' },
   FestivalSetting: { label: 'festival greeting', shape: 'objectId', href: () => '/festival' },
+  // The id is the link's code (`?r=`), not an ObjectId.
+  FilmShareLink: { label: 'film share link', shape: 'opaque', href: () => '/films' },
 };
 
 /**
