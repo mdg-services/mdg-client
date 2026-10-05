@@ -24,6 +24,14 @@ export interface ServerToClientEvents {
    * a phone in a pocket, this is for a phone already in a hand.
    */
   'document-ask:updated': (payload: { row: DealerDocumentAskRow }) => void;
+  /**
+   * The admin alert list changed: something was raised, cleared or hidden.
+   *
+   * Sent to every admin socket and carrying nothing, because what each admin
+   * may see differs (server alerts are super-admin only) — the screen refetches
+   * its own scoped list rather than trusting a count meant for someone else.
+   */
+  'alerts:changed': () => void;
   typing: (payload: { conversationId: string; userId: string; userName: string }) => void;
   delivered: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
   read: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;

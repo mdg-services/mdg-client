@@ -29,3 +29,4 @@ export * from './aiFirstLine';
 export * from './ledgerWatch';
 export * from './overview';
 export * from './film';
+export * from './adminAlert';

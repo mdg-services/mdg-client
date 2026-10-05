@@ -295,6 +295,10 @@ export const AUDIT_ACTIONS = [
   'LEDGER_WATCH_CARD_VIEW',
   /** An admin SENT that image into the dealer's chat. */
   'LEDGER_WATCH_CARD_SHARE',
+  /** An admin hid an alert from the to-do list while its problem still stands. */
+  'ADMIN_ALERT_DISMISS',
+  /** An admin put a hidden alert back on the list. */
+  'ADMIN_ALERT_RESTORE',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
