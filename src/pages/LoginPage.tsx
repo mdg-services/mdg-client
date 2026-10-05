@@ -146,9 +146,22 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        <p className="mt-6 text-center text-xs text-text-subtle">
-          {t('auth.needAccess')}
-        </p>
+        {/* Nobody can make their own login — MDG creates every ID and
+            password. Someone who installed the app from the Play Store with
+            nothing to sign in with is sent to the enrolment form, in the app. */}
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <p className="text-center text-xs leading-relaxed text-text-subtle">
+            {t('auth.noLogin')}
+          </p>
+          <Button
+            variant="secondary"
+            size="lg"
+            fullWidth
+            onClick={() => navigate('/register')}
+          >
+            {t('auth.register')}
+          </Button>
+        </div>
       </div>
     </div>
   );

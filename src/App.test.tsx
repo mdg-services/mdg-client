@@ -21,6 +21,7 @@ vi.mock('@/pages/ChatListPage', () => ({
   ChatListPage: () => <div>chat-list-page</div>,
 }));
 vi.mock('@/pages/ChatPage', () => ({ ChatPage: () => <div>chat-page</div> }));
+vi.mock('@/pages/RegisterPage', () => ({ RegisterPage: () => <div>register-page</div> }));
 vi.mock('@/pages/LoginPage', async () => {
   const { useLocation } = await import('react-router-dom');
   return {
@@ -63,6 +64,15 @@ describe('App routing', () => {
     signIn();
     renderWithProviders(<App />, { route: '/nope-nowhere' });
     expect(await screen.findByText('chat-list-page')).toBeInTheDocument();
+  });
+
+  // Someone with no login yet has to reach the sign-up form, so it must not
+  // sit behind the sign-in gate.
+  it('serves /register signed out, without bouncing to /login', async () => {
+    renderWithProviders(<App />, { route: '/register' });
+    expect(await screen.findByText('register-page')).toBeInTheDocument();
+    expect(screen.queryByText('login-page')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
   });
 
   it('serves /login without pulling the shell', async () => {

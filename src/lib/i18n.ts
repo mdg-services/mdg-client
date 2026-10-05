@@ -69,14 +69,105 @@ export const messages = {
     hi: 'अपना पासवर्ड भरें',
   },
   'auth.signIn': { en: 'Sign in', hi: 'साइन इन करें' },
-  'auth.needAccess': {
-    en: 'Need access? Contact your MDG account manager.',
-    hi: 'एक्सेस चाहिए? अपने MDG अकाउंट मैनेजर से संपर्क करें।',
+  // Nobody makes their own login: MDG creates every ID and password. So the
+  // footer says where a login comes from and offers the way to get one.
+  'auth.noLogin': {
+    en: 'No login yet? Register your pump and the MDG team will send you your ID and password.',
+    hi: 'अभी लॉगिन नहीं है? अपना पंप रजिस्टर कीजिए, MDG टीम आपको ID और पासवर्ड भेज देगी।',
   },
+  'auth.register': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
   'auth.loginFailed': {
     en: "That email or password didn't work. Try again or contact support.",
     hi: 'यह ईमेल या पासवर्ड सही नहीं है। फिर से कोशिश करें या सपोर्ट से संपर्क करें।',
   },
+
+  /* ── register (the website's enrolment form, inside the app) ─────────── */
+  // The Hindi wording follows the website's enrolment page word for word where
+  // the two say the same thing, so a dealer who has seen one recognises the other.
+  'register.title': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
+  'register.intro': {
+    en: 'Fill in your details. Our team will call you to confirm your services and pricing, then send you your login ID and password.',
+    hi: 'अपनी जानकारी भरिए। हमारी टीम कॉल करके आपकी सेवाएँ और क़ीमत पक्की करेगी, फिर आपको लॉगिन ID और पासवर्ड भेजेगी।',
+  },
+  'register.back': { en: 'Back to sign in', hi: 'साइन इन पर वापस' },
+  'register.optional': { en: '(optional)', hi: '(ज़रूरी नहीं)' },
+  'register.name': { en: 'Your name', hi: 'आपका नाम' },
+  'register.namePlaceholder': { en: 'Ramesh Kumar', hi: 'रमेश कुमार' },
+  'register.mobile': { en: 'Your mobile', hi: 'आपका मोबाइल' },
+  'register.mobilePlaceholder': { en: 'Your mobile number', hi: 'अपना मोबाइल नंबर' },
+  'register.email': { en: 'Your email', hi: 'आपका ईमेल' },
+  'register.emailPlaceholder': { en: 'Enter your email', hi: 'अपना ईमेल लिखिए' },
+  'register.siteType': { en: 'Site type', hi: 'साइट का प्रकार' },
+  'register.pumpName': { en: 'Pump name', hi: 'पंप का नाम' },
+  'register.pumpNamePlaceholder': { en: "Your pump's name", hi: 'अपने पंप का नाम' },
+  'register.sapCode': { en: 'SAP code', hi: 'SAP कोड' },
+  'register.sapCodePlaceholder': { en: 'Your SAP code', hi: 'अपना SAP कोड' },
+  // The link sits inside the sentence, and in Hindi the verb lands after it,
+  // so the tail carries the verb as well as the full stop.
+  'register.agreeLead': { en: 'I have read and agree to the', hi: 'मैंने' },
+  'register.termsLink': { en: 'Terms & Conditions', hi: 'नियम व शर्तें' },
+  'register.agreeTail': { en: '.', hi: ' पढ़ ली हैं और मुझे मंज़ूर हैं।' },
+  // The link inside the sentence drops out of the box's spoken name, so the
+  // box carries the whole sentence itself.
+  'register.agreeAria': {
+    en: 'I agree to the Terms and Conditions',
+    hi: 'मैं नियम व शर्तें मानता हूँ',
+  },
+  'register.nameRequired': { en: 'Enter your name', hi: 'अपना नाम भरिए' },
+  'register.mobileInvalid': {
+    en: 'Enter a valid mobile number',
+    hi: 'सही मोबाइल नंबर भरिए',
+  },
+  'register.siteTypeRequired': {
+    en: 'Choose Type A or Type B',
+    hi: 'Type A या Type B चुनिए',
+  },
+  'register.sapCodeRequired': { en: 'Enter your SAP code', hi: 'अपना SAP कोड भरिए' },
+  'register.agreeRequired': {
+    en: 'Read and accept the Terms & Conditions to continue',
+    hi: 'आगे बढ़ने के लिए नियम व शर्तें पढ़कर मंज़ूर कीजिए',
+  },
+  'register.submit': { en: 'Submit', hi: 'भेजिए' },
+  'register.privacy': {
+    en: 'We will never share your details.',
+    hi: 'आपकी जानकारी हम किसी के साथ साझा नहीं करेंगे।',
+  },
+  'register.failed': {
+    en: "Couldn't send your details. Check your network and try again.",
+    hi: 'आपकी जानकारी नहीं भेजी जा सकी। नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+  'register.successBadge': { en: 'Registration received', hi: 'नामांकन मिल गया' },
+  'register.successTitle': {
+    en: 'Thank you. Your details are with us.',
+    hi: 'धन्यवाद। आपकी जानकारी हम तक पहुँच गई है।',
+  },
+  'register.successBody': {
+    en: 'Our team will call you to confirm your services and pricing, usually within the hour (9am to 9pm, every day). After that we send you your login ID and password, and you sign in here.',
+    hi: 'हमारी टीम कॉल करके आपकी सेवाएँ और क़ीमत पक्की कर लेगी, आमतौर पर एक घंटे के भीतर (सुबह 9 से रात 9, हर दिन)। इसके बाद हम आपको लॉगिन ID और पासवर्ड भेजेंगे, और आप यहीं साइन इन करेंगे।',
+  },
+  'register.successEmail': {
+    en: 'A welcome email is on its way to {email}.',
+    hi: '{email} पर एक स्वागत ईमेल भी भेजा गया है।',
+  },
+  'register.termsEyebrow': { en: 'The agreement', hi: 'यह समझौता' },
+  'register.termsTitle': { en: 'Terms & Conditions', hi: 'नियम व शर्तें' },
+  'register.close': { en: 'Close', hi: 'बंद कीजिए' },
+  'register.agreeContinue': { en: 'I agree & continue', hi: 'मंज़ूर है, आगे बढ़िए' },
+  // The website's footnote ends on "Call us"; the app has no phone link, so
+  // only the sentence about Annexure-I is kept.
+  'register.annexure': {
+    en: 'Services and rates are set out in Annexure-I; anything outside it is negotiated between both parties.',
+    hi: 'कौन सी सेवाएँ और उनके कितने पैसे, यह सब Annexure-I में लिखा है। उससे बाहर का कोई भी काम दोनों पक्ष आपस में बात करके तय करते हैं।',
+  },
+  // Shown on the Hindi screen only: a translation of a contract is not the
+  // contract. The English line exists because every key needs both, and is
+  // never drawn — on the English screen the clauses already are the original.
+  'register.bindingNotice': {
+    en: 'The English text is the binding one.',
+    hi: 'यह हिंदी अनुवाद सिर्फ़ आपकी सुविधा के लिए है, ताकि आप समझ सकें कि आप किस बात पर हामी भर रहे हैं। क़ानूनी तौर पर अंग्रेज़ी वाली शर्तें ही मान्य होंगी।',
+  },
+  'register.showEnglish': { en: 'Read the English original', hi: 'अंग्रेज़ी मूल पढ़िए' },
+  'register.showHindi': { en: 'Read in Hindi', hi: 'हिंदी में पढ़िए' },
 
   /* ── chat ───────────────────────────────────────────────────────────── */
   'chat.support': { en: 'Support', hi: 'सहायता' },

@@ -18,6 +18,9 @@ const AppShell = lazyWithRetry(() =>
 const LoginPage = lazyWithRetry(() =>
   import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 );
+const RegisterPage = lazyWithRetry(() =>
+  import('@/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
+);
 const ChatListPage = lazyWithRetry(() =>
   import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
 );
@@ -125,6 +128,7 @@ export function App() {
       <React.Suspense fallback={<FullScreenSpinner />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route element={<ProtectedLayout />}>
             {/* Chat: a conversation LIST, and a per-thread view. Single-thread
                 members are auto-forwarded from the list straight into their chat. */}
