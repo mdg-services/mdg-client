@@ -30,3 +30,4 @@ export * from './ledgerWatch';
 export * from './overview';
 export * from './film';
 export * from './adminAlert';
+export * from './loadPlan';
