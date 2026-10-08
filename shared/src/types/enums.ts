@@ -148,6 +148,11 @@ export const AUDIT_ACTIONS = [
   'STAFF_DRAFT_CLEAR',
   // Bank / national holiday calendar (drives DOD due-date roll-forward)
   'BANK_HOLIDAY_CONFIRM',
+  // Depot holiday calendar (drives when the Load Planner expects a tanker to load)
+  'DEPOT_HOLIDAY_CONFIRM',
+  // Load Planner: a plan sent into a dealer's chat, or set aside with a reason
+  'LOAD_PLAN_APPROVE_AND_SHARE',
+  'LOAD_PLAN_DISMISS',
   // Dealer lifecycle (super-admin soft delete)
   'DEALER_ARCHIVE',
   'DEALER_RESTORE',

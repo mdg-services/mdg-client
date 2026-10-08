@@ -31,3 +31,4 @@ export * from './overview';
 export * from './film';
 export * from './adminAlert';
 export * from './loadPlan';
+export * from './depotHoliday';

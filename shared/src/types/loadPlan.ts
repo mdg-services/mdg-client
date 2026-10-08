@@ -56,7 +56,12 @@ export type LoadPlanStatus = (typeof LOAD_PLAN_STATUSES)[number];
 
 /** The knobs a plan was made with. Stored on every plan so a past plan explains itself. */
 export interface LoadPlanSettings {
-  /** Days from placing the order to the tanker being unloaded. */
+  /**
+   * Days from placing the order to the depot LOADING the tanker (its invoice
+   * day), counted before depot closures are skipped. 1 = order today, loaded on
+   * the next day the depot is open. The hours from loading to unloading are in
+   * {@link LoadPlanLeadTime}, measured from the outlet's own trucks.
+   */
   leadTimeDays: number;
   /** Days of spare stock a truck should still find when it lands. */
   safetyDays: number;
@@ -68,6 +73,10 @@ export interface LoadPlanSettings {
   maxCoverDays: number;
   /** The tanker's chambers, in litres, e.g. `[4000, 4000, 4000]`. */
   chambers: number[];
+  /** The depot the outlet loads from, e.g. `Barauni Terminal`. Shown, not computed with. */
+  depotName?: string | null;
+  /** Road distance from the depot to the outlet, in km. Shown beside the timing it explains. */
+  distanceKm?: number | null;
 }
 
 /** One tank as the plan saw it on the morning it was made. */
@@ -85,6 +94,12 @@ export interface LoadPlanTank {
   room: number | null;
   /** This tank's share of the pool's recent sale (0–1); `null` when unknown. */
   drawShare: number | null;
+  /**
+   * True when the size and low-stock line are estimates — taken from the most
+   * the tank has ever held, rounded up to a standard 10/15/20 KL tank — rather
+   * than read off the dealer's own sheet. Shown so somebody confirms them.
+   */
+  estimated?: boolean;
 }
 
 /** A group of tanks that sell through the same nozzles, planned as one. */
@@ -143,8 +158,22 @@ export interface LoadPlanChamber {
 export interface LoadPlanTruck {
   /** The day to place the order. */
   orderOn: string;
-  /** The day the tanker is expected to be unloaded. */
+  /**
+   * The day the depot loads it (its invoice day) — the first day the depot is
+   * open, {@link LoadPlanSettings.leadTimeDays} after the order. Absent on
+   * plans made before depot days were known.
+   */
+  loadOn?: string;
+  /** The business day the tanker is expected to be unloaded. */
   arriveOn: string;
+  /** About when it is unloaded, `HH:mm` IST; absent on older plans. */
+  arriveTime?: string | null;
+  /**
+   * The calendar date of {@link arriveTime}. Not always {@link arriveOn}: a
+   * tanker unloaded at 05:50 before a 07:00 stock reading belongs to the
+   * previous business day but arrives on the next calendar date (2E, 2026).
+   */
+  arriveDate?: string;
   chambers: LoadPlanChamber[];
   /** Litres actually allotted. */
   litres: number;
@@ -202,6 +231,16 @@ export interface LoadPlanLeadTime {
   medianHours: number | null;
   /** How many matched trucks the median came from. */
   samples: number;
+  /**
+   * The hours the plan actually used from invoice to unloading: the measured
+   * median once enough trucks are matched, else the configured figure (the
+   * depot's travel time plus unloading).
+   */
+  usedHours?: number;
+  usedFrom?: 'MEASURED' | 'SETTING';
+  /** The time of day the depot usually raises the invoice, `HH:mm` IST. */
+  loadTime?: string;
+  loadTimeFrom?: 'MEASURED' | 'SETTING';
 }
 
 /** What actually happened after a plan, filled in by later runs. */
@@ -251,6 +290,11 @@ export interface LoadPlan {
   inTransit: LoadPlanInTransit[];
   credit: LoadPlanCredit;
   leadTime: LoadPlanLeadTime;
+  /**
+   * Days the depot loads nothing within the plan's horizon — every Sunday plus
+   * the depot holiday list. Absent on plans made before the list existed.
+   */
+  depotClosed?: string[];
   /** Plain-English problems with the inputs, shown to the admin before approving. */
   warnings: string[];
   /** The one line the card leads with. */
