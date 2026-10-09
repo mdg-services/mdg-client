@@ -54,6 +54,16 @@ export const LOAD_PLAN_STATUSES = [
 ] as const;
 export type LoadPlanStatus = (typeof LOAD_PLAN_STATUSES)[number];
 
+/**
+ * How many days ahead a plan projects, starting with the day it is made.
+ *
+ * IndianOil takes a dealer's tanker projection for the next four days and no
+ * further, so a plan sketches exactly that window: every tanker it lists is
+ * ordered within it, and {@link LoadPlan.projection} always has one row per day
+ * — a day with nothing to order is a row saying so, not a missing row.
+ */
+export const LOAD_PLAN_PROJECTION_DAYS = 4;
+
 /** The knobs a plan was made with. Stored on every plan so a past plan explains itself. */
 export interface LoadPlanSettings {
   /**
@@ -185,6 +195,35 @@ export interface LoadPlanTruck {
   estimatedCost: number | null;
 }
 
+/** A fuel pool on one morning of the projection. */
+export interface LoadPlanProjectionPool {
+  key: string;
+  /**
+   * Litres expected in the pool that morning, counting tankers already on the
+   * road (and those this plan orders) once they have landed. Never below the
+   * pool's line: a dry day shows as `daysLeft` 0, not as negative stock.
+   */
+  stock: number;
+  /** Days of spare at the normal daily sale; `null` when the sale is unknown. */
+  daysLeft: number | null;
+}
+
+/** One day of the four-day projection. */
+export interface LoadPlanProjectionDay {
+  /** The order day, `YYYY-MM-DD`. The first row is the day the plan was made. */
+  date: string;
+  /** True when the depot loads nothing that day (a Sunday or a depot holiday). */
+  depotClosed: boolean;
+  /** Tankers to order that day; 0 = nothing to order. */
+  tankers: number;
+  /** Litres to order that day per fuel (`HSD`, `MS`, `XP`, `XG`), summed over its tankers. */
+  litres: Record<string, number>;
+  /** The day the depot loads that day's tankers; `null` when none are ordered. */
+  loadOn: string | null;
+  /** Each pool that morning, before anything ordered that day has landed. */
+  pools: LoadPlanProjectionPool[];
+}
+
 /** A tanker invoiced to the dealer that has not been unloaded yet. */
 export interface LoadPlanInTransit {
   invoiceNo: string;
@@ -285,8 +324,14 @@ export interface LoadPlan {
   urgent: boolean;
   /** The next truck to order — today's when {@link orderToday}, otherwise the next one due. */
   truck: LoadPlanTruck | null;
-  /** The trucks after that one, sketched over the next seven days. */
+  /** The trucks after that one, within the {@link LOAD_PLAN_PROJECTION_DAYS}-day projection. */
   nextTrucks: LoadPlanTruck[];
+  /**
+   * What to order on each of the next {@link LOAD_PLAN_PROJECTION_DAYS} days,
+   * one row per day, today first — the projection the dealer gives IndianOil.
+   * Absent on plans made before it existed.
+   */
+  projection?: LoadPlanProjectionDay[];
   inTransit: LoadPlanInTransit[];
   credit: LoadPlanCredit;
   leadTime: LoadPlanLeadTime;
