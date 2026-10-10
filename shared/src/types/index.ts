@@ -30,5 +30,6 @@ export * from './ledgerWatch';
 export * from './overview';
 export * from './film';
 export * from './adminAlert';
+export * from './whatsapp';
 export * from './loadPlan';
 export * from './depotHoliday';

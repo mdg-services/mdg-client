@@ -38,6 +38,8 @@ export const ADMIN_ALERT_KINDS = [
   'ledger_charge',
   /** A dealer holds a report or credit card that has since been corrected. */
   'outdated_copy',
+  /** Somebody wrote back to our WhatsApp number and nobody has read it. */
+  'whatsapp_reply',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -126,6 +128,14 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Outdated copy',
     clearsWhen: 'Clears when the corrected copy is sent.',
     superAdminOnly: false,
+  },
+  // Super-admin only, like the film pages and the site assistant's leads: the
+  // people writing in are members of the public, not outlets on an account
+  // manager's book, and the alert carries their name and what they wrote.
+  whatsapp_reply: {
+    label: 'WhatsApp reply',
+    clearsWhen: 'Clears when the reply is marked as read.',
+    superAdminOnly: true,
   },
   server_restarted: {
     label: 'Server',
