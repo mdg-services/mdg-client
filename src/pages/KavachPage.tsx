@@ -1,8 +1,9 @@
 import { CheckCircle2, MessageCircle, PartyPopper, ShieldCheck } from 'lucide-react';
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 
+import { SubPage } from '@/components/SubPage';
 import { Button, EmptyState } from '@/components/ui';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { EvidenceRequestCard } from '@/features/kavach/EvidenceRequestCard';
 import { PendingTaskCard } from '@/features/kavach/PendingTaskCard';
 import { PumpHealthRing } from '@/features/kavach/PumpHealthRing';
@@ -33,12 +34,12 @@ function GroupHeader({ label }: { label: string }) {
 }
 
 function HelpFooter() {
-  const navigate = useNavigate();
+  const openMyChat = useOpenMyChat();
   const t = useT();
   return (
     <button
       type="button"
-      onClick={() => navigate('/chat')}
+      onClick={openMyChat}
       className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-brand shadow-sm active:bg-surface-2"
     >
       <MessageCircle width={16} strokeWidth={1.75} />
@@ -51,21 +52,18 @@ function HelpFooter() {
 function KavachSkeleton() {
   const t = useT();
   return (
-    <div
-      className="flex flex-1 flex-col gap-5 p-4"
-      role="status"
-      aria-label={t('common.loading')}
-    >
-      <div className="h-6 w-32 animate-pulse rounded-full bg-surface-2" aria-hidden />
-      <div className="h-52 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
-      <div className="h-28 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
-      <div className="h-28 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
-    </div>
+    <SubPage title={t('kavach.title')} fallback="/chat" className="gap-5">
+      <div className="flex flex-col gap-5" role="status" aria-label={t('common.loading')}>
+        <div className="h-52 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
+        <div className="h-28 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
+        <div className="h-28 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
+      </div>
+    </SubPage>
   );
 }
 
 /**
- * The dealer's Kavach tab.
+ * The dealer's Pump health screen — Settings → Pump health.
  *
  * Since ADR 0011 the dealer certifies nothing here, and the whole risk of that
  * change is that the screen becomes a scoreboard the app keeps about them. So it
@@ -76,7 +74,6 @@ function KavachSkeleton() {
  * mode this order exists to prevent.
  */
 export function KavachPage() {
-  const navigate = useNavigate();
   const t = useT();
   const lang = useLang();
   const meQuery = useKavachMe();
@@ -129,7 +126,7 @@ export function KavachPage() {
   // Must stay above the early returns below: a hook called only on some renders
   // (after the loading/error/no-programme guards) changes the hook count between
   // renders and crashes the whole tree with "rendered more hooks than…".
-  const goToChat = React.useCallback(() => navigate('/chat'), [navigate]);
+  const goToChat = useOpenMyChat();
   const retry = React.useCallback(() => {
     void meQuery.refetch();
   }, [meQuery]);
@@ -138,7 +135,7 @@ export function KavachPage() {
 
   if (meQuery.isError) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <SubPage title={t('kavach.title')} fallback="/chat" className="gap-4">
         <EmptyState
           icon={<ShieldCheck width={28} strokeWidth={1.5} />}
           title={t('kavach.errorTitle')}
@@ -150,24 +147,21 @@ export function KavachPage() {
           }
         />
         <HelpFooter />
-      </div>
+      </SubPage>
     );
   }
 
   // No programme initiated yet — calm welcome, never a broken/empty table.
   if (!programme) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        <h1 className="text-lg font-semibold tracking-tight text-text">
-          {t('kavach.title')}
-        </h1>
+      <SubPage title={t('kavach.title')} fallback="/chat" className="gap-4">
         <EmptyState
           icon={<ShieldCheck width={28} strokeWidth={1.5} />}
           title={t('kavach.welcomeTitle')}
           description={t('kavach.welcomeDesc')}
         />
         <HelpFooter />
-      </div>
+      </SubPage>
     );
   }
 
@@ -186,11 +180,7 @@ export function KavachPage() {
   const unchecked = programme.score.notYetVerifiedCount;
 
   return (
-    <div className="flex flex-1 flex-col gap-5 p-4">
-      <h1 className="text-lg font-semibold tracking-tight text-text">
-        {t('kavach.title')}
-      </h1>
-
+    <SubPage title={t('kavach.title')} fallback="/chat" className="gap-5">
       {/* 1. What we need from them — above the number, because it is the only
           thing on this screen they can act on. */}
       {asks.length > 0 ? (
@@ -336,6 +326,6 @@ export function KavachPage() {
       ) : null}
 
       <HelpFooter />
-    </div>
+    </SubPage>
   );
 }

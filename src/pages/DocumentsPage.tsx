@@ -2,10 +2,12 @@ import { FileText, MessageCircle } from 'lucide-react';
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { SubPage } from '@/components/SubPage';
 import { EmptyState, Spinner } from '@/components/ui';
 import { AskCard } from '@/features/asks/AskCard';
 import { EMPTY_ASK_LIST, askMatchKey, groupAsks } from '@/features/asks/askRules';
 import { useAskCapture } from '@/features/asks/useAskCapture';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { askIdFromSearch, findAskRow, renewalPointer } from '@/features/documents/documentRules';
 import { OnFileCard } from '@/features/documents/OnFileCard';
 import { useMyAsks } from '@/hooks/api/useAsks';
@@ -129,9 +131,8 @@ export function DocumentsPage() {
     if (!focusKey) return;
     const node = focusRef.current;
     if (!node) return;
-    // `block: 'center'` rather than the default `start`: the shell's header is
-    // sticky and the ask bar can sit under it, so a card scrolled to the top of
-    // the document lands underneath both of them.
+    // `block: 'center'` rather than the default `start`: the top bar is sticky,
+    // so a card scrolled to the very top of the document lands underneath it.
     node.scrollIntoView?.({ block: 'center' });
   }, [focusKey]);
 
@@ -163,25 +164,24 @@ export function DocumentsPage() {
 
   if (meQuery.isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner size={20} />
-      </div>
+      <SubPage title={t('documents.pageTitle')} fallback="/chat">
+        <div className="flex flex-1 items-center justify-center py-12">
+          <Spinner size={20} />
+        </div>
+      </SubPage>
     );
   }
 
   if (meQuery.isError) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        <h1 className="text-lg font-semibold tracking-tight text-text">
-          {t('documents.pageTitle')}
-        </h1>
+      <SubPage title={t('documents.pageTitle')} fallback="/chat" className="gap-4">
         <EmptyState
           icon={<FileText width={28} strokeWidth={1.5} />}
           title={t('density.errorTitle')}
           description={t('common.helpDesc')}
         />
         <HelpFooter />
-      </div>
+      </SubPage>
     );
   }
 
@@ -189,11 +189,7 @@ export function DocumentsPage() {
     groups.todo.length === 0 && groups.sent.length === 0 && groups.done.length === 0;
 
   return (
-    <div className="flex flex-1 flex-col gap-5 p-4">
-      <h1 className="text-lg font-semibold tracking-tight text-text">
-        {t('documents.pageTitle')}
-      </h1>
-
+    <SubPage title={t('documents.pageTitle')} fallback="/chat" className="gap-5">
       {nothing ? (
         // A calm, true sentence rather than an empty list that reads like
         // something is broken.
@@ -258,7 +254,7 @@ export function DocumentsPage() {
       <HelpFooter />
 
       {capture.elements}
-    </div>
+    </SubPage>
   );
 }
 
@@ -293,12 +289,12 @@ function Section({
  * a list they cannot argue with.
  */
 function HelpFooter() {
-  const navigate = useNavigate();
+  const openMyChat = useOpenMyChat();
   const t = useT();
   return (
     <button
       type="button"
-      onClick={() => navigate('/chat')}
+      onClick={openMyChat}
       className="mt-2 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-brand shadow-sm active:bg-surface-2"
     >
       <MessageCircle width={16} strokeWidth={1.75} />

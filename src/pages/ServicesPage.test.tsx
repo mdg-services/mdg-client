@@ -125,4 +125,19 @@ describe('ServicesPage', () => {
 
     expect(await screen.findByText('No services yet')).toBeInTheDocument();
   });
+
+  /**
+   * Services lost its tab: it is reached from Settings, and its own top bar —
+   * the title and a back arrow — is how a dealer leaves it. The title is the
+   * bar's, not a heading inside the page.
+   */
+  it('is headed by its own top bar, on a failure as well as on success', async () => {
+    vi.mocked(api.get).mockRejectedValue(new ApiError(500, 'ERR', 'boom'));
+
+    renderServices('en');
+
+    expect(await screen.findByText("We couldn't show your services just now")).toBeInTheDocument();
+    expect(screen.getAllByText('Your services')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
 });

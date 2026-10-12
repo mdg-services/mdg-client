@@ -671,8 +671,8 @@ export interface ConversationAiState {
    * SECURITY OBSERVATIONS, and deliberately NOT `Conversation.flagged`.
    *
    * `flagged` means one thing — an assigned ticket missed its reply SLA — and it
-   * is cleared by pickup, by any admin reply, by resolve, by reopen and by a
-   * records post. Storing a security marker there would mean an admin ANSWERING
+   * is cleared by pickup, by any admin reply, by resolve and by reopen.
+   * Storing a security marker there would mean an admin ANSWERING
    * THE DEALER silently erases it. An operational alarm should clear when the
    * work is done; an observation about a person's behaviour must survive being
    * replied to. Cleared by exactly one thing: `POST …/ai-guard/clear`.

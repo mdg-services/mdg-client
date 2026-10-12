@@ -1,8 +1,4 @@
-// `record` imports `Attachment` back from this file, so these two reference each
-// other. That is harmless because both directions are `import type`: TypeScript
-// erases them, so no cycle survives into the emitted JavaScript.
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
-import type { RecordCard } from './record';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
 
@@ -141,6 +137,17 @@ export interface Conversation {
    */
   unreadDealerUserIds?: string[];
   /**
+   * How many messages in this thread the VIEWER has not read yet — the number
+   * in the green pill on the dealer's chat list.
+   *
+   * Set only on the dealer's own list (`GET /conversations/mine`), counted for
+   * the member who asked. Absent everywhere else, and in particular on the
+   * socket's `conversation:updated`, which goes to every participant of a group
+   * thread at once and so cannot carry one reader's count. A client keeps the
+   * last number it knew when a payload arrives without one.
+   */
+  unreadCount?: number;
+  /**
    * Where this thread stands with the AI first line. Absent on every thread the
    * machine has never touched, which is most of them.
    *
@@ -202,10 +209,21 @@ export interface MessageReplyContext {
   imageStorageKey?: string;
   /** Signed thumbnail URL, populated by the API at read time. */
   imageUrl?: string;
-  /** True when the original was a record card. */
-  card?: boolean;
-  /** Card title when the original was a record card. */
-  cardTitle?: string;
+}
+
+/**
+ * One hit from searching the text of a thread
+ * (`GET /conversations/:id/messages/search?q=`), newest first.
+ *
+ * Only the words of a message are searched — the body, never a filename or a
+ * picture — the same as WhatsApp's search inside a chat.
+ */
+export interface MessageSearchHit {
+  messageId: string;
+  senderId: string;
+  createdAt: string;
+  /** The body around the first match, trimmed to about 140 characters. */
+  snippet: string;
 }
 
 /** Tabs of the per-conversation media gallery. */
@@ -225,7 +243,10 @@ export interface ConversationMediaItem {
   attachment?: Attachment;
   /** Present for 'links' items: URLs extracted from the message body. */
   urls?: string[];
-  /** Short body excerpt giving the link some context. */
+  /**
+   * The message's words: on the links tab a short excerpt giving the link
+   * some context; on the media and docs tabs the caption sent with the file.
+   */
   bodySnippet?: string;
 }
 
@@ -252,9 +273,12 @@ export interface Message {
   senderName?: string;
   body?: string;
   attachments: Attachment[];
-  /** When present, this message renders as a rich record card in the chat. */
-  card?: RecordCard;
-  /** Distinguishes system/automated messages (e.g. "Your DSR is ready"). */
+  /**
+   * Posted by MDG's machinery rather than typed by a person — a shared report,
+   * a daily Kavach line, a "Resolved" notice. The dealer app draws it exactly
+   * like any other message from MDG (a WhatsApp image or text bubble); the
+   * admin inbox still sets it apart. The AI's briefing labels it a notice.
+   */
   system?: boolean;
   /** User ids that have received the message on a device (drives the ✓✓ "delivered" tick). */
   deliveredTo?: string[];
@@ -267,10 +291,10 @@ export interface Message {
   /**
    * Set only on a message the AI first line posted. Its presence is the ONLY
    * thing that distinguishes one: the sender is the existing "MDG System" admin
-   * user and `senderRole` is `'admin'`, deliberately, because
-   * `MessageBubble.tsx` computes `senderRole === 'admin'` to choose which side of
-   * the thread a bubble sits on and would have drawn an `'ai'` message as if the
-   * dealer had typed it. A client that predates this field ignores the unknown
+   * user and `senderRole` is `'admin'`, deliberately: an `'ai'` role would be a
+   * fourth sender kind every reader of `senderRole` (the admin inbox's side of
+   * the thread, the SLA clock, the first line's own "did a person speak" check)
+   * would have to learn. A client that predates this field ignores the unknown
    * key and renders an ordinary Support bubble.
    */
   ai?: MessageAiMeta;

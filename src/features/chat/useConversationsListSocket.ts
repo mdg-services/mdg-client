@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
+import { useMatch } from 'react-router-dom';
 
 import { myConversationsKey } from '@/hooks/api/useMyConversations';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
-import type { Conversation } from '@dk/shared/types';
+import type { Conversation, Message } from '@dk/shared/types';
 
 /** Upsert a conversation into the list cache, keeping it sorted newest-first. */
 function upsert(
@@ -24,8 +25,36 @@ function upsert(
 }
 
 /**
+ * The number in the green pill after a live update.
+ *
+ * Only the dealer's own `GET /conversations/mine` carries `unreadCount` — it is
+ * counted for the one member who asked. A socket payload goes to EVERY
+ * participant of a group thread at once and so cannot carry one reader's number:
+ * it arrives without it, and the last number this phone knew has to be kept
+ * rather than dropped, or every incoming message would blank the pill.
+ *
+ * `bump` is "this update is one more message the dealer has not read" — set by
+ * the caller only for a message from somebody else, in a thread that is not the
+ * one on screen. A thread this phone has no entry for yet (the first message of
+ * a brand-new chat) starts at 1. A thread it knows about but whose count it was
+ * never told (a server that predates the field) is left without one, so the
+ * list falls back to its plain unread dot instead of inventing a wrong number.
+ */
+function nextUnreadCount(
+  prev: Conversation | undefined,
+  incoming: Conversation,
+  bump: boolean,
+): number | undefined {
+  if (incoming.unreadCount !== undefined) return incoming.unreadCount;
+  const known = prev?.unreadCount;
+  if (!bump) return known;
+  if (known !== undefined) return known + 1;
+  return prev ? undefined : 1;
+}
+
+/**
  * App-wide listener that keeps the dealer's conversation LIST (and its unread
- * badges) live for EVERY thread they participate in — not just the open one.
+ * counts) live for EVERY thread they participate in — not just the open one.
  * Mounted once in AppShell.
  *
  * Ownership split: the per-thread `useConversationSocket` owns message bodies +
@@ -39,16 +68,53 @@ export function useConversationsListSocket() {
   const token = useAuthStore((s) => s.token);
   const myId = useAuthStore((s) => s.user?.id);
 
+  // Which thread is on screen right now. A message that lands in the thread the
+  // dealer is reading is read the moment it arrives, so counting it would flash
+  // a pill on a list nobody is looking at. Kept in a ref so that walking into
+  // or out of a thread does not tear the socket listeners down and set them up
+  // again. Exact match on purpose: `/chat/:id/media` and `/chat/:id/info` are
+  // not reading the thread's messages.
+  const openMatch = useMatch('/chat/:id');
+  const openIdRef = React.useRef<string | undefined>(undefined);
+  openIdRef.current = openMatch?.params.id;
+
+  // Messages already counted. The server delivers `message:new` to a member's
+  // conversation room AND their own room, so a phone in both gets it twice (the
+  // thread's cache dedupes by id for the same reason); without this each new
+  // message would add two to the pill.
+  const countedRef = React.useRef<Set<string>>(new Set());
+
   React.useEffect(() => {
     if (!token) return;
     const socket = getSocket();
     if (!socket) return;
 
-    const apply = (conv: Conversation) => {
-      qc.setQueryData<Conversation[]>(myConversationsKey, (old) => upsert(old, conv));
+    const apply = (conv: Conversation, bump: boolean) => {
+      qc.setQueryData<Conversation[]>(myConversationsKey, (old) => {
+        if (!old) return old;
+        const prev = old.find((c) => c.id === conv.id);
+        const unreadCount = nextUnreadCount(prev, conv, bump);
+        return upsert(old, unreadCount === undefined ? conv : { ...conv, unreadCount });
+      });
     };
-    const onNewMessage = (p: { conversation: Conversation }) => apply(p.conversation);
-    const onConvUpdated = (p: { conversation: Conversation }) => apply(p.conversation);
+
+    const onNewMessage = (p: { message?: Message; conversation: Conversation }) => {
+      const message = p.message;
+      const fromSomeoneElse = !!message && message.senderId !== myId;
+      const threadIsOpen = openIdRef.current === p.conversation.id;
+      let bump = fromSomeoneElse && !threadIsOpen;
+      if (bump && message?.id) {
+        const counted = countedRef.current;
+        if (counted.has(message.id)) bump = false;
+        else {
+          // A session only ever needs the recent ones; keep the set small.
+          if (counted.size > 500) counted.clear();
+          counted.add(message.id);
+        }
+      }
+      apply(p.conversation, bump);
+    };
+    const onConvUpdated = (p: { conversation: Conversation }) => apply(p.conversation, false);
 
     // When *I* read a thread, the server clears me from unreadDealerUserIds but
     // only emits `read` (not conversation:updated), so the list badge would stay
@@ -65,12 +131,15 @@ export function useConversationsListSocket() {
             unreadDealerUserIds: nextIds,
             // The reader clearing the last unread also clears the coarse flag.
             unreadByDealer: nextIds.length > 0 ? c.unreadByDealer : false,
+            // The pill counts MY unread messages, and I have just read them.
+            unreadCount: 0,
           };
         }),
       );
     };
 
-    // After a reconnect the list may have missed updates — refetch it.
+    // After a reconnect the list may have missed updates — refetch it (the
+    // server's own count replaces whatever this phone had been adding up).
     const offReconnect = onSocketReconnect(socket, () => {
       void qc.invalidateQueries({ queryKey: myConversationsKey });
     });

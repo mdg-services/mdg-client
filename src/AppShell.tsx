@@ -1,42 +1,52 @@
-import { FileText, MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
 import * as React from 'react';
-import { NavLink, Outlet, useMatch } from 'react-router-dom';
+import { Outlet, useMatch } from 'react-router-dom';
 
-import { BrandMark } from '@/components/BrandMark';
-import { LanguageToggle } from '@/components/LanguageToggle';
-import { Avatar, Spinner } from '@/components/ui';
+import { Spinner } from '@/components/ui';
 import { AskBar } from '@/features/asks/AskBar';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
-import { useRecordsSocket } from '@/features/records/useRecordsSocket';
 import { useMe } from '@/hooks/api/useMe';
+import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
 import { usePushBridge } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
-import { useT } from '@/lib/i18n';
 import { useKeyboardViewport } from '@/lib/useKeyboardViewport';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
 
 /**
- * The authenticated app frame: header, bottom tab bar, and the app-wide realtime
- * hooks. It is a separate route-level chunk (lazy-loaded in App.tsx via a layout
- * route) for two reasons:
+ * The authenticated app frame: the app-wide realtime hooks, and the box every
+ * screen is drawn in. It is a separate route-level chunk (lazy-loaded in App.tsx
+ * via a layout route) for two reasons:
  *
  *  1. The socket.io / realtime stack and these hooks never ship in the
  *     unauthenticated login chunk — a low-bandwidth dealer who only ever sees the
  *     login screen downloads none of it.
- *  2. Mounted ONCE by the layout route, so switching tabs swaps only the
+ *  2. Mounted ONCE by the layout route, so moving between screens swaps only the
  *     <Outlet/> content instead of unmounting/remounting the shell — useMe no
- *     longer refetches and the socket does not re-subscribe on every tab tap.
+ *     longer refetches and the socket does not re-subscribe on every tap.
+ *
+ * IT DRAWS NO HEADER AND NO TAB BAR. The app is the chat: the chat list is the
+ * first screen, Settings hangs off its ⋮ menu, and every screen draws exactly one
+ * top bar of its own (`AppBar`) — a back arrow where there is somewhere to go
+ * back to. A shell header above those would stack two bars on every screen, and a
+ * tab bar would put four doors on a screen that has one. Nothing here reserves
+ * room at the bottom any more either, so there is no `pb-20`: the composer's own
+ * safe-area padding is what governs the bottom edge of a conversation.
  */
 export function AppShell() {
   useMe(); // refresh /me when authed
-  useRecordsSocket(); // refresh Reports + toast on record:new
-  useConversationsListSocket(); // keep the chat LIST + unread badges live app-wide
+  useConversationsListSocket(); // keep the chat LIST + unread counts live app-wide
+  // …and loaded, wherever the app was opened. A notification can open it cold on
+  // /density or /documents, and every "Message us" there goes straight into the
+  // member's own chat by reading this list (`useOpenMyChat`) — with nothing
+  // loaded it could only fall back to the list itself.
+  useMyConversations();
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
-  const { keyboardOpen } = useKeyboardViewport(); // track keyboard/visual viewport
-  const t = useT();
+  // Called for its side effect. It publishes `--vvh` / `--kb` on <html>, which is
+  // what keeps the composer above the keyboard; nothing in this frame reads the
+  // returned flag now that there is no bottom bar to slide out of its way.
+  useKeyboardViewport();
   const user = useAuthStore((s) => s.user);
   const setLangFromUser = useLangStore((s) => s.setLangFromUser);
 
@@ -51,7 +61,9 @@ export function AppShell() {
   //                resizes-content` (see index.html) the keyboard shrinks the
   //                layout viewport, so dvh already excludes the keyboard even
   //                before JS runs and regardless of visualViewport quirks.
-  // Other routes keep normal document flow + scrolling.
+  // Every other route (the list, the media page, chat info, Settings and the
+  // rest) keeps normal document flow + scrolling. The match is exact on purpose:
+  // `/chat/:id/media` and `/chat/:id/info` scroll as ordinary pages.
   const inConversation = !!useMatch('/chat/:id');
 
   // A returning member lands in their saved language (unless they've already
@@ -61,132 +73,38 @@ export function AppShell() {
   }, [user, setLangFromUser]);
 
   return (
-    <div
-      className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
-      style={inConversation ? { height: 'var(--vvh, 100dvh)' } : undefined}
-    >
-      <header className="sticky top-0 z-30 border-b border-border bg-surface">
-        <div className="mx-auto flex h-14 w-full max-w-md items-center justify-between gap-2 px-4 md:max-w-2xl lg:max-w-3xl">
-          <div className="flex min-w-0 items-center gap-2">
-            {/* The MDG Services mark, drawn rather than downloaded (see
-                BrandMark) and painted in the text colour, so it inverts with
-                the theme instead of needing a second asset. It sits bare rather
-                than inside the dark tile the "DK" placeholder used: at the 20px
-                a 32px tile leaves for its contents this artwork collapses into
-                a blob. */}
-            <BrandMark size={32} className="shrink-0 text-text" />
-            <span className="truncate text-sm font-semibold tracking-tight text-text">
-              {t('app.brand')}
-            </span>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <LanguageToggle compact />
-            <Avatar name={user?.name} size={32} />
-          </div>
-        </div>
-      </header>
-
-      <main
-        className={cn(
-          'mx-auto flex w-full max-w-md flex-col md:max-w-2xl lg:max-w-3xl',
-          // In a conversation the frame is a fixed height (--vvh): clip here and
-          // let the message list scroll internally, so the composer stays pinned
-          // to the bottom. Reserve tab-bar space only while the bar is visible.
-          inConversation
-            ? cn('min-h-0 flex-1 overflow-hidden', !keyboardOpen && 'pb-20')
-            : 'flex-1 pb-20',
-        )}
+    // The ask bar's ENGINE wraps the whole frame. It is mounted unconditionally,
+    // which matters: it also carries the socket that tells this phone about a new
+    // ask and the loop that sends a photograph waiting in the offline queue, and
+    // both have to keep running on every screen. It draws nothing itself — the
+    // strip it publishes is rendered by each screen's `AppBar`, directly under
+    // that bar — so it adds no box here and cannot disturb the layout below.
+    <AskBar>
+      <div
+        className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
+        style={inConversation ? { height: 'var(--vvh, 100dvh)' } : undefined}
       >
-        {/* The one thing the dealer owes MDG, above the page rather than inside
-            it, and inside <main> so it picks up the same max-width column as
-            everything else. It draws nothing at all unless it is their turn.
-
-            It is mounted UNCONDITIONALLY, which matters: the bar also carries
-            the socket that tells this phone about a new ask and the loop that
-            sends a photograph waiting in the offline queue, and both have to
-            keep running on every screen. A component that returns null is still
-            mounted and its hooks still run, so the bar decides its own
-            visibility rather than being conditionally rendered here — the pin
-            it replaced was mounted with an `&&` and that is exactly the shape
-            that would switch the queue off.
-
-            `shrink-0` (declared on the bar's own root) is load-bearing: in a
-            conversation the frame is a fixed height (--vvh) and a flex child
-            that is allowed to shrink gets squeezed towards zero. This repo has
-            already shipped a sticky bar that crushed its neighbour to 0px and
-            broke its text one letter per line.
-
-            It does NOT hide while the keyboard is up, unlike the tab bar below.
-            The tab bar has to move because it is `fixed inset-x-0 bottom-0` and
-            would otherwise sit between the composer and the keyboard; a bar at
-            the TOP has no such conflict, and hiding it would reflow the message
-            list by 44px every time the dealer tapped the composer. */}
-        <AskBar />
-
-        {/* The shell stays painted while the next page's chunk streams in. */}
-        <React.Suspense
-          fallback={
-            <div className="flex flex-1 items-center justify-center py-20">
-              <Spinner size={22} />
-            </div>
-          }
+        <main
+          className={cn(
+            'mx-auto flex w-full max-w-md flex-col md:max-w-2xl lg:max-w-3xl',
+            // In a conversation the frame is a fixed height (--vvh): clip here
+            // and let the message list scroll internally, so the composer stays
+            // pinned to the bottom. No bottom padding either way.
+            inConversation ? 'min-h-0 flex-1 overflow-hidden' : 'flex-1',
+          )}
         >
-          <Outlet />
-        </React.Suspense>
-      </main>
-
-      {/* Slide the tab bar out of the way while the keyboard is up so it never
-          sits between the composer and the keyboard (and the composer can take
-          the very bottom of the visible viewport). It returns on blur. */}
-      <nav
-        aria-hidden={keyboardOpen}
-        className={cn(
-          'fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface',
-          'pb-[max(0.5rem,env(safe-area-inset-bottom))] transition-transform duration-200',
-          keyboardOpen && 'pointer-events-none translate-y-full',
-        )}
-      >
-        <div className="mx-auto flex w-full max-w-md items-stretch justify-around px-2 pt-1 md:max-w-2xl lg:max-w-3xl">
-          <TabLink to="/chat" icon={<MessageCircle width={22} strokeWidth={1.75} />} label={t('nav.chat')} />
-          <TabLink to="/records" icon={<FileText width={22} strokeWidth={1.75} />} label={t('nav.reports')} />
-          <TabLink
-            to="/kavach"
-            icon={<ShieldCheck width={22} strokeWidth={1.75} />}
-            label={t('nav.kavach')}
-          />
-          <TabLink to="/profile" icon={<UserIcon width={22} strokeWidth={1.75} />} label={t('nav.profile')} />
-        </div>
-      </nav>
-    </div>
-  );
-}
-
-function TabLink({
-  to,
-  icon,
-  label,
-  sublabel,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  sublabel?: string;
-}) {
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        cn(
-          'flex min-h-[44px] min-w-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium transition-colors',
-          isActive ? 'text-text' : 'text-text-subtle hover:text-text-muted',
-        )
-      }
-    >
-      {icon}
-      <span className="leading-none">{label}</span>
-      {sublabel ? (
-        <span className="text-[10px] leading-none">{sublabel}</span>
-      ) : null}
-    </NavLink>
+          {/* The shell stays painted while the next page's chunk streams in. */}
+          <React.Suspense
+            fallback={
+              <div className="flex flex-1 items-center justify-center py-20">
+                <Spinner size={22} />
+              </div>
+            }
+          >
+            <Outlet />
+          </React.Suspense>
+        </main>
+      </div>
+    </AskBar>
   );
 }

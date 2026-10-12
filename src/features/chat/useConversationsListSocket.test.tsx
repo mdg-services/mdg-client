@@ -9,7 +9,7 @@ import {
   resetStores,
   signIn,
 } from '@/test/utils';
-import type { Conversation } from '@dk/shared/types';
+import type { Conversation, Message } from '@dk/shared/types';
 
 import { useConversationsListSocket } from './useConversationsListSocket';
 
@@ -35,14 +35,15 @@ function makeConv(over: Partial<Conversation> = {}): Conversation {
   } as Conversation;
 }
 
-function mount(seed?: Conversation[]) {
+/** `route` is where the dealer is standing — `/chat/c1` means thread c1 is open. */
+function mount(seed?: Conversation[], route = '/chat') {
   h.socket = makeFakeSocket(true);
   signIn({ id: 'u1' });
   const qc = makeTestQueryClient();
   if (seed) qc.setQueryData(myConversationsKey, seed);
   const view = renderHookWithProviders(() => useConversationsListSocket(), {
     queryClient: qc,
-    withRouter: false,
+    route,
   });
   return { qc, ...view };
 }
@@ -141,5 +142,104 @@ describe('useConversationsListSocket', () => {
     const spy = vi.spyOn(qc, 'invalidateQueries');
     act(() => h.socket.server('connect')); // first connect on an already-connected socket → reconnect
     expect(spy).toHaveBeenCalledWith({ queryKey: myConversationsKey });
+  });
+
+  describe('the unread count in the green pill', () => {
+    const incoming = (conversation: Conversation, over: Partial<Message> = {}) =>
+      h.socket.server('message:new', {
+        message: { id: 'm1', senderId: 'mdg', conversationId: conversation.id, ...over },
+        conversation,
+      });
+    const count = (qc: ReturnType<typeof makeTestQueryClient>, id = 'c1') =>
+      list(qc)!.find((c) => c.id === id)!.unreadCount;
+
+    it("adds one for a message from someone else in a thread that is not open", () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 2 })]);
+      act(() => incoming(makeConv({ id: 'c1', unreadByDealer: true, unreadDealerUserIds: ['u1'] })));
+      expect(count(qc)).toBe(3);
+    });
+
+    it('does not count the dealer\'s own message echoing back', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 0 })]);
+      act(() => incoming(makeConv({ id: 'c1' }), { senderId: 'u1' }));
+      expect(count(qc)).toBe(0);
+    });
+
+    it('does not count a message that lands in the thread on screen', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 0 })], '/chat/c1');
+      act(() => incoming(makeConv({ id: 'c1' })));
+      expect(count(qc)).toBe(0);
+    });
+
+    it('still counts for the OTHER thread while one is open', () => {
+      const { qc } = mount(
+        [makeConv({ id: 'c1', unreadCount: 0 }), makeConv({ id: 'c2', unreadCount: 0 })],
+        '/chat/c1',
+      );
+      act(() => incoming(makeConv({ id: 'c2' })));
+      expect(count(qc, 'c2')).toBe(1);
+    });
+
+    it('counts media and info screens of a thread as not reading it', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 0 })], '/chat/c1/info');
+      act(() => incoming(makeConv({ id: 'c1' })));
+      expect(count(qc)).toBe(1);
+    });
+
+    // The server sends a message to a member's conversation room and again to
+    // their own room, so a phone in both receives it twice.
+    it('counts a message once even when the server delivers it twice', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 0 })]);
+      act(() => {
+        incoming(makeConv({ id: 'c1' }), { id: 'dup' });
+        incoming(makeConv({ id: 'c1' }), { id: 'dup' });
+      });
+      expect(count(qc)).toBe(1);
+      act(() => incoming(makeConv({ id: 'c1' }), { id: 'another' }));
+      expect(count(qc)).toBe(2);
+    });
+
+    it('keeps the last number when a payload arrives without one', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 4 })]);
+      act(() =>
+        h.socket.server('conversation:updated', {
+          conversation: makeConv({ id: 'c1', lastMessagePreview: 'new' }),
+        }),
+      );
+      expect(count(qc)).toBe(4);
+      expect(list(qc)![0]!.lastMessagePreview).toBe('new');
+    });
+
+    it('goes back to zero when the dealer reads the thread', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 7, unreadDealerUserIds: ['u1'] })]);
+      act(() =>
+        h.socket.server('read', { conversationId: 'c1', userId: 'u1', messageIds: ['m1'] }),
+      );
+      expect(count(qc)).toBe(0);
+    });
+
+    it("leaves the count alone when somebody ELSE reads", () => {
+      const { qc } = mount([
+        makeConv({ id: 'c1', unreadCount: 3, unreadDealerUserIds: ['u1', 'u2'] }),
+      ]);
+      act(() =>
+        h.socket.server('read', { conversationId: 'c1', userId: 'u2', messageIds: ['m1'] }),
+      );
+      expect(count(qc)).toBe(3);
+    });
+
+    it('starts a brand-new thread at one', () => {
+      const { qc } = mount([makeConv({ id: 'c1', unreadCount: 0 })]);
+      act(() => incoming(makeConv({ id: 'c2', lastMessageAt: '2026-02-01T00:00:00.000Z' })));
+      expect(count(qc, 'c2')).toBe(1);
+    });
+
+    // A server that predates the field. Inventing "1" would be wrong whenever
+    // there was already something unread, so the list keeps its dot instead.
+    it('does not invent a number for a thread whose count it was never told', () => {
+      const { qc } = mount([makeConv({ id: 'c1' })]);
+      act(() => incoming(makeConv({ id: 'c1', unreadByDealer: true })));
+      expect(count(qc)).toBeUndefined();
+    });
   });
 });

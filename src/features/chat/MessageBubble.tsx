@@ -2,21 +2,32 @@ import { Camera, Check, CheckCheck, Clock, FileText, Mic, Zap } from 'lucide-rea
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
-import { RecordCard } from '@/features/records/RecordCard';
-import { useOpenRecord, useRecord } from '@/hooks/api/useRecords';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
 import { useLongPress } from '@/lib/useLongPress';
+import type { Lang } from '@/store/lang';
 import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 
-import { MessageAttachment } from './AttachmentPreview';
+import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
 
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const TIME_FORMATS = new Map<Lang, Intl.DateTimeFormat>();
+
+/** "12:35 pm" — the clock inside a bubble, in the app's language. */
+export function formatTime(iso: string, lang: Lang): string {
+  let fmt = TIME_FORMATS.get(lang);
+  if (!fmt) {
+    // One formatter per language: a long thread draws hundreds of these.
+    fmt = new Intl.DateTimeFormat(lang === 'hi' ? 'hi-IN' : 'en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    TIME_FORMATS.set(lang, fmt);
+  }
+  return fmt.format(new Date(iso));
 }
 
 /** Stable display hue for a group-chat sender, derived from their user id. */
@@ -28,137 +39,44 @@ export function senderHue(senderId: string): number {
   return h;
 }
 
-function CardMessage({ message }: { message: Message }) {
-  const card = message.card!;
-  // Resolve the signed file URL so the card is tappable.
-  const recordQuery = useRecord(card.recordId);
-  const openRecord = useOpenRecord();
-  const url = recordQuery.data?.attachment.url;
-  // A failed lookup used to render as "Preparing…" — a card that looks like it
-  // is on its way and is in fact stuck, on a screen with nothing to press.
-  const failed = recordQuery.isError;
-
-  return (
-    <div className="flex w-full flex-col items-center gap-1.5 animate-in">
-      {message.body ? (
-        <p className="max-w-[80%] text-center text-xs text-text-muted">
-          {message.body}
-        </p>
-      ) : null}
-      <div className="w-full max-w-[88%]">
-        <RecordCard
-          record={{
-            recordType: card.recordType,
-            title: card.title,
-            periodLabel: card.periodLabel,
-          }}
-          url={url}
-          onOpen={() => openRecord(card.recordId)}
-          failed={failed}
-          onRetry={() => void recordQuery.refetch()}
-          compact
-        />
-      </div>
-      <span className="px-1 text-[11px] text-text-subtle">
-        {formatTime(message.createdAt)}
-      </span>
-    </div>
-  );
-}
-
 /**
- * An automated notice in the thread — a shared report, a resolution line.
- * Centred, and deliberately not a bubble.
- *
- * A notice DOES carry attachments and this used to render `message.body` and
- * nothing else. Three backend senders post `system: true` messages with image
- * cards on them — dsr-report/share.ts (two PNGs), kavach/share.ts (the score
- * card), creditDod/share.ts (the position card) — so the dealer's DSR notice
- * ended on the line "ऊपर दो तस्वीरें / See the two images above" with nothing
- * above it. The pictures were never lost from the product (they still reach the
- * Media gallery, which only filters `system` off the links tab), but in the
- * thread they were sent into they were invisible.
- *
- * Reactions, delivery ticks, the reply quote and the long-press action sheet
- * all stay off here on purpose: a notice about the thread is not a message you
- * reply to. `actionable` below and MessageList's `interactive` already exclude
- * system messages for the same reason.
+ * WhatsApp-style delivery state for one of the current user's own messages:
+ * a clock while it is being sent, ✓ sent, ✓✓ delivered, ✓✓ in the read colour.
+ * It takes the colour of the line it sits in, so over a photograph it is white
+ * with the rest of the time — only the read colour is its own.
  */
-function SystemMessage({
-  message,
-  onOpenImage,
-}: {
-  message: Message;
-  onOpenImage?: (attachment: Attachment) => void;
-}) {
-  const source = {
-    conversationId: message.conversationId,
-    messageId: message.id,
-  };
-  return (
-    <div className="flex w-full flex-col items-center gap-1.5 animate-in">
-      {message.attachments.length > 0 ? (
-        <div className="flex w-full max-w-[85%] flex-col items-center gap-1.5">
-          {message.attachments.map((a) => (
-            <MessageAttachment
-              key={a.storageKey}
-              attachment={a}
-              source={source}
-              onOpenImage={onOpenImage}
-            />
-          ))}
-        </div>
-      ) : null}
-      {message.body ? (
-        // `rounded-lg`, not `rounded-full`: the same reason already recorded in
-        // mdg-admin's copy of this component. The pill shape is only right for a
-        // one-line note, and a bilingual service notice runs to a dozen lines —
-        // a 9999px radius on a box that tall cuts a curve straight through its
-        // own first and last lines.
-        <p className="max-w-[85%] rounded-lg bg-surface-2 px-3 py-1 text-center text-[12px] text-text-muted">
-          {message.body}
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** WhatsApp-style delivery state for one of the current user's own messages. */
 function MessageTicks({ message }: { message: Message }) {
   // Optimistic, not yet acknowledged by the server.
   if (message.id.startsWith('temp-')) {
-    return <Clock width={12} strokeWidth={2} className="opacity-70" />;
+    return <Clock width={12} strokeWidth={2} className="opacity-80" />;
   }
   const seen = (message.readBy ?? []).some((id) => id !== message.senderId);
   if (seen) {
-    return <CheckCheck width={14} strokeWidth={2} className="text-[#34b7f1]" />;
+    return <CheckCheck width={15} strokeWidth={2} className="text-wa-tick-read" />;
   }
   const delivered = (message.deliveredTo ?? []).some(
     (id) => id !== message.senderId,
   );
   if (delivered) {
-    return <CheckCheck width={14} strokeWidth={2} />;
+    return <CheckCheck width={15} strokeWidth={2} />;
   }
-  return <Check width={14} strokeWidth={2} />;
+  return <Check width={15} strokeWidth={2} />;
 }
 
 const QUOTE_ICONS = {
   image: Camera,
   audio: Mic,
   file: FileText,
-  card: FileText,
 } as const;
 
 /** The quoted-original block rendered at the top of a replying bubble. */
 function QuoteBlock({
   message,
-  mine,
   currentUserId,
   quoteLoading,
   onJumpTo,
 }: {
   message: Message;
-  mine: boolean;
   currentUserId?: string;
   quoteLoading?: boolean;
   onJumpTo?: (targetId: string, fromId: string) => void;
@@ -171,32 +89,22 @@ function QuoteBlock({
     <button
       type="button"
       onClick={() => onJumpTo?.(rc.messageId, message.id)}
-      className={cn(
-        'flex w-full items-center gap-2 overflow-hidden rounded-lg border-l-[3px] px-2 py-1.5 text-left',
-        mine ? 'border-white/70 bg-white/15' : 'border-brand bg-surface-2',
-      )}
+      className="mb-1 flex w-full items-stretch overflow-hidden rounded-md bg-black/[0.06] text-left active:bg-black/10"
     >
-      <span className="min-w-0 flex-1">
-        <span
-          className={cn(
-            'block truncate text-xs font-semibold',
-            mine ? 'text-text-inverse' : 'text-text',
-          )}
-        >
+      <span className="w-1 shrink-0 bg-wa-accent" aria-hidden />
+      <span className="min-w-0 flex-1 px-2 py-1">
+        <span className="block truncate text-[13px] font-medium leading-tight text-wa-accent-strong">
           {replySenderLabel(rc, currentUserId, t)}
         </span>
-        <span
-          className={cn(
-            'flex items-center gap-1 text-xs',
-            mine ? 'text-text-inverse/80' : 'text-text-muted',
-          )}
-        >
-          {Icon ? <Icon width={12} strokeWidth={1.75} className="shrink-0" /> : null}
-          <span className="truncate">{preview.text}</span>
+        <span className="flex items-center gap-1 text-[13px] leading-snug text-wa-meta">
+          {Icon ? <Icon width={13} strokeWidth={1.75} className="shrink-0" /> : null}
+          <span className="line-clamp-2 break-words">{preview.text}</span>
         </span>
       </span>
       {quoteLoading ? (
-        <Spinner size={14} />
+        <span className="flex w-10 shrink-0 items-center justify-center">
+          <Spinner size={14} />
+        </span>
       ) : rc.imageUrl ? (
         <img
           src={rc.imageUrl}
@@ -204,7 +112,7 @@ function QuoteBlock({
           loading="lazy"
           decoding="async"
           draggable={false}
-          className="h-9 w-9 shrink-0 rounded-md object-cover"
+          className="h-10 w-10 shrink-0 object-cover"
         />
       ) : null}
     </button>
@@ -236,6 +144,29 @@ function groupReactions(
   return groups;
 }
 
+/**
+ * The little wedge on the first bubble of a run, hanging off its top corner —
+ * left for theirs, right for mine. Drawn in the bubble's own colour (`currentColor`),
+ * so one shape serves both.
+ */
+function Tail({ mine }: { mine: boolean }) {
+  return (
+    <svg
+      data-tail=""
+      aria-hidden
+      viewBox="0 0 8 10"
+      width={8}
+      height={10}
+      className={cn(
+        'pointer-events-none absolute top-0 fill-current',
+        mine ? '-right-[7px] scale-x-[-1] text-wa-out' : '-left-[7px] text-wa-in',
+      )}
+    >
+      <path d="M8 0H0q5 .5 8 10z" />
+    </svg>
+  );
+}
+
 // Memoized: message objects are updated immutably in the query cache (see
 // useConversationSocket applyReceipt / onNewMessage), so a typing toggle, a
 // delivery/read receipt, or a new message re-renders only the changed bubble
@@ -248,9 +179,11 @@ export const MessageBubble = React.memo(function MessageBubble({
   mine,
   currentUserId,
   showSender,
+  first = true,
   quoteLoading,
+  highlight,
   onOpenImage,
-  onAction,
+  onLongPress,
   onOpenReactions,
   onJumpTo,
   ticketStatus,
@@ -259,15 +192,22 @@ export const MessageBubble = React.memo(function MessageBubble({
   message: Message;
   mine: boolean;
   currentUserId?: string;
-  /** Show the sender's name above the bubble (group threads, others' messages). */
+  /** Show the sender's name inside the bubble (group threads, others' messages). */
   showSender?: boolean;
+  /**
+   * First bubble of a run from one sender: it gets the tail and, in a group, the
+   * sender's name. MessageList decides; a bubble drawn alone is a run of one.
+   */
+  first?: boolean;
   /** True while the quote's original is being paged in (spinner on the quote). */
   quoteLoading?: boolean;
+  /** Words to paint in the search-hit colour (a search is open). */
+  highlight?: string;
   /** Tap on an image → the full-screen viewer. The message comes along: a
    *  fresh presign is authorised through the message that carries the key. */
   onOpenImage?: (attachment: Attachment, message: Message) => void;
-  /** Long-press → the message action sheet. */
-  onAction?: (message: Message) => void;
+  /** Long-press → start (or change) the selection. */
+  onLongPress?: (message: Message) => void;
   /** Tap on the reaction chips → the who-reacted sheet. */
   onOpenReactions?: (message: Message) => void;
   /** Tap on the quote block → jump to the original message. */
@@ -282,120 +222,210 @@ export const MessageBubble = React.memo(function MessageBubble({
 }) {
   const t = useT();
   const lang = useLang();
+  const pending = message.id.startsWith('temp-');
   // Bound once per render: the attachment's own children only know the
   // attachment, and the viewer needs the message it hangs off.
   const openImage = onOpenImage
     ? (attachment: Attachment) => onOpenImage(attachment, message)
     : undefined;
-  const actionable =
-    !!onAction &&
-    !message.system &&
-    !message.card &&
-    !message.id.startsWith('temp-');
-  const longPress = useLongPress(() => onAction?.(message), {
-    disabled: !actionable,
+  const source = React.useMemo(
+    () => ({ conversationId: message.conversationId, messageId: message.id }),
+    [message.conversationId, message.id],
+  );
+  // EVERY message is selectable, whoever sent it — a shared report is as much a
+  // message as a typed line — except one still on its way out, which the server
+  // does not know yet and so cannot be replied to, reacted to or looked up.
+  const longPress = useLongPress(() => onLongPress?.(message), {
+    disabled: !onLongPress || pending,
   });
 
-  if (message.card) {
-    return <CardMessage message={message} />;
-  }
-  if (message.system) {
-    return <SystemMessage message={message} onOpenImage={openImage} />;
-  }
-
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
+  const { images, voices, docs } = splitAttachments(message.attachments);
+  const hasBody = !!message.body;
+  const hasMedia = images.length > 0;
+  const hasOther = voices.length > 0 || docs.length > 0;
+  // A picture with no caption carries its time ON the picture, on a soft dark
+  // gradient — never a bar of its own underneath.
+  const timeOnPicture = hasMedia && !hasBody && !hasOther;
 
-  // The ONLY thing that marks a reply as machine-written. There is no `'ai'`
-  // sender role and there must not be one: this bubble picks its side from
-  // `senderRole === 'admin'`, so an unrecognised role would draw MDG's own
-  // answer as if the dealer had typed it. Everything below is therefore
-  // progressive enhancement — an app that predates this field ignores the
-  // unknown key and draws an ordinary Support bubble, which is correct, merely
-  // unlabelled.
+  // The only thing that marks a reply as machine-written. There is no `'ai'`
+  // sender role and there must not be one: a role this app does not know would
+  // be drawn as a person's reply. Everything below is therefore progressive
+  // enhancement — an app that predates this field ignores the unknown key and
+  // draws an ordinary bubble, which is correct, merely unlabelled.
   const ai = message.ai;
+  const showAiBadge = !!ai && ai.kind !== 'handoff';
 
-  return (
-    <div
+  // WHERE THE TIME GOES. Inside the text's last line when there is text (the
+  // spacer below keeps the words from running under it); on the picture when it
+  // is a bare picture; on a line of its own when the bubble ends in something
+  // that has no last line of text — a voice note, a document — or when the
+  // "Instant reply" footnote needs the room beside it.
+  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody);
+
+  const time = formatTime(message.createdAt, lang);
+  const meta = (overlay: boolean) => (
+    <span
       className={cn(
-        'flex w-full animate-in',
-        mine ? 'justify-end' : 'justify-start',
+        'flex items-center gap-1 whitespace-nowrap text-[11px] leading-none',
+        overlay ? 'text-white' : 'text-wa-meta',
       )}
     >
+      <span>{time}</span>
+      {mine ? <MessageTicks message={message} /> : null}
+    </span>
+  );
+
+  // A notice (a shared report, a daily line) is MDG's — the bubble says "MDG",
+  // as the viewer does, not the name of the account that posted it.
+  const senderLabel = message.system ? t('chat.senderMdg') : message.senderName;
+  const showName = !!showSender && !mine && first && !!senderLabel;
+
+  return (
+    <div className={cn('flex w-full', mine ? 'justify-end' : 'justify-start')}>
       <div
         className={cn(
-          'flex max-w-[78%] flex-col gap-1.5',
+          'flex flex-col',
           mine ? 'items-end' : 'items-start',
+          hasMedia ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
         )}
-        {...longPress}
       >
-        {showSender && !mine && message.senderName ? (
-          <span
-            className="px-1 text-xs font-medium leading-none"
-            style={{ color: `hsl(${senderHue(message.senderId)} 55% 45%)` }}
-          >
-            {message.senderName}
-          </span>
-        ) : null}
-        {message.replyTo ? (
-          <QuoteBlock
-            message={message}
-            mine={mine}
-            currentUserId={currentUserId}
-            quoteLoading={quoteLoading}
-            onJumpTo={onJumpTo}
-          />
-        ) : null}
-        {message.attachments.length > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            {message.attachments.map((a) => (
-              <MessageAttachment
-                key={a.storageKey}
-                attachment={a}
+        <div
+          {...longPress}
+          className={cn(
+            'relative min-w-0 rounded-md text-wa-bubble-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
+            hasMedia && 'w-full',
+            mine ? 'bg-wa-out' : 'bg-wa-in',
+            first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
+            hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
+          )}
+        >
+          {first ? <Tail mine={mine} /> : null}
+
+          {showName ? (
+            <span
+              className={cn(
+                'block truncate text-[13px] font-medium leading-tight',
+                hasMedia || hasOther ? 'px-1.5 pb-1 pt-1' : 'pb-0.5',
+              )}
+              style={{ color: `hsl(${senderHue(message.senderId)} 55% 40%)` }}
+            >
+              {senderLabel}
+            </span>
+          ) : null}
+
+          {message.replyTo ? (
+            <QuoteBlock
+              message={message}
+              currentUserId={currentUserId}
+              quoteLoading={quoteLoading}
+              onJumpTo={onJumpTo}
+            />
+          ) : null}
+
+          {message.attachments.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              <AttachmentStack
+                attachments={message.attachments}
                 mine={mine}
-                source={{
-                  conversationId: message.conversationId,
-                  messageId: message.id,
-                }}
+                senderName={message.senderName}
+                source={source}
                 onOpenImage={openImage}
+                mediaOverlay={
+                  timeOnPicture ? (
+                    <>
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute inset-x-0 bottom-0 h-12 rounded-b-md bg-gradient-to-t from-black/45 to-transparent"
+                      />
+                      <span className="pointer-events-none absolute bottom-1.5 right-2">
+                        {meta(true)}
+                      </span>
+                    </>
+                  ) : null
+                }
               />
-            ))}
-          </div>
-        ) : null}
-        {message.body ? (
-          <div
-            className={cn(
-              // NOT selectable: long-press opens the action menu (Copy lives
-              // there), so the browser's text-selection long-press must not race it.
-              'whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-[15px] leading-snug shadow-sm',
-              mine
-                ? 'bg-brand text-text-inverse rounded-br-md'
-                : 'bg-surface text-text border border-border rounded-bl-md',
-            )}
-          >
-            {linkify(message.body)}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
+
+          {hasBody ? (
+            <div
+              className={cn(
+                // NOT selectable: long-press selects the message (Copy lives in
+                // the bar above), so the browser's text-selection long-press
+                // must not race it.
+                'whitespace-pre-wrap break-words text-[15px] leading-[1.35] [&_a]:text-wa-accent-strong',
+                hasMedia || hasOther ? 'px-[6px] pb-0.5 pt-1' : '',
+              )}
+            >
+              {linkify(message.body!, { highlight })}
+              {/* The trailing spacer: as wide as the time and ticks that sit in
+                  the bubble's bottom-right corner, so the last line of words
+                  stops short of them — or wraps to a line of its own when it
+                  cannot — exactly as WhatsApp's does. */}
+              {metaInFlow ? null : (
+                <span
+                  aria-hidden
+                  className={cn(
+                    'inline-block h-px align-bottom',
+                    mine ? 'w-[72px]' : 'w-[54px]',
+                  )}
+                />
+              )}
+            </div>
+          ) : null}
+
+          {metaInFlow ? (
+            <div className="flex items-center justify-between gap-3 px-1.5 pb-0.5 pt-0.5">
+              {showAiBadge ? (
+                // On the time's own row rather than a line of its own, because a
+                // footnote that gets its own row starts reading as a banner. A
+                // Lucide glyph and not the ⚡ character: an emoji renders as a
+                // colour picture on an Android WebView, which is the opposite of
+                // quiet, and its width varies by font.
+                //
+                // NOT ON A HANDOFF. "Instant reply" under "I've passed this to
+                // the MDG team" tells a dealer the machine answered them at the
+                // exact moment it is saying it could not — and the handoff line
+                // is the one a dealer reads while already unsatisfied, so it is
+                // the worst place in the product to look pleased with ourselves.
+                <span className="flex items-center gap-0.5 text-[11px] leading-none text-wa-meta">
+                  <Zap width={11} strokeWidth={2} className="shrink-0" />
+                  {t('chat.aiInstantReply')}
+                </span>
+              ) : (
+                <span />
+              )}
+              {meta(false)}
+            </div>
+          ) : null}
+          {!metaInFlow && !timeOnPicture ? (
+            <span className="absolute bottom-[5px] right-[8px]">{meta(false)}</span>
+          ) : null}
+        </div>
+
         {reactionGroups.length > 0 ? (
           <button
             type="button"
             aria-label={t('chat.reactions')}
             onClick={() => onOpenReactions?.(message)}
             className={cn(
-              'relative z-10 -mt-2 flex items-center gap-1',
-              mine ? 'mr-1.5' : 'ml-1.5',
+              // Hangs off the bubble's bottom edge, half over it, like WhatsApp's.
+              'relative z-10 -mt-2.5 mb-1 flex items-center gap-1',
+              mine ? 'mr-2' : 'ml-2',
             )}
           >
             {reactionGroups.map((g) => (
               <span
                 key={g.emoji}
                 className={cn(
-                  'flex items-center gap-0.5 rounded-full border bg-surface px-1.5 py-0.5 text-[13px] shadow-sm',
-                  g.mine ? 'border-brand bg-brand-soft' : 'border-border',
+                  'flex items-center gap-0.5 rounded-full border bg-wa-in px-1.5 py-0.5 text-[13px] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
+                  g.mine ? 'border-wa-accent' : 'border-wa-divider',
                 )}
               >
                 <span>{g.emoji}</span>
                 {g.count > 1 ? (
-                  <span className="text-[11px] tabular-nums text-text-muted">
+                  <span className="text-[11px] tabular-nums text-wa-meta">
                     {g.count}
                   </span>
                 ) : null}
@@ -403,39 +433,12 @@ export const MessageBubble = React.memo(function MessageBubble({
             ))}
           </button>
         ) : null}
-        <div
-          className={cn(
-            'flex items-center gap-1 px-1 text-[11px] text-text-subtle',
-            mine ? 'flex-row-reverse' : 'flex-row',
-          )}
-        >
-          <span>{formatTime(message.createdAt)}</span>
-          {mine ? <MessageTicks message={message} /> : null}
-          {ai && ai.kind !== 'handoff' ? (
-            // On the timestamp's line rather than a line of its own, because a
-            // footnote that gets its own row starts reading as a banner. A
-            // Lucide glyph and not the ⚡ character: an emoji renders as a
-            // colour picture on an Android WebView, which is the opposite of
-            // quiet, and its width varies by font.
-            //
-            // NOT ON A HANDOFF. "Instant reply" under "I've passed this to the
-            // MDG team" tells a dealer the machine answered them at the exact
-            // moment it is saying it could not — and the handoff line is the one
-            // a dealer reads while already unsatisfied, so it is the worst place
-            // in the product to look pleased with ourselves.
-            <span className="flex items-center gap-0.5">
-              <Zap width={11} strokeWidth={2} className="shrink-0" />
-              {t('chat.aiInstantReply')}
-            </span>
-          ) : null}
-        </div>
         {ticketStatus && ticketNumber !== undefined ? (
-          // ONE QUIET LINE, NOT A CONTROL. Same size and colour as the timestamp
-          // row above it, no button, and not green: a ticket closing is not a
-          // success to celebrate, it only says a person has dealt with it, and
-          // what they wrote is in the thread. `-mt-1` pulls it up against the
-          // timestamp so the two read as one footnote.
-          <p className="-mt-1 px-1 text-[11px] text-text-subtle">
+          // ONE QUIET LINE, NOT A CONTROL. Same size and colour as the time
+          // inside the bubble above it, no button, and not green: a ticket
+          // closing is not a success to celebrate, it only says a person has
+          // dealt with it, and what they wrote is in the thread.
+          <p className="mt-0.5 px-1 text-[11px] text-wa-meta">
             {ticketLineText(lang, ticketStatus, ticketNumber)}
           </p>
         ) : null}

@@ -1,6 +1,7 @@
 import { Reply } from 'lucide-react';
 import * as React from 'react';
 
+import { cn } from '@/lib/cn';
 import type { Message } from '@dk/shared/types';
 
 /** Rightward travel (px) at which releasing triggers a reply. */
@@ -66,13 +67,15 @@ interface DragState {
  * horizontal the content translates via a rAF-batched transform on a ref — no
  * per-move React state. Releasing past the trigger fires `onReply` + a
  * vibration; anything inside `[data-no-swipe]` (voice-note seek row), a second
- * touch, or `disabled` (system/card/temp messages) opts out.
+ * touch, or `disabled` (a message still being sent, or the thread being in
+ * selection mode) opts out.
  */
 export const SwipeToReply = React.memo(function SwipeToReply({
   message,
   onReply,
   disabled,
   children,
+  className,
   ...rest
 }: {
   message: Message;
@@ -183,13 +186,16 @@ export const SwipeToReply = React.memo(function SwipeToReply({
       onPointerMove={onPointerMove}
       onPointerUp={() => endDrag(true)}
       onPointerCancel={() => endDrag(false)}
-      className="relative"
+      // The caller's classes (the row's padding, its selected tint) come WITH
+      // `relative`, which the reply icon's absolute position depends on. They used
+      // to be thrown away: `{...rest}` is spread first and `className` set after.
+      className={cn('relative', className)}
       style={{ touchAction: 'pan-y' }}
     >
       <div
         ref={iconRef}
         aria-hidden
-        className="pointer-events-none absolute left-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-surface-2 text-text-muted"
+        className="pointer-events-none absolute left-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-wa-chip text-wa-bar-icon shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]"
         style={{ opacity: 0 }}
       >
         <Reply width={16} strokeWidth={1.75} />

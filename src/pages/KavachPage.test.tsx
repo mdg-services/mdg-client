@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, api } from '@/lib/api';
@@ -313,5 +314,68 @@ describe('KavachPage', () => {
     // The hook that drove the old dealer tick is gone, not merely unrendered:
     // /mark-done no longer exists and /verify refuses a dealer token.
     expect(Object.keys(useKavachModule)).not.toContain('useMarkKavachItemDone');
+  });
+});
+
+/**
+ * Pump health lost its tab: it is reached from Settings, and this screen's own
+ * top bar is how a dealer leaves it.
+ */
+describe('KavachPage — its own top bar', () => {
+  function renderWithSettingsBehind() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/kavach" element={<KavachPage />} />
+        <Route path="/settings" element={<div>settings-page</div>} />
+        <Route path="/chat" element={<div>chat-list</div>} />
+      </Routes>,
+      { route: '/kavach', withRouter: true },
+    );
+  }
+
+  // Opened cold (an old notification), ← goes home to the chat list; opened from
+  // Settings, it goes back there — that is `navigate(-1)`, covered in useGoBack.
+  it('is headed "Pump health" once, with a back arrow home when opened cold', async () => {
+    renderWithSettingsBehind();
+
+    await screen.findByText('80%');
+    // The title is the bar's — it is not printed a second time inside the page.
+    expect(screen.getAllByText('Pump health')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('chat-list')).toBeInTheDocument();
+  });
+
+  it('keeps the bar while loading', () => {
+    vi.mocked(api.get).mockImplementation(() => new Promise(() => undefined));
+    renderWithSettingsBehind();
+    expect(screen.getByText('Pump health')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  // A failed load must still have a way out.
+  it('keeps the bar when the programme fails to load', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === '/v1/kavach/me'
+        ? (Promise.reject(new ApiError(500, 'ERR', 'boom')) as Promise<never>)
+        : (Promise.resolve(null) as Promise<never>),
+    );
+    renderWithSettingsBehind();
+
+    expect(await screen.findByText(/couldn't/i)).toBeInTheDocument();
+    expect(screen.getByText('Pump health')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+  });
+
+  it('keeps the bar on the "welcome" state of a pump with no programme yet', async () => {
+    vi.mocked(api.get).mockImplementation((path: string) =>
+      path === '/v1/kavach/me'
+        ? (Promise.reject(new ApiError(404, 'NOT_FOUND', 'no')) as Promise<never>)
+        : (Promise.resolve(null) as Promise<never>),
+    );
+    renderWithSettingsBehind();
+
+    expect(await screen.findByText('Welcome to Kavach')).toBeInTheDocument();
+    expect(screen.getByText('Pump health')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 });

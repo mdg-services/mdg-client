@@ -1,6 +1,5 @@
 import type { Conversation, Message, MessageReaction } from './conversation';
 import type { DealerDocumentAskRow } from './documentAsk';
-import type { DealerRecord } from './record';
 
 export interface ServerToClientEvents {
   'message:new': (payload: { message: Message; conversation: Conversation }) => void;
@@ -11,7 +10,6 @@ export interface ServerToClientEvents {
     reactions: MessageReaction[];
   }) => void;
   'conversation:updated': (payload: { conversation: Conversation }) => void;
-  'record:new': (payload: { record: DealerRecord }) => void;
   /**
    * A paper MDG needs from this dealer was asked for, nudged, or settled.
    *

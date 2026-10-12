@@ -43,6 +43,16 @@ export interface ShareOutcome {
   recipients?: ShareRecipients;
 }
 
+/**
+ * The answer to an admin's message sent to the outlet
+ * (`POST /conversations/:id/messages/share`): every copy it became.
+ */
+export interface ChatShareOutcome extends ShareOutcome {
+  audience: ShareAudience;
+  recipients: ShareRecipients;
+  deliveries: ShareDelivery[];
+}
+
 /** Labels for the admin's chooser, in the order it lists them. */
 export const SHARE_AUDIENCE_LABELS: Record<ShareAudience, string> = {
   owners: 'Owners',

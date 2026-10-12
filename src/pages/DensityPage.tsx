@@ -1,9 +1,10 @@
 import { Camera, MessageCircle, X } from 'lucide-react';
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 
+import { SubPage } from '@/components/SubPage';
 import { EmptyState, Spinner } from '@/components/ui';
 import { ZoomableImage } from '@/components/ZoomableImage';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { DensityLatestStrip } from '@/features/density/DensityLatestStrip';
 import { DensityTodayCard } from '@/features/density/DensityTodayCard';
 import { DensityWeekStrip } from '@/features/density/DensityWeekStrip';
@@ -17,12 +18,12 @@ import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 
 function HelpFooter() {
-  const navigate = useNavigate();
+  const openMyChat = useOpenMyChat();
   const t = useT();
   return (
     <button
       type="button"
-      onClick={() => navigate('/chat')}
+      onClick={openMyChat}
       className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm font-medium text-brand shadow-sm active:bg-surface-2"
     >
       <MessageCircle width={16} strokeWidth={1.75} />
@@ -145,22 +146,24 @@ export function DensityPage() {
 
   if (meQuery.isLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner size={20} />
-      </div>
+      <SubPage title={t('density.title')} fallback="/chat">
+        <div className="flex flex-1 items-center justify-center py-12">
+          <Spinner size={20} />
+        </div>
+      </SubPage>
     );
   }
 
   if (meQuery.isError || !view) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
+      <SubPage title={t('density.title')} fallback="/chat" className="gap-4">
         <EmptyState
           icon={<Camera width={28} strokeWidth={1.5} />}
           title={t('density.errorTitle')}
           description={t('common.helpDesc')}
         />
         <HelpFooter />
-      </div>
+      </SubPage>
     );
   }
 
@@ -168,17 +171,14 @@ export function DensityPage() {
   // empty list that reads like something is broken.
   if (!view.attached) {
     return (
-      <div className="flex flex-1 flex-col gap-4 p-4">
-        <h1 className="text-lg font-semibold tracking-tight text-text">
-          {t('density.title')}
-        </h1>
+      <SubPage title={t('density.title')} fallback="/chat" className="gap-4">
         <EmptyState
           icon={<Camera width={28} strokeWidth={1.5} />}
           title={t('density.notOnTitle')}
           description={t('density.notOnDesc')}
         />
         <HelpFooter />
-      </div>
+      </SubPage>
     );
   }
 
@@ -187,11 +187,7 @@ export function DensityPage() {
     : undefined;
 
   return (
-    <div className="flex flex-1 flex-col gap-5 p-4">
-      <h1 className="text-lg font-semibold tracking-tight text-text">
-        {t('density.title')}
-      </h1>
-
+    <SubPage title={t('density.title')} fallback="/chat" className="gap-5">
       <DensityLatestStrip latest={view.latest} />
 
       <DensityTodayCard
@@ -215,6 +211,6 @@ export function DensityPage() {
           onClose={() => setViewing(null)}
         />
       ) : null}
-    </div>
+    </SubPage>
   );
 }

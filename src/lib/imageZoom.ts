@@ -201,6 +201,111 @@ export function distance(a: Point, b: Point): number {
   return Math.hypot(a.x - b.x, a.y - b.y);
 }
 
+/**
+ * ONE FINGER ON AN UNZOOMED PICTURE
+ * ---------------------------------
+ * A viewer that pages through a conversation's pictures needs the drag that
+ * `panMove` ignores at 1×. The two never compete, because the same state decides
+ * between them: a zoomed picture is panned, an unzoomed one is swiped. These are
+ * the numbers for the second case — which way a drag is going, and what to do
+ * when the finger lifts.
+ */
+
+/** Movement past this settles which way a one-finger drag is going. */
+export const SWIPE_LOCK_PX = 12;
+/** A page turns when the finger has carried the picture this far across. */
+export const PAGE_FRACTION = 0.25;
+/** …or when it left the glass this fast (px per ms) after a short drag. */
+export const FLICK_SPEED = 0.5;
+/** A flick must still have moved this far, or a twitch would turn the page. */
+export const FLICK_MIN_PX = 24;
+/** Swipe-down closes at this fraction of the screen height… */
+export const DISMISS_FRACTION = 0.2;
+/** …or at this speed (px per ms). */
+export const DISMISS_FLICK = 0.6;
+/** How much of a drag shows against an end stop: the edge gives, but not far. */
+export const RUBBER_BAND = 0.3;
+/** Only this much of the last touch history counts towards release speed. */
+export const VELOCITY_WINDOW_MS = 100;
+
+export type SwipeAxis = 'x' | 'y';
+
+/** The drag so far, once its axis is known. Offsets are from where it began. */
+export interface SwipeMove {
+  axis: SwipeAxis;
+  dx: number;
+  dy: number;
+}
+
+/** The drag at the moment the finger lifted (or the touch was taken away). */
+export interface SwipeEnd extends SwipeMove {
+  /** Release speed in px per ms. */
+  vx: number;
+  vy: number;
+  /** A second finger landed or the system took the touch: do nothing with it. */
+  cancelled: boolean;
+}
+
+export interface MoveSample {
+  at: number;
+  x: number;
+  y: number;
+}
+
+/**
+ * Which way a drag is going, or null while it is still inside the slop.
+ *
+ * Decided once and then held: a drag that starts sideways and wanders down is
+ * still a page turn, and one that starts down and drifts sideways is still a
+ * dismiss — otherwise the picture would lurch between the two under the finger.
+ */
+export function swipeAxis(dx: number, dy: number): SwipeAxis | null {
+  if (Math.abs(dx) < SWIPE_LOCK_PX && Math.abs(dy) < SWIPE_LOCK_PX) return null;
+  return Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+}
+
+/**
+ * Release speed from the last few touch samples. Averaged over the window rather
+ * than taken from the final two points: the last frame of a drag is often a
+ * stutter, and a stutter must not read as a flick.
+ */
+export function releaseVelocity(samples: MoveSample[]): { vx: number; vy: number } {
+  const last = samples[samples.length - 1];
+  if (!last || samples.length < 2) return { vx: 0, vy: 0 };
+  const first = samples.find((s) => last.at - s.at <= VELOCITY_WINDOW_MS) ?? last;
+  const dt = last.at - first.at;
+  if (dt <= 0) return { vx: 0, vy: 0 };
+  return { vx: (last.x - first.x) / dt, vy: (last.y - first.y) / dt };
+}
+
+/**
+ * Which way a page turns on release: +1 for the NEXT picture (the finger went
+ * left), −1 for the PREVIOUS one (it went right), 0 for "put it back".
+ */
+export function pageDirection(dx: number, vx: number, width: number): -1 | 0 | 1 {
+  const far = Math.abs(dx) > width * PAGE_FRACTION;
+  const flick = Math.abs(vx) > FLICK_SPEED && Math.abs(dx) > FLICK_MIN_PX;
+  if (!far && !flick) return 0;
+  return dx < 0 ? 1 : -1;
+}
+
+/** Whether a swipe-down has gone far or fast enough to close the viewer. */
+export function shouldDismiss(dy: number, vy: number, height: number): boolean {
+  if (dy <= 0) return false;
+  return dy > height * DISMISS_FRACTION || (vy > DISMISS_FLICK && dy > FLICK_MIN_PX);
+}
+
+/** How opaque the backdrop is partway down a swipe-down: black → see-through. */
+export function dismissOpacity(dy: number, height: number): number {
+  if (height <= 0) return 1;
+  return clamp(1 - Math.max(0, dy) / (height * 0.7), 0, 1);
+}
+
+/** What the picture does against the first or last stop. */
+export function rubberBand(dx: number): number {
+  return dx * RUBBER_BAND;
+}
+
 /** The CSS transform for a state. */
 export function toTransform(state: ZoomState): string {
   return `translate3d(${state.x}px, ${state.y}px, 0) scale(${state.scale})`;

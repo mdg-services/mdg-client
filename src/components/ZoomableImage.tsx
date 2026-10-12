@@ -12,12 +12,18 @@ import {
   midpoint,
   panMove,
   pinchMove,
+  releaseVelocity,
+  swipeAxis,
   toTransform,
   toggleZoomAt,
   zoomAt,
   type Box,
+  type MoveSample,
   type PinchStart,
   type Point,
+  type SwipeAxis,
+  type SwipeEnd,
+  type SwipeMove,
   type ZoomState,
 } from '@/lib/imageZoom';
 
@@ -40,6 +46,15 @@ function touchPoint(t: { clientX: number; clientY: number }): Point {
 
 /** A touch held this long is somebody resting a finger, not tapping. */
 const TAP_MAX_MS = 400;
+
+/** A mouse click this soon after a touch is that touch's echo, not a click. */
+const TOUCH_ECHO_MS = 800;
+
+/** A one-finger drag of an UNZOOMED picture, once its direction is known. */
+interface SwipeTrack {
+  axis: SwipeAxis | null;
+  samples: MoveSample[];
+}
 
 /**
  * A picture the dealer can get closer to.
@@ -76,6 +91,11 @@ export function ZoomableImage({
   onError,
   onLoad,
   onDismiss,
+  onTap,
+  onSwipeMove,
+  onSwipeEnd,
+  onZoomChange,
+  flush,
   className,
   imageClassName,
   testId = 'zoomable-image',
@@ -86,6 +106,18 @@ export function ZoomableImage({
   onLoad?: () => void;
   /** A genuine tap on the surround — the caller closes its overlay. */
   onDismiss?: () => void;
+  /** A single tap anywhere on the picture or the surround that was not the
+   *  first half of a double-tap (so it arrives a beat after the finger lifts). */
+  onTap?: () => void;
+  /** A one-finger drag of the UNZOOMED picture, on every move once its
+   *  direction is settled. Never fires while the picture is zoomed. */
+  onSwipeMove?: (swipe: SwipeMove) => void;
+  /** …and the moment it ends. */
+  onSwipeEnd?: (swipe: SwipeEnd) => void;
+  /** Tells the caller when the picture crosses between 1× and zoomed. */
+  onZoomChange?: (zoomed: boolean) => void;
+  /** Edge to edge: no padding round the picture and square corners. */
+  flush?: boolean;
   className?: string;
   imageClassName?: string;
   testId?: string;
@@ -103,6 +135,22 @@ export function ZoomableImage({
   const lastTapRef = React.useRef<{ at: number; point: Point } | null>(null);
   /** Set by any gesture that actually moved, so its click cannot dismiss us. */
   const movedRef = React.useRef(false);
+  /** The one-finger drag in progress on an unzoomed picture, if anyone listens. */
+  const swipeRef = React.useRef<SwipeTrack | null>(null);
+  /** The single tap waiting out the double-tap window. */
+  const tapTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** When a finger last touched down — tells a mouse click from a touch's echo. */
+  const lastTouchRef = React.useRef(0);
+  // The callbacks are read through refs so the touch handlers below keep one
+  // identity while a parent that rebuilds them on every render drives a drag.
+  const callbacksRef = React.useRef({ onTap, onSwipeMove, onSwipeEnd, onZoomChange });
+  callbacksRef.current = { onTap, onSwipeMove, onSwipeEnd, onZoomChange };
+
+  const clearTapTimer = React.useCallback(() => {
+    if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    tapTimerRef.current = null;
+  }, []);
+  React.useEffect(() => clearTapTimer, [clearTapTimer]);
 
   React.useEffect(() => {
     // A new picture always opens unzoomed — carrying a 3× pan over from the
@@ -111,7 +159,28 @@ export function ZoomableImage({
     gestureRef.current = null;
     lastTapRef.current = null;
     movedRef.current = false;
-  }, [src]);
+    swipeRef.current = null;
+    clearTapTimer();
+  }, [src, clearTapTimer]);
+
+  const zoomed = isZoomed(zoom);
+  React.useEffect(() => {
+    callbacksRef.current.onZoomChange?.(zoomed);
+  }, [zoomed]);
+
+  /** The swipe so far, if one has settled on a direction. */
+  const swipeNow = React.useCallback((): SwipeMove | null => {
+    const swipe = swipeRef.current;
+    const start = gestureRef.current;
+    const last = swipe?.samples[swipe.samples.length - 1];
+    const first = swipe?.samples[0];
+    if (!swipe?.axis || !last || !first || start?.kind !== 'pan') return null;
+    return {
+      axis: swipe.axis,
+      dx: last.x - first.x,
+      dy: last.y - first.y,
+    };
+  }, []);
 
   /**
    * The frame and the picture, measured now.
@@ -143,9 +212,18 @@ export function ZoomableImage({
   const onTouchStart = React.useCallback(
     (e: React.TouchEvent) => {
       const touches = e.touches;
+      lastTouchRef.current = Date.now();
       if (touches.length >= 2) {
         const a = touchPoint(touches[0]);
         const b = touchPoint(touches[1]);
+        // A second finger landing mid-swipe turns the swipe into a pinch: tell
+        // the caller to put its picture back before the pinch takes over.
+        const swipe = swipeNow();
+        if (swipe) {
+          callbacksRef.current.onSwipeEnd?.({ ...swipe, vx: 0, vy: 0, cancelled: true });
+        }
+        swipeRef.current = null;
+        clearTapTimer();
         movedRef.current = true; // a pinch is never a tap
         gestureRef.current = {
           kind: 'pinch',
@@ -160,12 +238,19 @@ export function ZoomableImage({
       if (touches.length !== 1) return;
       const p = touchPoint(touches[0]);
       movedRef.current = false;
+      const at = Date.now();
       gestureRef.current = {
         kind: 'pan',
-        start: { state: zoom, point: toLocal(p), screen: p, at: Date.now() },
+        start: { state: zoom, point: toLocal(p), screen: p, at },
       };
+      // Only an UNZOOMED picture can be swiped: zoomed, the same drag pans it.
+      swipeRef.current =
+        !isZoomed(zoom) &&
+        (callbacksRef.current.onSwipeMove || callbacksRef.current.onSwipeEnd)
+          ? { axis: null, samples: [{ at, x: p.x, y: p.y }] }
+          : null;
     },
-    [toLocal, zoom],
+    [clearTapTimer, swipeNow, toLocal, zoom],
   );
 
   const onTouchMove = React.useCallback(
@@ -199,9 +284,26 @@ export function ZoomableImage({
         movedRef.current = true;
       }
       // A one-finger drag only moves a picture bigger than its frame. At 1× the
-      // drag is inert, which is what keeps a fumbled swipe over an unzoomed card
-      // from nudging it off-centre.
-      if (!isZoomed(gesture.start.state)) return;
+      // drag does not move the PICTURE — it is reported to whoever is paging or
+      // dismissing, or, with nobody listening, ignored, which is what keeps a
+      // fumbled swipe over an unzoomed card from nudging it off-centre.
+      if (!isZoomed(gesture.start.state)) {
+        const swipe = swipeRef.current;
+        if (!swipe) return;
+        swipe.samples.push({ at: Date.now(), x: p.x, y: p.y });
+        // Release speed only ever looks back 100ms; keep a short tail.
+        if (swipe.samples.length > 8) swipe.samples.splice(1, swipe.samples.length - 8);
+        const first = swipe.samples[0];
+        if (!first) return;
+        const dx = p.x - first.x;
+        const dy = p.y - first.y;
+        if (!swipe.axis) swipe.axis = swipeAxis(dx, dy);
+        if (swipe.axis) {
+          movedRef.current = true;
+          callbacksRef.current.onSwipeMove?.({ axis: swipe.axis, dx, dy });
+        }
+        return;
+      }
       setZoom(panMove(gesture.start, toLocal(p), box.frame, box.image));
     },
     [measure, toLocal],
@@ -210,6 +312,9 @@ export function ZoomableImage({
   const onTouchEnd = React.useCallback(
     (e: React.TouchEvent) => {
       const gesture = gestureRef.current;
+      // Read BEFORE the gesture is cleared: the swipe's offsets hang off it.
+      const swipe = swipeNow();
+      const samples = swipeRef.current?.samples;
       gestureRef.current = null;
 
       // ONE FINGER LEFT OF A PINCH becomes a drag, immediately.
@@ -226,11 +331,25 @@ export function ZoomableImage({
           start: { state: zoomRef.current, point: toLocal(p), screen: p, at: Date.now() },
         };
         movedRef.current = true; // still mid-gesture: no tap can come of this
+        // …and never a swipe: the pinch it came from may have ended at 1×, but
+        // this is a continuation, not a fresh drag to turn a page with.
+        swipeRef.current = null;
         return;
       }
       if (!gesture || gesture.kind !== 'pan') return;
       // Fingers still down — not a tap.
       if (e.touches.length > 0) return;
+
+      // A swipe ends here, and is never a tap.
+      swipeRef.current = null;
+      if (swipe) {
+        callbacksRef.current.onSwipeEnd?.({
+          ...swipe,
+          ...releaseVelocity(samples ?? []),
+          cancelled: e.type === 'touchcancel',
+        });
+        return;
+      }
 
       const now = Date.now();
       if (movedRef.current || now - gesture.start.at >= TAP_MAX_MS) return;
@@ -245,9 +364,19 @@ export function ZoomableImage({
 
       if (!isDouble) {
         lastTapRef.current = { at: now, point: tapped };
+        // Held back for the length of the double-tap window: acted on at once, a
+        // double-tap would first flash whatever a single tap does.
+        clearTapTimer();
+        if (callbacksRef.current.onTap) {
+          tapTimerRef.current = setTimeout(() => {
+            tapTimerRef.current = null;
+            callbacksRef.current.onTap?.();
+          }, DOUBLE_TAP_MS);
+        }
         return;
       }
       lastTapRef.current = null;
+      clearTapTimer();
       const box = measure();
       if (!box) return;
       // The second tap is a gesture, not a tap on whatever lies under it: mark
@@ -256,7 +385,7 @@ export function ZoomableImage({
       const focus = toLocal(tapped);
       setZoom((z) => toggleZoomAt(z, focus, box.frame, box.image));
     },
-    [measure, toLocal],
+    [clearTapTimer, measure, swipeNow, toLocal],
   );
 
   /** Trackpad pinch / ctrl+wheel on a laptop. */
@@ -273,20 +402,32 @@ export function ZoomableImage({
     [measure, toLocal],
   );
 
+  /** True when a click is the echo of a touch the touch handlers already read. */
+  const isTouchEcho = React.useCallback(
+    () => Date.now() - lastTouchRef.current < TOUCH_ECHO_MS,
+    [],
+  );
+
   const onFrameClick = React.useCallback(() => {
     if (movedRef.current) {
       movedRef.current = false;
       return;
     }
-    onDismiss?.();
-  }, [onDismiss]);
+    if (onDismiss) {
+      onDismiss();
+      return;
+    }
+    // A mouse has no touch sequence to read a tap from; its click is the tap.
+    if (!isTouchEcho()) callbacksRef.current.onTap?.();
+  }, [isTouchEcho, onDismiss]);
 
   return (
     <div
       ref={frameRef}
       data-testid={testId}
       className={cn(
-        'relative flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden p-4',
+        'relative flex min-h-0 flex-1 touch-none items-center justify-center overflow-hidden',
+        !flush && 'p-4',
         className,
       )}
       onTouchStart={onTouchStart}
@@ -305,7 +446,10 @@ export function ZoomableImage({
         decoding="async"
         draggable={false}
         onDragStart={(e) => e.preventDefault()}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!isTouchEcho()) callbacksRef.current.onTap?.();
+        }}
         onError={onError}
         onLoad={onLoad}
         style={{
@@ -315,7 +459,8 @@ export function ZoomableImage({
           transition: gestureRef.current ? undefined : 'transform 160ms ease-out',
         }}
         className={cn(
-          'max-h-full max-w-full select-none rounded-xl object-contain will-change-transform',
+          'max-h-full max-w-full select-none object-contain will-change-transform',
+          !flush && 'rounded-xl',
           imageClassName,
         )}
       />

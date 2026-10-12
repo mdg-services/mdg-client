@@ -12,9 +12,9 @@ export const queryClient = new QueryClient({
       // keyboard open / app-switch and would refetch every mounted query over 2G.
       refetchOnWindowFocus: false,
       // refetchOnReconnect intentionally left at its default (true): it is the
-      // backfill that catches messages/records missed while the link was down.
+      // backfill that catches messages missed while the link was down.
       // Socket-only reconnects (network stayed up) are covered by explicit
-      // invalidations in useConversationSocket / useRecordsSocket.
+      // invalidations in useConversationSocket / useConversationsListSocket.
     },
     mutations: { retry: 0 },
   },

@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
-
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
@@ -35,6 +34,8 @@ import {
 import { MAX_VOICE_DURATION_MS } from '@dk/shared/schemas';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
+import { AttachSheet, type AttachChoice } from './AttachSheet';
+import { MediaSendPreview } from './MediaSendPreview';
 import { type ReplyPreviewIcon } from './replyContext';
 
 /** What the reply strip above the textarea shows (built by the chat screen). */
@@ -69,7 +70,16 @@ export interface ComposerProps {
   showQuickReplies?: boolean;
 }
 
-const ACCEPT = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt';
+/** What the Document choice offers. Photos have their own two doors. */
+const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.txt';
+
+/** The server's ceiling on attachments in one message. */
+const MAX_ATTACHMENTS = 10;
+
+function revokeNow(items: StagedFile[]): void {
+  for (const s of items) if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
+}
+
 
 /** Leftward drag (px) that arms slide-to-cancel. */
 const CANCEL_DX = 80;
@@ -207,7 +217,6 @@ const REPLY_ICONS: Record<Exclude<ReplyPreviewIcon, null>, typeof Camera> = {
   image: Camera,
   audio: Mic,
   file: FileText,
-  card: FileText,
 };
 
 export function Composer({
@@ -224,10 +233,17 @@ export function Composer({
   const t = useT();
   const toast = useToast();
   const [text, setText] = React.useState(initialText ?? '');
+  // Documents waiting to go — a chip each, above the box. (Photos do not wait
+  // here: they pass through the full-screen preview below, and come back to this
+  // list only if their send fails.)
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
+  // Photos in the full-screen preview; empty = the preview is closed.
+  const [preview, setPreview] = React.useState<StagedFile[]>([]);
+  const [attachOpen, setAttachOpen] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
+  const galleryRef = React.useRef<HTMLInputElement>(null);
   const micBtnRef = React.useRef<HTMLButtonElement>(null);
   const hintRef = React.useRef<HTMLDivElement>(null);
   const recorder = useVoiceRecorder();
@@ -303,13 +319,13 @@ export function Composer({
     if (replyingTo) textareaRef.current?.focus();
   }, [replyingTo]);
 
+  // Whatever is still waiting when the screen goes away has nowhere to be sent
+  // from: let its local preview go. Read through a ref — the cleanup runs once,
+  // and a closure over the first render's lists would only ever see them empty.
+  const heldRef = React.useRef<StagedFile[]>([]);
+  heldRef.current = [...staged, ...preview];
   React.useEffect(() => {
-    return () => {
-      staged.forEach((s) => {
-        if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
-      });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => revokeNow(heldRef.current);
   }, []);
 
   const hasContent = text.trim().length > 0 || staged.length > 0;
@@ -365,12 +381,17 @@ export function Composer({
   // `fromCamera` items are known to be photos even when the OS hands back a File
   // with an empty MIME type (common on Android WebView), so classification can
   // safely assume an image.
+  //
+  // PHOTOS GO TO THE PREVIEW, EVERYTHING ELSE TO A CHIP. Which door they came
+  // through does not decide it — the file does: a picture picked from the
+  // Document chooser is still a picture and deserves the same look-before-it-
+  // goes, and a stray PDF that comes out of the Gallery is still a paper.
   const handlePickFiles = (
     files: FileList | null,
     opts?: { fromCamera?: boolean },
   ) => {
     if (!files || files.length === 0) return;
-    const next: StagedFile[] = [];
+    const picked: StagedFile[] = [];
     for (let i = 0; i < files.length; i += 1) {
       const f = files[i];
       if (!f) continue;
@@ -378,7 +399,7 @@ export function Composer({
         assumeImage: opts?.fromCamera,
       });
       const previewUrl = kind === 'image' ? URL.createObjectURL(f) : undefined;
-      next.push({
+      picked.push({
         id: `${Date.now()}-${i}-${f.name || 'photo.jpg'}`,
         file: f,
         kind,
@@ -386,9 +407,21 @@ export function Composer({
         previewUrl,
       });
     }
-    setStaged((curr) => [...curr, ...next].slice(0, 10));
+    // Ten to a message. What does not fit is dropped (and its preview let go)
+    // with a word about why, rather than silently.
+    const room = Math.max(0, MAX_ATTACHMENTS - staged.length - preview.length);
+    const accepted = picked.slice(0, room);
+    if (accepted.length < picked.length) {
+      revokeNow(picked.slice(accepted.length));
+      toast.info(t('composer.maxFiles', { n: MAX_ATTACHMENTS }));
+    }
+    const photos = accepted.filter((s) => s.kind === 'image');
+    const papers = accepted.filter((s) => s.kind !== 'image');
+    if (papers.length > 0) setStaged((curr) => [...curr, ...papers]);
+    if (photos.length > 0) setPreview((curr) => [...curr, ...photos]);
     if (fileRef.current) fileRef.current.value = '';
     if (cameraRef.current) cameraRef.current.value = '';
+    if (galleryRef.current) galleryRef.current.value = '';
   };
 
   const removeStaged = (id: string) => {
@@ -399,11 +432,40 @@ export function Composer({
     });
   };
 
+  /** ✕ on one thumbnail of the preview. Dropping the last one closes it. */
+  const removePreviewed = (id: string) => {
+    setPreview((curr) => {
+      const removed = curr.find((s) => s.id === id);
+      if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
+      return curr.filter((s) => s.id !== id);
+    });
+  };
+
+  /** Back / ✕ on the preview: nothing is kept. */
+  const closePreview = () => {
+    setPreview((curr) => {
+      revokeNow(curr);
+      return [];
+    });
+  };
+
+  /** One door of the attach card: close it, open the matching chooser. */
+  const chooseAttachment = (choice: AttachChoice) => {
+    setAttachOpen(false);
+    // Clicked HERE, in the same tap — a chooser opened a beat later is refused
+    // by the browser as not being the result of a gesture.
+    const input =
+      choice === 'document' ? fileRef : choice === 'camera' ? cameraRef : galleryRef;
+    input.current?.click();
+  };
+
   // Send the typed text plus any staged attachments (and optional extras that
-  // haven't hit state yet, e.g. a just-finished recording).
-  const doSend = async (extras: StagedFile[] = []) => {
+  // haven't hit state yet, e.g. a just-finished recording or the photos from the
+  // preview). `opts.text` stands in for the box when the words were typed
+  // somewhere else — the preview's caption line.
+  const doSend = async (extras: StagedFile[] = [], opts?: { text?: string }) => {
     const items = [...staged, ...extras];
-    const body = text.trim();
+    const body = (opts?.text ?? text).trim();
     if (body.length === 0 && items.length === 0) return;
     if (disabled) return;
 
@@ -419,21 +481,30 @@ export function Composer({
     // forecourt who has just typed a paragraph and watched it vanish, with only
     // "Please check your network and try again" to show for it, has nothing left
     // to try again WITH; the only way back was to type the whole thing a second
-    // time. The preview URLs are revoked only once the send has actually
+    // time. The preview URLs are let go only once the send has actually
     // succeeded, for the same reason: a restored photo has to still be viewable.
+    // A failed photo comes back as a chip above the box, not as the full-screen
+    // preview — the failure toast is already on screen, and a screen that jumps
+    // up at the same moment is one more thing to read.
     setText('');
     setStaged([]);
     try {
       await onSend(body, outgoing);
-      staged.forEach((s) => {
-        if (s.previewUrl) URL.revokeObjectURL(s.previewUrl);
-      });
+      revokeNow(items);
     } catch {
       setText((current) => (current ? current : body));
       setStaged((current) => (current.length > 0 ? current : items));
       // Swallowed on purpose: the chat screen has already shown the failure
       // toast, and two of the three callers here fire this without awaiting.
     }
+  };
+
+  /** Send from the preview: every photo, one message, the caption as its words. */
+  const sendPreview = (caption: string) => {
+    if (disabled) return;
+    const photos = preview;
+    setPreview([]);
+    void doSend(photos, { text: caption });
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1017,41 +1088,18 @@ export function Composer({
 
   const ReplyIcon = replyingTo?.icon ? REPLY_ICONS[replyingTo.icon] : null;
 
-  return (
-    <div className="border-t border-border bg-surface safe-bottom">
-      {replyingTo && recMode === 'idle' ? (
-        // Same strip pattern as the staged attachments: a dismissible preview
-        // row pinned above the input while composing.
-        <div
-          aria-label={t('chat.replyingTo', { name: replyingTo.senderLabel })}
-          className="flex items-center gap-2 px-3 pt-3"
-        >
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border-l-[3px] border-brand bg-surface-2 px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-text">
-                {replyingTo.senderLabel}
-              </p>
-              <p className="flex items-center gap-1 text-xs text-text-muted">
-                {ReplyIcon ? (
-                  <ReplyIcon width={12} strokeWidth={1.75} className="shrink-0" />
-                ) : null}
-                <span className="truncate">{replyingTo.text}</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label={t('chat.cancelReply')}
-              onClick={onCancelReply}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface active:bg-surface"
-            >
-              <X width={16} strokeWidth={1.75} />
-            </button>
-          </div>
-        </div>
-      ) : null}
+  // The round green button beside the box, and the one control it is at a time:
+  // send when there is something to send, the mic when there is not.
+  const roundButton =
+    'flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-wa-accent text-white';
 
+  return (
+    // The wallpaper's own colour, not a bar of its own: the box floats on the
+    // thread the way WhatsApp's does, and there is no seam between the two.
+    <div className="relative bg-wa-wallpaper safe-bottom">
       {staged.length > 0 && recMode === 'idle' ? (
-        <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
+        // Documents keep a chip each above the box; photos have their own screen.
+        <div className="flex gap-2 overflow-x-auto overscroll-contain px-2 pt-2 scrollbar-thin">
           {staged.map((s) => (
             <StagedAttachmentChip
               key={s.id}
@@ -1068,7 +1116,7 @@ export function Composer({
         // 360px wide, so wrapping would push the input a whole row down the
         // screen every time the box was empty; a chip half in view is the
         // affordance that says there is more to the right.
-        <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
+        <div className="flex gap-2 overflow-x-auto overscroll-contain px-2 pt-2 scrollbar-thin">
           {quickReplies.map((label) => (
             <button
               key={label}
@@ -1079,7 +1127,7 @@ export function Composer({
               // beside the box has already turned into Send by the time the
               // keyboard would have finished animating in.
               onClick={() => setText(label)}
-              className="shrink-0 rounded-full border border-border bg-surface-2 px-3.5 py-1.5 text-sm text-text active:bg-surface"
+              className="shrink-0 rounded-full border border-wa-divider bg-wa-chip px-3.5 py-1.5 text-sm text-wa-bubble-text shadow-sm active:bg-wa-row-active"
             >
               {label}
             </button>
@@ -1087,92 +1135,144 @@ export function Composer({
         </div>
       ) : null}
 
+      {/* The three file choosers live HERE, not inside the attach card or the
+          idle row: the card closes in the same tap that opens a chooser, and an
+          input that is unmounted before its picker answers can lose the answer
+          on an Android WebView. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept={DOCUMENT_ACCEPT}
+        multiple
+        className="hidden"
+        onChange={(e) => handlePickFiles(e.target.files)}
+      />
+      <input
+        ref={galleryRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => handlePickFiles(e.target.files)}
+      />
+      {/* Direct camera capture (rear-facing). On desktop the `capture` hint is
+          ignored and this falls back to a normal file chooser. */}
+      <input
+        ref={cameraRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true })}
+      />
+
       {recMode === 'locked' ? (
-        <div className="flex items-center gap-3 px-3 py-3">
-          <button
-            type="button"
-            aria-label={t('chat.cancelRecording')}
-            onClick={cancelLocked}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
-          >
-            <Trash2 width={20} strokeWidth={1.75} />
-          </button>
-          <div className="flex flex-1 items-center gap-2 text-text">
-            <Lock width={14} strokeWidth={2} className="shrink-0 text-text-muted" />
-            <LiveWaveform
-              getLevels={recorder.getLevels}
-              active={recorder.status === 'recording'}
-              bars={22}
-            />
-            <span className="shrink-0 text-sm font-medium tabular-nums text-text">
-              {formatDuration(recorder.elapsedMs)}
-            </span>
+        <div className="flex items-end gap-1.5 px-2 pt-1.5">
+          <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-3xl bg-wa-chip pl-1 pr-4 shadow-sm">
+            <button
+              type="button"
+              aria-label={t('chat.cancelRecording')}
+              onClick={cancelLocked}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-wa-bar-icon active:bg-wa-row-active"
+            >
+              <Trash2 width={22} strokeWidth={1.75} />
+            </button>
+            <div className="flex min-w-0 flex-1 items-center gap-2 text-wa-bubble-text">
+              <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" />
+              <LiveWaveform
+                getLevels={recorder.getLevels}
+                active={recorder.status === 'recording'}
+                bars={22}
+              />
+              <span className="shrink-0 text-sm font-medium tabular-nums text-wa-bubble-text">
+                {formatDuration(recorder.elapsedMs)}
+              </span>
+            </div>
           </div>
           <button
             type="button"
             aria-label={t('chat.sendVoice')}
             onClick={sendLocked}
             disabled={sending}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-text-inverse hover:bg-brand-hover disabled:cursor-not-allowed"
+            className={cn(roundButton, 'disabled:cursor-not-allowed')}
           >
-            {sending ? <Spinner size={16} /> : <SendHorizonal width={18} strokeWidth={1.75} />}
+            {sending ? <Spinner size={18} /> : <SendHorizonal width={22} strokeWidth={1.75} />}
           </button>
         </div>
       ) : (
-        <div className="relative flex items-end gap-2 px-3 py-3">
-          <button
-            type="button"
-            aria-label={t('chat.takePhoto')}
-            onClick={() => cameraRef.current?.click()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
-            disabled={disabled}
-          >
-            <Camera width={20} strokeWidth={1.75} />
-          </button>
-          <button
-            type="button"
-            aria-label={t('chat.addPhoto')}
-            onClick={() => fileRef.current?.click()}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-text-muted hover:bg-surface-2"
-            disabled={disabled}
-          >
-            <Paperclip width={20} strokeWidth={1.75} />
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept={ACCEPT}
-            multiple
-            className="hidden"
-            onChange={(e) => handlePickFiles(e.target.files)}
-          />
-          {/* Direct camera capture (rear-facing). On desktop the `capture` hint is
-              ignored and this falls back to a normal file chooser. */}
-          <input
-            ref={cameraRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true })}
-          />
-          <textarea
-            ref={textareaRef}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              onTyping?.();
-            }}
-            onKeyDown={onKeyDown}
-            rows={1}
-            placeholder={t('chat.placeholder')}
-            className={cn(
-              'min-h-[40px] max-h-[140px] flex-1 resize-none rounded-2xl border border-border bg-surface-2 px-4 py-2.5',
-              'text-base text-text placeholder:text-text-subtle',
-              'focus:outline-none focus:ring-2 focus:ring-focus-ring',
-            )}
-            disabled={disabled}
-          />
+        <div className="relative flex items-end gap-1.5 px-2 pt-1.5">
+          {/* One white pill holds the reply quote, the box and the two small
+              icons; the round button is OUTSIDE it, as in WhatsApp. */}
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-3xl bg-wa-chip shadow-sm">
+            {replyingTo && recMode === 'idle' ? (
+              <div
+                aria-label={t('chat.replyingTo', { name: replyingTo.senderLabel })}
+                className="m-1.5 mb-0 flex items-center gap-2 rounded-2xl border-l-4 border-wa-accent-strong bg-wa-row-active py-1.5 pl-3 pr-1"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[13px] font-medium text-wa-accent-strong">
+                    {replyingTo.senderLabel}
+                  </p>
+                  <p className="flex items-center gap-1 text-[13px] text-wa-meta">
+                    {ReplyIcon ? (
+                      <ReplyIcon width={13} strokeWidth={1.75} className="shrink-0" />
+                    ) : null}
+                    <span className="truncate">{replyingTo.text}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label={t('chat.cancelReply')}
+                  onClick={onCancelReply}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-wa-meta active:bg-wa-divider"
+                >
+                  <X width={16} strokeWidth={2} />
+                </button>
+              </div>
+            ) : null}
+
+            <div className="flex items-end">
+              <textarea
+                ref={textareaRef}
+                value={text}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  onTyping?.();
+                }}
+                onKeyDown={onKeyDown}
+                rows={1}
+                placeholder={t('composer.message')}
+                className={cn(
+                  'min-h-[48px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent py-3 pl-4 pr-1',
+                  'text-base leading-snug text-wa-bubble-text placeholder:text-wa-meta',
+                  'focus:outline-none',
+                )}
+                disabled={disabled}
+              />
+              <button
+                type="button"
+                aria-label={t('composer.attach')}
+                onClick={() => setAttachOpen(true)}
+                className="flex h-12 w-11 shrink-0 items-center justify-center text-wa-bar-icon active:opacity-60 disabled:opacity-40"
+                disabled={disabled}
+              >
+                <Paperclip width={22} strokeWidth={1.75} />
+              </button>
+              {/* Gone the moment there is a character in the box, as WhatsApp's
+                  is: the camera is for starting a message, not finishing one. */}
+              {text.length === 0 ? (
+                <button
+                  type="button"
+                  aria-label={t('chat.takePhoto')}
+                  onClick={() => cameraRef.current?.click()}
+                  className="flex h-12 w-11 shrink-0 items-center justify-center pr-1 text-wa-bar-icon active:opacity-60 disabled:opacity-40"
+                  disabled={disabled}
+                >
+                  <Camera width={22} strokeWidth={1.75} />
+                </button>
+              ) : null}
+            </div>
+          </div>
 
           {/* A WebView with no MediaRecorder cannot record at all. The hook has
               always exposed `supported` and nothing read it, so the button was
@@ -1184,13 +1284,9 @@ export function Composer({
               aria-label={t('chat.send')}
               onClick={() => void doSend()}
               disabled={sending}
-              className={cn(
-                'flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors',
-                'bg-brand text-text-inverse hover:bg-brand-hover',
-                'disabled:cursor-not-allowed',
-              )}
+              className={cn(roundButton, 'transition-colors', 'disabled:cursor-not-allowed')}
             >
-              {sending ? <Spinner size={16} /> : <SendHorizonal width={18} strokeWidth={1.75} />}
+              {sending ? <Spinner size={18} /> : <SendHorizonal width={22} strokeWidth={1.75} />}
             </button>
           ) : (
             <button
@@ -1205,36 +1301,38 @@ export function Composer({
               onContextMenu={(e) => e.preventDefault()}
               disabled={disabled}
               className={cn(
-                'relative z-10 flex h-10 w-10 shrink-0 touch-none select-none items-center justify-center rounded-full transition-transform',
+                roundButton,
+                'relative z-10 touch-none select-none transition-transform',
                 recMode === 'hold'
                   ? cancelArmed
-                    ? 'scale-110 bg-danger text-text-inverse'
-                    : 'scale-125 bg-brand text-text-inverse'
-                  : 'bg-brand text-text-inverse hover:bg-brand-hover disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-text-subtle',
+                    ? 'scale-110 bg-danger'
+                    : 'scale-125'
+                  : 'disabled:cursor-not-allowed disabled:opacity-50',
               )}
             >
               {recMode === 'hold' && cancelArmed ? (
-                <Trash2 width={20} strokeWidth={1.75} />
+                <Trash2 width={22} strokeWidth={1.75} />
               ) : (
-                <Mic width={20} strokeWidth={1.75} />
+                <Mic width={22} strokeWidth={1.75} />
               )}
             </button>
           )}
 
-          {/* Press-and-hold overlay: covers the input area while a finger is down.
+          {/* Press-and-hold overlay: covers the PILL while a finger is down — the
+              round button stays out of it, in view and under the finger.
               pointer-events-none so the captured mic button (z-10) keeps every
               pointer event; the mic stays mounted so capture + pointerup survive. */}
           {recMode === 'hold' ? (
-            <div className="pointer-events-none absolute inset-0 z-0 flex items-center gap-3 bg-surface px-3">
+            <div className="pointer-events-none absolute bottom-0 left-2 right-[3.875rem] top-1.5 z-0 flex items-center gap-3 rounded-3xl bg-wa-chip px-3 shadow-sm">
               <span
                 className={cn(
                   'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-                  cancelArmed ? 'bg-danger/15 text-danger' : 'text-text-muted',
+                  cancelArmed ? 'bg-danger/15 text-danger' : 'text-wa-meta',
                 )}
               >
                 <Trash2 width={18} strokeWidth={1.75} />
               </span>
-              <div className={cn(cancelArmed ? 'text-danger' : 'text-text')}>
+              <div className={cn(cancelArmed ? 'text-danger' : 'text-wa-bubble-text')}>
                 {/* Ten bars, not sixteen. The row is bin + waveform + timer +
                     "slide to cancel" inside 360px, and on a 360px phone the one
                     instruction telling a first-time user how to abandon a
@@ -1247,14 +1345,14 @@ export function Composer({
                   bars={10}
                 />
               </div>
-              <span className="shrink-0 text-sm font-medium tabular-nums text-text">
+              <span className="shrink-0 text-sm font-medium tabular-nums text-wa-bubble-text">
                 {formatDuration(recorder.elapsedMs)}
               </span>
               <div
                 ref={hintRef}
                 className={cn(
-                  'ml-auto mr-11 flex min-w-0 items-center gap-1',
-                  cancelArmed ? 'text-danger' : 'text-text-subtle',
+                  'ml-auto flex min-w-0 items-center gap-1',
+                  cancelArmed ? 'text-danger' : 'text-wa-meta',
                 )}
               >
                 <ChevronLeft width={16} strokeWidth={2} className="shrink-0" />
@@ -1266,6 +1364,22 @@ export function Composer({
           ) : null}
         </div>
       )}
+
+      {attachOpen ? (
+        <AttachSheet onClose={() => setAttachOpen(false)} onChoose={chooseAttachment} />
+      ) : null}
+
+      {preview.length > 0 ? (
+        <MediaSendPreview
+          items={preview}
+          initialCaption={text}
+          sending={sending}
+          onClose={closePreview}
+          onRemove={removePreviewed}
+          onAddMore={() => galleryRef.current?.click()}
+          onSend={sendPreview}
+        />
+      ) : null}
     </div>
   );
 }

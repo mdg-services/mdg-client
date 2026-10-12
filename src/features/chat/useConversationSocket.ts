@@ -1,7 +1,7 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
-import { messagesQueryKey } from '@/hooks/api/useMessages';
+import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
@@ -76,6 +76,19 @@ const TYPING_HOLD_MS = {
  */
 const TYPING_EMIT_INTERVAL_MS = 1_500;
 
+/**
+ * Whether a message from the server is the confirmation of a bubble the phone
+ * drew itself: the same words, and no more pictures than it was drawn with (a
+ * file that failed to upload is simply missing from the confirmed one).
+ */
+function confirms(real: Message, placeholder: Message): boolean {
+  return (
+    (real.body ?? '') === (placeholder.body ?? '') &&
+    (real.attachments.length > 0) === (placeholder.attachments.length > 0) &&
+    real.attachments.length <= placeholder.attachments.length
+  );
+}
+
 export function useConversationSocket(
   conversationId: string | undefined,
   currentUserId: string | undefined,
@@ -140,11 +153,14 @@ export function useConversationSocket(
     // server does not replay history, so refetch the loaded messages to backfill
     // anything missed while we were offline. This is the safety net that lets us
     // keep refetchOnWindowFocus off in the WebView.
+    //
+    // It no longer waits for a send to finish. It used to, so that the refetch
+    // could not drop the bubble that was still on its way out — but a send now
+    // includes the upload of a photograph, which can take a minute on exactly the
+    // link that just dropped, and a backfill held back that long is a dealer who
+    // misses MDG's reply. The refetch itself keeps unsent bubbles (see
+    // `useMessages`), so there is nothing left to protect by waiting.
     const offReconnect = onSocketReconnect(socket, () => {
-      // Skip while a send is in flight: a full refetch could momentarily drop the
-      // just-sent optimistic bubble (it self-heals via the server echo, but this
-      // avoids the flicker on the exact flaky link this backfill targets).
-      if (qc.isMutating({ mutationKey: ['sendMessage'] }) > 0) return;
       void qc.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
     });
 
@@ -163,12 +179,38 @@ export function useConversationSocket(
         if (old.pages.some((p) => p.some((m) => m.id === payload.message.id))) {
           return old;
         }
-        // If this is the sender's own echo, strip any optimistic temp-* placeholders
-        // so we don't end up showing the message twice.
+        // If this is the sender's own echo, take out the optimistic placeholder it
+        // confirms so we don't end up showing the message twice.
+        //
+        // ONE placeholder, the oldest that says the same thing — not all of them.
+        // A photograph that is still uploading is also a `temp-*` bubble, and
+        // sweeping every placeholder away because an EARLIER message was just
+        // confirmed made the photograph disappear for the rest of its upload.
+        // Whatever this does not match is cleaned up by the send's own success.
+        //
+        // AND THE ONE WITH THE SAME NUMBER OF PICTURES FIRST. Two photo messages
+        // in flight with no words both "confirm" a one-picture echo; taking the
+        // oldest removed a three-picture album that was still uploading (gone
+        // for a minute, so the dealer sent it again) while the one-picture bubble
+        // stayed beside its own confirmation. An exact count is the better
+        // witness; the oldest is only the fallback, for a file that failed.
         const isOwnEcho = payload.message.senderId === currentUserId;
-        const pages = old.pages.map((page) =>
-          isOwnEcho ? page.filter((m) => !m.id.startsWith('temp-')) : page,
-        );
+        let pages = old.pages;
+        if (isOwnEcho) {
+          const candidates = pages
+            .flat()
+            .filter((m) => isPendingMessage(m) && confirms(payload.message, m))
+            .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+          const exact = candidates.find(
+            (m) => m.attachments.length === payload.message.attachments.length,
+          );
+          const placeholder = exact ?? candidates[0];
+          if (placeholder) {
+            aliasMessageId(payload.message.id, placeholder.id);
+            pages = pages.map((page) => page.filter((m) => m.id !== placeholder.id));
+          }
+        }
+        pages = [...pages];
         pages[0] = [payload.message, ...(pages[0] ?? [])];
         return { ...old, pages };
       });

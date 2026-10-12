@@ -9,11 +9,23 @@ import { queuedKeysFor, useAskQueueStore } from '@/store/askQueue';
 import { useAuthStore } from '@/store/auth';
 import { documentPeriodLabel } from '@dk/shared/types';
 
+import { AskBarSlotContext } from './askBarSlot';
 import { askBarFace, askBarTap, EMPTY_ASK_LIST, outstandingRows } from './askRules';
 import { useAskCapture } from './useAskCapture';
 
 /**
- * The one line that says the dealer owes MDG a piece of paper.
+ * The one line that says the dealer owes MDG a piece of paper — and the engine
+ * behind it.
+ *
+ * TWO JOBS, ONE COMPONENT
+ * -----------------------
+ * The ENGINE: the ask socket, the offline photo queue and the capture sheet have
+ * to keep running on every screen, so this is mounted ONCE in the app frame
+ * (`AppShell`), wrapped around the whole screen. The STRIP — the 44px line
+ * itself — is published through `AskBarSlotContext`, and every screen's top bar
+ * (`AppBar`) draws `<AskBarSlot />` directly under itself, the way WhatsApp
+ * hangs its banners under the header. So the engine never moves and the strip
+ * follows the dealer from screen to screen without any screen placing it.
  *
  * IT REPLACED THE DENSITY PIN, AND THE REPLACEMENT IS THE POINT
  * ------------------------------------------------------------
@@ -39,12 +51,10 @@ import { useAskCapture } from './useAskCapture';
  *
  * IT DOES NOT HIDE WHEN THE KEYBOARD OPENS, AND THAT IS DELIBERATE
  * ---------------------------------------------------------------
- * The TAB BAR hides (`AppShell.tsx`) because it is `fixed inset-x-0 bottom-0`
- * and would otherwise sit between the composer and the keyboard. A bar at the
- * TOP has no such conflict: it is in normal flow under the header, above a
- * `<main>` that clips and scrolls its own content. Hiding it would reflow the
- * message list on every keyboard open and close — the list would jump by 44px
- * each time the dealer tapped the composer.
+ * A strip under the TOP bar has no quarrel with the keyboard: it is in normal
+ * flow above a screen that clips and scrolls its own content. Hiding it would
+ * reflow the message list on every keyboard open and close — the list would jump
+ * by 44px each time the dealer tapped the composer.
  *
  * `shrink-0` IS LOAD-BEARING. In a conversation the frame is a fixed height
  * (`--vvh`) and a flex child that may shrink gets squeezed towards zero. This
@@ -52,7 +62,7 @@ import { useAskCapture } from './useAskCapture';
  * broke its text one letter per line, so the rule in this column is that
  * anything added to it declares that it does not shrink.
  */
-export function AskBar() {
+export function AskBar({ children }: { children?: React.ReactNode }) {
   const t = useT();
   const lang = useLang();
   const navigate = useNavigate();
@@ -84,7 +94,7 @@ export function AskBar() {
   // CHOICE. `useMatch` is a hook, and these used to be written as
   // `Boolean(useMatch('/asks')) || Boolean(useMatch('/documents'))` — which
   // skips the second call the moment the first one matches. This bar stays
-  // MOUNTED across a navigation (it lives in the shell, above the page), so
+  // MOUNTED across a navigation (it lives in the shell, around the page), so
   // walking into /asks took the same component from four hooks to three, React
   // counted the missing one, and the whole app fell over into "Something
   // didn't load" on every tap of this bar. Read the matches first, decide
@@ -113,36 +123,42 @@ export function AskBar() {
 
   const show = face !== null && !onAskList && !onDensity;
 
+  // The strip itself. Published to whichever top bar is on screen rather than
+  // drawn here, so it always sits directly under that bar; `null` is "nothing is
+  // owed" and every bar then draws nothing under itself.
+  const strip =
+    show && face ? (
+      <button
+        type="button"
+        onClick={onTap}
+        // 44px exactly — the app's own minimum tap target, which
+        // docs/STYLE_GUIDE_V2.md has always required.
+        className="flex h-11 w-full shrink-0 items-center gap-2 bg-warning-strong px-4 text-left text-white active:bg-warning-strong/90"
+      >
+        {face.face === 'late' ? (
+          <Clock3 width={18} strokeWidth={2} className="shrink-0" aria-hidden />
+        ) : (
+          <Camera width={18} strokeWidth={2} className="shrink-0" aria-hidden />
+        )}
+        {/* `truncate` rather than a wrap: the bar is one line by design, and
+            Hindi runs about 35% longer than English — "आज के रजिस्टर का पन्ना
+            भेजें" is 28 characters and only just fits a 360px screen. A
+            second line here would push the message list down and reflow it. */}
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
+          {barLabel(face, lang, list.today, t)}
+        </span>
+        <ChevronRight width={18} strokeWidth={2} className="shrink-0 opacity-80" aria-hidden />
+      </button>
+    ) : null;
+
   return (
-    <>
-      {show && face ? (
-        <button
-          type="button"
-          onClick={onTap}
-          // 44px exactly — the app's own minimum tap target, which
-          // docs/STYLE_GUIDE_V2.md has always required.
-          className="flex h-11 w-full shrink-0 items-center gap-2 bg-warning-strong px-4 text-left text-white active:bg-warning-strong/90"
-        >
-          {face.face === 'late' ? (
-            <Clock3 width={18} strokeWidth={2} className="shrink-0" aria-hidden />
-          ) : (
-            <Camera width={18} strokeWidth={2} className="shrink-0" aria-hidden />
-          )}
-          {/* `truncate` rather than a wrap: the bar is one line by design, and
-              Hindi runs about 35% longer than English — "आज के रजिस्टर का पन्ना
-              भेजें" is 28 characters and only just fits a 360px screen. A
-              second line here would push the message list down and reflow it. */}
-          <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-            {barLabel(face, lang, list.today, t)}
-          </span>
-          <ChevronRight width={18} strokeWidth={2} className="shrink-0 opacity-80" aria-hidden />
-        </button>
-      ) : null}
-      {/* Rendered even while the bar itself is hidden, so the confirm sheet does
-          not vanish underneath the dealer at the exact moment their photograph
-          is queued and the bar stops having anything to say. */}
+    <AskBarSlotContext.Provider value={strip}>
+      {children}
+      {/* Rendered even while the strip itself is hidden, so the confirm sheet
+          does not vanish underneath the dealer at the exact moment their
+          photograph is queued and the bar stops having anything to say. */}
       {capture.elements}
-    </>
+    </AskBarSlotContext.Provider>
   );
 }
 

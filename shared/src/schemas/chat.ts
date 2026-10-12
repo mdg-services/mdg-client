@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { QUICK_REACTIONS } from '../types/conversation';
+import { SHARE_AUDIENCES } from '../types/share';
 
 /** Hard cap on a single voice note: 10 minutes. */
 export const MAX_VOICE_DURATION_MS = 10 * 60 * 1000;
@@ -44,6 +45,31 @@ export const sendMessageSchema = z
     message: 'Message must have a body or at least one attachment',
   });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/**
+ * An admin's message sent to the OUTLET rather than to the one chat they are
+ * in: every owner's own chat, the manager group, or both — the same three
+ * choices every report's Share button offers.
+ *
+ * It is what the Reports shelf used to do for a file an admin uploaded: the
+ * shelf showed it to every member of the outlet, a chat shows it to the people
+ * in that chat. Voice notes stay out: a voice note is a reply in a
+ * conversation, not a paper for the whole outlet.
+ */
+export const shareChatMessageSchema = z
+  .object({
+    body: z.string().trim().max(4000).optional(),
+    attachments: z
+      .array(attachmentSchema.refine((a) => a.kind !== 'audio', 'Voice notes go to this chat only'))
+      .max(10)
+      .optional()
+      .default([]),
+    audience: z.enum(SHARE_AUDIENCES),
+  })
+  .refine((d) => (d.body && d.body.length > 0) || (d.attachments && d.attachments.length > 0), {
+    message: 'Message must have a body or at least one attachment',
+  });
+export type ShareChatMessageInput = z.infer<typeof shareChatMessageSchema>;
 
 /** Set (or replace) the caller's reaction on a message. */
 export const reactToMessageSchema = z.object({
@@ -117,20 +143,6 @@ export const startConversationSchema = z.object({
   userId: z.string().min(1),
 });
 export type StartConversationInput = z.infer<typeof startConversationSchema>;
-
-export const recordTypeSchema = z.enum(['dsr', 'invoice', 'compliance', 'statement', 'other']);
-
-export const createRecordSchema = z.object({
-  dealerId: z.string().min(1),
-  type: recordTypeSchema,
-  title: z.string().trim().min(1).max(120),
-  periodLabel: z.string().trim().max(60).optional(),
-  note: z.string().trim().max(1000).optional(),
-  attachment: attachmentSchema,
-  /** When true, also post a record card into the dealer's conversation. */
-  announceInChat: z.boolean().optional().default(true),
-});
-export type CreateRecordInput = z.infer<typeof createRecordSchema>;
 
 export const updateTicketSchema = z.object({
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),

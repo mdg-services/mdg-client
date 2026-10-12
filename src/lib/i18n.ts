@@ -35,21 +35,19 @@ export const messages = {
     hi: 'कृपया अपना नेटवर्क जांचें और फिर कोशिश करें। अगर बार-बार हो, तो चैट में हमें लिखें, हम मदद करेंगे।',
   },
   'common.retry': { en: 'Try again', hi: 'फिर कोशिश करें' },
+  'common.back': { en: 'Back', hi: 'वापस' },
+  'common.moreOptions': { en: 'More options', hi: 'और विकल्प' },
   'common.loadFailed': {
     en: "Couldn't load this. Check your network and try again.",
     hi: 'यह लोड नहीं हो सका। नेटवर्क जांचें और फिर कोशिश करें।',
   },
 
-  /* ── app / nav ──────────────────────────────────────────────────────── */
+  /* ── app ────────────────────────────────────────────────────────────── */
   'app.brand': { en: 'Dealer Kavach', hi: 'डीलर कवच' },
   'app.stillLoading': {
     en: 'Still loading — the connection is slow.',
     hi: 'अभी लोड हो रहा है — नेटवर्क धीमा है।',
   },
-  'nav.chat': { en: 'Chat', hi: 'चैट' },
-  'nav.reports': { en: 'Reports', hi: 'रिपोर्ट' },
-  'nav.kavach': { en: 'Kavach', hi: 'कवच' },
-  'nav.profile': { en: 'Profile', hi: 'प्रोफ़ाइल' },
 
   /* ── auth / login ───────────────────────────────────────────────────── */
   'auth.welcome': { en: 'Welcome back', hi: 'फिर से स्वागत है' },
@@ -171,21 +169,8 @@ export const messages = {
 
   /* ── chat ───────────────────────────────────────────────────────────── */
   'chat.support': { en: 'Support', hi: 'सहायता' },
-  'chat.supportSubtitle': {
-    en: 'The MDG team, right here',
-    hi: 'MDG टीम, यहीं आपके साथ',
-  },
   'chat.supportName': { en: 'Support', hi: 'सहायता' },
-  'chat.online': { en: 'Online', hi: 'ऑनलाइन' },
-  'chat.placeholder': {
-    en: 'Type your message…',
-    hi: 'अपना संदेश लिखें…',
-  },
   'chat.send': { en: 'Send', hi: 'भेजें' },
-  'chat.addPhoto': {
-    en: 'Add a photo or document',
-    hi: 'फोटो या दस्तावेज़ जोड़ें',
-  },
   'chat.takePhoto': {
     en: 'Take a photo',
     hi: 'फोटो खींचें',
@@ -199,10 +184,6 @@ export const messages = {
   'chat.cancelRecording': {
     en: 'Cancel recording',
     hi: 'रिकॉर्डिंग रद्द करें',
-  },
-  'chat.recordingHint': {
-    en: 'Recording… tap send when done',
-    hi: 'रिकॉर्ड हो रहा है… हो जाए तो भेजें दबाएं',
   },
   'chat.voiceMessage': { en: 'Voice message', hi: 'वॉइस मैसेज' },
   'chat.recorded': { en: 'Recorded', hi: 'रिकॉर्ड हो गया' },
@@ -321,10 +302,6 @@ export const messages = {
   // lands on the one intent that was written to answer it.
   'chat.quickWhatNow': { en: 'What do I need to do?', hi: 'अब क्या करना है?' },
 
-  'chat.loadEarlier': {
-    en: 'Load earlier messages',
-    hi: 'पुराने संदेश देखें',
-  },
   'chat.today': { en: 'Today', hi: 'आज' },
   'chat.yesterday': { en: 'Yesterday', hi: 'कल' },
   'chat.isTyping': { en: '{name} is typing', hi: '{name} लिख रहे हैं' },
@@ -354,7 +331,6 @@ export const messages = {
     en: 'You were signed out — this happens if you sign in on another phone. Please sign in again.',
     hi: 'आप साइन आउट हो गए — ऐसा तब होता है जब किसी दूसरे फ़ोन पर साइन इन किया जाए। कृपया दोबारा साइन इन करें।',
   },
-  'chat.chatsTitle': { en: 'Chats', hi: 'बातचीत' },
   'chat.managerThread': { en: 'Manager chat', hi: 'मैनेजर चैट' },
   'chat.noConversations': { en: 'No chats yet', hi: 'अभी कोई चैट नहीं' },
   'chat.noConversationsDesc': {
@@ -387,7 +363,6 @@ export const messages = {
     hi: 'संदेश कॉपी नहीं हो पाया',
   },
   'chat.download': { en: 'Download', hi: 'डाउनलोड करें' },
-  'chat.downloadFile': { en: 'Download {name}', hi: '{name} डाउनलोड करें' },
   'chat.saving': { en: 'Saving…', hi: 'सेव हो रहा है…' },
   'chat.savedToGallery': {
     en: 'Saved to your gallery',
@@ -428,10 +403,6 @@ export const messages = {
   'chat.supportFallbackName': { en: 'MDG Support', hi: 'MDG सहायता' },
 
   /* ── media / docs / links gallery ───────────────────────────────────── */
-  'chat.mediaTitle': {
-    en: 'Media, docs and links',
-    hi: 'मीडिया, दस्तावेज़ और लिंक',
-  },
   'chat.tabMedia': { en: 'Media', hi: 'मीडिया' },
   'chat.tabDocs': { en: 'Docs', hi: 'दस्तावेज़' },
   'chat.tabLinks': { en: 'Links', hi: 'लिंक' },
@@ -440,27 +411,10 @@ export const messages = {
   'chat.noLinks': { en: 'No links yet', hi: 'अभी कोई लिंक नहीं' },
   'chat.loadMore': { en: 'Load more', hi: 'और देखें' },
 
-  /* ── records / reports ──────────────────────────────────────────────── */
-  'records.title': { en: 'Reports', hi: 'रिपोर्ट' },
-  'records.errorTitle': {
-    en: "We couldn't show your reports just now",
-    hi: 'अभी आपकी रिपोर्ट नहीं दिखा पाए',
-  },
-  'records.emptyTitle': { en: 'No reports yet', hi: 'अभी कोई रिपोर्ट नहीं' },
-  'records.emptyDesc': {
-    en: "Your reports will appear here. We'll message you when a new one is ready.",
-    hi: 'आपकी रिपोर्ट यहां दिखेंगी। नई तैयार होने पर हम आपको बताएंगे।',
-  },
+  /* ── a filed paper ─────────────────────────────────────────────────── */
+  // The only key left from the old Reports shelf: `OnFileCard` labels its "open
+  // this paper" line with it. Reports are pictures in the chat now.
   'records.tapToView': { en: 'Tap to view', hi: 'देखने के लिए दबाएं' },
-  'records.preparing': { en: 'Preparing…', hi: 'तैयार हो रहा है…' },
-  'record.type.dsr': {
-    en: 'Daily Sales Report',
-    hi: 'रोज़ की बिक्री रिपोर्ट',
-  },
-  'record.type.invoice': { en: 'Invoice', hi: 'बिल' },
-  'record.type.compliance': { en: 'Compliance', hi: 'अनुपालन' },
-  'record.type.statement': { en: 'Statement', hi: 'खाता विवरण' },
-  'record.type.other': { en: 'Document', hi: 'दस्तावेज़' },
 
   /* ── kavach / pump health ───────────────────────────────────────────── */
   // The dealer certifies NOTHING on this screen (ADR 0011): an MDG admin or an
@@ -729,12 +683,7 @@ export const messages = {
     en: 'See what we run for your pump',
     hi: 'देखें हम आपके पंप के लिए क्या चलाते हैं',
   },
-  'profile.signOut': { en: 'Sign out', hi: 'साइन आउट' },
   'profile.language': { en: 'Language', hi: 'भाषा' },
-  'profile.languageDesc': {
-    en: 'Choose how the app talks to you',
-    hi: 'चुनें ऐप आपसे किस भाषा में बात करे',
-  },
 
   /* ── services ───────────────────────────────────────────────────────── */
   'services.title': { en: 'Your services', hi: 'आपकी सेवाएं' },
@@ -1046,11 +995,6 @@ export const messages = {
     en: 'This reading is {n} days old',
     hi: 'यह रीडिंग {n} दिन पुरानी है',
   },
-  'profile.guide': { en: 'Learn the app', hi: 'ऐप चलाना सीखिए' },
-  'profile.guideDesc': {
-    en: 'Short Hindi videos, one task at a time',
-    hi: 'छोटे-छोटे हिंदी वीडियो — एक बार में एक काम',
-  },
   'profile.density': { en: 'Density register', hi: 'डेंसिटी रजिस्टर' },
   'profile.densityDesc': {
     en: "Send today's register page",
@@ -1154,13 +1098,13 @@ export const messages = {
   // by `documentPeriodLabel` from `shared`, which is also what the server's push
   // notification uses — so the card and the notification that opened it can
   // never name the same period two different ways.
-  // The Profile row into the papers screen. It names BOTH halves now — what is
+  // The Settings row into the papers screen. It names BOTH halves now — what is
   // still to send AND what MDG already holds — because the screen behind it
   // grew a filing cabinet, and a row that still promised only the chore would
   // hide the half a dealer opens the app to check.
   'profile.asks': { en: 'Your papers', hi: 'आपके काग़ज़' },
   'profile.asksDesc': {
-    en: 'What is still to send, and what MDG holds for you',
+    en: 'What to send, and what MDG holds',
     hi: 'क्या भेजना बाकी है, और MDG के पास क्या रखा है',
   },
 
@@ -1324,6 +1268,144 @@ export const messages = {
     en: 'MDG has asked you for the new one',
     hi: 'MDG ने नया काग़ज़ माँग लिया है',
   },
+
+  /* ── wa:frame — chat list, app bars, settings ────────────────────────── */
+
+  // Chat list. "Unread" is the dealer's own word for "not read yet" — the
+  // clinical "अपठित" is what an app says, not what a pump owner says.
+  'chatlist.search': { en: 'Search', hi: 'खोजें' },
+  'chatlist.searchPlaceholder': { en: 'Search chats…', hi: 'चैट खोजें…' },
+  'chatlist.clearSearch': { en: 'Clear', hi: 'मिटाएं' },
+  'chatlist.filters': { en: 'Filter chats', hi: 'चैट छाँटें' },
+  'chatlist.filterAll': { en: 'All', hi: 'सभी' },
+  'chatlist.filterUnread': { en: 'Unread', hi: 'बिना पढ़े' },
+  'chatlist.filterGroups': { en: 'Groups', hi: 'ग्रुप' },
+  'chatlist.unreadCount': { en: '{n} unread', hi: '{n} बिना पढ़े' },
+  'chatlist.noUnread': { en: 'No unread chats', hi: 'कोई चैट बिना पढ़ी नहीं है' },
+  'chatlist.noMatch': { en: 'No chats found', hi: 'कोई चैट नहीं मिली' },
+  'chatlist.settings': { en: 'Settings', hi: 'सेटिंग' },
+
+  // Settings and what hangs off it.
+  'settings.title': { en: 'Settings', hi: 'सेटिंग' },
+  'settings.profileTitle': { en: 'Profile', hi: 'प्रोफ़ाइल' },
+  'settings.account': { en: 'Account', hi: 'खाता' },
+  'settings.accountDesc': { en: 'Change your password', hi: 'अपना पासवर्ड बदलें' },
+  'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
+  'settings.teamDesc': { en: 'Add or pause your manager', hi: 'मैनेजर जोड़ें या रोकें' },
+  'settings.pumpHealth': { en: 'Pump health', hi: 'पंप हेल्थ' },
+  'settings.pumpHealthDesc': {
+    en: 'What MDG needs from you',
+    hi: 'MDG को आपसे क्या चाहिए',
+  },
+  'settings.help': { en: 'Help', hi: 'मदद' },
+  'settings.helpDesc': {
+    en: 'Learn the app with short videos',
+    hi: 'छोटे वीडियो से ऐप चलाना सीखिए',
+  },
+  'settings.logout': { en: 'Log out', hi: 'लॉग आउट' },
+  'settings.logoutTitle': { en: 'Log out?', hi: 'लॉग आउट करें?' },
+  'settings.logoutDesc': {
+    en: 'You will need your email and password to come back in.',
+    hi: 'वापस आने के लिए ईमेल और पासवर्ड चाहिए होगा।',
+  },
+  'settings.fieldName': { en: 'Name', hi: 'नाम' },
+  'settings.fieldRole': { en: 'Role', hi: 'पद' },
+  'settings.fieldPhone': { en: 'Phone', hi: 'फ़ोन' },
+  'settings.fieldStatus': { en: 'Status', hi: 'स्थिति' },
+  'settings.notAdded': { en: 'Not added', hi: 'जुड़ा नहीं है' },
+  'settings.profileHint': {
+    en: 'To change your name, email or phone, message the MDG team.',
+    hi: 'नाम, ईमेल या फ़ोन बदलना हो तो MDG टीम को चैट में लिखिए।',
+  },
+
+  /* ── wa:thread — the open chat: header, bubbles, selection, search ───── */
+
+  // Who is who in a picture's header and in a group.
+  'chat.senderMdg': { en: 'MDG', hi: 'MDG' },
+
+  // The bar of the open chat.
+  'chat.barSupportSubtitle': { en: 'MDG team', hi: 'MDG टीम' },
+  'chat.typing': { en: 'typing…', hi: 'लिख रहे हैं…' },
+  'chat.openInfo': { en: 'Chat info', hi: 'चैट की जानकारी' },
+  'chat.menuMedia': {
+    en: 'Media, links and docs',
+    hi: 'मीडिया, लिंक और दस्तावेज़',
+  },
+  'chat.menuSearch': { en: 'Search', hi: 'खोजें' },
+
+  // The unread band the thread opens at.
+  'chat.unreadOne': { en: '1 unread message', hi: '1 नया संदेश' },
+  'chat.unreadMany': { en: '{n} unread messages', hi: '{n} नए संदेश' },
+
+  // Older history that loads by itself; this only shows when it could not.
+  'chat.olderFailed': {
+    en: "Couldn't load older messages. Tap to try again",
+    hi: 'पुराने संदेश नहीं आ सके। दोबारा दबाइए',
+  },
+
+  // A picture or voice note that will not open.
+  'chat.imageTapToRetry': {
+    en: "Couldn't load. Tap to try again",
+    hi: 'फोटो नहीं खुली। दोबारा दबाइए',
+  },
+  'chat.voiceSpeed': { en: 'Speed {rate}', hi: 'रफ़्तार {rate}' },
+  'chat.voiceFailed': {
+    en: "Couldn't play. Tap to try again",
+    hi: 'चल नहीं सका। दोबारा दबाइए',
+  },
+
+  // Selecting messages (long-press).
+  'chat.clearSelection': { en: 'Clear selection', hi: 'चुनाव हटाएं' },
+
+  // Searching inside the chat.
+  'chat.searchPlaceholder': { en: 'Search', hi: 'खोजें' },
+  'chat.searchClear': { en: 'Clear', hi: 'मिटाएं' },
+  'chat.searchOlder': { en: 'Older result', hi: 'पुराना नतीजा' },
+  'chat.searchNewer': { en: 'Newer result', hi: 'नया नतीजा' },
+  'chat.searchHint': { en: 'Type 2 letters', hi: '2 अक्षर लिखिए' },
+  'chat.searching': { en: 'Searching…', hi: 'खोज रहे हैं…' },
+  'chat.searchFailed': {
+    en: "Couldn't search. Try again",
+    hi: 'खोज नहीं हो सकी। फिर कोशिश करें',
+  },
+  'chat.searchNone': { en: 'No results', hi: 'कुछ नहीं मिला' },
+  'chat.searchCount': { en: '{i} of {n}', hi: '{n} में से {i}' },
+
+  // Chat info (tap the chat's name).
+  'chat.infoTitle': { en: 'Chat info', hi: 'चैट की जानकारी' },
+  'chat.infoGroupSubtitle': { en: 'Group · {n} members', hi: 'ग्रुप · {n} सदस्य' },
+  'chat.infoMembers': { en: '{n} members', hi: '{n} सदस्य' },
+  'chat.infoWhoAnswers': {
+    en: 'The MDG team answers your messages here.',
+    hi: 'यहाँ आपके संदेशों का जवाब MDG की टीम देती है।',
+  },
+
+  /* ── wa:media — viewer, gallery, composer, send preview ──────────────── */
+  'media.viewer.showInChat': { en: 'Show in chat', hi: 'चैट में दिखाएं' },
+  'media.viewer.loadingOlder': {
+    en: 'Getting older pictures…',
+    hi: 'पुरानी फोटो आ रही हैं…',
+  },
+  'media.title': { en: 'Media, links and docs', hi: 'मीडिया, लिंक और दस्तावेज़' },
+  'media.thisMonth': { en: 'This month', hi: 'इस महीने' },
+  'media.loadMoreFailed': {
+    en: "Couldn't load more. Tap to try again.",
+    hi: 'और लोड नहीं हो सके। फिर कोशिश करने के लिए दबाएं।',
+  },
+  'media.gallery': { en: 'Photos in this chat', hi: 'इस चैट की फोटो' },
+  'composer.message': { en: 'Message', hi: 'मैसेज' },
+  'composer.attach': { en: 'Attach', hi: 'जोड़ें' },
+  'composer.attachDocument': { en: 'Document', hi: 'दस्तावेज़' },
+  'composer.attachCamera': { en: 'Camera', hi: 'कैमरा' },
+  'composer.attachGallery': { en: 'Gallery', hi: 'गैलरी' },
+  'composer.maxFiles': {
+    en: 'You can send up to {n} files at once',
+    hi: 'एक बार में {n} फाइल तक भेज सकते हैं',
+  },
+  'composer.captionPlaceholder': { en: 'Add a caption…', hi: 'कैप्शन लिखें…' },
+  'composer.addMore': { en: 'Add more photos', hi: 'और फोटो जोड़ें' },
+  'composer.dropPhoto': { en: 'Remove this photo', hi: 'यह फोटो हटाएं' },
+  'composer.photoN': { en: 'Photo {n} of {total}', hi: 'फोटो {n} / {total}' },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

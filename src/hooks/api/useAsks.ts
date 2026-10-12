@@ -90,7 +90,7 @@ export function applyAskRow(qc: QueryClient, row: DealerDocumentAskRow): void {
  * in a pocket; this covers a phone already in a hand, where a silence followed
  * by a list that changed on the next pull-to-refresh reads as a bug.
  *
- * The re-connect refresh is the same guard `useRecordsSocket` carries: events
+ * The re-connect refresh is the same guard the chat list's socket carries: events
  * that fired while the socket was down are invisible, and a 2G link drops the
  * socket without ever going `offline`.
  */

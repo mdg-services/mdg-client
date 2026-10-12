@@ -111,6 +111,9 @@ export const AUDIT_ACTIONS = [
   'SERVICE_LOGGED',
   // Dealer documents / artifacts (data access & egress)
   'RECORD_VIEWED',
+  // A filed report moved into the dealer's chat when the Reports shelf was
+  // retired; the row keeps the whole record, so nothing about it is lost.
+  'RECORD_MIGRATED',
   'ARTIFACT_DOWNLOAD',
   // Conversation / support-ticket lifecycle
   'CONVERSATION_STARTED',
@@ -120,6 +123,9 @@ export const AUDIT_ACTIONS = [
   'CONVERSATION_RESOLVED',
   'CONVERSATION_REOPENED',
   'CONVERSATION_AUTO_UNASSIGNED',
+  // An admin's message (a file, usually) sent to the whole outlet — every
+  // owner, the manager, or both — instead of to the one chat they were in.
+  'CHAT_MESSAGE_SHARED',
   // IndianOil SDMS — Credit & DOD Monitoring
   'SDMS_CREDENTIALS_SET',
   'SDMS_CREDENTIALS_CLEAR',

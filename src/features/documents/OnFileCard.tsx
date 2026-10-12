@@ -22,10 +22,9 @@ import { ValidityChip } from './ValidityChip';
  *
  * IT IS TWO TAP TARGETS, NOT ONE, AND NOT A BUTTON INSIDE A BUTTON. The body
  * opens the paper. The strip underneath — drawn only when a renewal is actually
- * open and actually the dealer's move — goes to the job. `RecordCard` makes the
- * whole card one button because it has exactly one thing to do; this one has
- * two, and nesting them would be invalid markup that a screen reader reads as
- * one control.
+ * open and actually the dealer's move — goes to the job. A card with exactly
+ * one thing to do can be one button; this one has two, and nesting them would
+ * be invalid markup that a screen reader reads as one control.
  *
  * WHERE THE DATE COMES FROM, AND WHY IT IS ALLOWED ON THIS SCREEN AT ALL.
  * Everywhere else in this feature a raw `2026-09-02` reaching a dealer is the

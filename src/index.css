@@ -24,6 +24,36 @@
 
   /* Deep teal for "online" / live indicators */
   --color-online: #0f766e;
+
+  /* The chat, LAID OUT the way WhatsApp lays it out on Android, because a
+     dealer already knows how to read that screen — but in Dealer Kavach's own
+     colours. What carries over is the experience (where things are, how they
+     behave), not WhatsApp's green: every accent below is the brand's black.
+     These are the ONLY chat colours: no bubble, bar, badge or wallpaper
+     hard-codes a hex of its own. */
+  --wa-accent: var(--color-brand); /* send / mic / scroll button / active chip */
+  --wa-accent-strong: var(--color-brand); /* links, selected text, the home title */
+  --wa-badge: var(--color-brand); /* unread count pill, unread time */
+  --wa-bar: #ffffff; /* every top bar */
+  --wa-bar-text: #111b21;
+  --wa-bar-icon: #54656f;
+  --wa-wallpaper: #f3f2f0;
+  --wa-doodle: rgba(17, 27, 33, 0.045);
+  --wa-in: #ffffff; /* their bubble */
+  --wa-out: #e7e5e4; /* my bubble — a warm grey, the brand's own neutral */
+  --wa-bubble-text: #111b21;
+  --wa-meta: #667781; /* time inside a bubble, previews */
+  /* Kept blue on purpose: two blue ticks MEAN "read" to anyone who uses
+     WhatsApp, and that meaning is the experience, not a colour scheme. */
+  --wa-tick-read: #53bdeb;
+  --wa-chip: #ffffff; /* date chip, unread divider */
+  --wa-chip-text: #54656f;
+  --wa-notice: #ffeecd; /* the rare centred notice */
+  --wa-select: rgba(24, 24, 27, 0.08); /* a selected message row */
+  --wa-search-hit: #fff59d;
+  --wa-row-active: #f0f2f5;
+  --wa-divider: #e9edef;
+  --wa-viewer: #000000;
 }
 
 .dark {

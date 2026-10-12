@@ -14,9 +14,44 @@ interface AuthState {
   /**
    * Swap in a token the server rolled forward (see `REFRESHED_TOKEN_HEADER`).
    * Ignored when signed out, so a response that overtakes a logout cannot sign
-   * the dealer back in.
+   * the dealer back in — and ignored unless it renews THIS sign-in (see
+   * {@link sameSignIn}).
    */
   setToken: (token: string) => void;
+}
+
+/**
+ * Whether two tokens belong to the same sign-in: the same person (`sub`) and the
+ * same session (`sid`). A renewal never changes either; a new sign-in changes
+ * the session.
+ *
+ * WHY THE CHECK EXISTS. The renewed token rides on a response header, and a
+ * browser can hand back an OLD response's headers: a GET answered `304 Not
+ * Modified` is served from the cache with the headers it was first stored with.
+ * So a dealer who signed out and back in on the same phone got the new token,
+ * then, a moment later, a renewal of the PREVIOUS sign-in off a cached reply —
+ * which the server refuses as "signed in on another device". Nothing looked
+ * wrong until the next time the app opened, on the login screen. Read without
+ * verifying the signature: this only decides whether to keep a token, and the
+ * server checks every one it is given.
+ */
+function sameSignIn(a: string, b: string): boolean {
+  const claims = (token: string): { sub?: unknown; sid?: unknown } | null => {
+    try {
+      const part = token.split('.')[1];
+      if (!part) return null;
+      return JSON.parse(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) as {
+        sub?: unknown;
+        sid?: unknown;
+      };
+    } catch {
+      return null;
+    }
+  };
+  const x = claims(a);
+  const y = claims(b);
+  if (!x || !y || typeof x.sub !== 'string' || typeof x.sid !== 'string') return false;
+  return x.sub === y.sub && x.sid === y.sid;
 }
 
 /**
@@ -89,7 +124,9 @@ export const useAuthStore = create<AuthState>()(
       },
       setUser: (user) => set({ user }),
       setToken: (token) => {
-        if (!get().token) return;
+        const current = get().token;
+        if (!current) return;
+        if (!sameSignIn(current, token)) return;
         set({ token });
       },
     }),

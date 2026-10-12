@@ -2,7 +2,7 @@ import { type InfiniteData } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { messagesQueryKey } from '@/hooks/api/useMessages';
+import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
 import { type ReactVars } from '@/hooks/api/useReactToMessage';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
 import {
@@ -99,6 +99,144 @@ describe('useConversationSocket', () => {
       'read',
       expect.objectContaining({ messageIds: ['real-1'] }),
     );
+  });
+
+  it('own echo takes out the ONE placeholder it confirms — a photograph still uploading stays', () => {
+    const textTemp = makeMessage({ id: 'temp-text', senderId: ME, body: 'hello', createdAt: new Date(2026, 0, 1, 12, 0, 1).toISOString() });
+    const photoTemp = makeMessage({
+      id: 'temp-photo',
+      senderId: ME,
+      body: undefined,
+      createdAt: new Date(2026, 0, 1, 12, 0, 2).toISOString(),
+      attachments: [
+        { storageKey: 'local:temp-photo:0', filename: 'a.jpg', contentType: 'image/jpeg', size: 1, kind: 'image', url: 'blob:x' },
+      ],
+    });
+    const { qc } = mount([photoTemp, textTemp]);
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'real-text', senderId: ME, body: 'hello' }),
+        conversation: {},
+      });
+    });
+    const ids = msgs(qc).map((m) => m.id);
+    expect(ids).toContain('real-text');
+    expect(ids).not.toContain('temp-text');
+    // The photograph is still on its way and must still be on screen.
+    expect(ids).toContain('temp-photo');
+  });
+
+  it('own echo of a photograph takes out the photograph\'s placeholder, not a text one', () => {
+    const textTemp = makeMessage({ id: 'temp-text', senderId: ME, body: 'hello' });
+    const photoTemp = makeMessage({
+      id: 'temp-photo',
+      senderId: ME,
+      body: 'hello',
+      attachments: [
+        { storageKey: 'local:temp-photo:0', filename: 'a.jpg', contentType: 'image/jpeg', size: 1, kind: 'image', url: 'blob:x' },
+      ],
+    });
+    const { qc } = mount([photoTemp, textTemp]);
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({
+          id: 'real-photo',
+          senderId: ME,
+          body: 'hello',
+          attachments: [
+            { storageKey: 'chat/c1/a.jpg', filename: 'a.jpg', contentType: 'image/jpeg', size: 1, kind: 'image' },
+          ],
+        }),
+        conversation: {},
+      });
+    });
+    const ids = msgs(qc).map((m) => m.id);
+    expect(ids).not.toContain('temp-photo');
+    expect(ids).toContain('temp-text');
+  });
+
+  it('own echo of a one-picture message leaves an older three-picture album uploading', () => {
+    // Two photo messages with no words in flight; the single picture finishes
+    // first. The album must stay on screen until ITS confirmation comes.
+    const pic = (k: string) => ({
+      storageKey: `local:${k}`,
+      filename: `${k}.jpg`,
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image' as const,
+      url: 'blob:x',
+    });
+    const album = makeMessage({
+      id: 'temp-album',
+      senderId: ME,
+      body: undefined,
+      attachments: [pic('a1'), pic('a2'), pic('a3')],
+      createdAt: new Date(2026, 0, 1, 12, 0, 0).toISOString(),
+    });
+    const single = makeMessage({
+      id: 'temp-single',
+      senderId: ME,
+      body: undefined,
+      attachments: [pic('s1')],
+      createdAt: new Date(2026, 0, 1, 12, 0, 5).toISOString(),
+    });
+    const { qc } = mount([single, album]);
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({
+          id: 'real-single',
+          senderId: ME,
+          body: undefined,
+          attachments: [{ ...pic('s1'), storageKey: 'chat/c1/s1.jpg', url: undefined }],
+        }),
+        conversation: {},
+      });
+    });
+    const ids = msgs(qc).map((m) => m.id);
+    expect(ids).toContain('temp-album');
+    expect(ids).not.toContain('temp-single');
+    expect(renderKey('real-single')).toBe('temp-single');
+  });
+
+  it('own echo remembers which placeholder it replaced, so the row is not rebuilt', () => {
+    const { qc } = mount([makeMessage({ id: 'temp-keep', senderId: ME, body: 'same words' })]);
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'real-keep', senderId: ME, body: 'same words' }),
+        conversation: {},
+      });
+    });
+    expect(msgs(qc).map((m) => m.id)).toEqual(['real-keep']);
+    expect(renderKey('real-keep')).toBe('temp-keep');
+  });
+
+  it('own echo that confirms nothing the screen is waiting on leaves every placeholder alone', () => {
+    const { qc } = mount([makeMessage({ id: 'temp-other', senderId: ME, body: 'something else' })]);
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'real-1', senderId: ME, body: 'sent from another phone' }),
+        conversation: {},
+      });
+    });
+    expect(msgs(qc).map((m) => m.id).sort()).toEqual(['real-1', 'temp-other']);
+  });
+
+  it('backfills after a reconnect even while a send is still in flight', async () => {
+    const { qc } = mount([], false);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    h.socket.server('connect'); // first connect
+    // A send that is still uploading (it may be for a minute on a bad link).
+    qc.getMutationCache()
+      .build(qc, {
+        mutationKey: ['sendMessage'],
+        mutationFn: () => new Promise(() => {}),
+      })
+      .execute(undefined)
+      .catch(() => {});
+    expect(qc.isMutating({ mutationKey: ['sendMessage'] })).toBe(1);
+
+    h.socket.server('connect'); // reconnect
+    expect(spy).toHaveBeenCalledWith({ queryKey: KEY });
   });
 
   it('ignores message:new for a different conversation', () => {

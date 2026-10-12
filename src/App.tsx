@@ -9,7 +9,7 @@ import { setMonitoringUser } from '@/lib/monitoring';
 import { useAuthStore } from '@/store/auth';
 
 // Route-level code splitting: each page (and the authenticated shell) is its own
-// chunk, so the login screen no longer downloads chat/records/kavach/staff — or
+// chunk, so the login screen no longer downloads chat/settings/kavach/staff — or
 // the socket.io realtime stack that the shell pulls in. Pages use named exports,
 // so remap each to a default export for React.lazy.
 const AppShell = lazyWithRetry(() =>
@@ -30,8 +30,8 @@ const ChatPage = lazyWithRetry(() =>
 const ChatMediaPage = lazyWithRetry(() =>
   import('@/pages/ChatMediaPage').then((m) => ({ default: m.ChatMediaPage })),
 );
-const RecordsPage = lazyWithRetry(() =>
-  import('@/pages/RecordsPage').then((m) => ({ default: m.RecordsPage })),
+const ChatInfoPage = lazyWithRetry(() =>
+  import('@/pages/ChatInfoPage').then((m) => ({ default: m.ChatInfoPage })),
 );
 const KavachPage = lazyWithRetry(() =>
   import('@/pages/KavachPage').then((m) => ({ default: m.KavachPage })),
@@ -48,16 +48,25 @@ const DensityPage = lazyWithRetry(() =>
 const DocumentsPage = lazyWithRetry(() =>
   import('@/pages/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
 );
-const ProfilePage = lazyWithRetry(() =>
-  import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })),
+const SettingsPage = lazyWithRetry(() =>
+  import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+);
+const SettingsProfilePage = lazyWithRetry(() =>
+  import('@/pages/settings/ProfileInfoPage').then((m) => ({ default: m.SettingsProfilePage })),
+);
+const SettingsAccountPage = lazyWithRetry(() =>
+  import('@/pages/settings/AccountPage').then((m) => ({ default: m.SettingsAccountPage })),
+);
+const SettingsTeamPage = lazyWithRetry(() =>
+  import('@/pages/settings/TeamPage').then((m) => ({ default: m.SettingsTeamPage })),
 );
 
 /**
  * What a screen looks like while its code is coming down the wire.
  *
  * A bare spinner is fine for the second or two this takes on wifi. On a 2G
- * forecourt link the first tap on Reports or Kavach could sit here for a minute
- * with nothing but a small grey dot on an empty screen — no words, no way to
+ * forecourt link the first tap on Settings or Pump health could sit here for a
+ * minute with nothing but a small grey dot on an empty screen — no words, no way to
  * tell it apart from a broken app, and nothing to press. After six seconds it
  * says what is happening and offers the reload, which is the same escape the
  * chunk-error boundary gives when the download fails outright.
@@ -90,8 +99,9 @@ function FullScreenSpinner() {
 
 /**
  * The authenticated layout: gate on the token, then render the (lazy) shell,
- * which hosts the tab bar and an <Outlet/> for the active page. Rendered once by
- * the layout route, so the shell persists across tab navigations.
+ * which hosts the app-wide realtime hooks and an <Outlet/> for the active
+ * screen. Rendered once by the layout route, so the shell persists as the dealer
+ * moves between screens.
  */
 function ProtectedLayout() {
   const token = useAuthStore((s) => s.token);
@@ -130,25 +140,43 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<ProtectedLayout />}>
-            {/* Chat: a conversation LIST, and a per-thread view. Single-thread
-                members are auto-forwarded from the list straight into their chat. */}
+            {/* The app is the chat. Its first screen is the conversation LIST,
+                always — even for a member with a single thread, as WhatsApp
+                does — and everything else hangs off the ⋮ menu there.
+                `/chat?c=<id>` (what a push naming only a conversation turns
+                into in the native shell) is sent on into the thread by the list
+                itself. */}
             <Route path="/" element={<ChatListPage />} />
             <Route path="/chat" element={<ChatListPage />} />
             <Route path="/chat/:id" element={<ChatPage />} />
             {/* Everything ever shared in a thread: media / docs / links. */}
             <Route path="/chat/:id/media" element={<ChatMediaPage />} />
-            <Route path="/records" element={<RecordsPage />} />
+            {/* Who is in the thread, and a way into its media. */}
+            <Route path="/chat/:id/info" element={<ChatInfoPage />} />
+            {/* Settings, and what hangs off it. Reached from the ⋮ menu on the
+                chat list. */}
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/profile" element={<SettingsProfilePage />} />
+            <Route path="/settings/account" element={<SettingsAccountPage />} />
+            <Route path="/settings/team" element={<SettingsTeamPage />} />
+            {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
+                and not a redirect, for the same reason `/asks` is one below. */}
+            <Route path="/profile" element={<SettingsPage />} />
+            {/* Pump health — Settings → Pump health, for a pump with a Kavach
+                programme. Kept at its old path: it is the dealer's only way to
+                answer MDG's "send a photo" requests, and pushes already on
+                phones still point here. */}
             <Route path="/kavach" element={<KavachPage />} />
-            {/* Services demoted from the bottom bar; still reachable from Profile. */}
+            {/* Services — Settings → Your services. */}
             <Route path="/services" element={<ServicesPage />} />
-            {/* Staff Points — owner/manager tool, reached from Profile (not a 5th tab). */}
+            {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
             <Route path="/staff" element={<StaffPage />} />
-            {/* The daily density-register photo. Reached from Profile and from
-                a push — the tab bar stays four. */}
+            {/* The daily density-register photo. Reached from Settings and from
+                a push. */}
             <Route path="/density" element={<DensityPage />} />
             {/* Every paper in this dealer's life — what MDG is waiting for, and
                 what MDG already holds. Reached from the ask bar under the
-                header, from Profile, and from a push.
+                top bar, from Settings, and from a push.
 
                 TWO PATHS, ONE PAGE, and the second is not a nicety. The server
                 builds its deep link as `/documents?ask=<id>`
@@ -168,7 +196,6 @@ export function App() {
                 mounts cannot lose a parameter neither of them touches. */}
             <Route path="/asks" element={<DocumentsPage />} />
             <Route path="/documents" element={<DocumentsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>

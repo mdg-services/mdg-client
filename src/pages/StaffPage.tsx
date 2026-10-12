@@ -11,12 +11,13 @@ import {
   X,
 } from 'lucide-react';
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 
 
+import { SubPage } from '@/components/SubPage';
 import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
 import { ZoomableImage } from '@/components/ZoomableImage';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
 import { EditWorkerDialog } from '@/features/staff/EditWorkerDialog';
 import { GivePointsFlow } from '@/features/staff/GivePointsFlow';
@@ -329,7 +330,7 @@ function HardcopyViewer({ src, onClose }: { src: string; onClose: () => void }) 
 
 export function StaffPage() {
   const t = useT();
-  const navigate = useNavigate();
+  const openMyChat = useOpenMyChat();
   const toast = useToast();
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId ?? undefined;
@@ -385,11 +386,8 @@ export function StaffPage() {
   const showEmpty = !hasActiveWorkers && !addOpen && !hasDraft;
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-lg font-semibold tracking-tight text-text">
-          {t('staff.title')}
-        </h1>
+    <SubPage title={t('staff.title')} className="gap-4">
+      <div className="flex items-center justify-end gap-2">
         <WindowToggle value={window} onChange={setWindow} />
       </div>
 
@@ -407,7 +405,7 @@ export function StaffPage() {
               <Button
                 variant="secondary"
                 leftIcon={<MessageCircle width={16} strokeWidth={1.75} />}
-                onClick={() => navigate('/chat')}
+                onClick={openMyChat}
               >
                 {t('staff.messageUs')}
               </Button>
@@ -508,6 +506,6 @@ export function StaffPage() {
           onClose={() => setEditing(null)}
         />
       ) : null}
-    </div>
+    </SubPage>
   );
 }

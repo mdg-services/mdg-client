@@ -1,8 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { fireEvent, render } from '@testing-library/react';
+import * as React from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
 import { LONG_PRESS_MS } from '@/lib/useLongPress';
+import { makeMessage } from '@/test/utils';
+
 
 import {
+  SwipeToReply,
   SWIPE_ENGAGE_PX,
   SWIPE_HOLD_DISARM_MS,
   SWIPE_MAX_PX,
@@ -77,3 +82,71 @@ describe('swipeHoldExpired', () => {
     expect(SWIPE_HOLD_DISARM_MS).toBeLessThan(LONG_PRESS_MS);
   });
 });
+
+describe('SwipeToReply — the row', () => {
+  const message = makeMessage({ id: 'row-1' });
+  const row = (
+    props: Partial<React.ComponentProps<typeof SwipeToReply>> = {},
+    child: React.ReactNode = React.createElement('span', { 'data-testid': 'child' }, 'hi'),
+  ) =>
+    React.createElement(
+      SwipeToReply,
+      { message, onReply: () => {}, 'data-mid': 'row-1', ...props } as never,
+      child,
+    );
+
+  const swipeRight = (target: Element, type = 'touch', dx = 90) => {
+    fireEvent.pointerDown(target, { pointerType: type, pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(target, { pointerType: type, pointerId: 1, clientX: dx, clientY: 2 });
+    fireEvent.pointerUp(target, { pointerType: type, pointerId: 1, clientX: dx, clientY: 2 });
+  };
+
+  it('keeps the caller\'s classes AND the `relative` the reply icon is placed by', () => {
+    // The caller's classes used to be thrown away (spread first, className set after),
+    // which is what stopped a row from carrying its padding and its selected tint.
+    const { container } = render(row({ className: 'px-3 pt-2 bg-wa-select' }));
+    const el = container.firstElementChild as HTMLElement;
+    expect(el.className).toContain('relative');
+    expect(el.className).toContain('px-3');
+    expect(el.className).toContain('bg-wa-select');
+    expect(el.getAttribute('data-mid')).toBe('row-1');
+  });
+
+  it('passes other attributes and handlers through to the row', () => {
+    const onClickCapture = vi.fn();
+    const { container } = render(row({ onClickCapture, 'data-day': 'Today' } as never));
+    fireEvent.click(container.querySelector('[data-testid="child"]')!);
+    expect(onClickCapture).toHaveBeenCalledTimes(1);
+    expect((container.firstElementChild as HTMLElement).getAttribute('data-day')).toBe('Today');
+  });
+
+  it('replies to the row\'s message after a rightward swipe by a finger', () => {
+    const onReply = vi.fn();
+    const { container } = render(row({ onReply }));
+    swipeRight(container.firstElementChild!);
+    expect(onReply).toHaveBeenCalledWith(message);
+  });
+
+  it('does not reply to a short swipe, a mouse, or a disabled row', () => {
+    const onReply = vi.fn();
+    const short = render(row({ onReply }));
+    swipeRight(short.container.firstElementChild!, 'touch', 30);
+    short.unmount();
+    const mouse = render(row({ onReply }));
+    swipeRight(mouse.container.firstElementChild!, 'mouse');
+    mouse.unmount();
+    const off = render(row({ onReply, disabled: true }));
+    swipeRight(off.container.firstElementChild!);
+    expect(onReply).not.toHaveBeenCalled();
+  });
+
+  it('stays out of the way of anything marked data-no-swipe (the voice scrubber)', () => {
+    const onReply = vi.fn();
+    const { container } = render(
+      row({ onReply }, React.createElement('div', { 'data-no-swipe': '', 'data-testid': 'scrub' })),
+    );
+    swipeRight(container.querySelector('[data-testid="scrub"]')!);
+    expect(onReply).not.toHaveBeenCalled();
+  });
+});
+

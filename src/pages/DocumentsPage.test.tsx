@@ -39,6 +39,7 @@ const h = vi.hoisted(() => ({
   list: undefined as DealerDocumentAskList | undefined,
   onFile: undefined as DealerDocumentAskList | undefined,
   onFileLoading: false,
+  listError: false,
   opened: [] as string[],
 }));
 
@@ -46,7 +47,7 @@ vi.mock('@/hooks/api/useAsks', async (orig) => {
   const actual = await orig<typeof AsksModule>();
   return {
     ...actual,
-    useMyAsks: () => ({ data: h.list, isLoading: false, isError: false }),
+    useMyAsks: () => ({ data: h.list, isLoading: false, isError: h.listError }),
     useAskListSocket: () => undefined,
   };
 });
@@ -102,6 +103,8 @@ function renderPage(lang: 'en' | 'hi' = 'en', route = '/documents') {
       <Route path="/documents" element={<DocumentsPage />} />
       <Route path="/asks" element={<DocumentsPage />} />
       <Route path="/kavach" element={<div>kavach-page</div>} />
+      <Route path="/settings" element={<div>settings-page</div>} />
+      <Route path="/chat" element={<div>chat-list</div>} />
     </Routes>,
     { route, withRouter: true },
   );
@@ -113,6 +116,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
   h.onFile = makeOnFileList();
   h.onFileLoading = false;
+  h.listError = false;
   h.opened = [];
 });
 
@@ -671,5 +675,39 @@ describe('DocumentsPage — the link a notification opens', () => {
     h.list = makeAskList({ rows: [makeAskRow({ id: 'wanted', periodKey: TODAY })] });
     const { container } = renderPage('en', '/asks?ask=wanted');
     expect(container.querySelector('.ring-2')).not.toBeNull();
+  });
+});
+
+/**
+ * No tab bar and no shell header any more: this screen draws its own top bar,
+ * and the bar is the dealer's only way out of it.
+ */
+describe('DocumentsPage — its own top bar', () => {
+  // Opened cold — from a notification — there is nothing behind it in the app,
+  // so ← goes home to the chat list, where the phone's own Back would land too.
+  it('is headed "Your papers", with a back arrow that goes home to the chat list when opened cold', async () => {
+    h.list = makeAskList({ rows: [makeAskRow({ periodKey: TODAY })] });
+    renderPage();
+
+    expect(screen.getByText('Your papers')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('chat-list')).toBeInTheDocument();
+  });
+
+  it('does not draw the title a second time inside the page', () => {
+    h.list = makeAskList({ rows: [makeAskRow({ periodKey: TODAY })] });
+    renderPage();
+    expect(screen.getAllByText('Your papers')).toHaveLength(1);
+  });
+
+  // A failed load must still have a way out.
+  it('keeps the bar when the list fails to load', async () => {
+    h.listError = true;
+    renderPage();
+
+    expect(screen.getByText('Your papers')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('chat-list')).toBeInTheDocument();
   });
 });

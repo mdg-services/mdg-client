@@ -1,11 +1,15 @@
-import { act, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import * as React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLangStore } from '@/store/lang';
 import { renderWithProviders } from '@/test/utils';
 
 import { Composer } from './Composer';
+
+// Unmount BEFORE the shared teardown resets the language store: that reset runs
+// first otherwise, and re-renders a still-mounted component outside `act`.
+afterEach(() => cleanup());
 
 /**
  * The recorder stub MODELS SESSIONS, because sessions are the contract.
@@ -534,7 +538,7 @@ describe('Composer quick-reply chips', () => {
     renderWithProviders(<Composer onSend={onSend} showQuickReplies />);
     fireEvent.click(screen.getByRole('button', { name: "Today's report?" }));
 
-    const box = screen.getByPlaceholderText('Type your message…') as HTMLTextAreaElement;
+    const box = screen.getByPlaceholderText('Message') as HTMLTextAreaElement;
     expect(box.value).toBe("Today's report?");
     // The dealer still reads it, still edits it, still presses Send.
     expect(onSend).not.toHaveBeenCalled();
@@ -543,7 +547,7 @@ describe('Composer quick-reply chips', () => {
 
   it('disappears the moment anything is typed, so a chip can never wipe it', () => {
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
-    const box = screen.getByPlaceholderText('Type your message…');
+    const box = screen.getByPlaceholderText('Message');
     fireEvent.change(box, { target: { value: 'p' } });
 
     for (const label of CHIPS) {
@@ -554,7 +558,7 @@ describe('Composer quick-reply chips', () => {
   it('stays gone while a half-typed message sits in the box', () => {
     // The one that actually protects the dealer: a long sentence, mid-thought.
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
-    const box = screen.getByPlaceholderText('Type your message…');
+    const box = screen.getByPlaceholderText('Message');
     fireEvent.change(box, {
       target: { value: 'pump 2 ka nozzle band hai, kal se, aur' },
     });
@@ -585,5 +589,416 @@ describe('Composer quick-reply chips', () => {
     for (const label of CHIPS) {
       expect(screen.queryByRole('button', { name: label })).toBeNull();
     }
+  });
+});
+
+
+/**
+ * The composer as WhatsApp draws it: a white pill with the box, a paperclip and a
+ * camera, a round green button outside it, and an attach card, a photo preview
+ * and a caption on the way to a send. NONE of it may touch the voice code above,
+ * which is why that suite is left exactly as it was.
+ */
+describe('Composer — the pill', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.supported = true;
+  });
+
+  it('has a "Message" box, a paperclip and a camera, and the mic outside the pill', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    expect(screen.getByPlaceholderText('Message')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Attach' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Record voice message' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('turns the mic into Send, and loses the camera, the moment there is text', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: 'hi' } });
+    expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record voice message' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Take a photo' })).toBeNull();
+    // …and clearing the box brings them back.
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: '' } });
+    expect(screen.getByRole('button', { name: 'Record voice message' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Take a photo' })).toBeInTheDocument();
+  });
+
+  it('Enter is a new line, Ctrl+Enter sends', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    renderWithProviders(<Composer onSend={onSend} />);
+    const box = screen.getByPlaceholderText('Message');
+    fireEvent.change(box, { target: { value: 'line one' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    expect(onSend).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(box, { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('line one', []));
+  });
+
+  it('puts the reply quote inside the pill with the sender in the accent colour', () => {
+    renderWithProviders(
+      <Composer
+        onSend={vi.fn()}
+        replyingTo={{ senderLabel: 'MDG', text: 'the answer', icon: 'image' }}
+        onCancelReply={vi.fn()}
+      />,
+    );
+    const strip = screen.getByLabelText('Replying to MDG');
+    expect(within(strip).getByText('MDG')).toHaveClass('text-wa-accent-strong');
+    expect(within(strip).getByText('the answer')).toBeInTheDocument();
+    // The box is in the same pill, not under it.
+    expect(strip.parentElement).toContainElement(screen.getByPlaceholderText('Message'));
+  });
+
+  it('sends typed text with no attachments as before', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: ' hello ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('hello', []));
+    expect((screen.getByPlaceholderText('Message') as HTMLTextAreaElement).value).toBe('');
+  });
+});
+
+describe('Composer — the attach card', () => {
+  /** Every hidden file input, by what it accepts. */
+  function inputs(container: HTMLElement) {
+    const all = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
+    return {
+      document: all.find((i) => i.accept.includes('.pdf'))!,
+      gallery: all.find((i) => i.accept === 'image/*' && !i.hasAttribute('capture'))!,
+      camera: all.find((i) => i.hasAttribute('capture'))!,
+    };
+  }
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.supported = true;
+  });
+
+  it('the paperclip opens a card of three choices — it does not open a picker itself', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+    expect(screen.queryByRole('dialog', { name: 'Attach' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    const card = screen.getByRole('dialog', { name: 'Attach' });
+    for (const name of ['Document', 'Camera', 'Gallery']) {
+      expect(within(card).getByRole('button', { name })).toBeInTheDocument();
+    }
+    expect(click).not.toHaveBeenCalled();
+    expect(inputs(container).document).toBeDefined();
+  });
+
+  it.each([
+    ['Document', 'document'],
+    ['Camera', 'camera'],
+    ['Gallery', 'gallery'],
+  ] as const)('%s opens its own chooser and closes the card', (label, which) => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const picked: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      picked.push(this);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach' })).getByRole('button', { name: label }));
+
+    expect(picked).toEqual([inputs(container)[which]]);
+    expect(screen.queryByRole('dialog', { name: 'Attach' })).toBeNull();
+  });
+
+  it('Document takes papers only, Gallery takes pictures, Camera shoots one with the rear camera', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const { document: doc, gallery, camera } = inputs(container);
+    expect(doc.accept).toBe('.pdf,.doc,.docx,.xls,.xlsx,.txt');
+    expect(doc.multiple).toBe(true);
+    expect(gallery.accept).toBe('image/*');
+    expect(gallery.multiple).toBe(true);
+    expect(camera.getAttribute('capture')).toBe('environment');
+  });
+
+  it('the camera icon in the pill goes straight to the camera', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const picked: HTMLInputElement[] = [];
+    vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(function (
+      this: HTMLInputElement,
+    ) {
+      picked.push(this);
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Take a photo' }));
+    expect(picked).toEqual([inputs(container).camera]);
+  });
+
+  it('closes on the phone’s Back button and on a tap outside', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.queryByRole('dialog', { name: 'Attach' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('dialog', { name: 'Attach' })).toBeNull();
+  });
+});
+
+describe('Composer — photos go through the preview', () => {
+  const photo = (name: string, type = 'image/jpeg') => new File(['x'], name, { type });
+  let seq = 0;
+
+  function galleryInput(container: HTMLElement) {
+    return Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]')).find(
+      (i) => i.accept === 'image/*' && !i.hasAttribute('capture'),
+    )!;
+  }
+  function cameraInput(container: HTMLElement) {
+    return container.querySelector<HTMLInputElement>('input[capture]')!;
+  }
+  function documentInput(container: HTMLElement) {
+    return Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]')).find((i) =>
+      i.accept.includes('.pdf'),
+    )!;
+  }
+  const previewDialog = () => screen.getByRole('dialog', { name: 'Image preview' });
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.supported = true;
+    seq = 0;
+    URL.createObjectURL = vi.fn(() => `blob:local-${(seq += 1)}`);
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  it('picking a photo opens the full-screen preview, not a chip', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+
+    fireEvent.change(galleryInput(container), { target: { files: [photo('one.jpg')] } });
+
+    const dialog = previewDialog();
+    expect(within(dialog).getByAltText('one.jpg')).toHaveAttribute('src', 'blob:local-1');
+    expect(within(dialog).getByPlaceholderText('Add a caption…')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Send' })).toBeInTheDocument();
+    // No thumbnail strip for a single picture, and no chip behind it.
+    expect(within(dialog).queryByRole('button', { name: /^Photo \d+ of \d+$/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove attachment' })).toBeNull();
+  });
+
+  it('a shot from the camera whose file has no MIME type is still a photo', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(cameraInput(container), { target: { files: [photo('IMG_0042', '')] } });
+    expect(within(previewDialog()).getByAltText('IMG_0042')).toBeInTheDocument();
+  });
+
+  it('sends every picture as ONE message with the caption, and lets the previews go once it is sent', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(galleryInput(container), {
+      target: { files: [photo('a.jpg'), photo('b.jpg'), photo('c.png', 'image/png')] },
+    });
+    const dialog = previewDialog();
+    fireEvent.change(within(dialog).getByPlaceholderText('Add a caption…'), {
+      target: { value: '  Pump 3 today  ' },
+    });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    const [body, files] = onSend.mock.calls[0]!;
+    expect(body).toBe('Pump 3 today');
+    expect(files.map((f: { file: File }) => f.file.name)).toEqual(['a.jpg', 'b.jpg', 'c.png']);
+    expect(files.every((f: { kind: string }) => f.kind === 'image')).toBe(true);
+    // The thread draws its own bubble from the files; the composer's local
+    // previews have done their job, and a camera's big file is not held on to.
+    await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledTimes(3));
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-1');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-2');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-3');
+    // The preview is gone, nothing is left staged, and the box is empty.
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove attachment' })).toBeNull();
+  });
+
+  it('starts the caption from what was already typed in the box, and the send empties the box', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: 'nozzle 2' } });
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+
+    const caption = within(previewDialog()).getByPlaceholderText('Add a caption…') as HTMLTextAreaElement;
+    expect(caption.value).toBe('nozzle 2');
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('nozzle 2', expect.any(Array)));
+    expect((screen.getByPlaceholderText('Message') as HTMLTextAreaElement).value).toBe('');
+  });
+
+  it('sends a photo with no caption at all', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('', expect.any(Array)));
+  });
+
+  it('Ctrl+Enter in the caption sends; plain Enter is a new line', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+    const caption = within(previewDialog()).getByPlaceholderText('Add a caption…');
+    fireEvent.change(caption, { target: { value: 'x' } });
+    fireEvent.keyDown(caption, { key: 'Enter' });
+    expect(onSend).not.toHaveBeenCalled();
+    fireEvent.keyDown(caption, { key: 'Enter', metaKey: true });
+    await waitFor(() => expect(onSend).toHaveBeenCalledWith('x', expect.any(Array)));
+  });
+
+  it('several pictures show a strip: tap to switch, ✕ on the current one drops it', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(galleryInput(container), {
+      target: { files: [photo('a.jpg'), photo('b.jpg'), photo('c.jpg')] },
+    });
+    const dialog = previewDialog();
+    expect(within(dialog).getByAltText('a.jpg')).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Photo 2 of 3' }));
+    expect(within(dialog).getByAltText('b.jpg')).toBeInTheDocument();
+    expect(within(dialog).queryByAltText('a.jpg')).toBeNull();
+
+    // Drop the one on screen: its neighbour takes over, two are left.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Remove this photo' }));
+    expect(within(dialog).getAllByRole('button', { name: /^Photo \d of 2$/ })).toHaveLength(2);
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-2');
+    expect(within(dialog).getByAltText('c.jpg')).toBeInTheDocument();
+  });
+
+  it('dropping one of two leaves the other on its own, with no strip', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(galleryInput(container), {
+      target: { files: [photo('a.jpg'), photo('b.jpg')] },
+    });
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Remove this photo' }));
+    expect(within(previewDialog()).getByAltText('b.jpg')).toBeInTheDocument();
+    expect(within(previewDialog()).queryByRole('button', { name: /^Photo \d of \d$/ })).toBeNull();
+  });
+
+  it('+ opens the gallery again and the new pictures join the batch', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const gallery = galleryInput(container);
+    fireEvent.change(gallery, { target: { files: [photo('a.jpg')] } });
+
+    const click = vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Add more photos' }));
+    expect(click).toHaveBeenCalled();
+
+    fireEvent.change(gallery, { target: { files: [photo('b.jpg')] } });
+    expect(within(previewDialog()).getAllByRole('button', { name: /^Photo \d of 2$/ })).toHaveLength(2);
+  });
+
+  it('✕ cancels: nothing is sent, nothing is kept, the typed text stays', () => {
+    const onSend = vi.fn();
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: 'keep me' } });
+    fireEvent.change(galleryInput(container), {
+      target: { files: [photo('a.jpg'), photo('b.jpg')] },
+    });
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Close preview' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Remove attachment' })).toBeNull();
+    expect(onSend).not.toHaveBeenCalled();
+    expect((screen.getByPlaceholderText('Message') as HTMLTextAreaElement).value).toBe('keep me');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-1');
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:local-2');
+  });
+
+  it('the phone’s Back button cancels the preview too', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+    act(() => {
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    });
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+  });
+
+  it('a paper picked from the Document chooser is a chip above the box, with no preview', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(documentInput(container), {
+      target: { files: [photo('rates.pdf', 'application/pdf')] },
+    });
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+    expect(screen.getByText('rates.pdf')).toBeInTheDocument();
+    // A staged paper is something to send, so the mic has turned into Send.
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(onSend.mock.calls[0]![1][0]).toMatchObject({ kind: 'file' });
+  });
+
+  it('a picture from the Document chooser still gets the preview', () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.change(documentInput(container), { target: { files: [photo('scan.png', 'image/png')] } });
+    expect(within(previewDialog()).getByAltText('scan.png')).toBeInTheDocument();
+  });
+
+  it('papers and photos go out together in one message', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(documentInput(container), {
+      target: { files: [photo('rates.pdf', 'application/pdf')] },
+    });
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(onSend.mock.calls[0]![1].map((f: { kind: string }) => f.kind)).toEqual(['file', 'image']);
+  });
+
+  it('stops at ten to a message, says so, and lets the rest go', async () => {
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const twelve = Array.from({ length: 12 }, (_, i) => photo(`p${i}.jpg`));
+    fireEvent.change(galleryInput(container), { target: { files: twelve } });
+    expect(await screen.findByText('You can send up to 10 files at once')).toBeInTheDocument();
+    expect(
+      within(previewDialog()).getAllByRole('button', { name: /^Photo \d+ of 10$/ }),
+    ).toHaveLength(10);
+    // The two that did not fit are not leaked.
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+  });
+
+  it('a failed send brings the photos back as chips and the words back in the box', async () => {
+    const onSend = vi.fn().mockRejectedValue(new Error('offline'));
+    const { container } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg'), photo('b.jpg')] } });
+    fireEvent.change(within(previewDialog()).getByPlaceholderText('Add a caption…'), {
+      target: { value: 'try me' },
+    });
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Remove attachment' })).toHaveLength(2),
+    );
+    expect((screen.getByPlaceholderText('Message') as HTMLTextAreaElement).value).toBe('try me');
+    // Not revoked: a restored photo has to still be viewable.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('does not send from the preview while the composer is disabled, and keeps the pictures', () => {
+    const onSend = vi.fn();
+    const { container, rerender } = renderWithProviders(<Composer onSend={onSend} />);
+    fireEvent.change(galleryInput(container), { target: { files: [photo('a.jpg')] } });
+    // The chat went read-only while the preview was open.
+    rerender(<Composer onSend={onSend} disabled />);
+    fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+    expect(onSend).not.toHaveBeenCalled();
+    expect(within(previewDialog()).getByAltText('a.jpg')).toBeInTheDocument();
   });
 });

@@ -23,11 +23,10 @@ export function buildReplyContext(m: Message): MessageReplyContext {
     ...(firstImage
       ? { imageStorageKey: firstImage.storageKey, imageUrl: firstImage.url }
       : {}),
-    ...(m.card ? { card: true, cardTitle: m.card.title } : {}),
   };
 }
 
-export type ReplyPreviewIcon = 'image' | 'audio' | 'file' | 'card' | null;
+export type ReplyPreviewIcon = 'image' | 'audio' | 'file' | null;
 
 export interface ReplyPreview {
   /** One-line snippet: the body excerpt or a localized kind label. */
@@ -38,7 +37,6 @@ export interface ReplyPreview {
 
 /** One-line presentation of a quoted message, shared by the composer strip and the bubble quote block. */
 export function replyPreview(rc: MessageReplyContext, t: TFunction): ReplyPreview {
-  if (rc.card) return { text: rc.cardTitle ?? t('chat.replyFile'), icon: 'card' };
   if (rc.body) {
     return { text: rc.body, icon: rc.attachmentKind === 'image' ? 'image' : null };
   }

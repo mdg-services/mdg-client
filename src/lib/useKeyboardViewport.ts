@@ -18,8 +18,8 @@ import * as React from 'react';
  *           keep its bottom edge above the keyboard in every mode)
  *   --kb  : the keyboard's bottom overlap in px (0 when closed)
  *
- * …and returns `keyboardOpen`, so the shell can lift the composer / drop the tab
- * bar while typing. `keyboardOpen` is true when either an editable element is
+ * …and returns `keyboardOpen`, for anything that needs to move out of the
+ * keyboard's way while typing. `keyboardOpen` is true when either an editable element is
  * focused OR the visual viewport reports a real bottom inset, so it holds steady
  * across the brief blur that a tap on Send / attach buttons causes.
  */
@@ -65,9 +65,9 @@ export function useKeyboardViewport(): { keyboardOpen: boolean } {
       // The Android Back key closes the keyboard WITHOUT blurring the field —
       // the reflex every Android user has, and the one WhatsApp honours. Reading
       // `activeElement` on its own, the app concluded the keyboard was still
-      // there and left the tab bar slid off the bottom of the screen: Chat,
-      // Reports, Kavach and Profile simply gone, with no way to get them back
-      // short of tapping the field and dismissing the keyboard the app's way.
+      // there and left the (since removed) bottom tab bar slid off the screen,
+      // with no way to get it back short of tapping the field and dismissing
+      // the keyboard the app's way.
       // So focus only counts while the viewport is ACTUALLY shorter than its
       // own no-keyboard height.
       const shrunk = maxH - h > 60;

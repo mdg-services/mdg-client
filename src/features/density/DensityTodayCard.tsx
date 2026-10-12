@@ -9,6 +9,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button, useToast } from '@/components/ui';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import {
   densityDayLabel,
   densityDue,
@@ -73,7 +74,7 @@ export function DensityTodayCard({
   const days = React.useMemo(() => densityWindow(view), [view]);
   const due = React.useMemo(() => densityDue(view), [view]);
 
-  const goToChat = React.useCallback(() => navigate('/chat'), [navigate]);
+  const goToChat = useOpenMyChat();
 
   const openPicker = React.useCallback(
     (businessDate: string, source: 'camera' | 'gallery') => {
@@ -367,8 +368,7 @@ function Head({
  * which is the thing the swap was for.
  *
  * Chat was the right shelf for it while it existed — it is where the dealer
- * lands when they open the app, and the Reports shelf is where MDG puts things
- * it sends TO the dealer, not things the dealer does. It rendered nothing while
+ * lands when they open the app. It rendered nothing while
  * the payload was loading, nothing if the service was not on for this pump, and
  * nothing once the register was up to date.
  */

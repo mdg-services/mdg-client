@@ -3,6 +3,7 @@ import { CheckCircle2, Clock, Wrench, XCircle } from 'lucide-react';
 import * as React from 'react';
 
 
+import { SubPage } from '@/components/SubPage';
 import { Card, CardContent, EmptyState, Spinner } from '@/components/ui';
 import { api } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -90,13 +91,7 @@ export function ServicesPage() {
   });
 
   return (
-    <div className="flex flex-1 flex-col gap-3 p-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold tracking-tight text-text">
-          {t('services.title')}
-        </h1>
-      </div>
-
+    <SubPage title={t('services.title')} className="gap-3">
       {servicesQuery.isLoading ? (
         <div className="flex flex-1 items-center justify-center py-12">
           <Spinner size={20} />
@@ -147,6 +142,6 @@ export function ServicesPage() {
           ))}
         </div>
       )}
-    </div>
+    </SubPage>
   );
 }

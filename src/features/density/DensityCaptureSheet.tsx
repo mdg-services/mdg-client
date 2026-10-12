@@ -1,8 +1,8 @@
 import { RotateCw } from 'lucide-react';
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import { Button, useToast } from '@/components/ui';
+import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { densityDayLabel, useMarkDensityDay } from '@/hooks/api/useDensity';
 import { type ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
@@ -79,7 +79,7 @@ export function DensityCaptureSheet({
   const t = useT();
   const lang = useLang();
   const toast = useToast();
-  const navigate = useNavigate();
+  const openMyChat = useOpenMyChat();
   const dealerId = useAuthStore((s) => s.user?.dealerId);
   const mark = useMarkDensityDay();
   // The sheet covers the page; without this the page scrolls behind it when the
@@ -210,7 +210,7 @@ export function DensityCaptureSheet({
               variant="secondary"
               size="lg"
               fullWidth
-              onClick={() => navigate('/chat')}
+              onClick={openMyChat}
             >
               {t('kavach.messageUs')}
             </Button>

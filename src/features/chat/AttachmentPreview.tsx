@@ -1,14 +1,22 @@
-import { FileText, Mic, Pause, Play, X } from 'lucide-react';
+import { FileText, ImageOff, Mic, Pause, Play, X } from 'lucide-react';
 import * as React from 'react';
 
-
+import { Avatar, Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
-import { useAttachmentDownload, type AttachmentSource } from '@/lib/downloadAttachment';
+import {
+  fetchFreshInlineUrl,
+  useAttachmentDownload,
+  type AttachmentSource,
+} from '@/lib/downloadAttachment';
 import { useT } from '@/lib/i18n';
 import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
 import { useFreshImageSrc } from '@/lib/useFreshImageSrc';
 import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
+import { useAuthStore } from '@/store/auth';
 import type { Attachment, AttachmentKind } from '@dk/shared/types';
+
+import { fileTypeLabel } from './fileKind';
+import { FileTypeBadge } from './FileTypeBadge';
 
 export interface StagedFile {
   id: string;
@@ -24,40 +32,74 @@ export interface StagedFile {
 }
 
 /**
- * Static waveform: a row of bars whose heights come from `peaks`. Bars before
- * `progress` (0..1) render in the accent colour (played), the rest are muted.
- * When `onSeek` is provided, clicking scrubs to that fraction.
+ * The bars of a voice note. Bars before `progress` (0..1) are drawn dark (played),
+ * the rest light. With `onScrub` the whole strip is a slider: press anywhere and
+ * drag, and the note follows the finger, the way WhatsApp's does.
  */
 function Waveform({
   peaks,
   progress,
   mine,
-  onSeek,
+  knob,
+  onScrub,
 }: {
   peaks: number[];
   progress: number;
   mine?: boolean;
-  onSeek?: (fraction: number) => void;
+  /** Draw the round handle at the playhead (the received-note look). */
+  knob?: boolean;
+  onScrub?: (fraction: number, phase: 'start' | 'move' | 'end') => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
+  const dragging = React.useRef(false);
   const playedIdx = Math.round(progress * peaks.length);
-  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!onSeek) return;
+
+  const fractionOf = (clientX: number): number | null => {
     const el = ref.current;
-    if (!el) return;
+    if (!el) return null;
     const rect = el.getBoundingClientRect();
-    if (rect.width <= 0) return;
-    const frac = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
-    onSeek(frac);
+    if (rect.width <= 0) return null;
+    return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
   };
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!onScrub) return;
+    const f = fractionOf(e.clientX);
+    if (f === null) return;
+    dragging.current = true;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* a pointer that is already gone cannot be captured; the drag just ends */
+    }
+    onScrub(f, 'start');
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current || !onScrub) return;
+    const f = fractionOf(e.clientX);
+    if (f !== null) onScrub(f, 'move');
+  };
+  const finish = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current || !onScrub) return;
+    dragging.current = false;
+    const f = fractionOf(e.clientX);
+    if (f !== null) onScrub(f, 'end');
+  };
+
   return (
     <div
       ref={ref}
       aria-hidden
-      onClick={handleClick}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={finish}
+      onPointerCancel={finish}
       className={cn(
-        'flex h-6 flex-1 items-center gap-[2px]',
-        onSeek ? 'cursor-pointer' : undefined,
+        // `touch-none`: a horizontal drag here is the scrub, never a page scroll.
+        // `w-full`, not `flex-1`: it sits in a column, where `flex-1` would grow
+        // it by height from a zero basis and the bars would have no room.
+        'relative flex h-7 w-full items-center gap-[2px]',
+        onScrub ? 'cursor-pointer touch-none' : undefined,
       )}
     >
       {peaks.map((p, i) => (
@@ -67,15 +109,22 @@ function Waveform({
             'w-[2px] shrink-0 rounded-full',
             i < playedIdx
               ? mine
-                ? 'bg-white'
-                : 'bg-brand'
-              : mine
-                ? 'bg-white/35'
-                : 'bg-surface-2',
+                ? 'bg-wa-bar-icon'
+                : 'bg-wa-meta'
+              : 'bg-black/20',
           )}
-          style={{ height: `${Math.max(12, Math.round(p * 100))}%` }}
+          style={{ height: `${Math.max(14, Math.round(p * 100))}%` }}
         />
       ))}
+      {knob ? (
+        <span
+          className={cn(
+            'absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full',
+            mine ? 'bg-wa-accent' : 'bg-wa-tick-read',
+          )}
+          style={{ left: `${Math.min(100, Math.max(0, progress * 100))}%` }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -97,7 +146,7 @@ export function StagedAttachmentChip({
         : pseudoPeaks(staged.id, WAVEFORM_BARS);
     return (
       <div className="group relative flex items-center gap-2 rounded-xl border border-border bg-surface px-2.5 py-2 pr-8 shadow-sm">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand/10 text-brand">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-wa-accent-strong">
           <Mic width={18} strokeWidth={1.75} />
         </span>
         <div className="flex min-w-0 flex-col gap-1">
@@ -158,19 +207,57 @@ export function StagedAttachmentChip({
   );
 }
 
-/** Inline audio player for a received voice note. */
+// ── Voice notes ───────────────────────────────────────────────────────────
+
+const PLAYBACK_RATES = [1, 1.5, 2] as const;
+
+/**
+ * Module-level on purpose: only ONE voice note plays at a time, as in WhatsApp,
+ * and the notes are separate components with no common parent that could hold
+ * the rule. The second note to start silences the first.
+ */
+let playingElement: HTMLAudioElement | null = null;
+/** The speed the dealer last chose sticks to the next note, as it does there. */
+let chosenRate: (typeof PLAYBACK_RATES)[number] = 1;
+/** Notes started during this session — the mic on a received one turns blue. */
+const playedKeys = new Set<string>();
+
+function rateLabel(rate: number): string {
+  return `${rate}×`;
+}
+
+/** Inline player for a voice note, laid out like WhatsApp's. */
 export function VoiceMessage({
   attachment,
   mine,
+  senderName,
+  source,
 }: {
   attachment: Attachment;
   mine?: boolean;
+  senderName?: string;
+  /** The message it is in: how a link that is missing or stale gets replaced. */
+  source?: AttachmentSource;
 }) {
   const t = useT();
+  // A note of mine has no `senderName` on it (the optimistic copy never had one),
+  // and an avatar with "?" in it is not a good look for the dealer's own voice.
+  const myName = useAuthStore((s) => s.user?.name);
   const audioRef = React.useRef<HTMLAudioElement>(null);
+  const noteKey = attachment.storageKey || attachment.filename;
+  const [src, setSrc] = React.useState(attachment.url);
   const [playing, setPlaying] = React.useState(false);
   const [currentMs, setCurrentMs] = React.useState(0);
   const [loadedMs, setLoadedMs] = React.useState<number | null>(null);
+  const [rate, setRate] = React.useState<number>(chosenRate);
+  const [played, setPlayed] = React.useState(() => playedKeys.has(noteKey));
+  const [failed, setFailed] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  // Set when the dealer pressed play before there was a link: play as soon as
+  // the link we asked for arrives.
+  const playWhenReady = React.useRef(false);
+  const refreshed = React.useRef(false);
+  const wasPlayingBeforeScrub = React.useRef(false);
 
   // Prefer the duration we recorded; fall back to the media element's metadata.
   const totalMs = attachment.durationMs ?? loadedMs ?? 0;
@@ -183,6 +270,12 @@ export function VoiceMessage({
     [attachment.storageKey, attachment.filename],
   );
 
+  React.useEffect(() => {
+    setSrc(attachment.url);
+    setFailed(false);
+    refreshed.current = false;
+  }, [attachment.url]);
+
   // Strip the OS "cast / AirPlay" route from this hidden <audio> so a private
   // voice note can't surface a Now-Playing tile or be sent to a nearby device.
   // Done imperatively (not via native controls, which would re-expose a
@@ -194,71 +287,174 @@ export function VoiceMessage({
       true;
     el.setAttribute('x-webkit-airplay', 'deny');
     if ('mediaSession' in navigator) navigator.mediaSession.metadata = null;
+    return () => {
+      // Leaving the screen stops the note, and frees the "who is playing" slot.
+      if (playingElement === el) {
+        el.pause();
+        playingElement = null;
+      }
+    };
   }, []);
+
+  // Play the moment a requested link lands.
+  React.useEffect(() => {
+    if (!src || !playWhenReady.current) return;
+    playWhenReady.current = false;
+    void audioRef.current?.play().catch(() => setFailed(true));
+  }, [src]);
+
+  /** One fresh link through the message; after that the dealer asks again. */
+  const askForLink = React.useCallback(async (): Promise<boolean> => {
+    if (!source || source.messageId.startsWith('temp-')) return false;
+    setBusy(true);
+    try {
+      setSrc(await fetchFreshInlineUrl(attachment, source));
+      setFailed(false);
+      return true;
+    } catch {
+      setFailed(true);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }, [attachment, source]);
 
   const toggle = () => {
     const el = audioRef.current;
-    if (!el) return;
-    if (el.paused) {
-      void el.play();
-    } else {
+    if (!el || busy) return;
+    if (!el.paused) {
       el.pause();
+      return;
+    }
+    if (!src || failed) {
+      playWhenReady.current = true;
+      refreshed.current = true;
+      void askForLink().then((ok) => {
+        if (!ok) playWhenReady.current = false;
+      });
+      return;
+    }
+    void el.play().catch(() => setFailed(true));
+  };
+
+  const cycleRate = () => {
+    const el = audioRef.current;
+    const next =
+      PLAYBACK_RATES[(PLAYBACK_RATES.indexOf(rate as (typeof PLAYBACK_RATES)[number]) + 1) % PLAYBACK_RATES.length]!;
+    chosenRate = next;
+    setRate(next);
+    if (el) el.playbackRate = next;
+  };
+
+  const scrub = (fraction: number, phase: 'start' | 'move' | 'end') => {
+    const el = audioRef.current;
+    if (!el || totalMs <= 0) return;
+    if (phase === 'start') {
+      wasPlayingBeforeScrub.current = !el.paused;
+      // Hold the note still while the finger is on the bar, then carry on.
+      if (!el.paused) el.pause();
+    }
+    el.currentTime = (fraction * totalMs) / 1000;
+    setCurrentMs(fraction * totalMs);
+    if (phase === 'end' && wasPlayingBeforeScrub.current) {
+      wasPlayingBeforeScrub.current = false;
+      void el.play().catch(() => setFailed(true));
     }
   };
 
-  const seek = (fraction: number) => {
-    const el = audioRef.current;
-    if (!el || totalMs <= 0) return;
-    el.currentTime = (fraction * totalMs) / 1000;
-    setCurrentMs(fraction * totalMs);
-  };
+  const avatar = (
+    <span className="relative shrink-0">
+      <Avatar name={mine ? (senderName ?? myName) : senderName} size={40} />
+      <span
+        className={cn(
+          'absolute -bottom-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-wa-chip',
+          mine ? '-right-0.5' : '-left-0.5',
+          // A received note's mic turns blue once it has been played.
+          !mine && played ? 'text-wa-tick-read' : 'text-wa-meta',
+        )}
+        data-testid="voice-mic"
+        data-played={played ? 'true' : 'false'}
+      >
+        <Mic width={12} strokeWidth={2.25} />
+      </span>
+    </span>
+  );
+
+  // While a note plays, its speed pill takes the avatar's place.
+  const sideSlot = playing ? (
+    <button
+      type="button"
+      onClick={cycleRate}
+      aria-label={t('chat.voiceSpeed', { rate: rateLabel(rate) })}
+      className="flex h-10 min-w-[40px] shrink-0 items-center justify-center rounded-full bg-black/10 px-2 text-[13px] font-semibold tabular-nums text-wa-bar-icon"
+    >
+      {rateLabel(rate)}
+    </button>
+  ) : (
+    avatar
+  );
 
   return (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-2xl px-3 py-2.5 shadow-sm',
-        mine
-          ? 'bg-brand text-text-inverse'
-          : 'bg-surface text-text border border-border',
-      )}
-    >
+    <div className="flex w-[min(68vw,264px)] items-center gap-2 py-1">
+      {mine ? null : sideSlot}
       <button
         type="button"
         onClick={toggle}
         aria-label={playing ? t('chat.pauseVoice') : t('chat.playVoice')}
-        className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-full',
-          mine ? 'bg-white/20 text-text-inverse' : 'bg-brand/10 text-brand',
-        )}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-wa-bar-icon"
       >
-        {playing ? (
-          <Pause width={16} strokeWidth={2} />
+        {busy ? (
+          <Spinner size={20} />
+        ) : playing ? (
+          <Pause width={24} strokeWidth={0} fill="currentColor" />
         ) : (
-          <Play width={16} strokeWidth={2} className="translate-x-[1px]" />
+          <Play width={24} strokeWidth={0} fill="currentColor" />
         )}
       </button>
-      {/* data-no-swipe: dragging the seek scrubber must never engage the
+      {/* data-no-swipe: dragging the scrubber must never engage the
           swipe-to-reply gesture on the row. */}
-      <div data-no-swipe className="flex min-w-[132px] flex-1 flex-col gap-1">
-        <Waveform peaks={peaks} progress={progress} mine={mine} onSeek={seek} />
+      <div data-no-swipe className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <Waveform peaks={peaks} progress={progress} mine={mine} knob onScrub={scrub} />
         <span
           className={cn(
             'text-[11px] tabular-nums',
-            mine ? 'text-white/80' : 'text-text-subtle',
+            failed ? 'text-danger' : 'text-wa-meta',
           )}
         >
-          {formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
+          {failed
+            ? t('chat.voiceFailed')
+            : formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
         </span>
       </div>
+      {mine ? sideSlot : null}
       <audio
         ref={audioRef}
-        src={attachment.url}
+        src={src}
         preload="metadata"
-        onPlay={() => setPlaying(true)}
+        onPlay={(e) => {
+          const el = e.currentTarget;
+          if (playingElement && playingElement !== el) playingElement.pause();
+          playingElement = el;
+          el.playbackRate = chosenRate;
+          setRate(chosenRate);
+          playedKeys.add(noteKey);
+          setPlayed(true);
+          setPlaying(true);
+        }}
         onPause={() => setPlaying(false)}
-        onEnded={() => {
+        onEnded={(e) => {
           setPlaying(false);
           setCurrentMs(0);
+          if (playingElement === e.currentTarget) playingElement = null;
+        }}
+        onError={() => {
+          // A stale link: ask once for a fresh one, then say so in words.
+          if (!refreshed.current && source) {
+            refreshed.current = true;
+            void askForLink();
+          } else {
+            setFailed(true);
+          }
         }}
         onTimeUpdate={(e) => setCurrentMs(e.currentTarget.currentTime * 1000)}
         onLoadedMetadata={(e) => {
@@ -271,56 +467,203 @@ export function VoiceMessage({
   );
 }
 
+// ── Pictures ──────────────────────────────────────────────────────────────
+
+/** The tallest a picture bubble grows (px). */
+const MEDIA_MAX_H = 330;
+/** What shape to reserve before the picture says what shape it is. */
+const DEFAULT_RATIO = 1;
+/** A very tall or very wide picture is cropped to these, as in WhatsApp. */
+const MIN_RATIO = 0.6;
+const MAX_RATIO = 2;
+
 /**
- * A picture in a bubble, which re-signs its own link when it goes stale.
- *
- * The URL that rode in with the message is presigned for 900 seconds. A thread
- * held open longer than that — the ordinary case for a dealer who reads a report
- * and comes back to it — serves a 403 to the next `<img>` request, and
- * `loading="lazy"` makes that request happen at the moment the picture is
- * scrolled into view, which is exactly when it is furthest past its signature.
- * The result was a grey broken box where the DSR card had been, and no way back
- * short of leaving the screen.
- *
- * So it recovers the way the full-screen viewer already does: one fresh presign
- * through the message that carries the key, once, guarded by a ref so a
- * genuinely dead object cannot loop.
+ * Shapes already measured. A picture that scrolls out of the list and back in
+ * (or whose row is rebuilt) starts at its real shape instead of at the default
+ * and jumping — the box is reserved correctly the second time round.
  */
-function ImageAttachment({
-  attachment,
-  source,
-  onOpenImage,
-}: {
+const knownRatios = new Map<string, number>();
+
+function clampRatio(r: number): number {
+  return Math.min(MAX_RATIO, Math.max(MIN_RATIO, r));
+}
+
+interface TileProps {
   attachment: Attachment;
-  source?: AttachmentSource;
-  onOpenImage?: (attachment: Attachment) => void;
-}) {
-  const { src, onError } = useFreshImageSrc(attachment, source);
+  source: AttachmentSource;
+  onOpen?: () => void;
+  /** Inside an album the tile fills its cell; on its own it sizes itself from the picture. */
+  fill?: boolean;
+  /** "+N" drawn over the last tile of an album that holds more than it shows. */
+  more?: number;
+}
+
+/**
+ * One picture, drawn like WhatsApp's: sized by its own shape, a soft grey box
+ * while it loads, a word and a retry when it will not.
+ *
+ * A link that goes stale is replaced once by `useFreshImageSrc`. A picture that
+ * arrives with NO link at all — the live copy of a shared report, signed on the
+ * next read but not on the way in — is asked for straight away, so it shows as a
+ * picture and never as a file row.
+ */
+function ImageTile({ attachment, source, onOpen, fill, more }: TileProps) {
+  const t = useT();
+  const { src, refreshing, failed, onError, retry } = useFreshImageSrc(attachment, source);
+  const unsent = source.messageId.startsWith('temp-');
+  const uploading = attachment.storageKey.startsWith('local:');
+
+  const asked = React.useRef(false);
+  React.useEffect(() => {
+    if (attachment.url || unsent || asked.current) return;
+    asked.current = true;
+    onError();
+  }, [attachment.url, unsent, onError]);
+
+  const [ratio, setRatio] = React.useState<number | undefined>(() =>
+    knownRatios.get(attachment.storageKey),
+  );
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    if (fill || !img.naturalWidth || !img.naturalHeight) return;
+    const r = clampRatio(img.naturalWidth / img.naturalHeight);
+    knownRatios.set(attachment.storageKey, r);
+    if (knownRatios.size > 500) {
+      // A long session can look at thousands of pictures; the oldest are the ones
+      // least likely to scroll back into view.
+      const oldest = knownRatios.keys().next().value;
+      if (oldest !== undefined) knownRatios.delete(oldest);
+    }
+    setRatio((prev) => (prev === r ? prev : r));
+  };
+
+  const showFailed = failed && !refreshing;
+
   return (
     <button
       type="button"
-      onClick={() => onOpenImage?.(attachment)}
-      className="block overflow-hidden rounded-xl border border-border bg-surface-2"
+      onClick={showFailed ? retry : onOpen}
+      aria-label={showFailed ? t('chat.imageTapToRetry') : attachment.filename}
+      className={cn(
+        'relative block overflow-hidden bg-black/[0.06]',
+        fill ? 'h-full w-full' : 'w-full rounded-md',
+      )}
+      style={
+        fill
+          ? undefined
+          : { aspectRatio: String(ratio ?? DEFAULT_RATIO), maxHeight: MEDIA_MAX_H }
+      }
     >
-      {/* lazy + async decode keeps image-heavy threads from janking / spiking
-          memory; min height reserves space so late-loading images don't shift
-          the scroll position. */}
-      <img
-        src={src}
-        alt={attachment.filename}
-        loading="lazy"
-        decoding="async"
-        draggable={false}
-        onDragStart={(e) => e.preventDefault()}
-        onError={onError}
-        className="max-h-72 min-h-[6rem] w-auto max-w-full object-cover"
-      />
+      {src && !showFailed ? (
+        <img
+          src={src}
+          alt={attachment.filename}
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onLoad={handleLoad}
+          onError={onError}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : null}
+      {showFailed ? (
+        <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center text-wa-meta">
+          <ImageOff width={fill ? 20 : 26} strokeWidth={1.5} />
+          {fill ? null : (
+            <span className="text-[12px] leading-tight">{t('chat.imageTapToRetry')}</span>
+          )}
+        </span>
+      ) : refreshing || (!src && !unsent) ? (
+        // Waiting for a link to be signed: a spinner in the grey box. A picture
+        // that has its link just loads into the box, which is already the right shape.
+        <span className="absolute inset-0 flex items-center justify-center text-wa-meta">
+          <Spinner size={18} />
+        </span>
+      ) : null}
+      {uploading ? (
+        // A picture still being sent: a dark veil and a spinner, like WhatsApp's
+        // progress ring, so a slow upload on 2G reads as "sending", not "stuck".
+        <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white">
+          <Spinner size={26} />
+        </span>
+      ) : null}
+      {more && more > 0 ? (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-[26px] font-medium text-white">
+          +{more}
+        </span>
+      ) : null}
     </button>
   );
 }
 
 /**
- * A document in a bubble.
+ * The pictures of one message: one alone, or WhatsApp's album — two side by side,
+ * three as one tall and two stacked, four or more as a 2×2 with "+N" over the
+ * fourth. Tapping any of them opens the viewer at that picture.
+ */
+function ImageAlbum({
+  images,
+  source,
+  onOpenImage,
+}: {
+  images: Attachment[];
+  source: AttachmentSource;
+  onOpenImage?: (attachment: Attachment) => void;
+}) {
+  if (images.length === 1) {
+    const only = images[0]!;
+    return (
+      <ImageTile
+        attachment={only}
+        source={source}
+        onOpen={() => onOpenImage?.(only)}
+      />
+    );
+  }
+  const shown = images.slice(0, 4);
+  const hidden = images.length - shown.length;
+  const layout =
+    shown.length === 2
+      ? 'grid-cols-2 grid-rows-1 [aspect-ratio:2/1]'
+      : 'grid-cols-2 grid-rows-2 [aspect-ratio:1/1]';
+  return (
+    <div
+      data-testid="album"
+      data-count={images.length}
+      className={cn(
+        'grid w-full gap-[2px] overflow-hidden rounded-md bg-wa-chip',
+        layout,
+      )}
+      style={{ maxHeight: MEDIA_MAX_H }}
+    >
+      {shown.map((a, i) => (
+        <div
+          // By position, not by storage key: a photo that was just sent changes its
+          // key when the server confirms it, and a tile keyed on it would be torn
+          // down and rebuilt — the picture would blink in every cell of the album.
+          key={i}
+          className={cn('relative min-h-0 min-w-0', shown.length === 3 && i === 0 && 'row-span-2')}
+        >
+          <ImageTile
+            attachment={a}
+            source={source}
+            fill
+            onOpen={() => onOpenImage?.(a)}
+            more={i === 3 ? hidden : undefined}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Documents ─────────────────────────────────────────────────────────────
+
+/**
+ * A document in a bubble: the coloured type badge, the name over two lines, and
+ * "PDF · 1.2 MB" under it.
  *
  * A button rather than a link, and the same download path the action sheet and
  * the Docs tab use. As an `<a href={attachment.url}>` it pointed at the same
@@ -331,7 +674,7 @@ function ImageAttachment({
  * the difference, and hands the native shell its gallery/browser split and its
  * failure toast for nothing.
  */
-function FileAttachment({
+function DocumentAttachment({
   attachment,
   source,
 }: {
@@ -339,19 +682,21 @@ function FileAttachment({
   source?: AttachmentSource;
 }) {
   const download = useAttachmentDownload();
+  const unsent = !source || source.messageId.startsWith('temp-');
   return (
     <button
       type="button"
-      disabled={!source}
+      disabled={unsent}
       onClick={() => source && void download(attachment, source)}
-      className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-left text-sm hover:bg-surface disabled:opacity-70"
+      className="flex w-full items-center gap-3 rounded-md bg-black/[0.06] px-2.5 py-2 text-left active:bg-black/10 disabled:opacity-70"
     >
-      <FileText width={18} strokeWidth={1.75} className="text-text-muted" />
-      <span className="min-w-0">
-        <span className="block truncate font-medium text-text max-w-[200px]">
+      <FileTypeBadge filename={attachment.filename} contentType={attachment.contentType} />
+      <span className="min-w-0 flex-1">
+        <span className="line-clamp-2 break-words text-[14px] leading-snug text-wa-bubble-text">
           {attachment.filename}
         </span>
-        <span className="text-[11px] text-text-subtle">
+        <span className="block text-[12px] text-wa-meta">
+          {fileTypeLabel(attachment.filename, attachment.contentType)} ·{' '}
           {formatBytes(attachment.size)}
         </span>
       </span>
@@ -359,29 +704,67 @@ function FileAttachment({
   );
 }
 
-export function MessageAttachment({
-  attachment,
+// ── One message's attachments ─────────────────────────────────────────────
+
+export interface SplitAttachments {
+  images: Attachment[];
+  voices: Attachment[];
+  docs: Attachment[];
+}
+
+/**
+ * Sort a message's attachments into what is drawn how. An image is an image
+ * whether or not it came with a link, and a voice note is a voice note: neither
+ * ever falls back to a file row.
+ */
+export function splitAttachments(attachments: readonly Attachment[]): SplitAttachments {
+  const out: SplitAttachments = { images: [], voices: [], docs: [] };
+  for (const a of attachments) {
+    if (a.kind === 'image') out.images.push(a);
+    else if (a.kind === 'audio') out.voices.push(a);
+    else out.docs.push(a);
+  }
+  return out;
+}
+
+export function AttachmentStack({
+  attachments,
   mine,
+  senderName,
   source,
   onOpenImage,
+  mediaOverlay,
 }: {
-  attachment: Attachment;
-  mine?: boolean;
-  /** The message carrying it — how a stale link gets re-signed. */
-  source?: AttachmentSource;
+  attachments: readonly Attachment[];
+  mine: boolean;
+  senderName?: string;
+  /** The message carrying them — how a stale or missing link gets re-signed. */
+  source: AttachmentSource;
   onOpenImage?: (attachment: Attachment) => void;
+  /** Drawn over the pictures' bottom-right corner: the time, when there is no caption. */
+  mediaOverlay?: React.ReactNode;
 }) {
-  if (attachment.kind === 'audio' && attachment.url) {
-    return <VoiceMessage attachment={attachment} mine={mine} />;
-  }
-  if (attachment.kind === 'image' && attachment.url) {
-    return (
-      <ImageAttachment
-        attachment={attachment}
-        source={source}
-        onOpenImage={onOpenImage}
-      />
-    );
-  }
-  return <FileAttachment attachment={attachment} source={source} />;
+  const { images, voices, docs } = splitAttachments(attachments);
+  return (
+    <>
+      {images.length > 0 ? (
+        <div className="relative">
+          <ImageAlbum images={images} source={source} onOpenImage={onOpenImage} />
+          {mediaOverlay}
+        </div>
+      ) : null}
+      {voices.map((a, i) => (
+        <VoiceMessage
+          key={`v-${i}`}
+          attachment={a}
+          mine={mine}
+          senderName={senderName}
+          source={source}
+        />
+      ))}
+      {docs.map((a, i) => (
+        <DocumentAttachment key={`d-${i}`} attachment={a} source={source} />
+      ))}
+    </>
+  );
 }

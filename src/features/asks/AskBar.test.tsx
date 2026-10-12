@@ -37,6 +37,20 @@ vi.mock('@/hooks/useAskQueueSync', () => ({
 }));
 
 const { AskBar } = await import('./AskBar');
+const { AskBarSlot } = await import('./askBarSlot');
+
+/**
+ * The engine plus the one place a top bar draws the strip. The real app mounts
+ * the engine once in the shell and each screen's `AppBar` renders the slot; here
+ * the two sit side by side, which is all the strip needs to appear.
+ */
+function Bar() {
+  return (
+    <AskBar>
+      <AskBarSlot />
+    </AskBar>
+  );
+}
 
 /**
  * The bar is gone. Asserted as "no button", not as an empty container: the two
@@ -54,9 +68,9 @@ function renderBar(route = '/chat') {
   useLangStore.setState({ lang: 'en', explicit: true });
   return renderWithProviders(
     <Routes>
-      <Route path="/chat" element={<AskBar />} />
+      <Route path="/chat" element={<Bar />} />
       <Route path="/asks" element={<div>asks-page</div>} />
-      <Route path="/density" element={<AskBar />} />
+      <Route path="/density" element={<Bar />} />
     </Routes>,
     { route, withRouter: true },
   );
@@ -145,7 +159,7 @@ describe('AskBar — the three faces', () => {
    *
    * Every other test here renders the bar INSIDE a route, so a navigation
    * unmounts it and nothing about the second render is ever exercised. The real
-   * app mounts it once, in the shell, above the page — so it re-renders on
+   * app mounts it once, in the shell, around the page — so it re-renders on
    * every navigation and must call the same hooks each time.
    *
    * It did not. `useMatch('/asks') || useMatch('/documents')` skipped the
@@ -161,13 +175,13 @@ describe('AskBar — the three faces', () => {
     signIn({ id: 'owner', dealerId: 'd1' });
     useLangStore.setState({ lang: 'en', explicit: true });
     renderWithProviders(
-      <>
-        <AskBar />
+      <AskBar>
+        <AskBarSlot />
         <Routes>
           <Route path="/chat" element={<Link to="/asks">go-asks</Link>} />
           <Route path="/asks" element={<Link to="/chat">go-chat</Link>} />
         </Routes>
-      </>,
+      </AskBar>,
       { route: '/chat', withRouter: true },
     );
 
@@ -182,7 +196,7 @@ describe('AskBar — the three faces', () => {
     h.list = makeAskList({ rows: [makeAskRow()] });
     signIn({ id: 'owner', dealerId: 'd1' });
     useLangStore.setState({ lang: 'hi', explicit: true });
-    renderWithProviders(<AskBar />, { route: '/chat', withRouter: true });
+    renderWithProviders(<Bar />, { route: '/chat', withRouter: true });
     expect(screen.getByRole('button', { name: 'आज के रजिस्टर का पन्ना भेजें' })).toBeInTheDocument();
   });
 });
