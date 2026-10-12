@@ -172,8 +172,8 @@ export const messages = {
   /* ── chat ───────────────────────────────────────────────────────────── */
   'chat.support': { en: 'Support', hi: 'सहायता' },
   'chat.supportSubtitle': {
-    en: 'Real people, real fast replies',
-    hi: 'असली लोग, तुरंत जवाब',
+    en: 'The MDG team, right here',
+    hi: 'MDG टीम, यहीं आपके साथ',
   },
   'chat.supportName': { en: 'Support', hi: 'सहायता' },
   'chat.online': { en: 'Online', hi: 'ऑनलाइन' },
@@ -285,25 +285,12 @@ export const messages = {
     hi: '{name} नहीं भेजा जा सका। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
   },
   'chat.emptyTitle': { en: 'How can we help?', hi: 'हम आपकी क्या मदद करें?' },
+  // Says WHO answers and WHERE, and nothing about how fast or by what. It is
+  // true whether a person or the first line writes the reply, so it never has to
+  // change when a dealer's first-line mode does.
   'chat.emptyDesc': {
-    en: 'Send a message and a real person from our support team will reply.',
-    hi: 'संदेश भेजें, हमारी टीम का कोई व्यक्ति आपको जवाब देगा।',
-  },
-  // NOT USED YET, AND DELIBERATELY SO. `chat.emptyDesc` above promises that a
-  // real person replies, and while every dealer's first-line mode is 'OFF' or
-  // 'SHADOW' that is still exactly what happens — the machine posts nothing.
-  // Swapping this in now would make the app lie in the other direction, telling
-  // a dealer they will get an instant answer that no one has switched on for
-  // them.
-  //
-  // SWITCH `chat.emptyDesc` TO THIS STRING IN THE DEPLOY THAT MOVES THE FIRST
-  // DEALER FROM 'SHADOW' TO 'ON', not before and not in a later tidy-up. The
-  // sentence names both halves on purpose: the answer is immediate, and a person
-  // is still there — which is the whole bargain, and the half a dealer distrusts
-  // is the second one.
-  'chat.emptyDescInstant': {
-    en: 'Send a message. You get an answer straight away, and a person from our team takes over whenever you need one.',
-    hi: 'संदेश भेजें। जवाब तुरंत मिलेगा, और जब भी ज़रूरत हो, हमारी टीम का व्यक्ति खुद बात करेगा।',
+    en: 'Send a message and the MDG team will answer you here.',
+    hi: 'संदेश भेजिए, MDG टीम आपको यहीं जवाब देगी।',
   },
   'chat.quickReportIssue': {
     en: 'Report an issue',
@@ -313,54 +300,20 @@ export const messages = {
     en: 'Request a service',
     hi: 'सेवा के लिए कहें',
   },
-  'chat.quickTalkSupport': {
-    en: 'Talk to support',
-    hi: 'सहायता से बात करें',
-  },
 
   /* ── the AI first line, from the dealer's side ──────────────────────────
-     Three strings and a pair of chips. Nothing here says "AI", "bot" or
+     One footnote and a pair of chips. Nothing here says "AI", "bot" or
      "automatic": a dealer does not need to know which desk at MDG answered,
-     only that the answer came at once and that a person is one tap away. */
+     only that the answer came at once. */
 
   // The footnote under a reply the first line wrote. A footnote, not a badge —
   // it sits on the same line as the timestamp precisely so it cannot out-weigh
   // the answer it annotates.
   'chat.aiInstantReply': { en: 'Instant reply', hi: 'तुरंत जवाब' },
-  // The button under that reply.
-  'chat.aiTalkToHuman': { en: 'Talk to a person', hi: 'किसी व्यक्ति से बात करें' },
-  // What the button SENDS, which is a different string from what it says. This
-  // one lands in the thread as the dealer's own message, so it is written the
-  // way a dealer writes ("I want…"), not the way a button label reads ("Talk
-  // to…"). It also has to be plain enough that the backend reads it as a
-  // request for a person and hands the thread over.
-  //
-  // BOTH SPELLINGS ARE MATCHED WORD-FOR-WORD BY THE BACKEND'S PRE-MODEL PHRASE
-  // LIST (`assist/firstline/dissatisfied.ts`, HUMAN_PHRASES: 'talk to a person',
-  // 'किसी से बात'), and that is the entire reason the Hindi reads "किसी से"
-  // rather than "किसी व्यक्ति से". The English button already hit that list; the
-  // Hindi one missed it by one word, so a Hindi dealer's tap for a person went
-  // through the router while an English dealer's did not — and the whole point
-  // of that list is that a request for a person never depends on a model call.
-  // If either string is reworded, check it still matches, or add the new wording
-  // to HUMAN_PHRASES in the same commit.
-  // What the button actually sends. It IS a real message from the dealer — that
-  // is what makes the button work with the first line switched off, and it is
-  // why it must read like something a person would type rather than like a form
-  // being submitted on their behalf.
-  'chat.aiTalkToHumanBody': {
-    en: 'Please connect me to someone from the team.',
-    hi: 'कृपया मुझे टीम के किसी व्यक्ति से जोड़ दीजिए।',
-  },
-  // Shown in place of the offer once a person has been asked for, so a dealer
-  // scrolling back does not ask twice and does not wonder whether it worked.
-  'chat.aiHumanComing': {
-    en: 'Someone from MDG is coming',
-    hi: 'MDG से कोई आ रहा है',
-  },
-  // The two chips above the composer, alongside `chat.quickTalkSupport`. Both
-  // are questions a dealer asks most mornings and both are a nuisance to type
-  // on a Devanagari phone keyboard, which is the entire point of a chip.
+
+  // The two chips above the composer. Both are questions a dealer asks most
+  // mornings and both are a nuisance to type on a Devanagari phone keyboard,
+  // which is the entire point of a chip.
   'chat.quickTodayReport': { en: "Today's report?", hi: 'आज की रिपोर्ट?' },
   // REPLACED "Sent today's photo?" — see the note on `quickReplies` in
   // Composer.tsx. The wording is deliberately the glossary's own example for the
@@ -751,6 +704,15 @@ export const messages = {
     hi: 'यह नहीं हो पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
   },
   'profile.teammateAdded': { en: 'Teammate added', hi: 'साथी जुड़ गया' },
+  // One manager per pump: the server refuses a second with a 409.
+  'profile.teamHasManager': {
+    en: 'Your pump already has a manager. Pause them first, or ask the MDG team.',
+    hi: 'आपके पंप पर पहले से मैनेजर है। पहले उन्हें रोकें, या MDG टीम से कहें।',
+  },
+  'profile.emailInUse': {
+    en: 'That email is already used by another login.',
+    hi: 'यह ईमेल किसी और लॉगिन में पहले से है।',
+  },
   'profile.teammateAddFailed': {
     en: "We couldn't add your teammate. Please try again, or message us in Chat.",
     hi: 'आपका साथी नहीं जुड़ पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',

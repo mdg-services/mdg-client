@@ -515,13 +515,18 @@ describe('Composer quick-reply chips', () => {
   // shipped: `AskBar` already states that chore above this thread and opens the
   // camera, while "What do I need to do?" is the question the live incident at
   // 1E was handed to a person over.
-  const CHIPS = ["Today's report?", 'What do I need to do?', 'Talk to support'];
+  const CHIPS = ["Today's report?", 'What do I need to do?'];
 
-  it('offers the three questions while the box is empty', () => {
+  it('offers the two questions while the box is empty', () => {
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
     for (const label of CHIPS) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
+  });
+
+  it('has no "Talk to support" chip — a person is reached by a ticket, not a tap', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    expect(screen.queryByRole('button', { name: 'Talk to support' })).toBeNull();
   });
 
   it('fills the box and does NOT send', () => {
@@ -553,11 +558,11 @@ describe('Composer quick-reply chips', () => {
     fireEvent.change(box, {
       target: { value: 'pump 2 ka nozzle band hai, kal se, aur' },
     });
-    expect(screen.queryByRole('button', { name: 'Talk to support' })).toBeNull();
+    expect(screen.queryByRole('button', { name: "Today's report?" })).toBeNull();
     // Clearing it brings them back — the row is a state of the empty box, not a
     // one-shot banner.
     fireEvent.change(box, { target: { value: '' } });
-    expect(screen.getByRole('button', { name: 'Talk to support' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: "Today's report?" })).toBeInTheDocument();
   });
 
   it('hides them while replying to a message', () => {

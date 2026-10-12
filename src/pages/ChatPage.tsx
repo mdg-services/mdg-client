@@ -48,10 +48,6 @@ export function ChatPage() {
   const showBack = (listQuery.data?.length ?? 0) > 1 || listQuery.isError;
 
   const messagesQuery = useMessages(conversationId);
-  // `mutateAsync` is destructured because it is referentially stable while the
-  // mutation object is not, and `handleTalkToHuman` below is handed to memoized
-  // bubbles — a fresh identity every render would re-render the whole thread on
-  // every keystroke.
   const { mutateAsync: sendMessage, isPending: sending } = useSendMessage();
   const { mutate: reactMutate } = useReactToMessage();
   const download = useAttachmentDownload();
@@ -121,25 +117,6 @@ export function ChatPage() {
     () => (messagesQuery.data?.pages ?? []).flat(),
     [messagesQuery.data],
   );
-
-  /**
-   * Has a person already been asked for, and not yet arrived?
-   *
-   * Read off the LAST first-line message rather than off any handoff in the
-   * history: once an admin replies the machine starts answering again, and a
-   * thread that was handed over last week must not have every offer in it
-   * greyed out forever. A handoff as the machine's most recent word is exactly
-   * "somebody is on their way and has not spoken yet".
-   *
-   * `messages` is newest-last, so this walks from the end.
-   */
-  const humanAsked = React.useMemo(() => {
-    for (let i = messages.length - 1; i >= 0; i -= 1) {
-      const ai = messages[i]?.ai;
-      if (ai) return ai.kind === 'handoff';
-    }
-    return false;
-  }, [messages]);
 
   // Sheets hold a message SNAPSHOT; keep them live against the cache so e.g.
   // the who-reacted list updates in place as reactions land.
@@ -246,28 +223,6 @@ export function ChatPage() {
     }
   };
 
-  // "Talk to a person", under a reply the first line wrote.
-  //
-  // It sends an ORDINARY message, and that is the design rather than a shortcut:
-  // the backend already recognises a dealer asking for a person and hands the
-  // thread back to the unassigned pool with the SLA clock running. There is no
-  // route behind this button and there must not be one, because a route would be
-  // a second way to reach the same state that could drift from the first.
-  //
-  // Not disabled while a send is in flight: the optimistic bubble appears the
-  // instant it is tapped, so a dealer has no reason to tap twice, and reading
-  // `sending` here would cost the stable identity the memoized bubbles need.
-  const handleTalkToHuman = React.useCallback(() => {
-    if (!conversationId) {
-      toast.error(t('chat.stillConnecting'));
-      return;
-    }
-    void sendMessage({
-      conversationId,
-      body: t('chat.aiTalkToHumanBody'),
-    }).catch(() => toast.error(t('chat.sendFailed')));
-  }, [conversationId, sendMessage, toast, t]);
-
   // Still resolving which thread this is.
   if (listQuery.isLoading && !conversation) {
     return (
@@ -357,8 +312,7 @@ export function ChatPage() {
         onAction={handleAction}
         onOpenReactions={handleOpenReactions}
         onReply={handleReply}
-        onTalkToHuman={handleTalkToHuman}
-        humanAsked={humanAsked}
+        tickets={conversation?.tickets}
       />
 
       <Composer
@@ -371,7 +325,7 @@ export function ChatPage() {
         replyingTo={replyingTo}
         onCancelReply={cancelReply}
         // Only once the thread has something in it. On an empty thread the
-        // empty state is already showing its own three chips.
+        // empty state is already showing its own two chips.
         showQuickReplies={messages.length > 0}
       />
 

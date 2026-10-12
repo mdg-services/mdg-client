@@ -5,13 +5,14 @@ import { Spinner } from '@/components/ui';
 import { RecordCard } from '@/features/records/RecordCard';
 import { useOpenRecord, useRecord } from '@/hooks/api/useRecords';
 import { cn } from '@/lib/cn';
-import { useT } from '@/lib/i18n';
+import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 
 import { MessageAttachment } from './AttachmentPreview';
 import { replyPreview, replySenderLabel } from './replyContext';
+import { ticketLineText, type TicketLineStatus } from './ticketLine';
 
 function formatTime(iso: string): string {
   const d = new Date(iso);
@@ -239,7 +240,9 @@ function groupReactions(
 // useConversationSocket applyReceipt / onNewMessage), so a typing toggle, a
 // delivery/read receipt, or a new message re-renders only the changed bubble
 // instead of every bubble in the thread. Every callback prop must therefore
-// stay referentially stable (created once in MessageList/ChatPage).
+// stay referentially stable (created once in MessageList/ChatPage), and the
+// ticket line arrives as a status word and a number rather than the ticket, for
+// the same reason: one ticket changing must re-render one bubble.
 export const MessageBubble = React.memo(function MessageBubble({
   message,
   mine,
@@ -250,8 +253,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   onAction,
   onOpenReactions,
   onJumpTo,
-  onTalkToHuman,
-  humanAsked = false,
+  ticketStatus,
+  ticketNumber,
 }: {
   message: Message;
   mine: boolean;
@@ -270,22 +273,15 @@ export const MessageBubble = React.memo(function MessageBubble({
   /** Tap on the quote block → jump to the original message. */
   onJumpTo?: (targetId: string, fromId: string) => void;
   /**
-   * Tap on "Talk to a person" under a first-line answer. The chat screen owns
-   * it because it sends an ORDINARY message — there is no endpoint behind this.
+   * Where the ticket this message raised stands. Set by MessageList only when
+   * the message names a ticket AND the conversation still lists it; absent, the
+   * line is simply not drawn. Always given together with `ticketNumber`.
    */
-  onTalkToHuman?: () => void;
-  /**
-   * A person has already been asked for on this thread.
-   *
-   * The offer stays VISIBLE and goes quiet rather than disappearing: a control
-   * that vanishes under the thumb reads as a misfire, and the dealer needs to
-   * see that the thing they pressed did something. Every older answer in the
-   * thread carries this button, so without it a dealer who has already asked
-   * scrolls up and asks twice.
-   */
-  humanAsked?: boolean;
+  ticketStatus?: TicketLineStatus;
+  ticketNumber?: number;
 }) {
   const t = useT();
+  const lang = useLang();
   // Bound once per render: the attachment's own children only know the
   // attachment, and the viewer needs the message it hangs off.
   const openImage = onOpenImage
@@ -317,11 +313,6 @@ export const MessageBubble = React.memo(function MessageBubble({
   // unknown key and draws an ordinary Support bubble, which is correct, merely
   // unlabelled.
   const ai = message.ai;
-  // Offered under an answer, NOT under the handoff line. A handoff message
-  // already says a person is coming, so a button asking for one is noise — and
-  // tapping it would start a second turn, which costs a model call to reach the
-  // conclusion the thread had already reached.
-  const offerHuman = !!ai && ai.kind !== 'handoff' && !!onTalkToHuman;
 
   return (
     <div
@@ -412,31 +403,6 @@ export const MessageBubble = React.memo(function MessageBubble({
             ))}
           </button>
         ) : null}
-        {offerHuman ? (
-          // 44px is the floor, not the look: this is the escape hatch from a
-          // machine that got it wrong, and it is pressed by a thumb on a phone
-          // propped on a forecourt counter. It sends an ordinary message — the
-          // backend's own handoff rule reads the text and puts the thread back
-          // in the unassigned pool — so there is nothing here to fail if the
-          // first line is switched off.
-          <button
-            type="button"
-            onClick={onTalkToHuman}
-            disabled={humanAsked}
-            // A QUIET LINK, NOT A SECOND BUBBLE. Bordered, filled and shadowed,
-            // this drew as a box the same weight as the answer above it, so the
-            // eye read two messages and the offer competed with the thing the
-            // dealer actually asked for. It is an aside; it should look like one.
-            // The 44px stays — it is the floor for a thumb on a forecourt, and
-            // the padding buys the height without the chrome.
-            className={cn(
-              'flex min-h-[44px] items-center self-start px-1 text-sm font-medium underline underline-offset-4 active:opacity-60',
-              humanAsked ? 'text-text-subtle no-underline' : 'text-brand',
-            )}
-          >
-            {humanAsked ? t('chat.aiHumanComing') : t('chat.aiTalkToHuman')}
-          </button>
-        ) : null}
         <div
           className={cn(
             'flex items-center gap-1 px-1 text-[11px] text-text-subtle',
@@ -463,6 +429,16 @@ export const MessageBubble = React.memo(function MessageBubble({
             </span>
           ) : null}
         </div>
+        {ticketStatus && ticketNumber !== undefined ? (
+          // ONE QUIET LINE, NOT A CONTROL. Same size and colour as the timestamp
+          // row above it, no button, and not green: a ticket closing is not a
+          // success to celebrate, it only says a person has dealt with it, and
+          // what they wrote is in the thread. `-mt-1` pulls it up against the
+          // timestamp so the two read as one footnote.
+          <p className="-mt-1 px-1 text-[11px] text-text-subtle">
+            {ticketLineText(lang, ticketStatus, ticketNumber)}
+          </p>
+        ) : null}
       </div>
     </div>
   );

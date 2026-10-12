@@ -9,11 +9,12 @@ import {
   type AttachmentSource,
 } from '@/lib/downloadAttachment';
 import { useT, type TFunction } from '@/lib/i18n';
-import type { Attachment, Message } from '@dk/shared/types';
+import type { Attachment, Message, TicketDealerView } from '@dk/shared/types';
 
 import { ImageLightbox } from './ImageLightbox';
 import { MessageBubble } from './MessageBubble';
 import { SwipeToReply } from './SwipeToReply';
+import { ticketLinesById } from './ticketLine';
 
 function dayLabel(iso: string, t: TFunction): string {
   const d = new Date(iso);
@@ -62,16 +63,12 @@ export interface MessageListProps {
   /** Swipe-right on a bubble → start replying to it. */
   onReply?: (message: Message) => void;
   /**
-   * Tap on "Talk to a person" under a first-line answer. Passed straight to the
-   * bubble, so it must be referentially stable or every bubble re-renders.
+   * The conversation's tickets (`Conversation.tickets`). A message that names a
+   * ticket in `ai.ticketId` gets a status line under it when that ticket is in
+   * here, and none when it is not. Reduced to a status word and a number before
+   * it reaches a bubble, so a new array of the same tickets re-renders no bubble.
    */
-  onTalkToHuman?: () => void;
-  /**
-   * A person has already been asked for, so every offer in the thread goes
-   * quiet at once. Computed here rather than per bubble: the answer is about
-   * the THREAD, and asking each bubble to work it out would have them disagree.
-   */
-  humanAsked?: boolean;
+  tickets?: TicketDealerView[];
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
   /** The history could not be loaded — say so instead of showing an empty thread. */
@@ -96,8 +93,7 @@ export function MessageList({
   onAction,
   onOpenReactions,
   onReply,
-  onTalkToHuman,
-  humanAsked,
+  tickets,
   onFetchOlder,
   failed,
   onRetry,
@@ -276,6 +272,10 @@ export function MessageList({
     [flashRow, toast, t],
   );
 
+  // Per-ticket status for the bubbles, rebuilt only when the conversation's
+  // ticket list is replaced (a `conversation:updated` with the new state).
+  const ticketLines = React.useMemo(() => ticketLinesById(tickets), [tickets]);
+
   // Group by day. Memoized so the whole list only rebuilds when the messages,
   // the current user, or the language (t) actually change — not on every parent
   // re-render (typing indicator, lightbox open, etc.). Keeping `t` in the deps is
@@ -302,6 +302,9 @@ export function MessageList({
       }
       const interactive =
         !m.system && !m.card && !m.id.startsWith('temp-');
+      const ticketLine = m.ai?.ticketId
+        ? ticketLines.get(m.ai.ticketId)
+        : undefined;
       out.push(
         <SwipeToReply
           key={m.id}
@@ -320,8 +323,8 @@ export function MessageList({
             onAction={onAction}
             onOpenReactions={onOpenReactions}
             onJumpTo={handleJumpTo}
-            onTalkToHuman={onTalkToHuman}
-            humanAsked={humanAsked}
+            ticketStatus={ticketLine?.status}
+            ticketNumber={ticketLine?.number}
           />
         </SwipeToReply>,
       );
@@ -335,14 +338,10 @@ export function MessageList({
     onAction,
     onOpenReactions,
     onReply,
-    onTalkToHuman,
     handleJumpTo,
     quoteLoadingId,
     showSenderNames,
-    // Reached today only because it is derived from `messages`, which `ordered`
-    // already tracks. Named anyway: the day somebody sets it from anything else,
-    // the offer of a person would stay lit after it had been taken.
-    humanAsked,
+    ticketLines,
   ]);
 
   if (loading && messages.length === 0) {
@@ -356,7 +355,7 @@ export function MessageList({
   // A THREAD THAT FAILED TO LOAD IS NOT A NEW THREAD.
   //
   // Both arrive here as `messages.length === 0`, and the empty state says "How
-  // can we help? Send a message and a real person will reply" with three
+  // can we help? Send a message and the MDG team will answer you here" with two
   // starter chips — told to a dealer whose entire correspondence with MDG is
   // sitting on the server, unreachable because a 2G request timed out. The
   // chat list already makes this distinction; the thread did not.
@@ -393,11 +392,7 @@ export function MessageList({
           cta={
             onQuickAction ? (
               <div className="mt-2 flex flex-wrap justify-center gap-2">
-                {[
-                  t('chat.quickReportIssue'),
-                  t('chat.quickRequestService'),
-                  t('chat.quickTalkSupport'),
-                ].map((label) => (
+                {[t('chat.quickReportIssue'), t('chat.quickRequestService')].map((label) => (
                   <button
                     key={label}
                     type="button"

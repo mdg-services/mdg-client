@@ -34,3 +34,4 @@ export * from './whatsapp';
 export * from './loadPlan';
 export * from './depotHoliday';
 export * from './share';
+export * from './ticket';

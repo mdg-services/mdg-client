@@ -32,6 +32,12 @@ export interface ServerToClientEvents {
    * its own scoped list rather than trusting a count meant for someone else.
    */
   'alerts:changed': () => void;
+  /**
+   * A ticket was raised, merged into, opened for the first time, resolved or
+   * reopened. Admin room only — a dealer learns of a change through
+   * `conversation:updated`, whose `tickets` carries the dealer-safe view.
+   */
+  'tickets:changed': (payload: { ticketId: string; conversationId: string }) => void;
   typing: (payload: { conversationId: string; userId: string; userName: string }) => void;
   delivered: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
   read: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;

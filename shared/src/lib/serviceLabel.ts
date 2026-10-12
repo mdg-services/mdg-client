@@ -66,6 +66,15 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'tt-density': { en: 'TT Density', hi: 'डेंसिटी रजिस्टर' },
   /** "Ingress" is an inspection form's word. The dealer's word is water in the tank. */
   'water-ingress-testing': { en: 'Water ingress testing', hi: 'टैंक में पानी की जाँच' },
+  /**
+   * Missing until now, so the dealer's Services page printed `load-planner`.
+   * What the dealer gets from it is when to order which tanker. The English is
+   * what the admin's humanising fallback already printed, as for water ingress,
+   * so no admin screen or alert title changes.
+   */
+  'load-planner': { en: 'Load planner', hi: 'टैंकर मंगाने की योजना' },
+  /** Missing until now too. The dealer's question is simply whether supply is open. */
+  'ro-supply-status': { en: 'RO supply status', hi: 'सप्लाई की स्थिति' },
 };
 
 /**

@@ -3,6 +3,7 @@
 // erases them, so no cycle survives into the emitted JavaScript.
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { RecordCard } from './record';
+import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
 
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
@@ -148,6 +149,15 @@ export interface Conversation {
    * AI-handled thread disappear from the inbox while a dealer waited on it.
    */
   ai?: ConversationAiState;
+  /**
+   * Tickets on this thread: every OPEN one, plus any resolved in the last
+   * seven days. The dealer's bubble reads this to show "sent to MDG / MDG is
+   * looking / closed" under the message that raised it. Dealer-safe by type —
+   * state and times only.
+   */
+  tickets?: TicketDealerView[];
+  /** Open tickets on this thread. Admin inbox only. */
+  openTicketCount?: number;
   createdAt: string;
   updatedAt: string;
 }

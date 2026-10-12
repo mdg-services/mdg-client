@@ -304,6 +304,18 @@ export const AUDIT_ACTIONS = [
   'ADMIN_ALERT_DISMISS',
   /** An admin put a hidden alert back on the list. */
   'ADMIN_ALERT_RESTORE',
+  /** The AI raised a ticket: a dealer question only a person can settle. Actor is the system. */
+  'TICKET_RAISE',
+  /** A later unanswerable message was added to a thread's open ticket instead of opening a second one. */
+  'TICKET_MERGE',
+  /** The first time an admin opened a ticket. */
+  'TICKET_SEEN',
+  /** An admin resolved a ticket, with a note. */
+  'TICKET_RESOLVE',
+  /** An admin reopened a resolved ticket. */
+  'TICKET_REOPEN',
+  /** An admin marked a ticket urgent, or not. */
+  'TICKET_URGENCY',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -343,6 +355,8 @@ export const AUDIT_ENTITIES = [
   'LedgerWatch',
   'DsrReport',
   'WaterIngressDayLog',
+  /** A dealer question the AI handed to a person — see `types/ticket.ts`. */
+  'Ticket',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 

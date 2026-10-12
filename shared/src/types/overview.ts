@@ -88,6 +88,8 @@ export type TriageKind =
   | 'waiting_warn'
   /** The 20-minute sweep pulled an assigned ticket back into the pool. */
   | 'ticket_dropped'
+  /** The AI raised a ticket and no person has resolved it. */
+  | 'ticket_open'
   /** A credit card was generated and never delivered to the dealer. */
   | 'credit_card_unsent'
   /** The dealer is holding a card we have since superseded. A sent chat message cannot be recalled. */

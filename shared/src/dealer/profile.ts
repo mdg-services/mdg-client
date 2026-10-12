@@ -598,6 +598,22 @@ type ProfileSource = Pick<Dealer, 'gst' | 'pan' | 'outletProfile' | 'customField
  * export all go through here, so "what is this outlet's W&M licence" has exactly
  * one answer no matter who is asking.
  */
+/**
+ * Outlet-file fields an OWNER may be shown and the manager may not: the tax and
+ * payment identifiers, the agreement date and the ownership. One list, used by
+ * the outlet-file route and by the AI first line's briefing, so the app and the
+ * chat cannot disagree about who sees a GST number.
+ */
+export const DEALER_PROFILE_OWNER_ONLY_KEYS: readonly string[] = [
+  'gst',
+  'pan',
+  'itpsMid',
+  'itpsTid',
+  'xtraPowerMerchantId',
+  'agreementDate',
+  'ownership',
+];
+
 export function resolveDealerProfile(
   dealer: ProfileSource,
   options: ResolveDealerProfileOptions = {},

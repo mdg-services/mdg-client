@@ -75,6 +75,24 @@ describe('useConversationsListSocket', () => {
     expect(list(qc)!.map((c) => c.id)).toEqual(['c2', 'c1']);
   });
 
+  it("replaces a thread's tickets whole on conversation:updated, so the status line follows", () => {
+    const raised = { id: 't1', number: 42, state: 'OPEN' as const, seen: false, raisedAt: '' };
+    const { qc } = mount([makeConv({ id: 'c1', tickets: [raised] })]);
+    act(() =>
+      h.socket.server('conversation:updated', {
+        conversation: makeConv({ id: 'c1', tickets: [{ ...raised, seen: true }] }),
+      }),
+    );
+    expect(list(qc)!.find((c) => c.id === 'c1')!.tickets).toEqual([{ ...raised, seen: true }]);
+
+    // A ticket that aged out of the server's window is gone from the payload,
+    // and must be gone from the cache — not merged back in.
+    act(() =>
+      h.socket.server('conversation:updated', { conversation: makeConv({ id: 'c1', tickets: [] }) }),
+    );
+    expect(list(qc)!.find((c) => c.id === 'c1')!.tickets).toEqual([]);
+  });
+
   it('is a safe no-op when the list has not loaded yet', () => {
     const { qc } = mount(undefined);
     act(() =>

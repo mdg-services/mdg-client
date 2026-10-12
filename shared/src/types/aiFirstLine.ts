@@ -59,6 +59,28 @@ export const AI_FIRSTLINE_LANGS = ['hi', 'en'] as const;
 export type AiFirstLineLang = (typeof AI_FIRSTLINE_LANGS)[number];
 
 /**
+ * Which machine answered a turn.
+ *
+ * `router` is the v2 pipeline: a model picks closed labels, code runs the
+ * lookups those labels name, a second model phrases the result. `brief` reads a
+ * whole briefing of the dealer's records — filtered for who can read the thread
+ * — and answers from it in one call. Recorded per turn so the two can be
+ * compared on the same screen.
+ */
+export const AI_FIRSTLINE_ENGINES = ['router', 'brief'] as const;
+export type AiFirstLineEngine = (typeof AI_FIRSTLINE_ENGINES)[number];
+
+/**
+ * Who a reply may be read by, which decides what it may contain.
+ *
+ * A reply is cleared for the LOWEST-clearance person who can read the thread:
+ * an owner's own support thread is `owner`; the manager's group thread, which
+ * the manager and every owner read, is `manager`.
+ */
+export const AI_AUDIENCES = ['owner', 'manager'] as const;
+export type AiAudience = (typeof AI_AUDIENCES)[number];
+
+/**
  * Every label the model is allowed to emit, and nothing else.
  *
  * The list is derived from what the lookups can ACTUALLY answer, not from what a
@@ -445,6 +467,18 @@ export const AI_HANDOFF_REASONS = [
   'model_error',
   /** The vendor was busy or too slow, and a dealer waiting on a spinner is worse than a person. */
   'vendor_busy',
+  /**
+   * The briefing engine read the dealer's records and decided a person must
+   * handle this — money, a dispute, a change only MDG can make. Not a failure:
+   * the machine did its job, and a ticket was raised.
+   */
+  'escalated',
+  /**
+   * The briefing engine wrote an answer and the fence could not account for
+   * every figure, date or name in it — twice. The answer was not sent; a ticket
+   * was raised instead.
+   */
+  'could_not_verify',
 ] as const;
 export type AiHandoffReason = (typeof AI_HANDOFF_REASONS)[number];
 
@@ -554,6 +588,12 @@ export interface MessageAiMeta {
   intent: AiFirstLineIntent;
   /** Which hand-written template filled this message. The wording is auditable from here. */
   templateId: string;
+  /**
+   * The ticket this message told the dealer about, on an escalation. The bubble
+   * looks the ticket up in the conversation's `tickets` to show where it stands
+   * — the message itself is written once and never edited.
+   */
+  ticketId?: string;
   /**
    * Set when this was posted during a shadow run. Absent means live.
    *
@@ -739,6 +779,12 @@ export interface AiTurn {
   id: string;
   /** Stable id shared with {@link MessageAiMeta.turnId} and {@link ConversationAiState.turnId}. */
   turnId: string;
+  /** Which machine answered. Absent on every turn before the briefing engine — read as `router`. */
+  engine?: AiFirstLineEngine;
+  /** Who the reply was cleared for. Briefing engine only. */
+  audience?: AiAudience;
+  /** The ticket this turn raised or added to. */
+  ticketId?: string;
   dealerId: string;
   /** The dealer's code, decorated by the API — a dealer IS its code. */
   dealerCode?: string;

@@ -334,6 +334,7 @@ describe('MessageBubble — a reply the first line wrote', () => {
     kind: 'answer' | 'written' | 'handoff' | 'reshare';
     intent: string;
     templateId: string;
+    ticketId?: string;
   }
 
   /** An AI message is an ADMIN message: same sender role, same side, same colour. */
@@ -374,78 +375,35 @@ describe('MessageBubble — a reply the first line wrote', () => {
       />,
     );
     expect(screen.queryByText('Instant reply')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
   });
 
-  it('offers one tap to a person, and asks for nothing else', () => {
-    const onTalkToHuman = vi.fn();
-    render(
-      <MessageBubble
-        message={aiMessage()}
-        mine={false}
-        currentUserId="me"
-        onTalkToHuman={onTalkToHuman}
-      />,
+  it('puts no button under the answer — there is no way to ask for a person', () => {
+    // The only way a thread reaches a person is a ticket the first line raises
+    // itself, so nothing under an answer may offer one.
+    const { container } = render(
+      <MessageBubble message={aiMessage()} mine={false} currentUserId="me" />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Talk to a person' }));
-    expect(onTalkToHuman).toHaveBeenCalledTimes(1);
+    expect(container.querySelectorAll('button').length).toBe(0);
+    expect(screen.queryByText(/talk to a person/i)).toBeNull();
+    expect(screen.queryByText(/someone from mdg is coming/i)).toBeNull();
   });
 
-  it('gives that button a 44px thumb target', () => {
-    // jsdom has no layout, so the floor is asserted on the class that sets it.
-    // It is the escape hatch from an answer that got it wrong, pressed on a
-    // phone propped on a forecourt counter.
-    render(
-      <MessageBubble
-        message={aiMessage()}
-        mine={false}
-        currentUserId="me"
-        onTalkToHuman={vi.fn()}
-      />,
-    );
-    const btn = screen.getByRole('button', { name: 'Talk to a person' });
-    expect(btn.getAttribute('class') ?? '').toContain('min-h-[44px]');
-  });
-
-  it('does NOT offer it under the handoff line — a person is already coming', () => {
-    // The handoff message says somebody will pick the thread up. A button asking
-    // for a person there is noise, and tapping it would start a second turn to
-    // reach a conclusion the thread had already reached.
-    render(
+  it('puts no button under the handoff line either', () => {
+    const { container } = render(
       <MessageBubble
         message={aiMessage({ ...aiAnswer, kind: 'handoff' })}
         mine={false}
         currentUserId="me"
-        onTalkToHuman={vi.fn()}
       />,
     );
-    // AND NO "Instant reply" FOOTNOTE EITHER. This assertion used to require the
+    // AND NO "Instant reply" FOOTNOTE. This assertion used to require the
     // opposite, and the owner caught it in production: the handoff bubble read
     // "I've passed it to the MDG team" with a lightning bolt under it saying the
     // machine had answered instantly. It is the one line a dealer reads while
     // already unsatisfied, and it was the one place the product looked pleased
     // with itself. The old expectation was the bug, written down.
     expect(screen.queryByText('Instant reply')).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
-  });
-
-  it('goes quiet once a person has been asked for, rather than vanishing', () => {
-    // Every older answer in the thread carries this offer, so a dealer who has
-    // already pressed it scrolls up and presses it again. Removing it outright
-    // reads as a misfire — the control they just touched is gone and nothing
-    // says it worked. It stays, disabled, and says what is happening instead.
-    render(
-      <MessageBubble
-        message={aiMessage(aiAnswer)}
-        mine={false}
-        currentUserId="me"
-        onTalkToHuman={vi.fn()}
-        humanAsked
-      />,
-    );
-    const btn = screen.getByRole('button', { name: 'Someone from MDG is coming' });
-    expect(btn).toBeDisabled();
-    expect(screen.queryByRole('button', { name: 'Talk to a person' })).toBeNull();
+    expect(container.querySelectorAll('button').length).toBe(0);
   });
 
   it('labels a re-sent report too — it is still the machine that answered', () => {
@@ -454,11 +412,9 @@ describe('MessageBubble — a reply the first line wrote', () => {
         message={aiMessage({ ...aiAnswer, kind: 'reshare' })}
         mine={false}
         currentUserId="me"
-        onTalkToHuman={vi.fn()}
       />,
     );
     expect(screen.getByText('Instant reply')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Talk to a person' })).toBeInTheDocument();
   });
 
   /**
@@ -471,19 +427,15 @@ describe('MessageBubble — a reply the first line wrote', () => {
    * bubble has no fixed height, no line clamp and `whitespace-pre-wrap`, so all
    * three are already handled; these tests are here to keep it that way.
    */
-  it('labels prose the writer composed, and still offers a person', () => {
+  it('labels prose the writer composed', () => {
     render(
       <MessageBubble
         message={aiMessage({ ...aiAnswer, kind: 'written' })}
         mine={false}
         currentUserId="me"
-        onTalkToHuman={vi.fn()}
       />,
     );
     expect(screen.getByText('Instant reply')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: 'Talk to a person' }),
-    ).toBeInTheDocument();
   });
 
   it('draws a long Hindi reply whole, and keeps the appended line', () => {
@@ -527,5 +479,161 @@ describe('MessageBubble — a reply the first line wrote', () => {
     // No extra nodes, no extra buttons — the whole feature is invisible here.
     expect(before.container.querySelectorAll('button').length).toBe(0);
     expect(before.container.querySelector('.lucide-zap')).toBeFalsy();
+  });
+});
+
+/**
+ * The line under a bubble that raised a ticket.
+ *
+ * MessageList decides WHICH bubble gets one (the message names a ticket and the
+ * conversation still lists it) and hands the bubble a status word and a number.
+ * What is tested here is only what the bubble does with them: say it quietly,
+ * in the app's language, and say nothing when it is given nothing.
+ */
+describe('MessageBubble — the ticket status line', () => {
+  const raising = {
+    turnId: 'turn-9',
+    kind: 'handoff' as const,
+    intent: 'talk_to_human' as const,
+    templateId: 'handoff.escalated',
+    ticketId: 't-42',
+  };
+
+  function raisingMessage() {
+    return makeMessage({
+      id: 'ai-handoff',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      senderName: 'MDG',
+      body: 'Maine ye MDG team ko bhej diya hai.',
+      ai: raising,
+    });
+  }
+
+  it.each([
+    ['raised', '#42 · Sent to the MDG team'],
+    ['looking', '#42 · MDG team is looking at it'],
+    ['resolved', '#42 · Closed by the MDG team'],
+  ] as const)('says "%s" in plain words, prefixed with the ticket ref', (status, text) => {
+    render(
+      <MessageBubble
+        message={raisingMessage()}
+        mine={false}
+        currentUserId="me"
+        ticketStatus={status}
+        ticketNumber={42}
+      />,
+    );
+    expect(screen.getByText(text)).toBeInTheDocument();
+  });
+
+  it('speaks Hindi on the Hindi screen', () => {
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    render(
+      <MessageBubble
+        message={raisingMessage()}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="looking"
+        ticketNumber={42}
+      />,
+    );
+    expect(screen.getByText('#42 · MDG टीम देख रही है')).toBeInTheDocument();
+  });
+
+  it('draws nothing when the bubble is not handed a status', () => {
+    // The message names a ticket but the conversation no longer lists it — a
+    // resolved ticket past the server's seven-day window. The line is simply
+    // gone; the message that raised it is not.
+    const { container } = render(
+      <MessageBubble message={raisingMessage()} mine={false} currentUserId="me" />,
+    );
+    expect(screen.getByText('Maine ye MDG team ko bhej diya hai.')).toBeInTheDocument();
+    expect(container.textContent).not.toContain('#');
+    expect(container.textContent).not.toContain('MDG team is looking');
+  });
+
+  it('draws nothing on an ordinary message', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({ id: 'plain', senderId: 'u1', body: 'kal ka DSR' })}
+        mine
+        currentUserId="u1"
+      />,
+    );
+    expect(container.textContent).not.toContain('#');
+  });
+
+  it('is a quiet line, not a button and not green', () => {
+    const { container } = render(
+      <MessageBubble
+        message={raisingMessage()}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="resolved"
+        ticketNumber={42}
+      />,
+    );
+    const line = screen.getByText('#42 · Closed by the MDG team');
+    expect(line.closest('button')).toBeNull();
+    expect(container.querySelectorAll('button').length).toBe(0);
+    // Same size and colour as the timestamp row it hangs under.
+    const cls = line.getAttribute('class') ?? '';
+    expect(cls).toContain('text-[11px]');
+    expect(cls).toContain('text-text-subtle');
+    expect(cls).not.toMatch(/green|success/);
+  });
+
+  it('sits with the footnote under a handoff, and still says no "Instant reply"', () => {
+    render(
+      <MessageBubble
+        message={raisingMessage()}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="raised"
+        ticketNumber={7}
+      />,
+    );
+    expect(screen.getByText('#7 · Sent to the MDG team')).toBeInTheDocument();
+    expect(screen.queryByText('Instant reply')).toBeNull();
+  });
+
+  it('follows the ticket when its state changes under an already-drawn bubble', () => {
+    // The bubble is React.memo'd, so this is the proof that new primitives are
+    // enough to re-render it — no object identity involved.
+    const message = raisingMessage();
+    const view = render(
+      <MessageBubble
+        message={message}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="raised"
+        ticketNumber={42}
+      />,
+    );
+    expect(screen.getByText('#42 · Sent to the MDG team')).toBeInTheDocument();
+
+    view.rerender(
+      <MessageBubble
+        message={message}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="looking"
+        ticketNumber={42}
+      />,
+    );
+    expect(screen.queryByText('#42 · Sent to the MDG team')).toBeNull();
+    expect(screen.getByText('#42 · MDG team is looking at it')).toBeInTheDocument();
+
+    view.rerender(
+      <MessageBubble
+        message={message}
+        mine={false}
+        currentUserId="me"
+        ticketStatus="resolved"
+        ticketNumber={42}
+      />,
+    );
+    expect(screen.getByText('#42 · Closed by the MDG team')).toBeInTheDocument();
   });
 });

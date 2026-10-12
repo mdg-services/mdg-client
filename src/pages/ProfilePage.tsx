@@ -273,8 +273,17 @@ function TeamSection() {
       setInviteOpen(false);
       void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
     },
-    onError: () => {
-      toast.error(t('profile.teammateAddFailed'));
+    onError: (err) => {
+      // The two refusals an owner can act on get their own words; anything else
+      // stays the general line.
+      const msg = err instanceof ApiError ? err.message : '';
+      if (err instanceof ApiError && err.status === 409 && /manager/i.test(msg)) {
+        toast.error(t('profile.teamHasManager'));
+      } else if (err instanceof ApiError && err.status === 409 && /email/i.test(msg)) {
+        toast.error(t('profile.emailInUse'));
+      } else {
+        toast.error(t('profile.teammateAddFailed'));
+      }
     },
   });
 
@@ -405,7 +414,9 @@ function TeamSection() {
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <RoleBadge role={member.role} />
-                  {member.id !== user?.id ? (
+                  {/* Only the MANAGER can be paused from here: a co-owner is
+                      MDG's to change, and the server refuses it. */}
+                  {member.id !== user?.id && member.role === 'dealer-staff' ? (
                     <button
                       type="button"
                       onClick={() => toggle.mutate(member)}

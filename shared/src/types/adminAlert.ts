@@ -40,6 +40,8 @@ export const ADMIN_ALERT_KINDS = [
   'outdated_copy',
   /** Somebody wrote back to our WhatsApp number and nobody has read it. */
   'whatsapp_reply',
+  /** The AI raised a ticket — a dealer question only a person can settle — and nobody has resolved it. */
+  'ticket_open',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -127,6 +129,13 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   outdated_copy: {
     label: 'Outdated copy',
     clearsWhen: 'Clears when the corrected copy is sent.',
+    superAdminOnly: false,
+  },
+  ticket_open: {
+    label: 'Ticket',
+    // Hiding the alert does NOT resolve the ticket. Only a person writing a
+    // resolution note on the ticket does.
+    clearsWhen: 'Clears when someone resolves the ticket with a note.',
     superAdminOnly: false,
   },
   // Super-admin only, like the film pages and the site assistant's leads: the

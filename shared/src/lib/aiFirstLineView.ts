@@ -207,6 +207,8 @@ export const AI_HANDOFF_REASON_LABEL: Record<AiHandoffReason, string> = {
   bad_router_output: 'The model returned something that is not a valid plan',
   model_error: 'The model call failed',
   vendor_busy: 'The vendor was busy or too slow',
+  escalated: 'It read the records and decided a person must handle this',
+  could_not_verify: 'It could not prove every figure in its answer, so it did not send it',
 };
 
 /**
@@ -248,6 +250,7 @@ const FAULT_REASONS: ReadonlySet<AiHandoffReason> = new Set<AiHandoffReason>([
   'bad_router_output',
   'guard_out',
   'vendor_busy',
+  'could_not_verify',
 ]);
 
 export function aiReasonTone(reason: AiHandoffReason | undefined | null): AiTone {

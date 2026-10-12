@@ -63,8 +63,8 @@ export interface ComposerProps {
    * Show the one-tap question chips above the input.
    *
    * The caller decides, and it says NO on an empty thread: the empty state
-   * already offers its own three chips (`MessageList`'s `onQuickAction`), and
-   * two sets on one screen is six chips and no clear first move.
+   * already offers its own two chips (`MessageList`'s `onQuickAction`), and
+   * two sets on one screen is four chips and no clear first move.
    */
   showQuickReplies?: boolean;
 }
@@ -327,7 +327,7 @@ export function Composer({
   // The gate is `text.length`, not `text.trim().length`: the first keystroke
   // hides them, whatever it was.
   //
-  // WHY THESE THREE, AND WHY "Sent today's photo?" IS NO LONGER ONE OF THEM.
+  // WHY THESE TWO, AND WHY "Sent today's photo?" IS NO LONGER ONE OF THEM.
   // A chip is worth its row only if it is a question a dealer actually asks AND
   // one nothing else on the screen already answers. The photo chip failed the
   // second test twice over. `features/asks/AskBar` sits directly above this
@@ -344,18 +344,14 @@ export function Composer({
   // it — the papers owed, the register page, and where the report stands — so
   // the chip finally names something the machine can do and the bar cannot.
   //
-  // STILL THREE, AND THEY STILL ONLY FILL THE BOX. A conversational first line
-  // is an argument for FEWER fixed chips, not more: the whole point is that the
-  // dealer can now type their own question and be understood, so a menu of
-  // canned ones would teach them the opposite. These three earn their place as a
-  // keyboard shortcut for the three things typed most often on a Devanagari
-  // phone keyboard — not as the interface. The composer is the interface.
+  // THEY ONLY FILL THE BOX. A conversational first line is an argument for
+  // FEWER fixed chips, not more: the whole point is that the dealer can now type
+  // their own question and be understood, so a menu of canned ones would teach
+  // them the opposite. These two earn their place as a keyboard shortcut for the
+  // two things typed most often on a Devanagari phone keyboard — not as the
+  // interface. The composer is the interface.
   const quickReplies = React.useMemo(
-    () => [
-      t('chat.quickTodayReport'),
-      t('chat.quickWhatNow'),
-      t('chat.quickTalkSupport'),
-    ],
+    () => [t('chat.quickTodayReport'), t('chat.quickWhatNow')],
     [t],
   );
   const showChips =
@@ -1068,10 +1064,10 @@ export function Composer({
 
       {showChips ? (
         // Scrolls sideways rather than wrapping, exactly like the staged
-        // attachment strip above. The three Hindi labels come to roughly 430px
-        // and a cheap phone is 360px wide, so wrapping would push the input a
-        // whole row down the screen every time the box was empty; a third chip
-        // half in view is the affordance that says there is more to the right.
+        // attachment strip above. Hindi labels run long and a cheap phone is
+        // 360px wide, so wrapping would push the input a whole row down the
+        // screen every time the box was empty; a chip half in view is the
+        // affordance that says there is more to the right.
         <div className="flex gap-2 overflow-x-auto overscroll-contain px-3 pt-3 scrollbar-thin">
           {quickReplies.map((label) => (
             <button
