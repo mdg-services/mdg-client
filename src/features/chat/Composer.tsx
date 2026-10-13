@@ -32,6 +32,7 @@ import {
   type StartResult,
 } from '@/lib/useVoiceRecorder';
 import { MAX_VOICE_DURATION_MS } from '@dk/shared/schemas';
+import type { Message } from '@dk/shared/types';
 
 import { StagedAttachmentChip, type StagedFile } from './AttachmentPreview';
 import { AttachSheet, type AttachChoice } from './AttachSheet';
@@ -43,6 +44,47 @@ export interface ComposerReplyPreview {
   senderLabel: string;
   text: string;
   icon: ReplyPreviewIcon;
+  /**
+   * Do not summon the keyboard when this reply starts. Set when the reply was
+   * raised by an ANSWER to one of MDG's requests — the photo is already in hand
+   * and on its way to the preview, and a keyboard that opens over it is in the way
+   * of the one thing asked. A reply the dealer starts by swiping a request is an
+   * ordinary one: they are about to type.
+   */
+  quiet?: boolean;
+}
+
+/**
+ * What the chat screen can ask the composer to do on its own.
+ *
+ * Each opens a file chooser for a request MDG posted ("Send photo", "Choose
+ * file", "Choose from gallery"), and a chooser has to be opened INSIDE the tap
+ * that asked for it — the Android System WebView drops one opened from an effect
+ * or from a state change a render later. A request's button lives in a message
+ * bubble far from this component's private file inputs, so the composer hands the
+ * chat screen a way to click them in the same call.
+ *
+ * THE REQUEST IS NOT THE REPLY TARGET YET. Pressing a button only opens a
+ * chooser, and the chooser can be left with nothing chosen — a cancelled camera
+ * fires no event at all. If the request became the reply target at the tap, a
+ * cancel would leave it quoted above the box, and the next photo the dealer sent
+ * for any reason would go out as the answer to it (a register page is then filed
+ * and received automatically; a paper lands as "sent" for a person to check).
+ * So the composer holds the request as PENDING, and only when a file really
+ * arrives does it tell the chat screen (`onAnswerPicked`) to make it the reply
+ * target. Closing the preview, or taking the file back off the chip, hands it
+ * back (`onAnswerDropped`).
+ *
+ * All three do nothing while the composer cannot send — no thread yet, or a voice
+ * note being recorded: a camera that opens over a live recording ends it.
+ */
+export interface ComposerHandle {
+  /** Open the rear camera for this request. */
+  openCamera: (ask: Message) => void;
+  /** Open the phone's files for this request: a photo or a PDF, one at a time. */
+  openFiles: (ask: Message) => void;
+  /** Open the phone's photos for this request: one picture, no camera. */
+  openGallery: (ask: Message) => void;
 }
 
 export interface ComposerProps {
@@ -61,6 +103,17 @@ export interface ComposerProps {
   replyingTo?: ComposerReplyPreview | null;
   onCancelReply?: () => void;
   /**
+   * A file has arrived for the request the dealer pressed a button on (see
+   * {@link ComposerHandle}): the caller makes that request the reply target, so
+   * the quote on the sent message and `answersAsk` both come from it.
+   */
+  onAnswerPicked?: (ask: Message) => void;
+  /**
+   * The dealer backed out of that answer — closed the preview or removed the
+   * file — before sending it. The caller lets go of the reply target it set.
+   */
+  onAnswerDropped?: (ask: Message) => void;
+  /**
    * Show the one-tap question chips above the input.
    *
    * The caller decides, and it says NO on an empty thread: the empty state
@@ -72,6 +125,13 @@ export interface ComposerProps {
 
 /** What the Document choice offers. Photos have their own two doors. */
 const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.txt';
+
+/**
+ * What "Choose file" on a request offers: a picture or a PDF, the two things MDG
+ * can file against a request. (No Word or Excel here — they cannot be, and a
+ * picker that offers them is a way to send a file nobody can use.)
+ */
+const ASK_FILE_ACCEPT = 'image/*,application/pdf';
 
 /** The server's ceiling on attachments in one message. */
 const MAX_ATTACHMENTS = 10;
@@ -219,17 +279,22 @@ const REPLY_ICONS: Record<Exclude<ReplyPreviewIcon, null>, typeof Camera> = {
   file: FileText,
 };
 
-export function Composer({
-  onSend,
-  onTyping,
-  disabled,
-  sending,
-  initialText,
-  initialTextKey,
-  replyingTo,
-  onCancelReply,
-  showQuickReplies,
-}: ComposerProps) {
+export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function Composer(
+  {
+    onSend,
+    onTyping,
+    disabled,
+    sending,
+    initialText,
+    initialTextKey,
+    replyingTo,
+    onCancelReply,
+    onAnswerPicked,
+    onAnswerDropped,
+    showQuickReplies,
+  },
+  handleRef,
+) {
   const t = useT();
   const toast = useToast();
   const [text, setText] = React.useState(initialText ?? '');
@@ -244,6 +309,19 @@ export function Composer({
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const galleryRef = React.useRef<HTMLInputElement>(null);
+  // "Choose file" on a request: one picture or PDF, nothing else.
+  const askFileRef = React.useRef<HTMLInputElement>(null);
+  // "Choose from gallery" on a photo-only request: one picture, no camera.
+  const askGalleryRef = React.useRef<HTMLInputElement>(null);
+  // The request whose button the dealer pressed and whose chooser is open, with
+  // nothing chosen yet, and WHICH chooser it opened. Only a file arriving from
+  // that same chooser turns it into an answer.
+  const pendingAnswerRef = React.useRef<{
+    ask: Message;
+    input: React.RefObject<HTMLInputElement | null>;
+  } | null>(null);
+  // The request a file really arrived for, until that answer is sent or dropped.
+  const answeringRef = React.useRef<Message | null>(null);
   const micBtnRef = React.useRef<HTMLButtonElement>(null);
   const hintRef = React.useRef<HTMLDivElement>(null);
   const recorder = useVoiceRecorder();
@@ -314,9 +392,11 @@ export function Composer({
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   }, [text]);
 
-  // Starting a reply focuses the input (WhatsApp behaviour: swipe → type).
+  // Starting a reply focuses the input (WhatsApp behaviour: swipe → type) —
+  // except the one an answer to one of MDG's requests raises, whose photo is
+  // already in hand.
   React.useEffect(() => {
-    if (replyingTo) textareaRef.current?.focus();
+    if (replyingTo && !replyingTo.quiet) textareaRef.current?.focus();
   }, [replyingTo]);
 
   // Whatever is still waiting when the screen goes away has nowhere to be sent
@@ -346,19 +426,17 @@ export function Composer({
   // WHY THESE TWO, AND WHY "Sent today's photo?" IS NO LONGER ONE OF THEM.
   // A chip is worth its row only if it is a question a dealer actually asks AND
   // one nothing else on the screen already answers. The photo chip failed the
-  // second test twice over. `features/asks/AskBar` sits directly above this
-  // conversation and, whenever a paper is owed, says so in one line and opens
-  // the camera on tap — so the chip asked the machine to describe a chore the
-  // bar was already showing, which is the same "two lines about one chore"
-  // mistake that got `DensityChatPin` unmounted. And when nothing was owed, its
-  // answer was one fixed sentence.
+  // second test twice over. When a photo is owed, the request itself is in the
+  // thread — a message with its own "Send photo" button — so the chip asked the
+  // machine to describe a chore the thread was already showing, and when nothing
+  // was owed its answer was one fixed sentence.
   //
   // "What do I need to do?" replaces it because it is the question the live
   // incident was about: at dealer 1E it was answered with "I couldn't check this
   // one myself. I've passed it to the MDG team…" and the thread went to a person
   // on the dealer's SECOND message. It now has a label of its own that answers
   // it — the papers owed, the register page, and where the report stands — so
-  // the chip finally names something the machine can do and the bar cannot.
+  // the chip finally names something the machine can do.
   //
   // THEY ONLY FILL THE BOX. A conversational first line is an argument for
   // FEWER fixed chips, not more: the whole point is that the dealer can now type
@@ -388,7 +466,11 @@ export function Composer({
   // goes, and a stray PDF that comes out of the Gallery is still a paper.
   const handlePickFiles = (
     files: FileList | null,
-    opts?: { fromCamera?: boolean },
+    opts?: {
+      fromCamera?: boolean;
+      /** The chooser the files came from, when a request's button can open it. */
+      via?: React.RefObject<HTMLInputElement | null>;
+    },
   ) => {
     if (!files || files.length === 0) return;
     const picked: StagedFile[] = [];
@@ -419,9 +501,41 @@ export function Composer({
     const papers = accepted.filter((s) => s.kind !== 'image');
     if (papers.length > 0) setStaged((curr) => [...curr, ...papers]);
     if (photos.length > 0) setPreview((curr) => [...curr, ...photos]);
+    // A FILE HAS REALLY ARRIVED, so a request the dealer pressed a button on is
+    // now being answered — and only now does it become the reply target.
+    const pending = pendingAnswerRef.current;
+    pendingAnswerRef.current = null;
+    if (pending && pending.input === opts?.via && accepted.length > 0) {
+      answeringRef.current = pending.ask;
+      onAnswerPicked?.(pending.ask);
+    }
     if (fileRef.current) fileRef.current.value = '';
     if (cameraRef.current) cameraRef.current.value = '';
     if (galleryRef.current) galleryRef.current.value = '';
+    if (askFileRef.current) askFileRef.current.value = '';
+    if (askGalleryRef.current) askGalleryRef.current.value = '';
+  };
+
+  /**
+   * Let go of a request that was being answered but will not be, now.
+   *
+   * Told to the caller, who set the reply target (`onAnswerPicked`) and is the
+   * only one who can take it back. Safe to call with nothing being answered.
+   */
+  const dropAnswer = () => {
+    const ask = answeringRef.current;
+    if (!ask) return;
+    answeringRef.current = null;
+    onAnswerDropped?.(ask);
+  };
+
+  /**
+   * The dealer went to a chooser of their own. Whatever a request's button
+   * opened last and never got an answer from (a cancelled camera sends nothing)
+   * is no longer what they are doing — the next file is theirs, not the answer.
+   */
+  const forgetPendingAnswer = () => {
+    pendingAnswerRef.current = null;
   };
 
   const removeStaged = (id: string) => {
@@ -430,6 +544,8 @@ export function Composer({
       if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
       return curr.filter((s) => s.id !== id);
     });
+    // Taking the last file off leaves nothing to answer with.
+    if (staged.length <= 1 && preview.length === 0) dropAnswer();
   };
 
   /** ✕ on one thumbnail of the preview. Dropping the last one closes it. */
@@ -439,6 +555,7 @@ export function Composer({
       if (removed?.previewUrl) URL.revokeObjectURL(removed.previewUrl);
       return curr.filter((s) => s.id !== id);
     });
+    if (preview.length <= 1 && staged.length === 0) dropAnswer();
   };
 
   /** Back / ✕ on the preview: nothing is kept. */
@@ -447,11 +564,14 @@ export function Composer({
       revokeNow(curr);
       return [];
     });
+    // A paper already waiting as a chip still goes with its request.
+    if (staged.length === 0) dropAnswer();
   };
 
   /** One door of the attach card: close it, open the matching chooser. */
   const chooseAttachment = (choice: AttachChoice) => {
     setAttachOpen(false);
+    forgetPendingAnswer();
     // Clicked HERE, in the same tap — a chooser opened a beat later is refused
     // by the browser as not being the result of a gesture.
     const input =
@@ -491,6 +611,10 @@ export function Composer({
     try {
       await onSend(body, outgoing);
       revokeNow(items);
+      // The request was answered by that send; nothing is left to take back. (On
+      // a failure it stays: the caller gives the reply target back with the
+      // photo, and removing the photo must still let go of it.)
+      answeringRef.current = null;
     } catch {
       setText((current) => (current ? current : body));
       setStaged((current) => (current.length > 0 ? current : items));
@@ -1086,6 +1210,26 @@ export function Composer({
     finishAndSendRef.current();
   }, [recMode, recorder.elapsedMs, toast, t]);
 
+  // The way in for a request's "Send photo" / "Choose file" / "Choose from
+  // gallery" (see ComposerHandle). The click happens HERE, synchronously, in
+  // whatever tap called it — the request is only remembered, not yet answered.
+  React.useImperativeHandle(
+    handleRef,
+    () => {
+      const open = (input: React.RefObject<HTMLInputElement | null>, ask: Message) => {
+        if (disabled || recMode !== 'idle') return;
+        pendingAnswerRef.current = { ask, input };
+        input.current?.click();
+      };
+      return {
+        openCamera: (ask) => open(cameraRef, ask),
+        openFiles: (ask) => open(askFileRef, ask),
+        openGallery: (ask) => open(askGalleryRef, ask),
+      };
+    },
+    [disabled, recMode],
+  );
+
   const ReplyIcon = replyingTo?.icon ? REPLY_ICONS[replyingTo.icon] : null;
 
   // The round green button beside the box, and the one control it is at a time:
@@ -1163,7 +1307,28 @@ export function Composer({
         accept="image/*"
         capture="environment"
         className="hidden"
-        onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true })}
+        onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true, via: cameraRef })}
+      />
+      {/* "Choose file" on a request. One file: MDG files one picture or PDF per
+          answer, so a picker that took ten would promise pages that never get
+          read. A picture goes to the preview like any other; a PDF to a chip. */}
+      <input
+        ref={askFileRef}
+        type="file"
+        accept={ASK_FILE_ACCEPT}
+        className="hidden"
+        onChange={(e) => handlePickFiles(e.target.files, { via: askFileRef })}
+      />
+      {/* "Choose from gallery" on a request that takes only a photo (a register
+          page, a Kavach picture). The camera is not the only way to have one: the
+          dealer has often photographed it already. One picture, for the same
+          reason as above, and no `capture` — that is what would force the camera. */}
+      <input
+        ref={askGalleryRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handlePickFiles(e.target.files, { via: askGalleryRef })}
       />
 
       {recMode === 'locked' ? (
@@ -1252,7 +1417,10 @@ export function Composer({
               <button
                 type="button"
                 aria-label={t('composer.attach')}
-                onClick={() => setAttachOpen(true)}
+                onClick={() => {
+                  forgetPendingAnswer();
+                  setAttachOpen(true);
+                }}
                 className="flex h-12 w-11 shrink-0 items-center justify-center text-wa-bar-icon active:opacity-60 disabled:opacity-40"
                 disabled={disabled}
               >
@@ -1264,7 +1432,10 @@ export function Composer({
                 <button
                   type="button"
                   aria-label={t('chat.takePhoto')}
-                  onClick={() => cameraRef.current?.click()}
+                  onClick={() => {
+                    forgetPendingAnswer();
+                    cameraRef.current?.click();
+                  }}
                   className="flex h-12 w-11 shrink-0 items-center justify-center pr-1 text-wa-bar-icon active:opacity-60 disabled:opacity-40"
                   disabled={disabled}
                 >
@@ -1382,4 +1553,4 @@ export function Composer({
       ) : null}
     </div>
   );
-}
+});

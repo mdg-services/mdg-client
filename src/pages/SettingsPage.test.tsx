@@ -13,13 +13,6 @@ vi.mock('@/lib/api', async (orig) => {
   return { ...actual, api: { ...actual.api, get: vi.fn(), patch: vi.fn() } };
 });
 
-const h = vi.hoisted(() => ({
-  density: undefined as { attached: boolean } | undefined,
-  kavach: undefined as unknown,
-}));
-vi.mock('@/hooks/api/useDensity', () => ({ useDensityMe: () => ({ data: h.density }) }));
-vi.mock('@/hooks/api/useKavach', () => ({ useKavachMe: () => ({ data: h.kavach }) }));
-
 const { SettingsPage } = await import('./SettingsPage');
 
 /** A stand-in for each place a row leads, so the test reads where a tap went. */
@@ -29,9 +22,6 @@ const DESTINATIONS = [
   '/settings/team',
   '/services',
   '/staff',
-  '/documents',
-  '/density',
-  '/kavach',
   '/login',
 ];
 
@@ -56,8 +46,6 @@ const rows = () =>
     .map((b) => b.textContent ?? '');
 
 beforeEach(() => {
-  h.density = undefined;
-  h.kavach = undefined;
   vi.mocked(api.patch).mockResolvedValue({} as never);
   // The sheets lock the page's scroll, and jsdom has no `scrollTo` to do it with.
   vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
@@ -65,8 +53,6 @@ beforeEach(() => {
 
 afterEach(() => {
   resetStores();
-  h.density = undefined;
-  h.kavach = undefined;
 });
 
 describe('SettingsPage — what is on it', () => {
@@ -81,7 +67,6 @@ describe('SettingsPage — what is on it', () => {
       'Your team',
       'Your services',
       'Warriors & points',
-      'Your papers',
       'Help',
       'Log out',
     ];
@@ -126,40 +111,22 @@ describe('SettingsPage — what is on it', () => {
     expect(screen.getByText('Warriors & points')).toBeInTheDocument();
   });
 
-  describe('the rows that depend on the pump', () => {
-    beforeEach(() => signIn({ role: 'dealer-owner' }));
-
-    it('has no Density register and no Pump health by default', () => {
+  // MDG asks for papers, the register page and Pump health photos IN THE CHAT now,
+  // so Settings has no door to a screen for any of them. A row coming back would
+  // be a screen the app no longer has.
+  it.each(['Your papers', 'Density register', 'Pump health'])(
+    'has no "%s" row — that is asked in the chat now',
+    (title) => {
+      signIn({ role: 'dealer-owner' });
       renderSettings();
-      expect(screen.queryByText('Density register')).not.toBeInTheDocument();
-      expect(screen.queryByText('Pump health')).not.toBeInTheDocument();
-    });
+      expect(screen.queryByText(title)).not.toBeInTheDocument();
+    },
+  );
 
-    it('shows the Density register once the service is attached', () => {
-      h.density = { attached: true };
-      renderSettings();
-      expect(screen.getByText('Density register')).toBeInTheDocument();
-    });
-
-    it('leaves it out when the service exists but is not attached', () => {
-      h.density = { attached: false };
-      renderSettings();
-      expect(screen.queryByText('Density register')).not.toBeInTheDocument();
-    });
-
-    // Pump health is the dealer's only way to answer MDG's "send us a photo"
-    // requests, so the row exists exactly when a programme does.
-    it('shows Pump health when the pump has a Kavach programme', () => {
-      h.kavach = { programme: { id: 'p1' }, items: [] };
-      renderSettings();
-      expect(screen.getByText('Pump health')).toBeInTheDocument();
-    });
-
-    it.each([[null], [undefined]])('leaves Pump health out when the programme is %s', (value) => {
-      h.kavach = value;
-      renderSettings();
-      expect(screen.queryByText('Pump health')).not.toBeInTheDocument();
-    });
+  it('never asks the server about the density service or a Kavach programme', () => {
+    signIn({ role: 'dealer-owner' });
+    renderSettings();
+    expect(api.get).not.toHaveBeenCalled();
   });
 
   it('says so, with the bar still on screen, when nobody is signed in', () => {
@@ -172,8 +139,6 @@ describe('SettingsPage — what is on it', () => {
 describe('SettingsPage — where a row goes', () => {
   beforeEach(() => {
     signIn({ role: 'dealer-owner', name: 'Ramesh Kumar' });
-    h.density = { attached: true };
-    h.kavach = { programme: { id: 'p1' }, items: [] };
   });
 
   it.each([
@@ -182,22 +147,10 @@ describe('SettingsPage — where a row goes', () => {
     ['Your team', '/settings/team'],
     ['Your services', '/services'],
     ['Warriors & points', '/staff'],
-    ['Your papers', '/documents'],
-    ['Density register', '/density'],
-    ['Pump health', '/kavach'],
   ])('%s opens %s', (title, path) => {
     renderSettings();
     fireEvent.click(screen.getByText(title).closest('button')!);
     expect(screen.getByText(`went:${path}`)).toBeInTheDocument();
-  });
-
-  // `/documents`, not `/asks`: both render the same page, and `/documents` is
-  // the name the notifications already on phones use.
-  it('opens the papers screen by its notification-safe name', () => {
-    renderSettings();
-    fireEvent.click(screen.getByText('Your papers').closest('button')!);
-    expect(screen.queryByText('went:/asks')).not.toBeInTheDocument();
-    expect(screen.getByText('went:/documents')).toBeInTheDocument();
   });
 
   it('opens the video guide outside the app, in the dealer\'s language', () => {

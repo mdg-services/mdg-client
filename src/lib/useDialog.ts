@@ -7,17 +7,17 @@ import { useScrollLock } from './useScrollLock';
  * Everything that makes an overlay a real dialog rather than a div that happens
  * to be on top.
  *
- * NONE OF THE APP'S SIX EXISTING SHEETS DOES ANY OF THIS. `DensityCaptureSheet`,
- * `MessageActionsSheet`, `ReactionsSheet`, `MessageInfoSheet`, `FinalizeSubmitSheet`
- * and `EditWorkerDialog` are all `fixed inset-0` divs with a backdrop button:
+ * NONE OF THE APP'S FIVE EXISTING SHEETS DOES ANY OF THIS. `MessageActionsSheet`,
+ * `ReactionsSheet`, `MessageInfoSheet`, `FinalizeSubmitSheet` and
+ * `EditWorkerDialog` are all `fixed inset-0` divs with a backdrop button:
  * no `role`, no `aria-modal`, focus left wherever it was, and Escape doing
  * nothing. On a phone that is survivable; with a keyboard attached, or a screen
  * reader, or Android's TalkBack, it means the reader keeps announcing the page
  * behind the sheet and Tab walks straight out of it into controls the dealer
  * cannot see.
  *
- * This is written as a hook, not inlined into one sheet, precisely so the other
- * six can adopt it one at a time without anybody re-deriving the four rules:
+ * This is written as a hook, not inlined into one sheet, precisely so the others
+ * can adopt it one at a time without anybody re-deriving the four rules:
  *
  *  1. `role="dialog"` + `aria-modal="true"` on the panel, so assistive
  *     technology stops reading the page behind it. (The caller sets these; they
@@ -56,8 +56,8 @@ export function useDialog(onClose: () => void): React.RefObject<HTMLDivElement> 
 
   React.useEffect(() => {
     const panel = panelRef.current;
-    // Whatever the dealer was on when they opened this — the camera button, the
-    // ask bar — so it can be handed back on close.
+    // Whatever the dealer was on when they opened this — the camera button, say —
+    // so it can be handed back on close.
     const returnTo = document.activeElement as HTMLElement | null;
 
     // Focus the PANEL, not its first button. Landing on a button means a stray

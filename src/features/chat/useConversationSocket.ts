@@ -1,6 +1,7 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
+import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
@@ -162,7 +163,15 @@ export function useConversationSocket(
     // `useMessages`), so there is nothing left to protect by waiting.
     const offReconnect = onSocketReconnect(socket, () => {
       void qc.invalidateQueries({ queryKey: messagesQueryKey(conversationId) });
+      // Where MDG's requests stand can have moved while we were away too (a
+      // paper marked received, one sent back) — and the buttons on those
+      // messages are drawn from it.
+      invalidateChatAskStates(qc, conversationId);
     });
+
+    // Rechecks waiting on the server to finish filing a colleague's answer; they
+    // go with the room, like the typing timer below.
+    const recheckTimers = new Set<number>();
 
     const onNewMessage = (payload: { message: Message; conversation: Conversation }) => {
       if (payload.message.conversationId !== conversationId) return;
@@ -214,6 +223,26 @@ export function useConversationSocket(
         pages[0] = [payload.message, ...(pages[0] ?? [])];
         return { ...old, pages };
       });
+      // A MESSAGE FROM SOMEONE ELSE MAY HAVE MOVED A REQUEST: MDG's "✓ Received",
+      // a photo sent back with its reason, a new ask — or a colleague at the pump
+      // answering it. The request buttons are drawn from the server's answer to
+      // "where does this stand", so ask again. Not for the dealer's own message —
+      // answering sets its own state (`markAskSent`), and asking while the server
+      // is still filing the photo would put the button back for a moment.
+      //
+      // A COLLEAGUE'S ANSWER IS THE SAME CASE AS OURS, seen from the other phone:
+      // the server is still filing the photo as the message lands, so asking now
+      // says `open` and nothing asks again. Show it as sent and ask once it has
+      // had time, exactly as a send from this phone does.
+      if (!alreadyPresent && payload.message.senderId !== currentUserId) {
+        const answered = payload.message.answersAsk;
+        if (answered && payload.message.senderRole !== 'admin') {
+          const timer = markAskSentThenRecheck(qc, conversationId, answered);
+          recheckTimers.add(timer);
+        } else {
+          invalidateChatAskStates(qc, conversationId);
+        }
+      }
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {
@@ -311,6 +340,8 @@ export function useConversationSocket(
       socket.off('message:reaction', onReaction);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = null;
+      for (const timer of recheckTimers) window.clearTimeout(timer);
+      recheckTimers.clear();
       // THE DOTS COME DOWN WITH THE ROOM. This used to clear the TIMER and leave
       // the state, so dots raised on the thread you were leaving were still
       // drawn on the thread you opened — and with the timer gone, nothing was

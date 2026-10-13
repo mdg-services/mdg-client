@@ -3,9 +3,9 @@ import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLangStore } from '@/store/lang';
-import { renderWithProviders } from '@/test/utils';
+import { makeMessage, renderWithProviders } from '@/test/utils';
 
-import { Composer } from './Composer';
+import { Composer, type ComposerHandle } from './Composer';
 
 // Unmount BEFORE the shared teardown resets the language store: that reset runs
 // first otherwise, and re-renders a still-mounted component outside `act`.
@@ -1000,5 +1000,407 @@ describe('Composer — photos go through the preview', () => {
     fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
     expect(onSend).not.toHaveBeenCalled();
     expect(within(previewDialog()).getByAltText('a.jpg')).toBeInTheDocument();
+  });
+});
+
+/**
+ * A request's "Send photo" lives in a message bubble, far from this component's
+ * private file inputs. The chat screen reaches them through a handle — and the
+ * click on the input has to happen INSIDE the tap that asked for it, because the
+ * Android System WebView drops a picker opened from an effect or a later render.
+ *
+ * The request is only REMEMBERED at the tap. It becomes the reply target when a
+ * file really arrives (`onAnswerPicked`) and is let go if the dealer backs out
+ * (`onAnswerDropped`): a cancelled camera fires no event, so a reply target set at
+ * the tap would sit above the box and claim whatever photo came next.
+ */
+describe('Composer — answering a request (the handle)', () => {
+  const file = (name: string, type: string) => new File(['x'], name, { type });
+  const ask = makeMessage({
+    id: 'ask-msg',
+    senderId: 'system-user',
+    senderRole: 'admin',
+    system: true,
+    body: 'MDG needs your Fire NOC.',
+    ask: { ref: 'doc:ask1', kind: 'document', title: 'Fire NOC', acceptsFile: true },
+  });
+  const otherAsk = makeMessage({
+    id: 'ask-2',
+    senderId: 'system-user',
+    senderRole: 'admin',
+    system: true,
+    body: 'MDG needs the register page.',
+    ask: { ref: 'reg:2026-10-11', kind: 'register', title: 'Register page' },
+  });
+  let seq = 0;
+
+  function inputs(container: HTMLElement) {
+    const all = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]'));
+    return {
+      camera: container.querySelector<HTMLInputElement>('input[capture]')!,
+      ask: all.find((i) => i.accept === 'image/*,application/pdf')!,
+      // The attach card's Gallery takes many pictures; a request's takes one.
+      gallery: all.find((i) => i.accept === 'image/*' && !i.hasAttribute('capture') && i.multiple)!,
+      askGallery: all.find((i) => i.accept === 'image/*' && !i.hasAttribute('capture') && !i.multiple)!,
+    };
+  }
+  const previewDialog = () => screen.getByRole('dialog', { name: 'Image preview' });
+
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.supported = true;
+    recorder.status = 'idle';
+    seq = 0;
+    URL.createObjectURL = vi.fn(() => `blob:ask-${(seq += 1)}`);
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  function mountWithHandle(props: Partial<React.ComponentProps<typeof Composer>> = {}) {
+    const ref = React.createRef<ComposerHandle>();
+    const utils = renderWithProviders(<Composer ref={ref} onSend={vi.fn()} {...props} />);
+    return { ref, ...utils };
+  }
+
+  it('openCamera() clicks the rear-camera input before it returns — not later', () => {
+    const { ref, container } = mountWithHandle();
+    const { camera } = inputs(container);
+    const click = vi.spyOn(camera, 'click');
+
+    ref.current!.openCamera(ask);
+
+    // No await, no act, no timer between the call and the click.
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(camera.getAttribute('capture')).toBe('environment');
+  });
+
+  it('openFiles() clicks a picture-or-PDF input that takes ONE file', () => {
+    const { ref, container } = mountWithHandle();
+    const { ask: askInput, camera } = inputs(container);
+    const click = vi.spyOn(askInput, 'click');
+    const cameraClick = vi.spyOn(camera, 'click');
+
+    ref.current!.openFiles(ask);
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(cameraClick).not.toHaveBeenCalled();
+    // One file: MDG files one picture or PDF per answer.
+    expect(askInput.multiple).toBe(false);
+    expect(askInput.accept).toBe('image/*,application/pdf');
+  });
+
+  it('openGallery() clicks an input for ONE picture that is not the camera', () => {
+    const { ref, container } = mountWithHandle();
+    const { askGallery, camera, ask: askInput } = inputs(container);
+    const click = vi.spyOn(askGallery, 'click');
+    const cameraClick = vi.spyOn(camera, 'click');
+    const askClick = vi.spyOn(askInput, 'click');
+
+    ref.current!.openGallery(ask);
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(cameraClick).not.toHaveBeenCalled();
+    expect(askClick).not.toHaveBeenCalled();
+    // Photos only (no PDF: a register page is a picture), no `capture` (that is
+    // what would force the camera), and one at a time.
+    expect(askGallery.accept).toBe('image/*');
+    expect(askGallery.hasAttribute('capture')).toBe(false);
+    expect(askGallery.multiple).toBe(false);
+  });
+
+  it('does nothing while the composer cannot send', () => {
+    const { ref, container } = mountWithHandle({ disabled: true });
+    const { camera, ask: askInput, askGallery } = inputs(container);
+    const cameraClick = vi.spyOn(camera, 'click');
+    const askClick = vi.spyOn(askInput, 'click');
+    const galleryClick = vi.spyOn(askGallery, 'click');
+
+    ref.current!.openCamera(ask);
+    ref.current!.openFiles(ask);
+    ref.current!.openGallery(ask);
+
+    expect(cameraClick).not.toHaveBeenCalled();
+    expect(askClick).not.toHaveBeenCalled();
+    expect(galleryClick).not.toHaveBeenCalled();
+  });
+
+  it('does nothing while a voice note is being recorded — a camera would end it', async () => {
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      return Promise.resolve({ ok: true as const, session: recorder.session });
+    });
+    const { ref, container } = mountWithHandle();
+    const { camera } = inputs(container);
+    const cameraClick = vi.spyOn(camera, 'click');
+
+    // A tap on the mic starts hands-free recording.
+    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerUp(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    await screen.findByRole('button', { name: 'Send voice message' });
+
+    ref.current!.openCamera(ask);
+    expect(cameraClick).not.toHaveBeenCalled();
+  });
+
+  it('a photo from the camera goes through the same full-screen preview', () => {
+    const { container } = mountWithHandle();
+    fireEvent.change(inputs(container).camera, {
+      target: { files: [file('IMG_5.jpg', 'image/jpeg')] },
+    });
+    expect(screen.getByRole('dialog', { name: 'Image preview' })).toBeInTheDocument();
+  });
+
+  it('a picture chosen with "Choose file" goes to the same preview', () => {
+    const { container } = mountWithHandle();
+    const { ask: askInput } = inputs(container);
+
+    fireEvent.change(askInput, { target: { files: [file('noc.png', 'image/png')] } });
+    expect(
+      within(screen.getByRole('dialog', { name: 'Image preview' })).getByAltText('noc.png'),
+    ).toBeInTheDocument();
+  });
+
+  it('a picture chosen from the gallery goes to the same preview', () => {
+    const { container } = mountWithHandle();
+    fireEvent.change(inputs(container).askGallery, {
+      target: { files: [file('register.jpg', 'image/jpeg')] },
+    });
+    expect(within(previewDialog()).getByAltText('register.jpg')).toBeInTheDocument();
+  });
+
+  it('a PDF chosen with "Choose file" waits as a chip, ready to send', async () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { container } = mountWithHandle({ onSend });
+    fireEvent.change(inputs(container).ask, {
+      target: { files: [file('licence.pdf', 'application/pdf')] },
+    });
+
+    expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+    expect(screen.getByText('licence.pdf')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(onSend.mock.calls[0]![1][0]).toMatchObject({ kind: 'file', contentType: 'application/pdf' });
+  });
+
+  describe('the request becomes the reply target only when a file really arrives', () => {
+    it('pressing the button alone raises nothing — a cancelled camera leaves no reply target behind', () => {
+      const onAnswerPicked = vi.fn();
+      const onAnswerDropped = vi.fn();
+      const { ref } = mountWithHandle({ onAnswerPicked, onAnswerDropped });
+
+      ref.current!.openCamera(ask);
+      // The dealer cancels: the browser fires no event at all. Nothing to wait for…
+      expect(onAnswerPicked).not.toHaveBeenCalled();
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+    });
+
+    it('a cancelled camera does not claim the NEXT photo, whichever door it comes through', () => {
+      const onAnswerPicked = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked });
+      ref.current!.openCamera(ask);
+
+      // …then the dealer takes an ordinary photo with the camera beside the box.
+      vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Take a photo' }));
+      fireEvent.change(inputs(container).camera, {
+        target: { files: [file('pump_fault.jpg', 'image/jpeg')] },
+      });
+
+      expect(previewDialog()).toBeInTheDocument();
+      expect(onAnswerPicked).not.toHaveBeenCalled();
+    });
+
+    it('a cancelled camera does not claim a photo picked from the attach card either', () => {
+      const onAnswerPicked = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked });
+      ref.current!.openCamera(ask);
+
+      vi.spyOn(HTMLInputElement.prototype, 'click').mockImplementation(() => {});
+      fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+      fireEvent.click(within(screen.getByRole('dialog', { name: 'Attach' })).getByRole('button', { name: /Gallery/ }));
+      fireEvent.change(inputs(container).gallery, {
+        target: { files: [file('other.jpg', 'image/jpeg')] },
+      });
+
+      expect(onAnswerPicked).not.toHaveBeenCalled();
+    });
+
+    it('the photo that arrives from the camera is the answer: the request is handed up, once', () => {
+      const onAnswerPicked = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked });
+      ref.current!.openCamera(ask);
+      expect(onAnswerPicked).not.toHaveBeenCalled();
+
+      fireEvent.change(inputs(container).camera, {
+        target: { files: [file('IMG_5.jpg', 'image/jpeg')] },
+      });
+
+      expect(onAnswerPicked).toHaveBeenCalledTimes(1);
+      expect(onAnswerPicked).toHaveBeenCalledWith(ask);
+      // A second file (the "+" in the preview) is more of the same answer, not a new one.
+      fireEvent.change(inputs(container).gallery, {
+        target: { files: [file('IMG_6.jpg', 'image/jpeg')] },
+      });
+      expect(onAnswerPicked).toHaveBeenCalledTimes(1);
+    });
+
+    it('a file from "Choose file" and one from the gallery are answers too', () => {
+      const onAnswerPicked = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked });
+
+      ref.current!.openFiles(ask);
+      fireEvent.change(inputs(container).ask, {
+        target: { files: [file('licence.pdf', 'application/pdf')] },
+      });
+      expect(onAnswerPicked).toHaveBeenLastCalledWith(ask);
+
+      ref.current!.openGallery(otherAsk);
+      fireEvent.change(inputs(container).askGallery, {
+        target: { files: [file('register.jpg', 'image/jpeg')] },
+      });
+      expect(onAnswerPicked).toHaveBeenLastCalledWith(otherAsk);
+    });
+
+    it('pressing a second request replaces the first one that was never answered', () => {
+      const onAnswerPicked = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked });
+      ref.current!.openCamera(ask);
+      ref.current!.openGallery(otherAsk);
+
+      fireEvent.change(inputs(container).askGallery, {
+        target: { files: [file('register.jpg', 'image/jpeg')] },
+      });
+
+      expect(onAnswerPicked).toHaveBeenCalledTimes(1);
+      expect(onAnswerPicked).toHaveBeenCalledWith(otherAsk);
+    });
+
+    it('✕ / Back on the preview lets the request go', () => {
+      const onAnswerPicked = vi.fn();
+      const onAnswerDropped = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerPicked, onAnswerDropped });
+      ref.current!.openCamera(ask);
+      fireEvent.change(inputs(container).camera, {
+        target: { files: [file('IMG_5.jpg', 'image/jpeg')] },
+      });
+
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Close preview' }));
+
+      expect(onAnswerDropped).toHaveBeenCalledTimes(1);
+      expect(onAnswerDropped).toHaveBeenCalledWith(ask);
+      // And closing it again (a stray second Back) says nothing more.
+      expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull();
+    });
+
+    it('dropping one of two photos keeps the answer; closing what is left lets it go', () => {
+      const onAnswerDropped = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerDropped });
+      ref.current!.openGallery(otherAsk);
+      fireEvent.change(inputs(container).askGallery, {
+        target: { files: [file('a.jpg', 'image/jpeg')] },
+      });
+      fireEvent.change(inputs(container).gallery, {
+        target: { files: [file('b.jpg', 'image/jpeg')] },
+      });
+
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Remove this photo' }));
+      // One photo is still waiting to go with it.
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Close preview' }));
+      expect(onAnswerDropped).toHaveBeenCalledTimes(1);
+      expect(onAnswerDropped).toHaveBeenCalledWith(otherAsk);
+    });
+
+    it('closing the preview keeps the answer while a PDF chip is still waiting to go with it', () => {
+      const onAnswerDropped = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerDropped });
+      ref.current!.openFiles(ask);
+      fireEvent.change(inputs(container).ask, {
+        target: { files: [file('licence.pdf', 'application/pdf')] },
+      });
+      // A photo of the same paper joins the chip, then the dealer thinks better of it.
+      fireEvent.change(inputs(container).gallery, {
+        target: { files: [file('page2.jpg', 'image/jpeg')] },
+      });
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Close preview' }));
+
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+      expect(screen.getByText('licence.pdf')).toBeInTheDocument();
+    });
+
+    it('taking the PDF chip off lets the request go', () => {
+      const onAnswerDropped = vi.fn();
+      const { ref, container } = mountWithHandle({ onAnswerDropped });
+      ref.current!.openFiles(ask);
+      fireEvent.change(inputs(container).ask, {
+        target: { files: [file('licence.pdf', 'application/pdf')] },
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'Remove attachment' }));
+
+      expect(onAnswerDropped).toHaveBeenCalledWith(ask);
+    });
+
+    it('sending the answer spends the request — nothing is handed back after', async () => {
+      const onAnswerDropped = vi.fn();
+      const onSend = vi.fn().mockResolvedValue(undefined);
+      const { ref, container } = mountWithHandle({ onSend, onAnswerDropped });
+      ref.current!.openCamera(ask);
+      fireEvent.change(inputs(container).camera, {
+        target: { files: [file('IMG_5.jpg', 'image/jpeg')] },
+      });
+
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+      await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+      await act(async () => {});
+
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+    });
+
+    it('a send that fails brings the photo back as a chip, and taking that off still lets the request go', async () => {
+      const onAnswerDropped = vi.fn();
+      const onSend = vi.fn().mockRejectedValue(new Error('offline'));
+      const { ref, container } = mountWithHandle({ onSend, onAnswerDropped });
+      ref.current!.openCamera(ask);
+      fireEvent.change(inputs(container).camera, {
+        target: { files: [file('IMG_5.jpg', 'image/jpeg')] },
+      });
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Send' }));
+      const chip = await screen.findByRole('button', { name: 'Remove attachment' });
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+
+      fireEvent.click(chip);
+
+      expect(onAnswerDropped).toHaveBeenCalledWith(ask);
+    });
+
+    it('an ordinary photo, with no request pressed, hands nothing up', () => {
+      const onAnswerPicked = vi.fn();
+      const onAnswerDropped = vi.fn();
+      const { container } = mountWithHandle({ onAnswerPicked, onAnswerDropped });
+      fireEvent.change(inputs(container).gallery, {
+        target: { files: [file('a.jpg', 'image/jpeg')] },
+      });
+      fireEvent.click(within(previewDialog()).getByRole('button', { name: 'Close preview' }));
+      expect(onAnswerPicked).not.toHaveBeenCalled();
+      expect(onAnswerDropped).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('the reply strip for a request', () => {
+    const strip = { senderLabel: 'MDG', text: 'MDG needs your Fire NOC', icon: null } as const;
+
+    it('does not raise the keyboard when the photo is already in hand', () => {
+      renderWithProviders(<Composer onSend={vi.fn()} replyingTo={{ ...strip, quiet: true }} />);
+      expect(screen.getByText('MDG needs your Fire NOC')).toBeInTheDocument();
+      expect(document.activeElement).not.toBe(screen.getByPlaceholderText('Message'));
+    });
+
+    it('still focuses the box for an ordinary reply', () => {
+      renderWithProviders(<Composer onSend={vi.fn()} replyingTo={strip} />);
+      expect(document.activeElement).toBe(screen.getByPlaceholderText('Message'));
+    });
   });
 });

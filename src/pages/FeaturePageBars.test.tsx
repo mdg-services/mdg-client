@@ -12,17 +12,16 @@ vi.mock('@/lib/api', async (orig) => {
   return { ...actual, api: { ...actual.api, get: vi.fn(), post: vi.fn(), patch: vi.fn() } };
 });
 
-const { DensityPage } = await import('./DensityPage');
 const { StaffPage } = await import('./StaffPage');
 
 /**
- * The two feature pages that have no test of their own, held to the one rule
+ * The feature page that has no test of its own, held to the one rule
  * every screen now shares: it draws its own top bar — the title, and a ← that
  * leaves it — because there is no bottom bar to leave by, and the bar is on
  * every state of the page, a failed load included.
  */
 
-function renderAt(path: '/density' | '/staff', page: React.ReactElement) {
+function renderAt(path: '/staff', page: React.ReactElement) {
   signIn({ id: 'owner', dealerId: 'd1', role: 'dealer-owner' });
   useLangStore.setState({ lang: 'en', explicit: true });
   return renderWithProviders(
@@ -40,10 +39,8 @@ beforeEach(() => {
 });
 afterEach(() => resetStores());
 
-// Where ← lands when the page was opened cold: a page a notification can open
-// (density) goes home to the chat list; one only Settings leads to goes there.
+// Where ← lands when the page was opened cold: one only Settings leads to goes there.
 describe.each([
-  ['Density register', '/density' as const, <DensityPage key="d" />, 'We could not open this', 'chat-list'],
   ['Warriors & points', '/staff' as const, <StaffPage key="s" />, "We couldn't load this just now", 'settings-page'],
 ])('%s — its own top bar', (title, path, page, failedTitle, home) => {
   it('is headed by the bar while it loads', () => {

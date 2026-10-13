@@ -1,4 +1,5 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
+import type { MessageAsk } from './chatAsk';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
 
@@ -284,6 +285,19 @@ export interface Message {
   deliveredTo?: string[];
   /** User ids that have read the message (drives the blue ✓✓ "seen" tick). Includes the sender. */
   readBy: string[];
+  /**
+   * Set on an MDG message that ASKS the dealer for something (ADR 0019): the
+   * dealer's app draws a "Send photo" button on it, and the answer goes back as
+   * a reply naming {@link MessageAsk.ref}. An app that predates the field shows
+   * the message's words and nothing more.
+   */
+  ask?: MessageAsk;
+  /**
+   * Set on a DEALER's message that answered one of those requests — the
+   * request's ref (`doc:…`, `reg:…`, `kv:…`). It is what lets the admin inbox
+   * offer "Mark received" for the right request without guessing.
+   */
+  answersAsk?: string;
   /** Emoji reactions; at most one per user (server-enforced). */
   reactions?: MessageReaction[];
   /** Set when this message replies to (quotes) another message in the thread. */

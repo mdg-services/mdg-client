@@ -2,7 +2,6 @@ import * as React from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
 import { Spinner } from '@/components/ui';
-import { AskBar } from '@/features/asks/AskBar';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useMe } from '@/hooks/api/useMe';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
@@ -36,10 +35,10 @@ import { useLangStore } from '@/store/lang';
 export function AppShell() {
   useMe(); // refresh /me when authed
   useConversationsListSocket(); // keep the chat LIST + unread counts live app-wide
-  // …and loaded, wherever the app was opened. A notification can open it cold on
-  // /density or /documents, and every "Message us" there goes straight into the
-  // member's own chat by reading this list (`useOpenMyChat`) — with nothing
-  // loaded it could only fall back to the list itself.
+  // …and loaded, wherever the app was opened. An old link can open it cold on
+  // /documents or /density, and those routes now just open the member's own chat
+  // (`OpenMyChat`) by reading this list — with nothing loaded they could only
+  // fall back to the list itself.
   useMyConversations();
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // register push token + handle deep links from native
@@ -73,38 +72,30 @@ export function AppShell() {
   }, [user, setLangFromUser]);
 
   return (
-    // The ask bar's ENGINE wraps the whole frame. It is mounted unconditionally,
-    // which matters: it also carries the socket that tells this phone about a new
-    // ask and the loop that sends a photograph waiting in the offline queue, and
-    // both have to keep running on every screen. It draws nothing itself — the
-    // strip it publishes is rendered by each screen's `AppBar`, directly under
-    // that bar — so it adds no box here and cannot disturb the layout below.
-    <AskBar>
-      <div
-        className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
-        style={inConversation ? { height: 'var(--vvh, 100dvh)' } : undefined}
+    <div
+      className={cn('flex flex-col bg-bg', !inConversation && 'min-h-full')}
+      style={inConversation ? { height: 'var(--vvh, 100dvh)' } : undefined}
+    >
+      <main
+        className={cn(
+          'mx-auto flex w-full max-w-md flex-col md:max-w-2xl lg:max-w-3xl',
+          // In a conversation the frame is a fixed height (--vvh): clip here
+          // and let the message list scroll internally, so the composer stays
+          // pinned to the bottom. No bottom padding either way.
+          inConversation ? 'min-h-0 flex-1 overflow-hidden' : 'flex-1',
+        )}
       >
-        <main
-          className={cn(
-            'mx-auto flex w-full max-w-md flex-col md:max-w-2xl lg:max-w-3xl',
-            // In a conversation the frame is a fixed height (--vvh): clip here
-            // and let the message list scroll internally, so the composer stays
-            // pinned to the bottom. No bottom padding either way.
-            inConversation ? 'min-h-0 flex-1 overflow-hidden' : 'flex-1',
-          )}
+        {/* The shell stays painted while the next page's chunk streams in. */}
+        <React.Suspense
+          fallback={
+            <div className="flex flex-1 items-center justify-center py-20">
+              <Spinner size={22} />
+            </div>
+          }
         >
-          {/* The shell stays painted while the next page's chunk streams in. */}
-          <React.Suspense
-            fallback={
-              <div className="flex flex-1 items-center justify-center py-20">
-                <Spinner size={22} />
-              </div>
-            }
-          >
-            <Outlet />
-          </React.Suspense>
-        </main>
-      </div>
-    </AskBar>
+          <Outlet />
+        </React.Suspense>
+      </main>
+    </div>
   );
 }

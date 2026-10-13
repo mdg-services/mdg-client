@@ -6,8 +6,8 @@ import { useGoBack } from '@/lib/useGoBack';
 
 /**
  * The top bar of every screen that is reached FROM somewhere — Settings and
- * what hangs off it, and the five feature pages (services, warriors, density,
- * papers, pump health): the title, and a ← that goes back.
+ * what hangs off it, and the feature pages (services, warriors): the title, and
+ * a ← that goes back.
  *
  * A component of its own rather than `AppBar` plus a hook in each page, because
  * those pages return early for loading, failed and empty states, and the bar

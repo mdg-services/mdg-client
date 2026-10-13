@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '@/components/ui';
-import type { ComposerProps } from '@/features/chat/Composer';
+import type { ComposerHandle, ComposerProps } from '@/features/chat/Composer';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import type * as UploadModule from '@/lib/uploadAttachment';
 import { GHOST_CLICK_GRACE_MS, LONG_PRESS_MS } from '@/lib/useLongPress';
@@ -18,7 +18,13 @@ import {
   resetStores,
   signIn,
 } from '@/test/utils';
-import type { Attachment, Conversation, Message, TicketDealerView } from '@dk/shared/types';
+import type {
+  Attachment,
+  ChatAskState,
+  Conversation,
+  Message,
+  TicketDealerView,
+} from '@dk/shared/types';
 
 import { ChatPage } from './ChatPage';
 
@@ -29,6 +35,9 @@ const h = vi.hoisted(() => ({
   copyText: vi.fn(),
   download: vi.fn(),
   upload: vi.fn(),
+  openCamera: vi.fn(),
+  openFiles: vi.fn(),
+  openGallery: vi.fn(),
 }));
 vi.mock('@/lib/socket', () => ({ getSocket: () => h.socket }));
 vi.mock('@/lib/api', () => ({ api: h.api }));
@@ -43,13 +52,24 @@ vi.mock('@/lib/uploadAttachment', async (orig) => ({
 }));
 // The composer is another builder's component, with a lot of its own machinery
 // (the mic, the camera, the attach sheet). What this page owes it is a handful
-// of props, so those are what is captured.
-vi.mock('@/features/chat/Composer', () => ({
-  Composer: (props: ComposerProps) => {
-    h.composer = props;
-    return <div data-testid="composer" />;
-  },
-}));
+// of props — and the calls it makes through the composer's handle, to open the
+// camera, the files or the photos for a request — so those are what is captured.
+// (The composer's own half of that — holding the request until a file really
+// arrives — is tested against the REAL composer in ChatPage.askFlow.test.tsx.)
+vi.mock('@/features/chat/Composer', async () => {
+  const react = await import('react');
+  return {
+    Composer: react.forwardRef<ComposerHandle, ComposerProps>((props, ref) => {
+      h.composer = props;
+      react.useImperativeHandle(ref, () => ({
+        openCamera: (ask) => h.openCamera(ask),
+        openFiles: (ask) => h.openFiles(ask),
+        openGallery: (ask) => h.openGallery(ask),
+      }));
+      return <div data-testid="composer" />;
+    }),
+  };
+});
 
 /**
  * The dealer's chat, end to end through the real list cache.
@@ -139,6 +159,11 @@ function Harness() {
 
 interface MountOptions {
   messages?: Message[];
+  /**
+   * What `GET /asks/me/states` answers — called each time it is asked, so a test
+   * can change the answer between asks. A rejection is a failed request.
+   */
+  askStates?: () => ChatAskState[] | Promise<ChatAskState[]>;
   /** Answer the search endpoint with this (or reject with an Error). */
   search?: (q: string) => Promise<unknown> | unknown;
   listError?: boolean;
@@ -158,6 +183,9 @@ function mount(initial: Conversation, opts: MountOptions = {}) {
     if (path === `/v1/conversations/${CONVERSATION_ID}/messages/search`) {
       return Promise.resolve(opts.search ? opts.search(query?.q ?? '') : []);
     }
+    if (path === '/v1/asks/me/states') {
+      return Promise.resolve(opts.askStates ? opts.askStates() : []);
+    }
     return Promise.resolve([]);
   });
   return renderWithProviders(<Harness />, { route: `/chat/${CONVERSATION_ID}` });
@@ -176,6 +204,9 @@ beforeEach(() => {
   h.copyText.mockReset();
   h.download.mockReset();
   h.upload.mockReset();
+  h.openCamera.mockReset();
+  h.openFiles.mockReset();
+  h.openGallery.mockReset();
   h.composer = null;
   signIn({ id: 'u1', name: 'Ramesh' });
   useLangStore.setState({ lang: 'en', explicit: true });
@@ -1080,6 +1111,495 @@ describe('ChatPage — sending', () => {
     fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
     fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
   }
+});
+
+/**
+ * ASKS LIVE IN THE CHAT (ADR 0019). A request MDG posts is a message carrying
+ * `ask`; the dealer's answer is a photo sent as a reply to it, naming it.
+ */
+describe('ChatPage — answering one of MDG\'s requests', () => {
+  const REF = 'doc:ask1';
+  const photo = (name = 'IMG_9.jpg'): File => new File(['x'], name, { type: 'image/jpeg' });
+  const sent = (over: Partial<Message> = {}) =>
+    makeMessage({
+      id: 'real-1',
+      conversationId: CONVERSATION_ID,
+      senderId: 'u1',
+      readBy: ['u1'],
+      ...over,
+    });
+  const askMessage = (over: Partial<Message> = {}) =>
+    makeMessage({
+      id: 'ask-msg',
+      conversationId: CONVERSATION_ID,
+      senderId: 'system-user',
+      senderRole: 'admin',
+      senderName: 'MDG',
+      system: true,
+      readBy: ['u1'],
+      body: 'MDG needs your Fire NOC. Tap Send photo.',
+      createdAt: '2026-10-12T09:00:00.000Z',
+      ask: { ref: REF, kind: 'document', title: 'Fire NOC', acceptsFile: true },
+      ...over,
+    });
+  const open = (status: ChatAskState['status'] = 'open', extra: Partial<ChatAskState> = {}) => ({
+    ref: REF,
+    status,
+    ...extra,
+  });
+
+  beforeEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => 'blob:local-1'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+  });
+  afterEach(() => {
+    delete (URL as unknown as Record<string, unknown>).createObjectURL;
+    delete (URL as unknown as Record<string, unknown>).revokeObjectURL;
+  });
+
+  async function openThread(opts: MountOptions = {}) {
+    mount(conversation(undefined), {
+      messages: [askMessage()],
+      askStates: () => [open()],
+      ...opts,
+    });
+    await screen.findByText('MDG needs your Fire NOC. Tap Send photo.');
+  }
+
+  const statesCalls = () => h.api.get.mock.calls.filter(([p]) => p === '/v1/asks/me/states');
+
+  it('asks where the request stands — once, for the requests among the loaded messages', async () => {
+    await openThread();
+    expect(await screen.findByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+    expect(statesCalls()).toHaveLength(1);
+    expect(statesCalls()[0]![1]).toEqual({ refs: REF });
+  });
+
+  it('asks nothing in a thread that holds no request', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(statesCalls()).toHaveLength(0);
+  });
+
+  it('draws the title and day on the message, and the button while the request is open', async () => {
+    await openThread({
+      messages: [
+        askMessage({
+          ask: { ref: REF, kind: 'register', title: 'Register page', periodLabel: '12 Oct' },
+        }),
+      ],
+    });
+    expect(screen.getByText('Register page')).toBeInTheDocument();
+    expect(screen.getByText('12 Oct')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+    // No "Choose file" for a photo-only request.
+    expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+  });
+
+  /**
+   * What the composer does when a file really arrives for the request the dealer
+   * pressed a button on: it tells the page to make that request the reply target.
+   */
+  const fileArrives = (ask = askMessage()) => act(() => h.composer!.onAnswerPicked!(ask));
+
+  it('Send photo opens the camera for that request, in the one tap — and does NOT make it the reply target yet', async () => {
+    await openThread();
+    const button = await screen.findByRole('button', { name: 'Send photo' });
+    expect(h.composer!.replyingTo).toBeNull();
+
+    fireEvent.click(button);
+
+    // Straight away: no await between the tap and the call.
+    expect(h.openCamera).toHaveBeenCalledTimes(1);
+    expect(h.openCamera).toHaveBeenCalledWith(expect.objectContaining({ id: 'ask-msg' }));
+    expect(h.openFiles).not.toHaveBeenCalled();
+    // A chooser can be cancelled with nothing chosen; the strip must not have been raised.
+    expect(h.composer!.replyingTo).toBeNull();
+  });
+
+  it('the request becomes the reply target when a file arrives for it — and the keyboard stays down', async () => {
+    await openThread();
+    fireEvent.click(await screen.findByRole('button', { name: 'Send photo' }));
+
+    fileArrives();
+
+    await waitFor(() =>
+      expect(h.composer!.replyingTo).toMatchObject({
+        senderLabel: 'MDG',
+        text: 'MDG needs your Fire NOC. Tap Send photo.',
+        // The photo is in hand: the composer must not raise the keyboard.
+        quiet: true,
+      }),
+    );
+  });
+
+  it('backing out of the answer lets go of the reply target', async () => {
+    await openThread();
+    fileArrives();
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+
+    act(() => h.composer!.onAnswerDropped!(askMessage()));
+
+    await waitFor(() => expect(h.composer!.replyingTo).toBeNull());
+  });
+
+  it('backing out does not take away a reply the dealer has since made to something else', async () => {
+    await openThread({
+      messages: [
+        askMessage(),
+        makeMessage({
+          id: 'note',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          senderName: 'MDG',
+          readBy: ['u1'],
+          body: 'Tanker reaches by 4 pm.',
+          createdAt: '2026-10-12T09:01:00.000Z',
+        }),
+      ],
+    });
+    fileArrives();
+    await waitFor(() => expect(h.composer!.replyingTo?.text).toContain('Fire NOC'));
+    // While the photo waits, the dealer swipes a different message.
+    swipeReplyTo('note');
+    await waitFor(() => expect(h.composer!.replyingTo?.text).toBe('Tanker reaches by 4 pm.'));
+
+    act(() => h.composer!.onAnswerDropped!(askMessage()));
+
+    expect(h.composer!.replyingTo?.text).toBe('Tanker reaches by 4 pm.');
+  });
+
+  it('Choose file opens the files for that request', async () => {
+    await openThread();
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose file' }));
+    expect(h.openFiles).toHaveBeenCalledTimes(1);
+    expect(h.openFiles).toHaveBeenCalledWith(expect.objectContaining({ id: 'ask-msg' }));
+    expect(h.openCamera).not.toHaveBeenCalled();
+    expect(h.composer!.replyingTo).toBeNull();
+  });
+
+  it('a photo-only request opens the photos, not the camera and not the files', async () => {
+    await openThread({
+      messages: [
+        askMessage({
+          ask: { ref: 'reg:2026-10-11', kind: 'register', title: 'Register page', periodLabel: '11 Oct' },
+        }),
+      ],
+      askStates: () => [{ ref: 'reg:2026-10-11', status: 'open' }],
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Choose from gallery' }));
+    expect(h.openGallery).toHaveBeenCalledTimes(1);
+    expect(h.openGallery).toHaveBeenCalledWith(expect.objectContaining({ id: 'ask-msg' }));
+    expect(h.openCamera).not.toHaveBeenCalled();
+    expect(h.openFiles).not.toHaveBeenCalled();
+    expect(h.composer!.replyingTo).toBeNull();
+  });
+
+  it('sends the photo as a reply to the request, naming it', async () => {
+    await openThread();
+    fireEvent.click(await screen.findByRole('button', { name: 'Send photo' }));
+    fileArrives();
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    h.upload.mockResolvedValue({
+      storageKey: 'chat/c1/noc.jpg',
+      filename: 'IMG_9.jpg',
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image',
+    });
+    h.api.post.mockResolvedValue(
+      sent({
+        body: undefined,
+        replyTo: { messageId: 'ask-msg', senderId: 'system-user' },
+        answersAsk: REF,
+        attachments: [
+          { storageKey: 'chat/c1/noc.jpg', filename: 'IMG_9.jpg', contentType: 'image/jpeg', size: 1, kind: 'image' },
+        ],
+      }),
+    );
+
+    await act(async () => {
+      await h.composer!.onSend('', [{ file: photo(), kind: 'image', contentType: 'image/jpeg' }]);
+    });
+
+    expect(h.api.post).toHaveBeenCalledWith(
+      `/v1/conversations/${CONVERSATION_ID}/messages`,
+      expect.objectContaining({
+        replyToMessageId: 'ask-msg',
+        answersAsk: REF,
+        attachments: [expect.objectContaining({ storageKey: 'chat/c1/noc.jpg' })],
+      }),
+    );
+    // The strip is spent once it has gone.
+    expect(h.composer!.replyingTo).toBeNull();
+  });
+
+  it('once answered, the button is replaced by "Sent — MDG is checking" without waiting on the server', async () => {
+    await openThread();
+    fireEvent.click(await screen.findByRole('button', { name: 'Send photo' }));
+    fileArrives();
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    h.upload.mockResolvedValue({
+      storageKey: 'chat/c1/noc.jpg',
+      filename: 'IMG_9.jpg',
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image',
+    });
+    h.api.post.mockResolvedValue(
+      sent({
+        body: undefined,
+        attachments: [
+          { storageKey: 'chat/c1/noc.jpg', filename: 'IMG_9.jpg', contentType: 'image/jpeg', size: 1, kind: 'image' },
+        ],
+      }),
+    );
+
+    await act(async () => {
+      await h.composer!.onSend('', [{ file: photo(), kind: 'image', contentType: 'image/jpeg' }]);
+    });
+
+    expect(await screen.findByText('Sent — MDG is checking')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+  });
+
+  /** The swipe a finger makes on a row. */
+  function swipeReplyTo(id: string) {
+    const row = document.querySelector(`[data-mid="${id}"]`)!;
+    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+  }
+
+  it('a swipe-reply with a photo answers the request too', async () => {
+    await openThread();
+    swipeReplyTo('ask-msg');
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    // A plain swipe-reply does not open anything: the dealer picks how to answer.
+    expect(h.openCamera).not.toHaveBeenCalled();
+
+    h.upload.mockResolvedValue({
+      storageKey: 'chat/c1/noc.jpg',
+      filename: 'IMG_9.jpg',
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image',
+    });
+    h.api.post.mockResolvedValue(sent({ body: undefined }));
+    await act(async () => {
+      await h.composer!.onSend('', [{ file: photo(), kind: 'image', contentType: 'image/jpeg' }]);
+    });
+    expect(h.api.post).toHaveBeenCalledWith(
+      `/v1/conversations/${CONVERSATION_ID}/messages`,
+      expect.objectContaining({ replyToMessageId: 'ask-msg', answersAsk: REF }),
+    );
+  });
+
+  it('a swipe-reply to a request still raises the keyboard — the dealer is about to type', async () => {
+    await openThread();
+    swipeReplyTo('ask-msg');
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    // `quiet` is what tells the composer to leave the keyboard down.
+    expect(h.composer!.replyingTo!.quiet).toBeUndefined();
+  });
+
+  it('words alone are a reply, not an answer — and neither is a voice note', async () => {
+    await openThread();
+    // A swipe-reply to the request: quoted, but no photo is on its way.
+    swipeReplyTo('ask-msg');
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    h.api.post.mockResolvedValue(sent({ body: 'kal bhejunga' }));
+
+    await act(async () => {
+      await h.composer!.onSend('kal bhejunga', []);
+    });
+
+    const body = h.api.post.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.replyToMessageId).toBe('ask-msg');
+    expect(body).not.toHaveProperty('answersAsk');
+    // …and the request still waits for its photo.
+    expect(screen.queryByText('Sent — MDG is checking')).toBeNull();
+
+    // A voice note is the same: quoted, but not claiming to be the paper.
+    h.api.post.mockClear();
+    h.upload.mockResolvedValue({
+      storageKey: 'chat/c1/v.webm',
+      filename: 'v.webm',
+      contentType: 'audio/webm',
+      size: 1,
+      kind: 'audio',
+    });
+    h.api.post.mockResolvedValue(sent({ body: undefined }));
+    swipeReplyTo('ask-msg');
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    await act(async () => {
+      await h.composer!.onSend('', [
+        { file: new File(['x'], 'v.webm', { type: 'audio/webm' }), kind: 'audio', contentType: 'audio/webm' },
+      ]);
+    });
+    expect(h.api.post.mock.calls[0]![1]).not.toHaveProperty('answersAsk');
+  });
+
+  it('a photo sent with no reply target is just a photo — no request is named', async () => {
+    await openThread();
+    h.upload.mockResolvedValue({
+      storageKey: 'chat/c1/x.jpg',
+      filename: 'IMG_9.jpg',
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image',
+    });
+    h.api.post.mockResolvedValue(sent({ body: undefined }));
+    await act(async () => {
+      await h.composer!.onSend('', [{ file: photo(), kind: 'image', contentType: 'image/jpeg' }]);
+    });
+    expect(h.api.post.mock.calls[0]![1]).not.toHaveProperty('answersAsk');
+  });
+
+  it('a failed photo takes nothing with it: no text-only "answer", and the reply target comes back', async () => {
+    await openThread();
+    fireEvent.click(await screen.findByRole('button', { name: 'Send photo' }));
+    fileArrives();
+    await waitFor(() => expect(h.composer!.replyingTo).not.toBeNull());
+    h.upload.mockRejectedValue(new Error('network'));
+    let rejected = false;
+    await act(async () => {
+      await h.composer!
+        .onSend('noc attached', [{ file: photo(), kind: 'image', contentType: 'image/jpeg' }])
+        .catch(() => (rejected = true));
+    });
+    expect(rejected).toBe(true);
+    expect(h.api.post).not.toHaveBeenCalled();
+    expect(h.composer!.replyingTo).not.toBeNull();
+    // The request is still the dealer's turn.
+    expect(screen.getByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+  });
+
+  it('shows "Received" in place of the button once MDG has it, and nothing to press', async () => {
+    await openThread({ askStates: () => [open('received')] });
+    expect(await screen.findByText('Received')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+  });
+
+  it('shows "Sent — MDG is checking" for a request already answered', async () => {
+    await openThread({ askStates: () => [open('sent')] });
+    expect(await screen.findByText('Sent — MDG is checking')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+  });
+
+  it('draws nothing under a request that is closed (withdrawn, lapsed)', async () => {
+    await openThread({ askStates: () => [open('closed')] });
+    await waitFor(() => expect(statesCalls()).toHaveLength(1));
+    expect(screen.getByText('Fire NOC')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+    expect(screen.queryByText('Received')).toBeNull();
+    expect(screen.queryByText('Sent — MDG is checking')).toBeNull();
+  });
+
+  it('shows MDG\'s reason, verbatim, when it sent the answer back — and the button comes back', async () => {
+    await openThread({
+      askStates: () => [open('open', { rejectReason: 'The photo is blurred — retake it' })],
+    });
+    expect(await screen.findByText(/The photo is blurred — retake it/)).toBeInTheDocument();
+    expect(screen.getByText(/MDG sent it back/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+  });
+
+  it('a request that could not be checked is NOT drawn as nothing to do — it says so, and retries', async () => {
+    let fail = true;
+    await openThread({
+      askStates: () => {
+        if (fail) throw new Error('boom');
+        return [open()];
+      },
+    });
+    expect(await screen.findByText("Couldn't check this just now")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+
+    fail = false;
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+    expect(screen.queryByText("Couldn't check this just now")).toBeNull();
+  });
+
+  it('asks again when MDG writes — "Received" replaces the button when its reply lands', async () => {
+    let status: ChatAskState['status'] = 'open';
+    await openThread({ askStates: () => [open(status)] });
+    await screen.findByRole('button', { name: 'Send photo' });
+    expect(statesCalls()).toHaveLength(1);
+
+    status = 'received';
+    act(() =>
+      h.socket.server('message:new', {
+        message: makeMessage({
+          id: 'received-reply',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          senderName: 'MDG',
+          body: '✓ Received — Fire NOC',
+          createdAt: '2026-10-12T09:05:00.000Z',
+        }),
+        conversation: {},
+      }),
+    );
+
+    expect(await screen.findByText('Received')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+    expect(statesCalls().length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('puts the button on the NEWEST post of a request only — a nudge does not leave two', async () => {
+    mount(conversation(undefined), {
+      messages: [
+        askMessage({ id: 'ask-old', createdAt: '2026-10-11T09:00:00.000Z' }),
+        askMessage({ id: 'ask-new', createdAt: '2026-10-12T09:00:00.000Z' }),
+      ],
+      askStates: () => [open()],
+    });
+    await screen.findAllByText('Fire NOC');
+    expect(await screen.findAllByRole('button', { name: 'Send photo' })).toHaveLength(1);
+    const row = screen.getByRole('button', { name: 'Send photo' }).closest('[data-mid]')!;
+    expect(row.getAttribute('data-mid')).toBe('ask-new');
+    // One call for the one request, however many times it was posted.
+    expect(statesCalls()).toHaveLength(1);
+    expect(statesCalls()[0]![1]).toEqual({ refs: REF });
+  });
+
+  it('batches several requests into one call', async () => {
+    mount(conversation(undefined), {
+      messages: [
+        askMessage({ id: 'a1', ask: { ref: 'doc:a', kind: 'document', title: 'Fire NOC' }, createdAt: '2026-10-12T09:00:00.000Z' }),
+        askMessage({ id: 'a2', ask: { ref: 'reg:2026-10-11', kind: 'register', title: 'Register page' }, createdAt: '2026-10-12T09:01:00.000Z' }),
+        askMessage({ id: 'a3', ask: { ref: 'kv:k1', kind: 'kavach', title: 'Fire drill photo' }, createdAt: '2026-10-12T09:02:00.000Z' }),
+      ],
+      askStates: () => [
+        { ref: 'doc:a', status: 'open' },
+        { ref: 'reg:2026-10-11', status: 'received' },
+        { ref: 'kv:k1', status: 'sent' },
+      ],
+    });
+    await screen.findByText('Fire drill photo');
+    await screen.findByText('Received');
+    expect(statesCalls()).toHaveLength(1);
+    // Newest request first, as the hook asks for them.
+    expect(String((statesCalls()[0]![1] as { refs: string }).refs).split(',').sort()).toEqual([
+      'doc:a',
+      'kv:k1',
+      'reg:2026-10-11',
+    ]);
+    expect(screen.getAllByRole('button', { name: 'Send photo' })).toHaveLength(1);
+    expect(screen.getByText('Sent — MDG is checking')).toBeInTheDocument();
+  });
 });
 
 describe('ChatPage — "Show in chat" from the gallery', () => {

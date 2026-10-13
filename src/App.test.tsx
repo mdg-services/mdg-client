@@ -33,11 +33,11 @@ vi.mock('@/pages/settings/AccountPage', () => ({
 vi.mock('@/pages/settings/TeamPage', () => ({
   SettingsTeamPage: () => <div>settings-team-page</div>,
 }));
-vi.mock('@/pages/KavachPage', () => ({ KavachPage: () => <div>kavach-page</div> }));
 vi.mock('@/pages/ServicesPage', () => ({ ServicesPage: () => <div>services-page</div> }));
 vi.mock('@/pages/StaffPage', () => ({ StaffPage: () => <div>staff-page</div> }));
-vi.mock('@/pages/DensityPage', () => ({ DensityPage: () => <div>density-page</div> }));
-vi.mock('@/pages/DocumentsPage', () => ({ DocumentsPage: () => <div>documents-page</div> }));
+// The redirect the four retired screens' addresses run is tested on its own
+// (`OpenMyChat.test.tsx`); here it only has to be the thing those routes mount.
+vi.mock('@/features/chat/OpenMyChat', () => ({ OpenMyChat: () => <div>open-my-chat</div> }));
 vi.mock('@/pages/RegisterPage', () => ({ RegisterPage: () => <div>register-page</div> }));
 vi.mock('@/pages/LoginPage', async () => {
   const { useLocation } = await import('react-router-dom');
@@ -122,21 +122,35 @@ describe('App routing', () => {
     expect(await screen.findByText(marker)).toBeInTheDocument();
   });
 
-  // The five feature pages lost their tab (and, for Pump health, their only
-  // door); each must still resolve at the path it always had, because pushes
+  // The feature pages that survive keep the path they always had, because pushes
   // already on phones name them.
   it.each([
-    ['/kavach', 'kavach-page'],
     ['/services', 'services-page'],
     ['/staff', 'staff-page'],
-    ['/density', 'density-page'],
-    ['/documents', 'documents-page'],
-    ['/documents?ask=a1', 'documents-page'],
-    ['/asks', 'documents-page'],
   ])('keeps %s', async (route, marker) => {
     signIn();
     renderWithProviders(<App />, { route });
     expect(await screen.findByText(marker)).toBeInTheDocument();
+  });
+
+  // ASKS LIVE IN THE CHAT. The paper list, the density screen and Pump health are
+  // gone, but a push or a link already out there still names them — each must
+  // open the member's own chat (not the list, not a blank page), with or without
+  // the `?ask=` a push used to carry.
+  it.each(['/asks', '/documents', '/documents?ask=a1', '/density', '/kavach'])(
+    'opens the member\'s own chat from the retired address %s',
+    async (route) => {
+      signIn();
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('open-my-chat')).toBeInTheDocument();
+      expect(screen.getByTestId('shell')).toBeInTheDocument();
+    },
+  );
+
+  it('does not serve the retired screens to someone who is signed out', async () => {
+    renderWithProviders(<App />, { route: '/documents' });
+    expect(await screen.findByText('login-page')).toBeInTheDocument();
+    expect(screen.queryByText('open-my-chat')).not.toBeInTheDocument();
   });
 
   // Someone with no login yet has to reach the sign-up form, so it must not

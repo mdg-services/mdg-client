@@ -7,9 +7,10 @@ import type * as ApiModule from '@/lib/api';
 import { uploadAttachment } from '@/lib/uploadAttachment';
 import type * as UploadModule from '@/lib/uploadAttachment';
 import { makeMessage, makeTestQueryClient, renderHookWithProviders, signIn } from '@/test/utils';
-import type { Attachment, Message } from '@dk/shared/types';
+import type { Attachment, ChatAskState, Message } from '@dk/shared/types';
 
 
+import { chatAskStatesKey } from './useChatAskStates';
 import { messagesQueryKey, renderKey, useMessages } from './useMessages';
 import { NothingToSendError, useSendMessage } from './useSendMessage';
 
@@ -411,5 +412,251 @@ describe('useSendMessage — pictures and voice notes', () => {
     });
     await waitFor(() => expect(idsIn(qc)).toHaveLength(2));
     expect(new Set(idsIn(qc)).size).toBe(2);
+  });
+});
+
+/**
+ * ASKS LIVE IN THE CHAT (ADR 0019). A photo sent as the answer to one of MDG's
+ * requests names it, so the server can file it where the request lives.
+ */
+describe('useSendMessage — answering a request', () => {
+  const REF = 'doc:ask1';
+  const stored: Attachment = {
+    storageKey: 'chat/c1/noc.jpg',
+    filename: 'noc.jpg',
+    contentType: 'image/jpeg',
+    size: 3,
+    kind: 'image',
+  };
+  const photo = () => ({
+    file: new File(['abc'], 'noc.jpg', { type: 'image/jpeg' }),
+    kind: 'image' as const,
+    contentType: 'image/jpeg',
+  });
+  const STATES_KEY = chatAskStatesKey('c1', REF);
+
+  beforeEach(() => {
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(() => 'blob:local'),
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: vi.fn(),
+    });
+  });
+  afterEach(() => {
+    vi.mocked(api.post).mockReset();
+    vi.mocked(uploadAttachment).mockReset();
+    vi.useRealTimers();
+    delete (URL as unknown as Record<string, unknown>).createObjectURL;
+    delete (URL as unknown as Record<string, unknown>).revokeObjectURL;
+  });
+
+  it('posts answersAsk beside the reply target', async () => {
+    signIn({ id: 'u1' });
+    const { result } = seed([]);
+    vi.mocked(uploadAttachment).mockResolvedValue(stored);
+    vi.mocked(api.post).mockResolvedValue(makeMessage({ id: 'real-1' }));
+    await act(async () => {
+      await result.current.mutateAsync({
+        conversationId: 'c1',
+        files: [photo()],
+        replyToMessageId: 'ask-msg',
+        answersAsk: REF,
+      });
+    });
+    expect(api.post).toHaveBeenCalledWith('/v1/conversations/c1/messages', {
+      body: undefined,
+      attachments: [stored],
+      replyToMessageId: 'ask-msg',
+      answersAsk: REF,
+    });
+  });
+
+  it('leaves answersAsk out of an ordinary message', async () => {
+    signIn({ id: 'u1' });
+    const { result } = seed([]);
+    vi.mocked(api.post).mockResolvedValue(makeMessage({ id: 'real-1' }));
+    await act(async () => {
+      await result.current.mutateAsync({ conversationId: 'c1', body: 'hello' });
+    });
+    expect(vi.mocked(api.post).mock.calls[0]![1]).not.toHaveProperty('answersAsk');
+  });
+
+  it('an answer whose photo failed posts NOTHING, even with a caption — no text-only "answer"', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    vi.mocked(uploadAttachment).mockRejectedValue(new Error('network'));
+    let error: unknown;
+    await act(async () => {
+      await result.current
+        .mutateAsync({
+          conversationId: 'c1',
+          body: 'noc attached',
+          files: [photo()],
+          replyToMessageId: 'ask-msg',
+          answersAsk: REF,
+        })
+        .catch((e: unknown) => (error = e));
+    });
+    expect(error).toBeInstanceOf(NothingToSendError);
+    expect(api.post).not.toHaveBeenCalled();
+    // The bubble goes, and the composer gets the photo and the caption back.
+    expect(idsIn(qc)).toEqual([]);
+  });
+
+  it('an ordinary message whose photo failed still sends its words (unchanged)', async () => {
+    signIn({ id: 'u1' });
+    const { result } = seed([]);
+    vi.mocked(uploadAttachment).mockRejectedValue(new Error('network'));
+    vi.mocked(api.post).mockResolvedValue(makeMessage({ id: 'real-1' }));
+    await act(async () => {
+      await result.current.mutateAsync({ conversationId: 'c1', body: 'words', files: [photo()] });
+    });
+    expect(api.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('draws the request as SENT at once, before the server has said anything', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    vi.mocked(uploadAttachment).mockResolvedValue(stored);
+    vi.mocked(api.post).mockResolvedValue(
+      makeMessage({ id: 'real-1', attachments: [stored], answersAsk: REF }),
+    );
+    await act(async () => {
+      await result.current.mutateAsync({
+        conversationId: 'c1',
+        files: [photo()],
+        answersAsk: REF,
+      });
+    });
+    expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'sent' }]);
+  });
+
+  it('asks the server again a few seconds later, which catches a filing that failed quietly', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    vi.mocked(uploadAttachment).mockResolvedValue(stored);
+    vi.mocked(api.post).mockResolvedValue(
+      makeMessage({ id: 'real-1', attachments: [stored], answersAsk: REF }),
+    );
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    await act(async () => {
+      await result.current.mutateAsync({
+        conversationId: 'c1',
+        files: [photo()],
+        answersAsk: REF,
+      });
+    });
+    expect(qc.getQueryState(STATES_KEY)?.isInvalidated).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(4_100);
+    });
+    expect(qc.getQueryState(STATES_KEY)?.isInvalidated).toBe(true);
+  });
+
+  it('draws the request as SENT while the photo is still uploading — the button is not live mid-upload', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    let finishUpload!: (a: Attachment) => void;
+    vi.mocked(uploadAttachment).mockImplementation(
+      () => new Promise<Attachment>((resolve) => (finishUpload = resolve)),
+    );
+    vi.mocked(api.post).mockResolvedValue(
+      makeMessage({ id: 'real-1', attachments: [stored], answersAsk: REF }),
+    );
+
+    act(() => {
+      result.current.mutate({ conversationId: 'c1', files: [photo()], answersAsk: REF });
+    });
+
+    // The upload has not finished and nothing has been posted — and it already reads "sent".
+    await waitFor(() =>
+      expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'sent' }]),
+    );
+    expect(api.post).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishUpload(stored);
+    });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'sent' }]);
+  });
+
+  it('gives the button back when the photo never goes — no "sent" for nothing', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [
+      { ref: REF, status: 'open', rejectReason: 'Blurred — retake it' },
+    ]);
+    vi.mocked(uploadAttachment).mockRejectedValue(new Error('network'));
+    await act(async () => {
+      await result.current
+        .mutateAsync({ conversationId: 'c1', files: [photo()], answersAsk: REF })
+        .catch(() => undefined);
+    });
+    // Exactly as it was — including the reason MDG gave last time.
+    expect(qc.getQueryData(STATES_KEY)).toEqual([
+      { ref: REF, status: 'open', rejectReason: 'Blurred — retake it' },
+    ]);
+  });
+
+  it('taking it back does not undo what the server said in the meantime', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    let failUpload!: (e: Error) => void;
+    vi.mocked(uploadAttachment).mockImplementation(
+      () => new Promise<Attachment>((_, reject) => (failUpload = reject)),
+    );
+    let settled!: Promise<unknown>;
+    act(() => {
+      settled = result.current
+        .mutateAsync({ conversationId: 'c1', files: [photo()], answersAsk: REF })
+        .catch(() => undefined);
+    });
+    await waitFor(() =>
+      expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'sent' }]),
+    );
+    // A refetch lands during the upload: someone else got it to MDG first.
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'received' }]);
+
+    await act(async () => {
+      failUpload(new Error('network'));
+      await settled;
+    });
+    expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'received' }]);
+  });
+
+  it('a failed send leaves the request exactly as it was — still open', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    vi.mocked(uploadAttachment).mockResolvedValue(stored);
+    vi.mocked(api.post).mockRejectedValue(new Error('500'));
+    await act(async () => {
+      await result.current
+        .mutateAsync({ conversationId: 'c1', files: [photo()], answersAsk: REF })
+        .catch(() => undefined);
+    });
+    expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'open' }]);
+  });
+
+  it('touches no request state for a message that answers nothing', async () => {
+    signIn({ id: 'u1' });
+    const { qc, result } = seed([]);
+    qc.setQueryData<ChatAskState[]>(STATES_KEY, [{ ref: REF, status: 'open' }]);
+    vi.mocked(uploadAttachment).mockResolvedValue(stored);
+    vi.mocked(api.post).mockResolvedValue(makeMessage({ id: 'real-1', attachments: [stored] }));
+    await act(async () => {
+      await result.current.mutateAsync({ conversationId: 'c1', files: [photo()] });
+    });
+    expect(qc.getQueryData(STATES_KEY)).toEqual([{ ref: REF, status: 'open' }]);
   });
 });

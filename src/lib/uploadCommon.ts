@@ -5,29 +5,23 @@ import { compressImage } from './compressImage';
 import { resolveFileType } from './uploadAttachment';
 
 /**
- * The mechanics every photo upload in this app shares, in one place.
+ * The mechanics a direct photo upload shares, in one place.
  *
- * WHY THIS FILE EXISTS AT ALL, GIVEN THE COMMENT IT REPLACES
- * ----------------------------------------------------------
- * `uploadDensityPhoto` used to say it was `uploadStaffHardcopy` copied on
- * purpose, because "the two uploads presign against two different server-side
- * access rules, and one shared helper is how those rules end up one careless
- * refactor apart." That worry was right about the RULES and wrong about the
- * BYTES. By the time a sixth near-identical copy existed, the duplication had
- * stopped protecting anything: five files each re-implemented "recover the MIME
- * an Android camera did not set, shrink the picture, presign, PUT, describe what
- * landed", and a fix to any one of them (the empty `File.name` fallback, say)
- * had to be remembered five times.
+ * It began as the one copy of four near-identical uploaders (the Staff Points
+ * hardcopy, the density register page, Kavach evidence, a document ask), so a fix
+ * to "recover the MIME an Android camera did not set, shrink the picture,
+ * presign, PUT, describe what landed" would not have to be remembered four
+ * times. Three of those left the app when MDG's requests moved into the chat —
+ * a photo sent there goes through `uploadAttachment` like any other message —
+ * and the staff hardcopy is the one caller left.
  *
- * So the split here is deliberate and narrow:
+ * The split is still deliberate and narrow:
  *
  *   - THE SCOPE STAYS AT THE CALL SITE. {@link UploadTarget} is a discriminated
- *     union, so `ask` cannot be sent without an `askId` and `tt-density` cannot
- *     be sent without a `dealerId` — the compiler enforces what each scope needs,
- *     and nothing here can quietly widen one scope's access rules into another's.
- *     The server's per-scope key builder and its per-prefix download fence are
- *     untouched; this file never chooses a scope, it only carries the one it was
- *     handed.
+ *     union, so the compiler enforces what each scope needs, and nothing here can
+ *     quietly widen one scope's access rules into another's. The server's
+ *     per-scope key builder and its per-prefix download fence are untouched; this
+ *     file never chooses a scope, it only carries the one it was handed.
  *   - ONLY THE BYTE-SHOVELLING IS SHARED. Preparing a photograph and PUTting it
  *     at a presigned URL is the same job whoever asked for it.
  *
@@ -42,17 +36,7 @@ import { resolveFileType } from './uploadAttachment';
 /** Where a presigned upload is filed, and what each scope needs to be filed there. */
 export type UploadTarget =
   /** A Staff Points hardcopy photograph. Keyed under `staff/<dealerId>/`. */
-  | { scope: 'staff'; dealerId: string }
-  /** A density-register page photograph. Keyed under `tt-density/<dealerId>/`. */
-  | { scope: 'tt-density'; dealerId: string }
-  /** Kavach evidence for a compliance task. Keyed under `kavach/<dealerId>/`. */
-  | { scope: 'kavach'; dealerId: string }
-  /**
-   * A paper sent to answer a Document Ask. Keyed under
-   * `ask/<dealerId>/<askId>/`, which is why the ask row must exist BEFORE
-   * there is anywhere to put the file — see `volunteerDocumentAskSchema`.
-   */
-  | { scope: 'ask'; dealerId: string; askId: string };
+  { scope: 'staff'; dealerId: string };
 
 /**
  * A photograph, ready to go: the bytes that will actually be PUT, and the three
@@ -92,7 +76,7 @@ export interface PreparedPhoto {
  * bucket and reads to the dealer as "your photo was rejected".
  *
  * `opts.contentType` is for a caller that has ALREADY resolved the type at pick
- * time and judged the file on it — the Kavach card refuses a non-image before it
+ * time and judged the file on it — a caller that refuses a non-image before it
  * ever gets here. Passing the type it judged means the bytes are signed as the
  * thing that was checked, rather than as whatever a second resolve happens to
  * decide. Omit it and this resolves the type itself.

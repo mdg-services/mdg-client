@@ -2,15 +2,14 @@ import { ArrowDown, ArrowLeft, ArrowUp, Copy, Download, Info, Reply, X } from 'l
 import * as React from 'react';
 
 import { AppBarIconButton } from '@/components/AppBar';
-import { AskBarSlot } from '@/features/asks/askBarSlot';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 
 /**
  * The two bars that take the open chat's place at the top of the screen:
  * the search field, and the contextual bar that appears while messages are
- * selected. Same white bar, same height and the same ask bar underneath as
- * `AppBar` — they swap in and out of one slot, they do not stack on it.
+ * selected. Same white bar and same height as `AppBar` — they swap in and out
+ * of one slot, they do not stack on it.
  */
 function BarFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -20,7 +19,6 @@ function BarFrame({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </div>
-      <AskBarSlot />
     </div>
   );
 }

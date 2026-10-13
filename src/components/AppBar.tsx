@@ -1,7 +1,6 @@
 import { ArrowLeft, MoreVertical } from 'lucide-react';
 import * as React from 'react';
 
-import { AskBarSlot } from '@/features/asks/askBarSlot';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { useBackToClose } from '@/lib/useBackToClose';
@@ -12,9 +11,9 @@ import { useBackToClose } from '@/lib/useBackToClose';
  *
  * There is no bottom tab bar any more and no app-wide header above this: each
  * screen draws exactly one bar, with a back arrow when there is somewhere to go
- * back to and a ⋮ menu for whatever does not deserve an icon of its own. The
- * ask bar hangs underneath it (see `askBarSlot.tsx`), so the one thing the
- * dealer owes MDG is visible on every screen without each screen placing it.
+ * back to and a ⋮ menu for whatever does not deserve an icon of its own.
+ * Nothing hangs underneath it: what MDG needs from the dealer is asked in the
+ * chat itself, on the message that asks.
  *
  * Sticky, `shrink-0`: in a conversation the frame is a fixed height (`--vvh`)
  * and a flex child that is allowed to shrink gets squeezed towards zero.
@@ -47,8 +46,6 @@ export interface AppBarProps {
    * the way WhatsApp prints "WhatsApp" on its first screen.
    */
   variant?: 'default' | 'home';
-  /** Leave the ask bar out from under this bar (e.g. a full-screen viewer). */
-  hideAskBar?: boolean;
   className?: string;
 }
 
@@ -63,7 +60,6 @@ export function AppBar({
   actions,
   menu,
   variant = 'default',
-  hideAskBar,
   className,
 }: AppBarProps) {
   const t = useT();
@@ -126,7 +122,6 @@ export function AppBar({
           {menu && menu.length > 0 ? <OverflowMenu items={menu} /> : null}
         </div>
       </div>
-      {hideAskBar ? null : <AskBarSlot />}
     </div>
   );
 }

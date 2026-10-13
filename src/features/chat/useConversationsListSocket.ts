@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 import { useMatch } from 'react-router-dom';
 
+import { invalidateAllChatAskStates } from '@/hooks/api/useChatAskStates';
 import { myConversationsKey } from '@/hooks/api/useMyConversations';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
@@ -144,14 +145,23 @@ export function useConversationsListSocket() {
       void qc.invalidateQueries({ queryKey: myConversationsKey });
     });
 
+    // A paper MDG asked for was asked, nudged or settled. The same request can sit
+    // in two of this dealer's chats and on a second phone, and only the chat its
+    // "Received" reply lands in hears about it any other way — so every thread's
+    // buttons ask again, whichever one is open. (The payload is the whole row; the
+    // answer to "where does it stand" comes from the server, not from it.)
+    const onDocumentAskUpdated = () => invalidateAllChatAskStates(qc);
+
     socket.on('message:new', onNewMessage);
     socket.on('conversation:updated', onConvUpdated);
     socket.on('read', onRead);
+    socket.on('document-ask:updated', onDocumentAskUpdated);
     return () => {
       offReconnect();
       socket.off('message:new', onNewMessage);
       socket.off('conversation:updated', onConvUpdated);
       socket.off('read', onRead);
+      socket.off('document-ask:updated', onDocumentAskUpdated);
     };
   }, [token, myId, qc]);
 }

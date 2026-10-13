@@ -5,7 +5,6 @@ import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AppBar, AppBarIconButton, type AppBarMenuItem } from '@/components/AppBar';
 import { BrandMark } from '@/components/BrandMark';
 import { Button, EmptyState, Spinner } from '@/components/ui';
-import { AskBarSlot } from '@/features/asks/askBarSlot';
 import {
   conversationPreview,
   conversationTitle,
@@ -265,7 +264,6 @@ function SearchBar({
           ) : null}
         </div>
       </div>
-      <AskBarSlot />
     </div>
   );
 }

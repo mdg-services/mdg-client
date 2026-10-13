@@ -6,7 +6,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
  *
  * Back to where the dealer came from, when they came from somewhere inside the
  * app — that is the screen they expect, whether it was the chat list, a push
- * notification that landed in the app already running, or the ask bar.
+ * notification that landed in the app already running.
  *
  * When they did NOT — the screen was opened cold from a notification, which the
  * native shell does with a full page load, so there is no earlier entry in this
@@ -22,8 +22,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
  * 0 — and the next ← then walked off the app or did nothing. An overlay's own
  * entry carries no `idx`; only then does the key decide.
  *
- * Pages a notification can open cold (density, papers, pump health) fall back
- * to the chat list — the app's home, where the phone's own Back would also land.
+ * Pages a notification can open cold fall back to the chat list — the app's
+ * home, where the phone's own Back would also land.
  */
 export function useGoBack(fallback: string): () => void {
   const navigate = useNavigate();

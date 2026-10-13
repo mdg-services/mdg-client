@@ -1,11 +1,8 @@
 import {
-  FileText,
-  Gauge,
   Globe,
   GraduationCap,
   KeyRound,
   LogOut,
-  ShieldCheck,
   Users,
   UsersRound,
   Wrench,
@@ -17,8 +14,6 @@ import { useNavigate } from 'react-router-dom';
 import { AppBar } from '@/components/AppBar';
 import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, EmptyState } from '@/components/ui';
-import { useDensityMe } from '@/hooks/api/useDensity';
-import { useKavachMe } from '@/hooks/api/useKavach';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
@@ -48,13 +43,15 @@ const GUIDE_URL: string = (
  * bottom bar to put it on. That makes every row here the ONLY door to its
  * screen, so a row that is hidden is a screen the dealer cannot reach — which is
  * why each condition below is the same one the screen behind it enforces (the
- * team is the owner's; warriors belong to an owner or a manager; the density
- * register and Pump health exist only for a pump MDG has switched them on for)
- * and no row is hidden for any other reason.
+ * team is the owner's; warriors belong to an owner or a manager) and no row is
+ * hidden for any other reason.
  *
- * `/profile` mounts this same page, a second route rather than a redirect, for
- * the reason `/asks` is a second mount of the papers screen: a link that is
- * already out there must land here with nothing lost on the way.
+ * THERE IS NO ROW FOR PAPERS, THE DENSITY REGISTER OR PUMP HEALTH. MDG asks for
+ * each of those in the chat, on a message with a "Send photo" button, so there
+ * is no screen left to point at — the same way the strip under the top bar went.
+ *
+ * `/profile` mounts this same page, a second route rather than a redirect: a
+ * link that is already out there must land here with nothing lost on the way.
  */
 export function SettingsPage() {
   const t = useT();
@@ -63,20 +60,6 @@ export function SettingsPage() {
   const goBack = useGoBack('/chat');
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  // Both above the not-signed-in early return below, or the hook count changes
-  // between renders and takes the tree down.
-  //
-  // A row stays out only when the answer is "no": `null` from the Kavach hook is
-  // "no programme for this pump" (a 404 it already folds in), `attached: false`
-  // is "not on the density service". A request that FAILED keeps the row in —
-  // this screen is the only door to both pages, and on a 2G link a missing row
-  // reads as "this pump does not have it". The page behind it says so honestly
-  // if its own load fails too.
-  const densityMe = useDensityMe();
-  const densityAttached = densityMe.data?.attached === true || densityMe.isError;
-  const kavachMe = useKavachMe();
-  const hasKavach = Boolean(kavachMe.data) || kavachMe.isError;
-
   const [languageOpen, setLanguageOpen] = React.useState(false);
   const [confirmingLogout, setConfirmingLogout] = React.useState(false);
   const closeLanguage = React.useCallback(() => setLanguageOpen(false), []);
@@ -163,38 +146,6 @@ export function SettingsPage() {
               title={t('profile.staffPoints')}
               subtitle={t('profile.staffPointsDesc')}
               onClick={() => navigate('/staff')}
-            />
-          ) : null}
-          {/* The ask bar under the top bar only appears while something is
-              outstanding and disappears the moment the last paper is sent — so
-              without this row there is no way back to the screen that says what
-              was sent and what MDG made of it, or to the filing cabinet of
-              licences MDG already holds. Unconditional, because "nothing is
-              owed" is exactly the state a dealer might want to check.
-              `/documents` and not `/asks`: both routes render the same page,
-              and this is the name the notifications already on phones use. */}
-          <Row
-            icon={FileText}
-            title={t('profile.asks')}
-            subtitle={t('profile.asksDesc')}
-            onClick={() => navigate('/documents')}
-          />
-          {/* Always here while the service is on, so a dealer who dismissed the
-              ask bar still has a way back to their register. */}
-          {densityAttached ? (
-            <Row
-              icon={Gauge}
-              title={t('profile.density')}
-              subtitle={t('profile.densityDesc')}
-              onClick={() => navigate('/density')}
-            />
-          ) : null}
-          {hasKavach ? (
-            <Row
-              icon={ShieldCheck}
-              title={t('settings.pumpHealth')}
-              subtitle={t('settings.pumpHealthDesc')}
-              onClick={() => navigate('/kavach')}
             />
           ) : null}
           {/* The way into the video guide. It carries the dealer's chosen

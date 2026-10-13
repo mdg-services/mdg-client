@@ -1,6 +1,7 @@
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { chatAskStatesKey } from '@/hooks/api/useChatAskStates';
 import { myConversationsKey } from '@/hooks/api/useMyConversations';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
 import {
@@ -240,6 +241,40 @@ describe('useConversationsListSocket', () => {
       const { qc } = mount([makeConv({ id: 'c1' })]);
       act(() => incoming(makeConv({ id: 'c1', unreadByDealer: true })));
       expect(count(qc)).toBeUndefined();
+    });
+  });
+
+  // The same paper can sit in two of the dealer's chats and on a second phone. The
+  // "Received" reply reaches only the chat it was written into, so this event is
+  // what lets every other copy of the request stop offering "Send photo".
+  describe('a paper MDG asked for was asked, nudged or settled (document-ask:updated)', () => {
+    const REF = 'doc:ask1';
+    const row = { id: 'ask1' };
+
+    it('asks again in EVERY thread, not only the open one', () => {
+      const { qc } = mount([makeConv({ id: 'c1' }), makeConv({ id: 'c2', kind: 'manager' })], '/chat/c1');
+      qc.setQueryData(chatAskStatesKey('c1', REF), [{ ref: REF, status: 'open' }]);
+      qc.setQueryData(chatAskStatesKey('c2', REF), [{ ref: REF, status: 'open' }]);
+
+      act(() => h.socket.server('document-ask:updated', { row }));
+
+      expect(qc.getQueryState(chatAskStatesKey('c1', REF))?.isInvalidated).toBe(true);
+      expect(qc.getQueryState(chatAskStatesKey('c2', REF))?.isInvalidated).toBe(true);
+    });
+
+    it('leaves every other kind of cached answer alone', () => {
+      const { qc } = mount([makeConv({ id: 'c1' })]);
+      qc.setQueryData(['conversation', 'c1', 'media'], []);
+      act(() => h.socket.server('document-ask:updated', { row }));
+      expect(qc.getQueryState(['conversation', 'c1', 'media'])?.isInvalidated).toBe(false);
+      expect(qc.getQueryState(myConversationsKey)?.isInvalidated ?? false).toBe(false);
+    });
+
+    it('stops listening when the app shell goes', () => {
+      const { unmount } = mount([makeConv({ id: 'c1' })]);
+      expect(h.socket.handlerCount('document-ask:updated')).toBe(1);
+      unmount();
+      expect(h.socket.handlerCount('document-ask:updated')).toBe(0);
     });
   });
 });

@@ -3,6 +3,7 @@ import { ChevronDown, MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
+import type { ChatAskStates } from '@/hooks/api/useChatAskStates';
 import { renderKey } from '@/hooks/api/useMessages';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -15,8 +16,9 @@ import {
   type TicketDealerView,
 } from '@dk/shared/types';
 
+import { askViewOf } from './askView';
 import { MediaViewer } from './MediaViewer';
-import { MessageBubble } from './MessageBubble';
+import { MessageBubble, type AskAnswerHow } from './MessageBubble';
 import {
   buildRowMeta,
   buildViewerItems,
@@ -107,6 +109,14 @@ export interface MessageListProps {
   jumpTo?: { id: string; n: number } | null;
   /** The words of an open in-chat search; they are painted in the bubbles. */
   highlight?: string;
+  /**
+   * Where each request MDG posted in this thread stands (ADR 0019). A message
+   * that carries `ask` draws its "Send photo" button, "Sent", or "Received" from
+   * this; without it such a message draws only its title and day.
+   */
+  askStates?: ChatAskStates;
+  /** "Send photo" / "Choose file" on a request — called INSIDE the tap. */
+  onAskAnswer?: (message: Message, how: AskAnswerHow) => void;
 }
 
 /**
@@ -142,6 +152,8 @@ export function MessageList({
   unread,
   jumpTo,
   highlight,
+  askStates,
+  onAskAnswer,
 }: MessageListProps) {
   const t = useT();
   const lang = useLang();
@@ -568,6 +580,7 @@ export function MessageList({
       const pending = m.id.startsWith('temp-');
       const selected = !!selectedIds?.has(m.id);
       const ticketLine = m.ai?.ticketId ? ticketLines.get(m.ai.ticketId) : undefined;
+      const askView = m.ask ? askViewOf(m, askStates) : undefined;
       const marks =
         term && m.body && m.body.toLowerCase().includes(term) ? highlight!.trim() : undefined;
       out.push(
@@ -613,6 +626,10 @@ export function MessageList({
             onJumpTo={handleJumpTo}
             ticketStatus={ticketLine?.status}
             ticketNumber={ticketLine?.number}
+            askPhase={askView?.phase}
+            askReason={askView?.reason}
+            onAskAnswer={onAskAnswer}
+            onAskRetry={askStates?.refetch}
           />
           {soleSelected === m.id && onReact ? (
             <ReactionStrip
@@ -646,6 +663,8 @@ export function MessageList({
     soleSelected,
     term,
     highlight,
+    askStates,
+    onAskAnswer,
   ]);
 
   const viewerItems = React.useMemo(

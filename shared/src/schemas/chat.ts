@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { CHAT_ASK_REF_PATTERN } from '../types/chatAsk';
 import { QUICK_REACTIONS } from '../types/conversation';
 import { SHARE_AUDIENCES } from '../types/share';
 
@@ -40,6 +41,12 @@ export const sendMessageSchema = z
     attachments: z.array(attachmentSchema).max(10).optional().default([]),
     /** Id of the message this one replies to; must belong to the same conversation. */
     replyToMessageId: z.string().min(1).max(64).optional(),
+    /**
+     * The request this message answers (`doc:…`, `reg:…`, `kv:…`, ADR 0019) —
+     * set when the dealer pressed "Send photo" on an ask. The server also
+     * derives it from `replyToMessageId` when the quoted message is an ask.
+     */
+    answersAsk: z.string().regex(CHAT_ASK_REF_PATTERN).optional(),
   })
   .refine((d) => (d.body && d.body.length > 0) || (d.attachments && d.attachments.length > 0), {
     message: 'Message must have a body or at least one attachment',
@@ -70,6 +77,37 @@ export const shareChatMessageSchema = z
     message: 'Message must have a body or at least one attachment',
   });
 export type ShareChatMessageInput = z.infer<typeof shareChatMessageSchema>;
+
+/**
+ * An admin marks a dealer's chat photo (or PDF) as received for one of the
+ * outlet's open requests (ADR 0019). `attachmentIndex` picks the file when the
+ * message carries several; `validUntil` is the date printed on a paper whose
+ * kind tracks expiry — required for those, ignored otherwise.
+ */
+export const receiveChatAttachmentSchema = z.object({
+  ref: z.string().regex(CHAT_ASK_REF_PATTERN),
+  attachmentIndex: z.number().int().min(0).max(9).optional().default(0),
+  validUntil: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+export type ReceiveChatAttachmentInput = z.infer<typeof receiveChatAttachmentSchema>;
+
+/** An admin sends a dealer's answer back, with a reason the dealer reads verbatim. */
+export const sendBackChatAttachmentSchema = z.object({
+  ref: z.string().regex(CHAT_ASK_REF_PATTERN),
+  reason: z.string().trim().min(4).max(500),
+});
+export type SendBackChatAttachmentInput = z.infer<typeof sendBackChatAttachmentSchema>;
+
+/** The dealer's app asks where a handful of requests stand (`GET /asks/me/states?refs=`). */
+export const chatAskStatesQuerySchema = z.object({
+  refs: z
+    .string()
+    .transform((s) => s.split(',').filter(Boolean))
+    .pipe(z.array(z.string().regex(CHAT_ASK_REF_PATTERN)).min(1).max(50)),
+});
 
 /** Set (or replace) the caller's reaction on a message. */
 export const reactToMessageSchema = z.object({

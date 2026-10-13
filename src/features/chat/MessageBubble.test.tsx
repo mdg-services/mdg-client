@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,6 +6,7 @@ import { useLangStore } from '@/store/lang';
 import { makeMessage } from '@/test/utils';
 import type { Attachment, MessageReaction } from '@dk/shared/types';
 
+import type { AskPhase } from './askView';
 import { MessageBubble } from './MessageBubble';
 
 // Downloads and fresh links go through the message; here they are doubles.
@@ -1413,5 +1414,213 @@ describe('MessageBubble — the ticket status line', () => {
       />,
     );
     expect(screen.getByText('#42 · Closed by the MDG team')).toBeInTheDocument();
+  });
+});
+
+/**
+ * ASKS LIVE IN THE CHAT (ADR 0019). A request MDG posts is an MDG bubble that
+ * carries `ask`: its title and day on a light inset, and under the words the
+ * button that answers it — or what has become of the answer.
+ */
+describe('MessageBubble — a request MDG posted', () => {
+  // Unmount before the shared teardown resets the language store, or the bubble
+  // re-renders outside `act`.
+  afterEach(() => cleanup());
+
+  const REQUEST = {
+    ref: 'doc:ask1',
+    kind: 'document' as const,
+    title: 'Fire NOC',
+    periodLabel: '12 Oct',
+  };
+
+  function ask(
+    phase: AskPhase | undefined,
+    over: {
+      ask?: Partial<typeof REQUEST> & { acceptsFile?: boolean };
+      reason?: string;
+      onAnswer?: ReturnType<typeof vi.fn>;
+      onRetry?: ReturnType<typeof vi.fn>;
+    } = {},
+  ) {
+    const message = makeMessage({
+      id: 'ask-msg',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      senderName: 'MDG',
+      system: true,
+      body: 'MDG needs your Fire NOC.\nTap Send photo.',
+      ask: { ...REQUEST, ...over.ask },
+    });
+    const utils = render(
+      <MessageBubble
+        message={message}
+        mine={false}
+        askPhase={phase}
+        askReason={over.reason}
+        onAskAnswer={over.onAnswer}
+        onAskRetry={over.onRetry}
+      />,
+    );
+    return { message, ...utils };
+  }
+
+  it('draws the title and the day on a light inset, above the words', () => {
+    const { container } = ask('open');
+    const inset = container.querySelector('[data-ask-ref="doc:ask1"]')!;
+    expect(inset).toBeTruthy();
+    expect(inset.textContent).toContain('Fire NOC');
+    expect(inset.textContent).toContain('12 Oct');
+    expect(inset.className).toContain('bg-wa-row-active');
+    // The words are still the message's own.
+    expect(screen.getByText(/MDG needs your Fire NOC\./)).toBeInTheDocument();
+    // Above them in the bubble.
+    const words = screen.getByText(/MDG needs your Fire NOC\./);
+    expect(inset.compareDocumentPosition(words) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('a request with no day draws only its title', () => {
+    const { container } = ask('open', { ask: { periodLabel: undefined } });
+    const inset = container.querySelector('[data-ask-ref]')!;
+    expect(inset.querySelectorAll('p')).toHaveLength(1);
+  });
+
+  describe('open', () => {
+    it('is a full-width, 44px, black Send photo button — in the brand token, no green', () => {
+      ask('open');
+      const button = screen.getByRole('button', { name: 'Send photo' });
+      expect(button.className).toContain('w-full');
+      expect(button.className).toContain('h-11');
+      expect(button.className).toContain('bg-wa-accent');
+      expect(button.className).not.toMatch(/green|emerald|brand\b/);
+      // The icon is Lucide's, not the emoji character.
+      expect(button.querySelector('.lucide-camera')).toBeTruthy();
+      expect(button.textContent).not.toContain('📷');
+    });
+
+    it('tapping it hands the message and "camera" up, once', () => {
+      const onAnswer = vi.fn();
+      const { message } = ask('open', { onAnswer });
+      fireEvent.click(screen.getByRole('button', { name: 'Send photo' }));
+      expect(onAnswer).toHaveBeenCalledTimes(1);
+      expect(onAnswer).toHaveBeenCalledWith(message, 'camera');
+    });
+
+    it('offers "Choose file" only when a PDF is as good as a photo', () => {
+      const onAnswer = vi.fn();
+      const { unmount } = ask('open', { onAnswer });
+      expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+      unmount();
+
+      const second = vi.fn();
+      const withFile = ask('open', { ask: { acceptsFile: true }, onAnswer: second });
+      fireEvent.click(screen.getByRole('button', { name: 'Choose file' }));
+      expect(second).toHaveBeenCalledWith(withFile.message, 'files');
+      expect(onAnswer).not.toHaveBeenCalled();
+      // A paper takes the files, which already include the photos: no third door.
+      expect(screen.queryByRole('button', { name: 'Choose from gallery' })).toBeNull();
+    });
+
+    it('a request that takes only a photo gets a gallery button under the camera one', () => {
+      const onAnswer = vi.fn();
+      const { message } = ask('open', { onAnswer });
+      expect(screen.queryByRole('button', { name: 'Choose file' })).toBeNull();
+      const gallery = screen.getByRole('button', { name: 'Choose from gallery' });
+      // Below Send photo, and not the black primary one.
+      const send = screen.getByRole('button', { name: 'Send photo' });
+      expect(send.compareDocumentPosition(gallery) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(gallery.className).not.toContain('bg-wa-accent');
+      fireEvent.click(gallery);
+      expect(onAnswer).toHaveBeenCalledTimes(1);
+      expect(onAnswer).toHaveBeenCalledWith(message, 'gallery');
+    });
+
+    it('shows MDG\'s reason, verbatim, above the button when it sent an answer back', () => {
+      ask('open', { reason: 'The photo is blurred — retake it' });
+      expect(screen.getByText(/MDG sent it back/)).toBeInTheDocument();
+      expect(screen.getByText(/The photo is blurred — retake it/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Send photo' })).toBeInTheDocument();
+    });
+
+    it('has no reason line on a first ask', () => {
+      ask('open');
+      expect(screen.queryByText(/MDG sent it back/)).toBeNull();
+    });
+  });
+
+  describe('after the dealer has answered', () => {
+    it('sent → "Sent — MDG is checking", and no button to press twice', () => {
+      ask('sent');
+      expect(screen.getByText('Sent — MDG is checking')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    it('received → "Received", and no button', () => {
+      ask('received');
+      expect(screen.getByText('Received')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    it('closed (or unknown) → only the title and day', () => {
+      const { container } = ask('none');
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(screen.queryByText('Received')).toBeNull();
+      expect(screen.queryByText('Sent — MDG is checking')).toBeNull();
+      expect(container.querySelector('[data-ask-ref]')).toBeTruthy();
+    });
+
+    it('a message that was drawn before its state is known draws no footer', () => {
+      ask(undefined);
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+  });
+
+  describe('where it stands could not be checked', () => {
+    it('says so and offers Try again — it is never drawn as "nothing to do"', () => {
+      const onRetry = vi.fn();
+      ask('failed', { onRetry });
+      expect(screen.getByText("Couldn't check this just now")).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(onRetry).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('speaks Hindi when the app is in Hindi', () => {
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    ask('open', { ask: { acceptsFile: true } });
+    // The spelling MDG's own message uses ("फ़ोटो भेजें", with the dot).
+    expect(screen.getByRole('button', { name: 'फ़ोटो भेजें' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'फ़ाइल चुनें' })).toBeInTheDocument();
+  });
+
+  it('speaks Hindi on the gallery button of a photo-only request', () => {
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    ask('open');
+    expect(screen.getByRole('button', { name: 'गैलरी से चुनें' })).toBeInTheDocument();
+  });
+
+  it('keeps the time on a line of its own, clear of the button', () => {
+    const { container } = ask('open');
+    // Pinned to a corner it would sit on top of the full-width button.
+    expect(container.querySelector('.absolute.bottom-\\[5px\\]')).toBeNull();
+  });
+
+  it('is as wide as a picture, so the button is worth pressing', () => {
+    const { container } = ask('open');
+    const column = container.firstElementChild!.firstElementChild as HTMLElement;
+    expect(column.className).toContain('w-[min(80%,330px)]');
+  });
+
+  it('draws nothing of the kind on an ordinary message, even if told a phase', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({ body: 'plain' })}
+        mine={false}
+        askPhase="open"
+      />,
+    );
+    expect(container.querySelector('[data-ask-ref]')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Send photo' })).toBeNull();
   });
 });

@@ -7,6 +7,7 @@ import { App } from './App';
 import { ToastProvider } from './components/ui';
 import { initMonitoring } from './lib/monitoring';
 import { queryClient } from './lib/queryClient';
+import { clearRetiredStorage } from './lib/retiredStorage';
 import { installTouchGuards } from './lib/touchGuards';
 
 import './index.css';
@@ -22,6 +23,9 @@ installTouchGuards();
 // downloads nothing: the Sentry SDK is only fetched if something actually breaks
 // (see lib/monitoring). With no VITE_SENTRY_DSN it is a no-op and shakes out.
 initMonitoring();
+
+// Drop what an older version stored for a feature this one no longer has.
+clearRetiredStorage();
 
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>

@@ -3,13 +3,16 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { Spinner } from '@/components/ui';
+// Imported, not lazy: it is a redirect a few lines long, and a chunk request
+// on a 2G link would cost far more than the code does.
+import { OpenMyChat } from '@/features/chat/OpenMyChat';
 import { useT } from '@/lib/i18n';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { setMonitoringUser } from '@/lib/monitoring';
 import { useAuthStore } from '@/store/auth';
 
 // Route-level code splitting: each page (and the authenticated shell) is its own
-// chunk, so the login screen no longer downloads chat/settings/kavach/staff — or
+// chunk, so the login screen no longer downloads chat/settings/staff — or
 // the socket.io realtime stack that the shell pulls in. Pages use named exports,
 // so remap each to a default export for React.lazy.
 const AppShell = lazyWithRetry(() =>
@@ -33,20 +36,11 @@ const ChatMediaPage = lazyWithRetry(() =>
 const ChatInfoPage = lazyWithRetry(() =>
   import('@/pages/ChatInfoPage').then((m) => ({ default: m.ChatInfoPage })),
 );
-const KavachPage = lazyWithRetry(() =>
-  import('@/pages/KavachPage').then((m) => ({ default: m.KavachPage })),
-);
 const ServicesPage = lazyWithRetry(() =>
   import('@/pages/ServicesPage').then((m) => ({ default: m.ServicesPage })),
 );
 const StaffPage = lazyWithRetry(() =>
   import('@/pages/StaffPage').then((m) => ({ default: m.StaffPage })),
-);
-const DensityPage = lazyWithRetry(() =>
-  import('@/pages/DensityPage').then((m) => ({ default: m.DensityPage })),
-);
-const DocumentsPage = lazyWithRetry(() =>
-  import('@/pages/DocumentsPage').then((m) => ({ default: m.DocumentsPage })),
 );
 const SettingsPage = lazyWithRetry(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
@@ -65,7 +59,7 @@ const SettingsTeamPage = lazyWithRetry(() =>
  * What a screen looks like while its code is coming down the wire.
  *
  * A bare spinner is fine for the second or two this takes on wifi. On a 2G
- * forecourt link the first tap on Settings or Pump health could sit here for a
+ * forecourt link the first tap on Settings or Staff could sit here for a
  * minute with nothing but a small grey dot on an empty screen — no words, no way to
  * tell it apart from a broken app, and nothing to press. After six seconds it
  * says what is happening and offers the reload, which is the same escape the
@@ -160,42 +154,26 @@ export function App() {
             <Route path="/settings/account" element={<SettingsAccountPage />} />
             <Route path="/settings/team" element={<SettingsTeamPage />} />
             {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
-                and not a redirect, for the same reason `/asks` is one below. */}
+                and not a redirect: nothing about it needs to change address. */}
             <Route path="/profile" element={<SettingsPage />} />
-            {/* Pump health — Settings → Pump health, for a pump with a Kavach
-                programme. Kept at its old path: it is the dealer's only way to
-                answer MDG's "send a photo" requests, and pushes already on
-                phones still point here. */}
-            <Route path="/kavach" element={<KavachPage />} />
             {/* Services — Settings → Your services. */}
             <Route path="/services" element={<ServicesPage />} />
             {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
             <Route path="/staff" element={<StaffPage />} />
-            {/* The daily density-register photo. Reached from Settings and from
-                a push. */}
-            <Route path="/density" element={<DensityPage />} />
-            {/* Every paper in this dealer's life — what MDG is waiting for, and
-                what MDG already holds. Reached from the ask bar under the
-                top bar, from Settings, and from a push.
+            {/* ASKS LIVE IN THE CHAT NOW. The paper list (`/asks`, `/documents`),
+                the density register screen (`/density`) and Pump health
+                (`/kavach`) are gone: MDG asks for each thing in the chat, on a
+                message with a "Send photo" button, and marks it received there.
 
-                TWO PATHS, ONE PAGE, and the second is not a nicety. The server
-                builds its deep link as `/documents?ask=<id>`
-                (`services/documents/notify.ts`), which is the string the native
-                bridge hands the WebView untouched — so a push that landed on a
-                route this app did not have would drop the dealer on the chat
-                list with no idea why. `/asks` is the name the app used for
-                itself before the screen grew a filing cabinet; `/documents` is
-                the name already baked into notifications that are on their way.
-                Both must resolve, and both must keep answering `?ask=<id>`.
-
-                `/asks` is a SECOND MOUNT AND NOT A REDIRECT. A redirect would
-                have to carry the query string across by hand — and the day
-                somebody wrote `<Navigate to="/documents" replace />` without
-                it, every push already on a phone would land on the list with
-                its scroll position thrown away and nothing to say why. Two
-                mounts cannot lose a parameter neither of them touches. */}
-            <Route path="/asks" element={<DocumentsPage />} />
-            <Route path="/documents" element={<DocumentsPage />} />
+                The four addresses are kept ONLY so a link already out in the
+                world still lands somewhere that makes sense — a push from
+                last week (`/documents?ask=<id>`), the native shell's shipped
+                `density` and `kavach` tokens, a bookmark. Each opens the
+                member's own chat, where the ask is waiting. */}
+            <Route path="/asks" element={<OpenMyChat />} />
+            <Route path="/documents" element={<OpenMyChat />} />
+            <Route path="/density" element={<OpenMyChat />} />
+            <Route path="/kavach" element={<OpenMyChat />} />
           </Route>
           <Route path="*" element={<Navigate to="/chat" replace />} />
         </Routes>

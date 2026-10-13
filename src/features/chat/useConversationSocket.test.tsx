@@ -2,6 +2,7 @@ import { type InfiniteData } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskStates';
 import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
 import { type ReactVars } from '@/hooks/api/useReactToMessage';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
@@ -11,7 +12,7 @@ import {
   renderHookWithProviders,
   resetStores,
 } from '@/test/utils';
-import type { Message } from '@dk/shared/types';
+import type { ChatAskState, Message } from '@dk/shared/types';
 
 import { useConversationSocket } from './useConversationSocket';
 
@@ -536,5 +537,151 @@ describe('useConversationSocket', () => {
       withRouter: false,
     });
     expect(h.socket.handlerCount('message:new')).toBe(0);
+  });
+});
+
+/**
+ * The buttons on MDG's requests are drawn from "where does this request stand",
+ * which the server answers on demand. A message from MDG ("✓ Received", a photo
+ * sent back, a new ask) and a reconnect are the two moments it may have changed.
+ */
+describe('useConversationSocket — where MDG\'s requests stand', () => {
+  afterEach(() => resetStores());
+  const STATES = { queryKey: chatAskStatesPrefix('c1') };
+
+  it('asks again when MDG writes into the thread', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'mdg-1', senderId: OTHER, body: '✓ Received — Fire NOC' }),
+        conversation: {},
+      });
+    });
+    expect(spy).toHaveBeenCalledWith(STATES);
+  });
+
+  it('does NOT ask again for the dealer\'s own message — answering sets its own state', () => {
+    const { qc } = mount([makeMessage({ id: 'temp-1', senderId: ME })]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'real-1', senderId: ME }),
+        conversation: {},
+      });
+    });
+    expect(spy).not.toHaveBeenCalledWith(STATES);
+  });
+
+  it('asks once for a message the server echoes twice (room and user room)', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'mdg-2', senderId: OTHER });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
+    expect(spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(STATES))).toHaveLength(1);
+  });
+
+  it('ignores a message from another thread', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'x', senderId: OTHER, conversationId: 'c-other' }),
+        conversation: {},
+      });
+    });
+    expect(spy).not.toHaveBeenCalledWith(STATES);
+  });
+
+  it('asks again on a RE-connect, but not on the first connect', () => {
+    const { qc } = mount([], false);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+
+    h.socket.server('connect'); // first connection
+    expect(spy).not.toHaveBeenCalledWith(STATES);
+
+    h.socket.server('connect'); // reconnect
+    expect(spy).toHaveBeenCalledWith(STATES);
+  });
+
+  describe('a colleague at the pump answering a request', () => {
+    const REF = 'doc:ask1';
+    const KEY_STATES = chatAskStatesKey('c1', REF);
+    const answer = (over: Partial<Message> = {}) =>
+      makeMessage({
+        id: 'colleague-1',
+        senderId: OTHER,
+        senderRole: 'dealer-staff',
+        body: undefined,
+        answersAsk: REF,
+        attachments: [
+          { storageKey: 'chat/c1/noc.jpg', filename: 'noc.jpg', contentType: 'image/jpeg', size: 1, kind: 'image' },
+        ],
+        ...over,
+      });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('shows the request as sent here at once — and does NOT ask while the server is still filing', () => {
+      const { qc } = mount([]);
+      qc.setQueryData<ChatAskState[]>(KEY_STATES, [{ ref: REF, status: 'open' }]);
+      const spy = vi.spyOn(qc, 'invalidateQueries');
+
+      act(() => h.socket.server('message:new', { message: answer(), conversation: {} }));
+
+      expect(qc.getQueryData(KEY_STATES)).toEqual([{ ref: REF, status: 'sent' }]);
+      // Asking now would say `open` (the photo is not filed yet) and put the button back.
+      expect(spy).not.toHaveBeenCalledWith(STATES);
+    });
+
+    it('asks the server again four seconds later, once it has had time to file', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const { qc } = mount([]);
+      qc.setQueryData<ChatAskState[]>(KEY_STATES, [{ ref: REF, status: 'open' }]);
+      act(() => h.socket.server('message:new', { message: answer(), conversation: {} }));
+      expect(qc.getQueryState(KEY_STATES)?.isInvalidated).toBe(false);
+
+      act(() => {
+        vi.advanceTimersByTime(4_100);
+      });
+
+      expect(qc.getQueryState(KEY_STATES)?.isInvalidated).toBe(true);
+    });
+
+    it('does not ask after the thread has been left', () => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+      const { qc, unmount } = mount([]);
+      qc.setQueryData<ChatAskState[]>(KEY_STATES, [{ ref: REF, status: 'open' }]);
+      act(() => h.socket.server('message:new', { message: answer(), conversation: {} }));
+
+      unmount();
+      act(() => {
+        vi.advanceTimersByTime(10_000);
+      });
+
+      expect(qc.getQueryState(KEY_STATES)?.isInvalidated).toBe(false);
+    });
+
+    it('a request already received stays received', () => {
+      const { qc } = mount([]);
+      qc.setQueryData<ChatAskState[]>(KEY_STATES, [{ ref: REF, status: 'received' }]);
+      act(() => h.socket.server('message:new', { message: answer(), conversation: {} }));
+      expect(qc.getQueryData(KEY_STATES)).toEqual([{ ref: REF, status: 'received' }]);
+    });
+
+    it('a colleague\'s message that answers nothing asks at once, as before', () => {
+      const { qc } = mount([]);
+      const spy = vi.spyOn(qc, 'invalidateQueries');
+      act(() =>
+        h.socket.server('message:new', {
+          message: answer({ answersAsk: undefined, body: 'kal bhejunga', attachments: [] }),
+          conversation: {},
+        }),
+      );
+      expect(spy).toHaveBeenCalledWith(STATES);
+    });
   });
 });

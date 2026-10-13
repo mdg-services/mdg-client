@@ -9,6 +9,7 @@ import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
 import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 
+import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
@@ -167,6 +168,109 @@ function Tail({ mine }: { mine: boolean }) {
   );
 }
 
+/**
+ * How the dealer answers a request: through the camera, from their files (a photo
+ * or a PDF), or from their photos (a picture only).
+ */
+export type AskAnswerHow = 'camera' | 'files' | 'gallery';
+
+/**
+ * What sits under a request MDG posted: the button that answers it, or what has
+ * become of the answer.
+ *
+ * THE BUTTON IS A FULL-WIDTH, 44px BLACK ONE, and it is an ordinary button whose
+ * `onClick` is handed straight up. That is deliberate: the camera has to be
+ * opened INSIDE this tap (the Android WebView drops a picker opened from an
+ * effect or after a state change), so nothing between the tap and the file input
+ * may defer it — the chat screen's handler clicks the composer's input in the
+ * same call (the composer makes the request the reply target only once a file
+ * has actually been chosen).
+ *
+ * It is drawn only while the request is `open`. Once the dealer has answered it
+ * says so in words, and once MDG has it, it says that: a button left on a
+ * request that is already with MDG is an invitation to send the same photo twice.
+ */
+function AskFooter({
+  message,
+  phase,
+  reason,
+  onAnswer,
+  onRetry,
+}: {
+  message: Message;
+  phase: AskPhase;
+  reason?: string;
+  onAnswer?: (message: Message, how: AskAnswerHow) => void;
+  onRetry?: () => void;
+}) {
+  const t = useT();
+  if (phase === 'none') return null;
+
+  if (phase === 'sent') {
+    return (
+      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-[13px] text-wa-meta">
+        <Clock width={14} strokeWidth={2} className="shrink-0" aria-hidden />
+        {t('chat.askSent')}
+      </p>
+    );
+  }
+  if (phase === 'received') {
+    return (
+      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-[13px] font-medium text-wa-bubble-text">
+        <Check width={15} strokeWidth={2.5} className="shrink-0" aria-hidden />
+        {t('chat.askReceived')}
+      </p>
+    );
+  }
+  if (phase === 'failed') {
+    return (
+      <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
+        <span className="text-[13px] text-wa-meta">{t('chat.askStateFailed')}</span>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="shrink-0 rounded-md px-2 py-1 text-[13px] font-medium text-wa-accent-strong active:bg-wa-row-active"
+        >
+          {t('common.retry')}
+        </button>
+      </div>
+    );
+  }
+
+  // `open`
+  return (
+    <div className="mt-1.5 flex flex-col gap-1.5">
+      {reason ? (
+        <p className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug">
+          <span className="font-medium">{t('chat.askSentBack')}: </span>
+          {reason}
+        </p>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => onAnswer?.(message, 'camera')}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+      >
+        {/* A Lucide glyph and not the 📷 character: an emoji is a colour picture
+            on an Android WebView, and its width varies by font. */}
+        <Camera width={18} strokeWidth={2} className="shrink-0" aria-hidden />
+        {t('chat.askSendPhoto')}
+      </button>
+      {/* A second way in under the camera, so the dealer who has already taken the
+          picture does not have to take it again. A request that takes a paper gets
+          the files (a photo or a PDF); one that takes only a photo gets the
+          photos. */}
+      <button
+        type="button"
+        onClick={() => onAnswer?.(message, message.ask?.acceptsFile ? 'files' : 'gallery')}
+        className="flex h-11 w-full items-center justify-center rounded-lg border border-wa-divider bg-wa-chip px-3 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active"
+      >
+        {message.ask?.acceptsFile ? t('chat.askChooseFile') : t('chat.askChooseGallery')}
+      </button>
+    </div>
+  );
+}
+
 // Memoized: message objects are updated immutably in the query cache (see
 // useConversationSocket applyReceipt / onNewMessage), so a typing toggle, a
 // delivery/read receipt, or a new message re-renders only the changed bubble
@@ -188,6 +292,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   onJumpTo,
   ticketStatus,
   ticketNumber,
+  askPhase = 'none',
+  askReason,
+  onAskAnswer,
+  onAskRetry,
 }: {
   message: Message;
   mine: boolean;
@@ -219,6 +327,18 @@ export const MessageBubble = React.memo(function MessageBubble({
    */
   ticketStatus?: TicketLineStatus;
   ticketNumber?: number;
+  /**
+   * Where the request this message asks for stands (ADR 0019) — set by
+   * MessageList only on a message that carries `ask`. A status word, not the
+   * request, for the memo's sake: one request changing re-renders one bubble.
+   */
+  askPhase?: AskPhase;
+  /** MDG's words when it sent the dealer's answer back. */
+  askReason?: string;
+  /** "Send photo" / "Choose file" on a request. Called INSIDE the tap. */
+  onAskAnswer?: (message: Message, how: AskAnswerHow) => void;
+  /** "Try again" when where the request stands could not be fetched. */
+  onAskRetry?: () => void;
 }) {
   const t = useT();
   const lang = useLang();
@@ -256,12 +376,23 @@ export const MessageBubble = React.memo(function MessageBubble({
   const ai = message.ai;
   const showAiBadge = !!ai && ai.kind !== 'handoff';
 
+  // A REQUEST MDG POSTED (`message.ask`): its title and day sit on a light inset
+  // above the words, and its button (or what became of the answer) sits under
+  // them. Both are drawn from the message itself — an app that predates the
+  // field shows the words and nothing more, which is still a request a person
+  // can answer by hand.
+  const ask = message.ask;
+
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
   // is a bare picture; on a line of its own when the bubble ends in something
   // that has no last line of text — a voice note, a document — or when the
   // "Instant reply" footnote needs the room beside it.
-  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody);
+  //
+  // A request always has its time on its own line: its button runs the full
+  // width of the bubble, and a time pinned to the bottom-right corner would sit
+  // on top of it.
+  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody || !!ask);
 
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
@@ -287,14 +418,15 @@ export const MessageBubble = React.memo(function MessageBubble({
         className={cn(
           'flex flex-col',
           mine ? 'items-end' : 'items-start',
-          hasMedia ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
+          // A request is as wide as a picture, so its button is worth pressing.
+          hasMedia || ask ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
         )}
       >
         <div
           {...longPress}
           className={cn(
             'relative min-w-0 rounded-md text-wa-bubble-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
-            hasMedia && 'w-full',
+            (hasMedia || ask) && 'w-full',
             mine ? 'bg-wa-out' : 'bg-wa-in',
             first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
             hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
@@ -321,6 +453,18 @@ export const MessageBubble = React.memo(function MessageBubble({
               quoteLoading={quoteLoading}
               onJumpTo={onJumpTo}
             />
+          ) : null}
+
+          {ask ? (
+            <div
+              data-ask-ref={ask.ref}
+              className="mb-1 rounded-md bg-wa-row-active px-2.5 py-2"
+            >
+              <p className="break-words text-[14px] font-medium leading-snug">{ask.title}</p>
+              {ask.periodLabel ? (
+                <p className="text-[13px] leading-snug text-wa-meta">{ask.periodLabel}</p>
+              ) : null}
+            </div>
           ) : null}
 
           {message.attachments.length > 0 ? (
@@ -373,6 +517,16 @@ export const MessageBubble = React.memo(function MessageBubble({
                 />
               )}
             </div>
+          ) : null}
+
+          {ask ? (
+            <AskFooter
+              message={message}
+              phase={askPhase}
+              reason={askReason}
+              onAnswer={onAskAnswer}
+              onRetry={onAskRetry}
+            />
           ) : null}
 
           {metaInFlow ? (

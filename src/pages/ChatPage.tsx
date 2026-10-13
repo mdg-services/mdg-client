@@ -7,11 +7,12 @@ import { AppBar } from '@/components/AppBar';
 import { Spinner, useToast } from '@/components/ui';
 import { ChatAvatar } from '@/features/chat/ChatAvatar';
 import { ChatSearchBar, ChatSelectionBar } from '@/features/chat/ChatBars';
-import { Composer, type ComposerReplyPreview } from '@/features/chat/Composer';
+import { Composer, type ComposerHandle, type ComposerReplyPreview } from '@/features/chat/Composer';
 import {
   conversationTitle,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
+import type { AskAnswerHow } from '@/features/chat/MessageBubble';
 import { MessageInfoSheet } from '@/features/chat/MessageInfoSheet';
 import { MessageList } from '@/features/chat/MessageList';
 import { ReactionsSheet } from '@/features/chat/ReactionsSheet';
@@ -22,6 +23,7 @@ import {
 } from '@/features/chat/replyContext';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
+import { useChatAskStates } from '@/hooks/api/useChatAskStates';
 import { messagesQueryKey, useMessages } from '@/hooks/api/useMessages';
 import { useMessageSearch } from '@/hooks/api/useMessageSearch';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
@@ -121,8 +123,46 @@ export function ChatPage() {
     setReactionsMessage(message);
   }, []);
 
+  // Whether the strip above the box was raised by an answer to one of MDG's
+  // requests (a photo is already in hand) rather than by the dealer's own swipe.
+  // Only the first must keep the keyboard down; a dealer who swipes a request to
+  // reply with words is going to type.
+  const [quietReply, setQuietReply] = React.useState(false);
+
   const handleReply = React.useCallback((message: Message) => {
+    setQuietReply(false);
     setReplyTo(message);
+  }, []);
+
+  // ── Answering one of MDG's requests ─────────────────────────────────────
+  // The buttons on a request ("Send photo", "Choose file", "Choose from gallery")
+  // open a chooser through the composer's handle. That call MUST be synchronous,
+  // inside the tap — the Android System WebView drops a picker opened from an
+  // effect or after a render, which is why the old ask bar did exactly this and
+  // why nothing is deferred on the way.
+  //
+  // THE REQUEST IS NOT THE REPLY TARGET YET. A chooser can be left with nothing
+  // chosen (a cancelled camera fires no event), and a target set at the tap would
+  // stay quoted above the box and claim the next, unrelated photo as its answer.
+  // The composer holds the request until a file really arrives and then calls
+  // `handleAnswerPicked`; backing out of the preview calls `handleAnswerDropped`.
+  // After that the photo is an ordinary one: it goes through the full-screen
+  // preview, and `handleSend` below sends it with the request's ref.
+  const composerRef = React.useRef<ComposerHandle>(null);
+  const handleAskAnswer = React.useCallback((message: Message, how: AskAnswerHow) => {
+    const composer = composerRef.current;
+    if (how === 'camera') composer?.openCamera(message);
+    else if (how === 'gallery') composer?.openGallery(message);
+    else composer?.openFiles(message);
+  }, []);
+  const handleAnswerPicked = React.useCallback((ask: Message) => {
+    setQuietReply(true);
+    setReplyTo(ask);
+  }, []);
+  // Only if the strip still shows THAT request: the dealer may have swiped to
+  // reply to something else, or cancelled the strip, since the file came in.
+  const handleAnswerDropped = React.useCallback((ask: Message) => {
+    setReplyTo((current) => (current?.id === ask.id ? null : current));
   }, []);
 
   const cancelReply = React.useCallback(() => setReplyTo(null), []);
@@ -145,6 +185,10 @@ export function ChatPage() {
     () => (messagesQuery.data?.pages ?? []).flat(),
     [messagesQuery.data],
   );
+
+  // Where each request MDG posted here stands — what its button, "Sent" or
+  // "Received" is drawn from.
+  const askStates = useChatAskStates(conversationId, messages);
 
   // ── Selection ───────────────────────────────────────────────────────────
   const selecting = selectedIds.length > 0;
@@ -304,8 +348,10 @@ export function ChatPage() {
       senderLabel: replySenderLabel(rc, userId, t),
       text: preview.text,
       icon: preview.icon,
+      // An answer to a request has its photo in hand: not the moment for the keyboard.
+      ...(quietReply ? { quiet: true } : {}),
     };
-  }, [replyTo, userId, t]);
+  }, [replyTo, quietReply, userId, t]);
 
   // WHAT WAS UNREAD WHEN THIS THREAD OPENED — taken before the effect below
   // tells the server it has all been read, or there would be nothing left to
@@ -342,6 +388,13 @@ export function ChatPage() {
     // Capture + clear the reply target up front so the strip resets instantly.
     const replyTarget = replyTo;
     setReplyTo(null);
+    // A PHOTO OR PAPER SENT AS A REPLY TO ONE OF MDG's REQUESTS ANSWERS THAT
+    // REQUEST — whether the dealer pressed "Send photo" on it or swiped to reply
+    // with a photo, the result is the same and the server files it either way.
+    // Words alone are a reply, not an answer, and neither is a voice note: they
+    // must not claim to be one (the AI first line stands down on a message that
+    // names a request, so a claim would leave a question unanswered).
+    const answersAsk = files.some((f) => f.kind !== 'audio') ? replyTarget?.ask?.ref : undefined;
 
     try {
       // The bubble is on screen from here on, pictures and voice notes drawn as
@@ -362,6 +415,7 @@ export function ChatPage() {
               replyTo: buildReplyContext(replyTarget),
             }
           : {}),
+        ...(answersAsk ? { answersAsk } : {}),
       });
     } catch (err) {
       // Every file failing was already reported one by one; a second "didn't go
@@ -514,9 +568,12 @@ export function ChatPage() {
         unread={unread}
         jumpTo={jump}
         highlight={searching ? search.term : undefined}
+        askStates={askStates}
+        onAskAnswer={handleAskAnswer}
       />
 
       <Composer
+        ref={composerRef}
         // One composer per thread. Without the key the same instance survives a
         // switch between chats — a push for the group chat opening while the
         // dealer is half-way through a note to MDG — and the draft, the staged
@@ -529,6 +586,8 @@ export function ChatPage() {
         disabled={!conversationId}
         replyingTo={replyingTo}
         onCancelReply={cancelReply}
+        onAnswerPicked={handleAnswerPicked}
+        onAnswerDropped={handleAnswerDropped}
         // Only once the thread has something in it. On an empty thread the
         // empty state is already showing its own two chips.
         showQuickReplies={messages.length > 0}

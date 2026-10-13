@@ -6,6 +6,7 @@ import { useAuthStore } from '@/store/auth';
 import type { AttachmentInput } from '@dk/shared/schemas';
 import type { Attachment, Message, MessageReplyContext } from '@dk/shared/types';
 
+import { markAskSent, markAskSentThenRecheck } from './useChatAskStates';
 import { aliasMessageId, messagesQueryKey } from './useMessages';
 
 interface SendVars {
@@ -25,12 +26,19 @@ interface SendVars {
   replyToMessageId?: string;
   /** Client-built snapshot so the optimistic bubble renders its quote instantly. */
   replyTo?: MessageReplyContext;
+  /**
+   * The request this message answers (`doc:…`, `reg:…`, `kv:…`) — set when the
+   * dealer pressed "Send photo" on one of MDG's asks (ADR 0019). The server files
+   * the photo against it; without it a photo is just a photo in the chat.
+   */
+  answersAsk?: string;
 }
 
 /**
- * Every file failed to upload and there is no text to send either, so there is
- * no message to post. The failures were already reported one by one, so the
- * screen must not add a second "didn't go through" for the same thing.
+ * Every file failed to upload and there is no text to send either — or this was
+ * an answer to one of MDG's requests and its photo did not go — so there is no
+ * message to post. The failures were already reported one by one, so the screen
+ * must not add a second "didn't go through" for the same thing.
  */
 export class NothingToSendError extends Error {
   constructor() {
@@ -43,6 +51,8 @@ interface SendContext {
   tempId: string;
   /** The phone's own copies of the pictures and voice notes in the bubble. */
   localUrls: string[];
+  /** Gives the request's "Send photo" back — set only for an answer to a request. */
+  undoAskSent?: () => void;
 }
 
 let tempSeq = 0;
@@ -96,6 +106,7 @@ export function useSendMessage() {
       files,
       onFileFailed,
       replyToMessageId,
+      answersAsk,
     }) => {
       const sending: AttachmentInput[] = [...(attachments ?? [])];
       for (const item of files ?? []) {
@@ -112,10 +123,19 @@ export function useSendMessage() {
       // returning is also what puts the recording back in the composer: it clears
       // itself optimistically and restores on a rejection.
       if (!body && sending.length === 0) throw new NothingToSendError();
+      // AN ANSWER WITHOUT ITS PHOTO IS NOT AN ANSWER. When every file failed but
+      // a caption was typed, the message above would still post — as a text-only
+      // line claiming to answer a request, with nothing for MDG to file. Treated
+      // like any other all-failed send instead: nothing posts, and the composer
+      // gives the photo and the caption back.
+      if (answersAsk && (files?.length ?? 0) > 0 && sending.length === 0) {
+        throw new NothingToSendError();
+      }
       return api.post<Message>(`/v1/conversations/${conversationId}/messages`, {
         body,
         attachments: sending,
         ...(replyToMessageId ? { replyToMessageId } : {}),
+        ...(answersAsk ? { answersAsk } : {}),
       });
     },
     onMutate: async (vars) => {
@@ -146,6 +166,7 @@ export function useSendMessage() {
         deliveredTo: [],
         readBy: [],
         ...(vars.replyTo ? { replyTo: vars.replyTo } : {}),
+        ...(vars.answersAsk ? { answersAsk: vars.answersAsk } : {}),
         createdAt: new Date().toISOString(),
       };
       qc.setQueryData<InfiniteData<Message[]>>(key, (old) => {
@@ -155,10 +176,21 @@ export function useSendMessage() {
         pages[0] = [optimistic, ...(pages[0] ?? [])];
         return { ...old, pages };
       });
-      return { tempId, localUrls };
+      // AN ANSWER TO A REQUEST IS "SENT" FROM THE MOMENT IT IS PRESSED, not from
+      // the moment the upload ends. The upload is most of the wait on a slow link,
+      // and a "Send photo" that stays live through it invites a second photo. Put
+      // back in `onError` if nothing goes.
+      const hasFiles = (vars.files?.length ?? 0) + (vars.attachments?.length ?? 0) > 0;
+      const undoAskSent =
+        vars.answersAsk && hasFiles
+          ? markAskSent(qc, vars.conversationId, vars.answersAsk)
+          : undefined;
+      return { tempId, localUrls, ...(undoAskSent ? { undoAskSent } : {}) };
     },
     onError: (_e, vars, ctx) => {
       if (!ctx) return;
+      // The photo did not go, so the request is still the dealer's turn.
+      ctx.undoAskSent?.();
       // Take out THIS bubble and nothing else. The old rollback put back the
       // whole thread as it was before the send — which also threw away every
       // message that arrived while the request was out, and a request that
@@ -211,6 +243,13 @@ export function useSendMessage() {
         void qc.invalidateQueries({
           queryKey: ['conversation', vars.conversationId, 'media'],
         });
+      }
+      // AN ANSWER TO ONE OF MDG's REQUESTS: it is already shown as sent (see
+      // `onMutate`) — say it again in case a refetch landed during the upload and
+      // put the button back, and ask the server once it has had time to file.
+      const answered = msg.answersAsk ?? vars.answersAsk;
+      if (answered && msg.attachments.length > 0) {
+        markAskSentThenRecheck(qc, vars.conversationId, answered);
       }
       // Keep the local copy a little longer: the bubble swaps to the real link
       // underneath it, and the picture the dealer is looking at must not blank
