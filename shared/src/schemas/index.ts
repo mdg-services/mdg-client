@@ -19,3 +19,4 @@ export * from './slip';
 export * from './documentAsk';
 export * from './aiFirstLine';
 export * from './film';
+export * from './websiteIntake';

@@ -42,6 +42,10 @@ export const ADMIN_ALERT_KINDS = [
   'whatsapp_reply',
   /** The AI raised a ticket — a dealer question only a person can settle — and nobody has resolved it. */
   'ticket_open',
+  /** Somebody sent a grievance from the website and nobody has resolved it. */
+  'grievance_open',
+  /** A dealer filled in "Register your pump" and nobody has been in touch yet. */
+  'enrolment_new',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -144,6 +148,18 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   whatsapp_reply: {
     label: 'WhatsApp reply',
     clearsWhen: 'Clears when the reply is marked as read.',
+    superAdminOnly: true,
+  },
+  // Super-admin only for the same reason: a member of the public's complaint,
+  // which may be about one of our own staff, and a stranger's sign-up.
+  grievance_open: {
+    label: 'Grievance',
+    clearsWhen: 'Clears when someone resolves the grievance with a note.',
+    superAdminOnly: true,
+  },
+  enrolment_new: {
+    label: 'New registration',
+    clearsWhen: 'Clears when the registration is marked as contacted.',
     superAdminOnly: true,
   },
   server_restarted: {

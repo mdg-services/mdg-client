@@ -326,6 +326,14 @@ export const AUDIT_ACTIONS = [
   'TICKET_REOPEN',
   /** An admin marked a ticket urgent, or not. */
   'TICKET_URGENCY',
+  /** A super-admin resolved a grievance sent from the website, with a note. */
+  'GRIEVANCE_RESOLVE',
+  /** A super-admin reopened a resolved grievance. */
+  'GRIEVANCE_REOPEN',
+  /** A super-admin marked a website or app registration as contacted. */
+  'ENROLMENT_CONTACTED',
+  /** A super-admin put a contacted registration back to new. */
+  'ENROLMENT_REOPEN',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -367,6 +375,10 @@ export const AUDIT_ENTITIES = [
   'WaterIngressDayLog',
   /** A dealer question the AI handed to a person — see `types/ticket.ts`. */
   'Ticket',
+  /** A grievance sent from the website — see `types/websiteIntake.ts`. */
+  'Grievance',
+  /** A "Register your pump" form, from the website or the app. */
+  'Enrolment',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
