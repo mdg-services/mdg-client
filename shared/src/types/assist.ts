@@ -13,6 +13,8 @@
  * why `AssistLead` is a set of optional fields rather than a reference.
  */
 
+import type { GrievanceCategory } from './websiteIntake';
+
 /** How the visitor is talking to us. Fixed for the life of a session. */
 export const ASSIST_CHANNELS = ['chat', 'voice-note', 'call'] as const;
 export type AssistChannel = (typeof ASSIST_CHANNELS)[number];
@@ -330,6 +332,8 @@ export interface AssistSessionDetail extends AssistSessionSummary {
   ipPrefix?: string;
   fingerprint: string;
   followupNote?: string;
+  /** Grievances registered in this conversation, oldest first. Empty for most. */
+  grievances: AssistSessionGrievance[];
 }
 
 /**
@@ -432,8 +436,41 @@ export interface AssistTurnResult {
   deflected: boolean;
   /** Set when the assistant wants the visitor's details next. */
   asksFor?: 'name' | 'place' | 'mobile' | 'mobile-confirm';
+  /**
+   * Set when the visitor is complaining about MDG itself — our service, the
+   * app, billing, our staff, or how we handle their data — and not asking a
+   * question. The widget then offers to register it as a grievance.
+   */
+  grievance?: AssistGrievanceOffer;
   /** Turns left before the session's cap. Lets the widget warn rather than just stop. */
   turnsRemaining: number;
+}
+
+/** What the assistant judged the complaint to be about. The visitor can change it before sending. */
+export interface AssistGrievanceOffer {
+  category: GrievanceCategory;
+}
+
+/** A grievance registered from the assistant's chat: the number the visitor is told, and the line to show. */
+export interface AssistGrievanceResult {
+  /** "G-0012". */
+  ref: string;
+  /** The same form sent again (a retry): the number it got the first time, nothing new saved. */
+  duplicate: boolean;
+  /** The assistant's confirmation, in the visitor's language, number included. */
+  reply: string;
+}
+
+/** Sent on a live call the moment a grievance is registered, so the number stays on screen after hang-up. */
+export interface AssistCallGrievanceFiled {
+  ref: string;
+}
+
+/** A grievance registered in an assistant conversation, as the admin's transcript view lists it. */
+export interface AssistSessionGrievance {
+  id: string;
+  ref: string;
+  filedAt: string;
 }
 
 /** Live-call events, server → widget. Kept flat: these cross a WebSocket. */

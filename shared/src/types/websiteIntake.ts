@@ -36,6 +36,21 @@ export const GRIEVANCE_CATEGORY_LABELS: Record<GrievanceCategory, string> = {
   other: 'Something else',
 };
 
+/**
+ * Where a grievance was made. The website form; the site assistant's chat (a
+ * card it offers when somebody complains about us); or a live call with the
+ * assistant, which takes the details by voice.
+ */
+export const GRIEVANCE_SOURCES = ['website', 'assistant-chat', 'assistant-call'] as const;
+export type GrievanceSource = (typeof GRIEVANCE_SOURCES)[number];
+
+/** The admin's words for where it came from. */
+export const GRIEVANCE_SOURCE_LABELS: Record<GrievanceSource, string> = {
+  website: 'Website form',
+  'assistant-chat': 'Assistant chat',
+  'assistant-call': 'Call with the assistant',
+};
+
 /** `OPEN` until a person resolves it with a written note. `RESOLVED` can be reopened. */
 export const GRIEVANCE_STATES = ['OPEN', 'RESOLVED'] as const;
 export type GrievanceState = (typeof GRIEVANCE_STATES)[number];
@@ -49,11 +64,19 @@ export interface Grievance {
   /** The number the person was given on screen and in their email: "G-0007". */
   ref: string;
   name: string;
-  email: string;
+  /**
+   * Always there for the website form, which sends the acknowledgement to it.
+   * Optional through the assistant (nobody spells an address out on a call),
+   * so null means "call them on the mobile".
+   */
+  email: string | null;
   mobile: string;
   /** Pump name or SAP code, when they gave one. */
   outlet: string | null;
   category: GrievanceCategory;
+  source: GrievanceSource;
+  /** The assistant conversation it was made in, for the transcript and the recording. Null for the website form. */
+  assistSessionId: string | null;
   /** What they wrote, as they wrote it. */
   message: string;
   lang: WebsiteLang;

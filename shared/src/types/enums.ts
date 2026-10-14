@@ -96,7 +96,7 @@ export const AUDIT_ACTIONS = [
   'STAFF_WORK_ITEM_DELETE',
   'STAFF_LEAVE_SET',
   'STAFF_LEAVE_CLEAR',
-  // Auth (ADR 0009 — user-level audit)
+  // Auth (ADR 0020 — user-level audit)
   'LOGOUT',
   'LOGIN_FAILED',
   // Admin management

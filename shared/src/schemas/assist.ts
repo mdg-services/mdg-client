@@ -11,7 +11,8 @@
 
 import { z } from 'zod';
 
-import { ASSIST_CHANNELS, ASSIST_LANGS , ASSIST_FOLLOWUP_STATUSES } from '../types/assist';
+import { ASSIST_CHANNELS, ASSIST_LANGS, ASSIST_FOLLOWUP_STATUSES } from '../types/assist';
+import { GRIEVANCE_CATEGORIES } from '../types/websiteIntake';
 
 export const assistLangSchema = z.enum(ASSIST_LANGS);
 export const assistChannelSchema = z.enum(ASSIST_CHANNELS);
@@ -26,7 +27,9 @@ export const assistChannelSchema = z.enum(ASSIST_CHANNELS);
 export const assistMobileSchema = z
   .string()
   .trim()
-  .transform((v) => v.replace(/[\s-]/g, '').replace(/^(\+?91)/, ''))
+  // A country code or a trunk 0 only when it is extra: "9123456789" is itself a
+  // mobile number, and stripping its "91" left eight digits and a refusal.
+  .transform((v) => v.replace(/[\s-]/g, '').replace(/^(?:\+?91|0)(?=\d{10}$)/, ''))
   .pipe(z.string().regex(/^[6-9]\d{9}$/, 'Enter a 10-digit mobile number'));
 
 export const createAssistSessionSchema = z.object({
@@ -78,6 +81,30 @@ export const assistEscalateSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
 export type AssistEscalateInput = z.infer<typeof assistEscalateSchema>;
+
+/**
+ * A grievance registered from the assistant's chat — the card it offers when a
+ * visitor is complaining about MDG itself. A call registers its grievances
+ * inside the call and never sends this.
+ *
+ * Email is optional here, unlike on the website form: the website emails the
+ * person their number, the assistant shows it on screen instead, so an address
+ * is only a way for the team to write back. `submissionId` is made by the
+ * widget when the card opens, so a retry after a dropped connection gets the
+ * number the first attempt already got.
+ */
+export const assistGrievanceSchema = z.object({
+  submissionId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/),
+  name: z.string().trim().min(1).max(80),
+  mobile: assistMobileSchema,
+  email: z
+    .union([z.string().trim().email().max(200), z.literal('')])
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  category: z.enum(GRIEVANCE_CATEGORIES),
+  message: z.string().trim().min(10).max(3000),
+});
+export type AssistGrievanceInput = z.infer<typeof assistGrievanceSchema>;
 
 // ---------------------------------------------------------------------------
 // Super-admin surfaces
