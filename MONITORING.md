@@ -3,7 +3,10 @@
 Sentry, wired for one purpose: to answer questions we currently cannot, like
 "why can this dealer not use the microphone?".
 
-## Turning it on
+**Live since 14 Jul 2026.** Sentry org `mdg-services`, project `mdg-client`, on the
+free Developer plan (5,000 events a month); no paid features in use.
+
+## Setting it up again (e.g. a new Vercel project)
 
 It is **off** until a DSN exists. With `VITE_SENTRY_DSN` unset, Sentry is not
 imported, not bundled, and every call in `lib/monitoring` is a no-op.
@@ -34,6 +37,9 @@ on low-end Android over 2G with metered data. So:
   before it lands is buffered and flushed.
 - No Session Replay, no performance tracing, four integrations. `Sentry.init()`
   with its defaults measured 119 kB; hand-building the client got it to 106.
+- **Each phone rations itself:** at most 3 reports per issue and 12 per session,
+  counted before the SDK is fetched, so a crash loop cannot trigger the download or
+  eat the month's 5,000. Up to 40 reports are held while the SDK loads.
 
 There is a test (`lib/monitoring.test.ts`) pinning both properties. If someone
 "simplifies" this by importing Sentry at the top of a module, it will fail.
@@ -45,8 +51,8 @@ Without them, a stack trace in Sentry reads `a.b.c is not a function` at
 added to answer.
 
 Set **`SENTRY_AUTH_TOKEN`** on the Vercel project (an *org* auth token from
-Sentry → Settings → Auth Tokens, scoped `project:releases`) and the build uploads
-source maps automatically.
+Sentry → Settings → Auth Tokens, scope `org:ci`; the live one is named
+`vercel-sourcemaps-mdg-client`) and the build uploads source maps automatically.
 
 Three things make this safe:
 
@@ -100,3 +106,19 @@ WebView versions).
 - `mic.granted-but-unopenable` — the OS granted RECORD_AUDIO and the mic still would
   not open. If this appears, the permission was never the problem.
 - `mic.unsupported` — the mic button was reachable on a device that cannot record.
+
+## Push notifications
+
+Two more issues, raised only when this web app runs inside the Dealer Kavach phone
+app (see `mdg-app/README.md` → Push notifications):
+
+- `push.register-failed` — the phone had a token, but saving it to our server
+  failed. Tagged `platform`.
+- `push.token-unavailable` — the phone could not get a token at all. Tagged
+  `platform` and `reason`:
+  - `expo-go` — running in Expo Go, which has no remote push. Expected.
+  - `no-module` — an over-the-air update landed on a binary without the
+    notifications module. Needs a new build.
+  - `permission` — the person refused notifications, or Android stopped asking.
+  - `token-failed` — the phone had no token to give. On Android this almost always
+    means the build is missing its Firebase config. The `detail` field holds the error.
