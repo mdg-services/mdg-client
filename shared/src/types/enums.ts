@@ -139,6 +139,8 @@ export const AUDIT_ACTIONS = [
   'INSPECTION_REPORTS_COLLECT',
   // Daily Sales Report — admin-approved share of the cards with the dealer
   'DSR_SHARE',
+  // Daily Sales Report — an outlet's saved rule for who gets each sheet
+  'DSR_SHARE_RULE',
   // Daily Sales Report — hand-entered receipt. Superseded by IRAS_DATA_EDIT
   // below; kept because audit entries written before that change still name it.
   'DSR_RECEIPT_SET',

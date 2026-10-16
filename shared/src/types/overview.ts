@@ -24,6 +24,8 @@
  * now", not "as of the reporting day".
  */
 
+import type { DsrSheet, DsrSheetHolders, DsrSheetPlan } from './share';
+
 /** The whole payload of `GET /api/v1/overview/day`. */
 export interface OverviewDay {
   /** IST `YYYY-MM-DD`. The shift day being graded — yesterday unless asked otherwise. */
@@ -173,10 +175,16 @@ export interface DealerDayRow {
     firstWarning: string | null;
     /** A receipt correction invalidates the edited day and every later one. */
     stale: boolean;
+    /** The outlet's saved rule for who gets each sheet; null when it has none. */
+    shareRule?: DsrSheetPlan | null;
   };
   sent: {
     sharedAt: string | null;
     supersededSharedAt: string | null;
+    /** Who holds each sheet of the current report; null when it is unsent or unrecorded. */
+    holders?: Record<DsrSheet, DsrSheetHolders> | null;
+    /** Who is on the app at the outlet now; absent when that could not be read. */
+    outlet?: { owners: number; manager: boolean } | null;
   };
   kavach: {
     hasProgramme: boolean;
