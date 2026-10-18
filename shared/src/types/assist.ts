@@ -165,6 +165,22 @@ export const ASSIST_FOLLOWUP_STATUSES = ['new', 'contacted', 'closed'] as const;
 export type AssistFollowupStatus = (typeof ASSIST_FOLLOWUP_STATUSES)[number];
 
 /**
+ * Which of MDG's two apps a conversation was about, so the person ringing a
+ * lead back knows which one to talk about before they dial.
+ *
+ * Worked out when the session is read, never stored: from the page the chat was
+ * opened on and from whether the visitor named Khata Kavach. So a session from
+ * before Khata Kavach existed reads as Dealer's Kavach, which is what it was.
+ */
+export const ASSIST_PRODUCTS = ['dealer-kavach', 'khata-kavach'] as const;
+export type AssistProduct = (typeof ASSIST_PRODUCTS)[number];
+
+export const ASSIST_PRODUCT_LABELS: Record<AssistProduct, string> = {
+  'dealer-kavach': "Dealer's Kavach",
+  'khata-kavach': 'Khata Kavach',
+};
+
+/**
  * The name, place and mobile the visitor volunteered.
  *
  * All three are optional and stay optional. A visitor who only wants to know
@@ -306,6 +322,8 @@ export interface AssistSessionSummary {
   durationMs: number;
   turnCount: number;
   lead: AssistLead;
+  /** Which app the conversation was about. See `ASSIST_PRODUCTS`. */
+  product: AssistProduct;
   flags: AssistFlag[];
   followupStatus: AssistFollowupStatus;
   /** First thing the visitor said, trimmed — the list is scanned, not read. */
