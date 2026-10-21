@@ -15,8 +15,9 @@
  *   They are counted as opened only when they did something with the message —
  *   tapped its link, replied, reacted or said stop (`openedBy: 'sign'`).
  * - **A link Meta handles.** Only a link that goes through our own site with
- *   the person's code in it can be counted, and so far that is the film
- *   invite's button. A link typed into a message's words is not tracked.
+ *   the person's code in it can be counted: the film invite's button, and the
+ *   button on a message sent from the inbox with a link added
+ *   (`whatsappLinks.ts`). A link typed into a message's words is not tracked.
  *
  * A "send" is one message to many people: one campaign from the campaign
  * script, or the same words sent from the inbox on the same day.
@@ -82,6 +83,8 @@ export interface WhatsAppResultSend {
   kind: string;
   /** The campaign script's name for it; null for anything sent another way. */
   campaign: string | null;
+  /** Where its counted link sends people, when it went with one from the inbox. */
+  link: string | null;
   firstSentAt: string;
   lastSentAt: string;
   counts: WhatsAppResultCounts;

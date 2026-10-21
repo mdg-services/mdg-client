@@ -306,6 +306,12 @@ export interface WhatsAppSendInput {
   clientId: string;
   /** The message being answered, to quote it. Honoured only for an ordinary message. */
   replyTo?: string | null;
+  /**
+   * An address to send them to, as typed (`toLinkTarget` reads it). With one,
+   * the message always goes in the link template — even inside the 24-hour
+   * window — because only its button can be counted (`whatsappLinks.ts`).
+   */
+  link?: string | null;
 }
 
 /** Start a chat with somebody who is not in the inbox yet. */
@@ -315,6 +321,8 @@ export interface WhatsAppNewChatInput {
   name?: string | null;
   text: string;
   clientId: string;
+  /** As `WhatsAppSendInput.link`. */
+  link?: string | null;
 }
 
 export interface WhatsAppSendResult {
@@ -368,6 +376,17 @@ export interface WhatsAppInboxConfig {
     button: string | null;
     maxLength: number;
   };
+  /**
+   * The template a message with a link goes in (`WHATSAPP_LINK_TEMPLATE`).
+   * Null until the server is told Meta has approved it: no link can be added.
+   */
+  linkTemplate: {
+    name: string;
+    greeting: string;
+    closing: string;
+    button: string;
+    maxLength: number;
+  } | null;
   textMaxLength: number;
   /** The numbers we send from. */
   numbers: Array<{ id: string; label: string; isDefault: boolean }>;
