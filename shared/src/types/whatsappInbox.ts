@@ -27,7 +27,7 @@
 
 /**
  * `mdg_simple_message` (en, MARKETING), approved 21 Oct 2026. Its body is
- * exactly `${greeting}\n\n{{1}}\n\n${closing}` with one quick-reply button.
+ * exactly `${greeting}\n\n{{1}}\n\n${closing}`, and it has no buttons.
  * Change nothing here without changing the template at Meta — a send whose
  * shape differs from the approved one is refused.
  */
@@ -36,8 +36,15 @@ export const WHATSAPP_SIMPLE_TEMPLATE = {
   language: 'en',
   greeting: 'Namaste,',
   closing: 'Thank you,\nTeam MDG Services',
-  /** The quick-reply button under it. Tapping it puts the person on the stop list. */
-  button: 'Stop promotions',
+  /**
+   * No button. It carried a "Stop promotions" quick reply until 21 Oct 2026,
+   * when it was removed: Meta does not require one. Its policy asks that a
+   * stop is honoured, not that every message carries a button for it, and
+   * WhatsApp gives every person its own "Offers and announcements" switch for
+   * a business's promotions, which reaches us as a `user_preferences` webhook.
+   * A typed "stop promotions", "STOP" and the like put them on the stop list too.
+   */
+  button: null as string | null,
   /**
    * The longest the typed words may be. Meta caps a template body at 1,024
    * characters including the fixed words; this leaves a margin under that.
