@@ -32,6 +32,7 @@ export * from './film';
 export * from './adminAlert';
 export * from './whatsapp';
 export * from './whatsappInbox';
+export * from './whatsappResults';
 export * from './loadPlan';
 export * from './depotHoliday';
 export * from './share';
