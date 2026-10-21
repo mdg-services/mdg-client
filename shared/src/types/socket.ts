@@ -1,5 +1,6 @@
 import type { Conversation, Message, MessageReaction } from './conversation';
 import type { DealerDocumentAskRow } from './documentAsk';
+import type { WhatsAppChangedEvent, WhatsAppIncomingEvent } from './whatsappInbox';
 
 export interface ServerToClientEvents {
   'message:new': (payload: { message: Message; conversation: Conversation }) => void;
@@ -36,6 +37,18 @@ export interface ServerToClientEvents {
    * `conversation:updated`, whose `tickets` carries the dealer-safe view.
    */
   'tickets:changed': (payload: { ticketId: string; conversationId: string }) => void;
+  /**
+   * Something changed in these WhatsApp chats: a message in or out, a tick, a
+   * name or a stage. SUPER-ADMIN sockets only — the payload names people by
+   * their numbers, and the WhatsApp inbox is a super-admin page.
+   */
+  'whatsapp:changed': (payload: WhatsAppChangedEvent) => void;
+  /**
+   * Somebody wrote to one of our WhatsApp numbers. Super-admin sockets only.
+   * Drives the toast, the sound and the desktop notification; the list itself
+   * refreshes from `whatsapp:changed`.
+   */
+  'whatsapp:incoming': (payload: WhatsAppIncomingEvent) => void;
   typing: (payload: { conversationId: string; userId: string; userName: string }) => void;
   delivered: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
   read: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
