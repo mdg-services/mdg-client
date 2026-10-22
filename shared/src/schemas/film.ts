@@ -16,6 +16,7 @@ import {
   FILM_CTAS,
   FILM_IDS,
   type FilmBeacon,
+  type FilmCta,
 } from '../types/film';
 
 export const filmIdSchema = z.enum(FILM_IDS);
@@ -89,7 +90,16 @@ export const filmBeaconSchema = z.object({
   rebufferMs: z.number().finite().min(0).max(3600000).optional(),
   level: z.number().int().min(0).max(10000).optional(),
   ended: z.boolean().optional(),
-  cta: z.array(z.enum(FILM_CTAS)).max(50).optional(),
+  // Forgiving like the descriptive fields: a page newer than this server may
+  // count a tap it does not know yet, and that must cost the tap, not the whole
+  // beacon (and the watched seconds it carries).
+  cta: z
+    .array(z.string().max(32))
+    .max(50)
+    .transform((list) =>
+      list.filter((c): c is FilmCta => (FILM_CTAS as readonly string[]).includes(c)),
+    )
+    .optional(),
   rate: z.number().finite().min(0.0625).max(16).optional(),
 });
 export type FilmBeaconInput = z.infer<typeof filmBeaconSchema>;

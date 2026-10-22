@@ -15,8 +15,23 @@ export type FilmId = (typeof FILM_IDS)[number];
 export const FILM_BEACON_KINDS = ['start', 'beat', 'end'] as const;
 export type FilmBeaconKind = (typeof FILM_BEACON_KINDS)[number];
 
-/** The buttons and taps the page counts. */
-export const FILM_CTAS = ['full', 'register', 'share', 'replay', 'chapter', 'speed'] as const;
+/**
+ * The buttons and taps the page counts. `reply` is the "reply on WhatsApp"
+ * button: it opens our business number's chat with a message ready to send.
+ * The reply itself arrives in the admin's WhatsApp inbox; this only counts the
+ * tap. A page that sends a value the
+ * server does not know has its whole beacon refused, so the server must be
+ * deployed with a new value before the pages that send it.
+ */
+export const FILM_CTAS = [
+  'full',
+  'register',
+  'share',
+  'replay',
+  'chapter',
+  'speed',
+  'reply',
+] as const;
 export type FilmCta = (typeof FILM_CTAS)[number];
 
 export const FILM_AUTOPLAY_OUTCOMES = ['muted', 'blocked'] as const;
@@ -220,6 +235,12 @@ export interface FilmStats {
     viewersWhoStartedFull: number;
     rate: number;
   };
+  /**
+   * Page loads that tapped "reply on WhatsApp" (any open, not only views). The
+   * replies themselves are in the admin's WhatsApp inbox. Optional so a reader
+   * built before it existed still type-checks against an older server.
+   */
+  replyTaps?: number;
   /**
    * True when the window held more page loads than one stats request reads:
    * the figures then cover only the newest of them, and the page should say

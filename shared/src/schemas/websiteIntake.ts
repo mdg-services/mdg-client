@@ -1,5 +1,5 @@
 /**
- * Validation for the website's two forms as they reach our API, and for what an
+ * Validation for the website's forms as they reach our API, and for what an
  * admin does with them afterwards (types/websiteIntake.ts).
  *
  * The intake schemas are what the website's server sends, not what a browser
@@ -12,6 +12,8 @@
 import { z } from 'zod';
 
 import {
+  CALLBACK_FILMS,
+  CALLBACK_SOURCES,
   ENROLMENT_SITE_TYPES,
   ENROLMENT_SOURCES,
   GRIEVANCE_CATEGORIES,
@@ -66,6 +68,27 @@ export const websiteEnrolmentIntakeSchema = z.object({
 });
 export type WebsiteEnrolmentIntake = z.infer<typeof websiteEnrolmentIntakeSchema>;
 
+/**
+ * A "we'll call you" request. No address is ever given, so nothing is mailed
+ * to the person: the team calls the number. The film pages add which film and
+ * the share code their link carried, so a request can be matched to the
+ * WhatsApp message that brought it.
+ */
+export const websiteCallbackIntakeSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  mobile,
+  outlet: optionalText(160),
+  message: optionalText(1000),
+  source: z.enum(CALLBACK_SOURCES).default('website'),
+  film: z.enum(CALLBACK_FILMS).optional(),
+  ref: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,32}$/)
+    .optional(),
+  lang: z.enum(WEBSITE_LANGS).optional(),
+});
+export type WebsiteCallbackIntake = z.infer<typeof websiteCallbackIntakeSchema>;
+
 /** Resolving a grievance needs a note: what was done, in words the next person can read. */
 export const resolveGrievanceSchema = z.object({
   note: z.string().trim().min(3).max(2000),
@@ -77,3 +100,9 @@ export const markEnrolmentContactedSchema = z.object({
   note: optionalText(1000),
 });
 export type MarkEnrolmentContactedInput = z.infer<typeof markEnrolmentContactedSchema>;
+
+/** Marking a call-back called. The note is optional: "called, wants a visit on Monday". */
+export const markCallbackCalledSchema = z.object({
+  note: optionalText(1000),
+});
+export type MarkCallbackCalledInput = z.infer<typeof markCallbackCalledSchema>;

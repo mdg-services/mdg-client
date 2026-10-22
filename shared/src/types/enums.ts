@@ -336,6 +336,10 @@ export const AUDIT_ACTIONS = [
   'ENROLMENT_CONTACTED',
   /** A super-admin put a contacted registration back to new. */
   'ENROLMENT_REOPEN',
+  /** A super-admin marked a website call-back request as called. */
+  'CALLBACK_CALLED',
+  /** A super-admin put a called call-back request back to new. */
+  'CALLBACK_REOPEN',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -381,6 +385,8 @@ export const AUDIT_ENTITIES = [
   'Grievance',
   /** A "Register your pump" form, from the website or the app. */
   'Enrolment',
+  /** A "we'll call you" request from the website. */
+  'CallbackRequest',
 ] as const;
 export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 

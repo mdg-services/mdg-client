@@ -1,6 +1,7 @@
 /**
- * What people send us from mdgservices.in — a grievance, or a "Register your
- * pump" enrolment — as the admin's Grievances and Registrations pages list them.
+ * What people send us from mdgservices.in — a grievance, a "Register your
+ * pump" enrolment, or a "we'll call you" request — as the admin's Grievances,
+ * Registrations and Call-backs pages list them.
  *
  * Both forms live on the website, whose own server (a Vercel function) sends
  * the emails. That server then hands each submission to our API with a shared
@@ -132,5 +133,74 @@ export type EnrolmentView = 'new' | 'all';
 export interface EnrolmentList {
   /** Newest first. */
   items: Enrolment[];
+  counts: { new: number; all: number };
+}
+
+// ── Call-back requests ("We'll call you") ──────────────────────────────────
+
+/** `NEW` until somebody at MDG has called them, then `CALLED`. */
+export const CALLBACK_STATES = ['NEW', 'CALLED'] as const;
+export type CallbackState = (typeof CALLBACK_STATES)[number];
+
+/**
+ * Which form it came from: the film pages' "we'll call you", or any other
+ * call-back form on the website (the home page, the Khata Kavach page, the
+ * site assistant when a call cannot start). `message` says which of those.
+ */
+export const CALLBACK_SOURCES = ['website', 'film'] as const;
+export type CallbackSource = (typeof CALLBACK_SOURCES)[number];
+
+/** The two films, by the id the film pages and the Films page use. */
+export const CALLBACK_FILMS = ['kavach', 'kavach-short'] as const;
+export type CallbackFilm = (typeof CALLBACK_FILMS)[number];
+
+/** Who a film link's code (`?r=`) was sent to on WhatsApp, when it was one of our sends. */
+export interface CallbackRefSend {
+  /** The name the promotion greeted them by. */
+  name: string;
+  /** Their WhatsApp number, as the send ledger holds it (digits, with the country code). */
+  phone: string;
+  /** When it was sent. Null when the send never went. */
+  sentAt: string | null;
+  /**
+   * Whether the person asking gave that same number. False when the link was
+   * forwarded: the film went to this person, and a friend of theirs is asking.
+   */
+  sameNumber: boolean;
+}
+
+export interface CallbackRequest {
+  id: string;
+  name: string;
+  mobile: string;
+  /** Pump name, when they gave one. */
+  outlet: string | null;
+  /** What the form added for the team, e.g. "Callback requested from the assistant." */
+  message: string | null;
+  source: CallbackSource;
+  /** Which film page, for a request from one. */
+  film: CallbackFilm | null;
+  /** The film link's share code, when the page was opened from a link that carried one. */
+  ref: string | null;
+  /** That code's WhatsApp send, when it was ours. Looked up when the list is read. */
+  refSend: CallbackRefSend | null;
+  /** That code's share link from admin → Films, when it was one of those. */
+  refLabel: string | null;
+  /** The language of the page the form was on. */
+  lang: WebsiteLang | null;
+  state: CallbackState;
+  /** When the first request arrived. A repeat within half an hour updates the row, not this. */
+  submittedAt: string;
+  calledAt: string | null;
+  calledByName: string | null;
+  /** Whatever the person who called them wrote down. Optional. */
+  note: string | null;
+}
+
+export type CallbackView = 'new' | 'all';
+
+export interface CallbackList {
+  /** Newest first. */
+  items: CallbackRequest[];
   counts: { new: number; all: number };
 }

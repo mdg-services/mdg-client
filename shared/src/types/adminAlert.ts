@@ -46,6 +46,8 @@ export const ADMIN_ALERT_KINDS = [
   'grievance_open',
   /** A dealer filled in "Register your pump" and nobody has been in touch yet. */
   'enrolment_new',
+  /** Somebody asked for a call on the website (the film pages' form, among others) and nobody has called yet. */
+  'callback_new',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -160,6 +162,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   enrolment_new: {
     label: 'New registration',
     clearsWhen: 'Clears when the registration is marked as contacted.',
+    superAdminOnly: true,
+  },
+  callback_new: {
+    label: 'Call-back',
+    clearsWhen: 'Clears when the request is marked as called.',
     superAdminOnly: true,
   },
   server_restarted: {
