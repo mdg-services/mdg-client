@@ -52,6 +52,11 @@ export interface WhatsAppResultCounts {
   heldBack: number;
   /** Did not arrive for any other reason. */
   notDelivered: number;
+  /**
+   * Of `notDelivered`: WhatsApp could not deliver to that number at all (error
+   * 131026) — most often a number that is not on WhatsApp. Not charged.
+   */
+  notOnWhatsApp: number;
   /** `openedByTick + openedBySign`. */
   opened: number;
   /** Showed a blue tick. */
@@ -66,8 +71,10 @@ export interface WhatsAppResultCounts {
   tappedLinkTwice: number;
   /** Every tap, from everyone. */
   linkTaps: number;
-  /** People who wrote back or reacted (not counting "stop"). */
+  /** People who wrote back or reacted (not counting "stop", or a "call me" tap). */
   replied: number;
+  /** People who pressed the film invite's "मुझे कॉल करें": they want a call. */
+  askedCall: number;
   /** People who asked for no more promotions. */
   stopped: number;
   /** Middle value of minutes from sending to the blue tick; null when nobody ticked. */
@@ -104,12 +111,16 @@ export interface WhatsAppResultPerson {
   readAt: string | null;
   /** Why it did not arrive, in Meta's words. */
   failure: string | null;
+  /** Meta's code for why it did not arrive (131049 held back, 131026 not deliverable). */
+  failureCode: number | null;
   hasLink: boolean;
   linkTaps: number;
   lastTapAt: string | null;
   /** The longest single watch of the film, in seconds; null without a tap. */
   watchedSeconds: number | null;
   replied: boolean;
+  /** Pressed "मुझे कॉल करें". Not counted as `replied`. */
+  askedCall: boolean;
   stopped: boolean;
 }
 
