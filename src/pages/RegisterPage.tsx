@@ -9,9 +9,9 @@ import { z } from 'zod';
 import { Button, Card, CardContent, Input } from '@/components/ui';
 import {
   LIMITS,
-  MOBILE_PATTERN,
   SITE_TYPES,
   submitEnrollment,
+  toMobile,
   type SiteType,
 } from '@/features/register/enroll';
 import { TermsSheet } from '@/features/register/TermsSheet';
@@ -56,7 +56,10 @@ export function RegisterPage() {
     () =>
       z.object({
         name: z.string().trim().min(1, t('register.nameRequired')).max(LIMITS.name),
-        mobile: z.string().trim().regex(MOBILE_PATTERN, t('register.mobileInvalid')),
+        mobile: z
+          .string()
+          .trim()
+          .refine((v) => toMobile(v) !== null, t('register.mobileInvalid')),
         email: z
           .string()
           .trim()
@@ -101,7 +104,8 @@ export function RegisterPage() {
     mutationFn: (v: FormValues) =>
       submitEnrollment({
         name: v.name,
-        mobile: v.mobile,
+        // As ten plain digits, however it was typed (the check above passed it).
+        mobile: toMobile(v.mobile) ?? v.mobile,
         email: v.email,
         siteType: v.siteType as SiteType,
         pumpName: v.pumpName,
@@ -185,7 +189,7 @@ export function RegisterPage() {
                       type="tel"
                       inputMode="tel"
                       autoComplete="tel"
-                      maxLength={15}
+                      maxLength={20}
                       invalid={!!errors.mobile}
                       placeholder={t('register.mobilePlaceholder')}
                       {...register('mobile')}

@@ -113,8 +113,8 @@ export const messages = {
   },
   'register.nameRequired': { en: 'Enter your name', hi: 'अपना नाम भरिए' },
   'register.mobileInvalid': {
-    en: 'Enter a valid mobile number',
-    hi: 'सही मोबाइल नंबर भरिए',
+    en: 'Enter a 10-digit mobile number that starts with 6, 7, 8 or 9',
+    hi: '10 अंकों का मोबाइल नंबर लिखिए, जो 6, 7, 8 या 9 से शुरू हो',
   },
   'register.siteTypeRequired': {
     en: 'Choose Type A or Type B',

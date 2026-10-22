@@ -65,7 +65,9 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     expect(await screen.findByText('Enter your name')).toBeInTheDocument();
-    expect(screen.getByText('Enter a valid mobile number')).toBeInTheDocument();
+    expect(
+      screen.getByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Choose Type A or Type B')).toBeInTheDocument();
     expect(screen.getByText('Enter your SAP code')).toBeInTheDocument();
     expect(
@@ -127,7 +129,8 @@ describe('RegisterPage', () => {
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual({
       name: 'Ramesh Kumar',
-      mobile: '98765 43210',
+      // Sent as ten plain digits, as typed with a space.
+      mobile: '9876543210',
       email: 'ramesh@example.com',
       siteType: 'Type B',
       pumpName: 'Sai Petroleums',
@@ -135,6 +138,31 @@ describe('RegisterPage', () => {
       agree: true,
       source: 'app',
     });
+  });
+
+  it('takes a number typed in Hindi digits and refuses one that is not a mobile', async () => {
+    fetchMock.mockResolvedValue(okResponse());
+    const user = userEvent.setup();
+    renderAt('/register');
+
+    await fillValidForm(user);
+    await user.click(screen.getByRole('checkbox'));
+    const mobile = screen.getByLabelText('Your mobile');
+
+    await user.clear(mobile);
+    await user.type(mobile, '1234567890');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(
+      await screen.findByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.clear(mobile);
+    await user.type(mobile, '+९१ ९४६७४ ६६९६३');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(await screen.findByText('Thank you. Your details are with us.')).toBeInTheDocument();
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(JSON.parse(init.body as string).mobile).toBe('9467466963');
   });
 
   it('keeps the form and says so when the send fails', async () => {
