@@ -91,33 +91,55 @@ export async function fetchFreshDownloadUrl(
   return data.url;
 }
 
+/** A file whose signed address is already in hand, ready to be handed to the user. */
+export interface DownloadableFile {
+  url: string;
+  filename: string;
+  contentType?: string;
+  kind?: 'image' | 'file' | 'audio';
+}
+
 /**
- * Download an attachment. In the native shell, images go through the
- * 'media:download' bridge (gallery save when the module exists; the shell
+ * Hand a ready signed URL to the user. In the native shell, images go through
+ * the 'media:download' bridge (gallery save when the module exists; the shell
  * falls back to the browser otherwise); an old shell that never answers gets
  * the window.open fallback — its nav gate hands the URL to Chrome, which
  * downloads it thanks to the attachment disposition. A plain browser just
  * navigates (no CORS involved). Throws when every path failed.
+ *
+ * Split out of `downloadAttachment` so a file that does not come from a chat
+ * message — a GST invoice from the payments screens — travels the same road:
+ * one place knows how the app, an old app and a browser each take a download.
  */
-export async function downloadAttachment(
-  attachment: Attachment,
-  source: AttachmentSource,
-): Promise<DownloadMode> {
-  const url = await fetchFreshDownloadUrl(attachment, source);
+export async function deliverDownload(file: DownloadableFile): Promise<DownloadMode> {
   if (isNativeShell()) {
     const result = await requestNativeDownload({
       id: `dl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      url,
-      filename: attachment.filename,
-      contentType: attachment.contentType,
-      kind: attachment.kind,
+      url: file.url,
+      filename: file.filename,
+      contentType: file.contentType,
+      kind: file.kind,
     });
     if (result.ok) return result.mode ?? 'browser';
     if (!result.timedOut) throw new Error(result.error || 'Download failed');
     // Old shell without the handler — fall through to the browser path.
   }
-  window.open(url, '_blank', 'noopener');
+  window.open(file.url, '_blank', 'noopener');
   return 'browser';
+}
+
+/** Download a chat attachment: presign a fresh URL through its message, then deliver it. */
+export async function downloadAttachment(
+  attachment: Attachment,
+  source: AttachmentSource,
+): Promise<DownloadMode> {
+  const url = await fetchFreshDownloadUrl(attachment, source);
+  return deliverDownload({
+    url,
+    filename: attachment.filename,
+    contentType: attachment.contentType,
+    kind: attachment.kind,
+  });
 }
 
 /**

@@ -1141,6 +1141,183 @@ export const messages = {
   'setup.payPaid': { en: 'Payment received', hi: 'भुगतान मिल गया' },
   'setup.payPaidOn': { en: 'Received on {date}', hi: '{date} को मिला' },
   'setup.started': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
+  /* ── payments (ADR 0022) ─────────────────────────────────────────────── */
+  // What MDG has asked this pump to pay, and what it has paid. Written to be
+  // true wherever the screen runs: the same words are shown inside the Android
+  // app, where nothing here may tell the dealer to pay anywhere else (Google
+  // Play's Payments policy), so no sentence points at a place or a way to pay.
+  'payments.title': { en: 'Payments', hi: 'भुगतान' },
+  'payments.detailTitle': { en: 'Payment', hi: 'भुगतान' },
+  'payments.sectionDue': { en: 'Due', hi: 'बाकी भुगतान' },
+  'payments.sectionHistory': { en: 'Paid and earlier', hi: 'हो चुके भुगतान' },
+  'payments.nothingDue': {
+    en: 'Nothing is due right now.',
+    hi: 'अभी कुछ भी बाकी नहीं है।',
+  },
+  'payments.dueBy': { en: 'Due by {date}', hi: '{date} तक देना है' },
+  'payments.paidOn': { en: 'Paid on {date}', hi: '{date} को चुकाया' },
+  'payments.paidOnVia': {
+    en: 'Paid on {date} · {method}',
+    hi: '{date} को चुकाया · {method}',
+  },
+  'payments.refundedAmount': { en: '{amount} refunded', hi: '{amount} वापस हुए' },
+  'payments.receiptNo': { en: 'Receipt {number}', hi: 'रसीद {number}' },
+  'payments.pay': { en: 'Pay {amount}', hi: '{amount} चुकाएँ' },
+  'payments.opening': { en: 'Opening payment…', hi: 'भुगतान खुल रहा है…' },
+  'payments.checking': { en: 'Checking…', hi: 'जाँच रहे हैं…' },
+  'payments.confirming': {
+    en: 'Confirming your payment…',
+    hi: 'आपका भुगतान पक्का कर रहे हैं…',
+  },
+  // After a minute with no answer. The money is not lost and the dealer is not
+  // told it failed: the server finds it on its own, and a message follows.
+  'payments.confirmingNote': {
+    en: 'Your payment is being confirmed. You will get a message when it is done.',
+    hi: 'आपका भुगतान पक्का हो रहा है। हो जाने पर आपको मैसेज आएगा।',
+  },
+  'payments.paidNow': {
+    en: 'Payment received. Thank you.',
+    hi: 'भुगतान मिल गया। धन्यवाद।',
+  },
+  'payments.lastFailure': {
+    en: 'Your last try did not go through: {reason}',
+    hi: 'आपकी पिछली कोशिश नहीं हो पाई: {reason}',
+  },
+  'payments.emptyTitle': { en: 'No payments yet', hi: 'अभी कोई भुगतान नहीं' },
+  'payments.emptyDesc': {
+    en: 'When MDG raises a payment for your pump, it will show here.',
+    hi: 'जब MDG आपके पंप के लिए कोई भुगतान बनाएगी, वह यहाँ दिखेगा।',
+  },
+  'payments.errorTitle': {
+    en: "We couldn't show your payments just now",
+    hi: 'अभी आपके भुगतान नहीं दिख पाए',
+  },
+  // The server has no Razorpay keys yet (ADR 0022 rule 7): every payments route
+  // answers 503, the reading ones too. Not a network fault, so not the network line.
+  'payments.notConfiguredTitle': {
+    en: 'Payments are not switched on yet',
+    hi: 'भुगतान की सुविधा अभी चालू नहीं है',
+  },
+  'payments.notConfiguredDesc': {
+    en: 'Please check again later.',
+    hi: 'कृपया बाद में फिर देखें।',
+  },
+  'payments.notFoundTitle': {
+    en: "We couldn't find this payment",
+    hi: 'यह भुगतान नहीं मिला',
+  },
+  'payments.notFoundDesc': {
+    en: 'It may have been removed.',
+    hi: 'हो सकता है इसे हटा दिया गया हो।',
+  },
+
+  // The six statuses, in the dealer's own words.
+  'payments.status.due': { en: 'Due', hi: 'बाकी' },
+  'payments.status.processing': { en: 'Being confirmed', hi: 'पक्का हो रहा है' },
+  'payments.status.paid': { en: 'Paid', hi: 'चुका दिया' },
+  'payments.status.cancelled': { en: 'Cancelled', hi: 'रद्द' },
+  'payments.status.partiallyRefunded': { en: 'Part refunded', hi: 'कुछ पैसे वापस' },
+  'payments.status.refunded': { en: 'Refunded', hi: 'पैसे वापस' },
+
+  // How it was paid. Razorpay's own name is shown for anything not listed.
+  'payments.method.upi': { en: 'UPI', hi: 'UPI' },
+  'payments.method.card': { en: 'Card', hi: 'कार्ड' },
+  'payments.method.netbanking': { en: 'Net banking', hi: 'नेट बैंकिंग' },
+  'payments.method.wallet': { en: 'Wallet', hi: 'वॉलेट' },
+  'payments.method.emi': { en: 'EMI', hi: 'EMI' },
+  'payments.method.paylater': { en: 'Pay later', hi: 'बाद में भुगतान' },
+  'payments.method.bankTransfer': { en: 'Bank transfer', hi: 'बैंक ट्रांसफर' },
+
+  // The receipt.
+  'payments.receipt.title': { en: 'Receipt', hi: 'रसीद' },
+  'payments.receipt.number': { en: 'Receipt number', hi: 'रसीद नंबर' },
+  'payments.receipt.amount': { en: 'Amount paid', hi: 'चुकाई गई रकम' },
+  'payments.receipt.paidAt': { en: 'Paid on', hi: 'चुकाने का समय' },
+  'payments.receipt.method': { en: 'Paid by', hi: 'कैसे चुकाया' },
+  'payments.receipt.reference': { en: 'Reference', hi: 'रेफ़रेंस नंबर' },
+  'payments.receipt.refunded': { en: 'Refunded', hi: 'वापस हुए' },
+
+  // The GST invoice and credit notes under the receipt (ADR 0022 §11). Shown
+  // inside the Android app too: it is a paper for something already paid.
+  'payments.invoice.title': { en: 'GST invoice', hi: 'GST इनवॉइस' },
+  'payments.invoice.number': { en: 'Invoice number', hi: 'इनवॉइस नंबर' },
+  'payments.invoice.date': { en: 'Date', hi: 'तारीख' },
+  'payments.invoice.taxable': { en: 'Value before tax', hi: 'टैक्स से पहले की रकम' },
+  // The tax names are the names on the return, so they read the same in both languages.
+  'payments.invoice.cgst': { en: 'CGST ({rate}%)', hi: 'CGST ({rate}%)' },
+  'payments.invoice.sgst': { en: 'SGST ({rate}%)', hi: 'SGST ({rate}%)' },
+  'payments.invoice.igst': { en: 'IGST ({rate}%)', hi: 'IGST ({rate}%)' },
+  'payments.invoice.roundOff': { en: 'Round off', hi: 'राउंड ऑफ़' },
+  'payments.invoice.total': { en: 'Total', hi: 'कुल' },
+  'payments.invoice.creditNoteTitle': { en: 'Credit note', hi: 'क्रेडिट नोट' },
+  'payments.invoice.creditNoteNumber': { en: 'Credit note number', hi: 'क्रेडिट नोट नंबर' },
+  'payments.invoice.against': { en: 'Against invoice', hi: 'किस इनवॉइस पर' },
+  'payments.invoice.totalCredited': { en: 'Total credited', hi: 'कुल क्रेडिट' },
+  'payments.invoice.download': { en: 'Download', hi: 'डाउनलोड करें' },
+  // What a screen reader says: two buttons that both read "Download" need telling apart.
+  'payments.invoice.downloadInvoiceAs': {
+    en: 'Download GST invoice {number}',
+    hi: 'GST इनवॉइस {number} डाउनलोड करें',
+  },
+  'payments.invoice.downloadCreditNoteAs': {
+    en: 'Download credit note {number}',
+    hi: 'क्रेडिट नोट {number} डाउनलोड करें',
+  },
+  // Paid, but the invoice is not issued yet. One quiet line: the reason is ours to fix.
+  'payments.invoice.preparing': {
+    en: 'GST invoice is being prepared',
+    hi: 'GST इनवॉइस तैयार हो रहा है',
+  },
+  'payments.invoice.downloading': {
+    en: 'Your download is starting',
+    hi: 'आपका डाउनलोड शुरू हो रहा है',
+  },
+  'payments.invoice.downloadFailed': {
+    en: "Couldn't download this. Please check your network and try again.",
+    hi: 'यह डाउनलोड नहीं हो पाया। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+
+  // What to say when a step of paying did not work. By the server's own codes.
+  'payments.err.notConfigured': {
+    en: 'Online payment is not switched on yet. Please try again later.',
+    hi: 'ऑनलाइन भुगतान अभी चालू नहीं है। कृपया बाद में कोशिश करें।',
+  },
+  'payments.err.notPayable': {
+    en: 'This payment cannot be paid any more. It may already be paid or cancelled.',
+    hi: 'यह भुगतान अब नहीं हो सकता। हो सकता है यह पहले ही चुका दिया गया हो या रद्द हो गया हो।',
+  },
+  'payments.err.badSignature': {
+    en: "We couldn't confirm this payment just now. If money was cut from your account, please don't pay again. We will check it.",
+    hi: 'अभी यह भुगतान पक्का नहीं हो पाया। अगर आपके खाते से पैसे कट गए हों, तो दोबारा न चुकाएँ। हम जाँच लेंगे।',
+  },
+  'payments.err.rateLimited': {
+    en: 'Too many tries. Please wait a few minutes and try again.',
+    hi: 'बहुत बार कोशिश हो गई। कृपया कुछ मिनट रुककर फिर कोशिश करें।',
+  },
+  'payments.err.provider': {
+    en: 'The payment service did not answer. Please try again in a minute.',
+    hi: 'पेमेंट सर्विस से जवाब नहीं आया। कृपया एक मिनट बाद फिर कोशिश करें।',
+  },
+  'payments.err.script': {
+    en: 'The payment window did not load. Check your network and try again.',
+    hi: 'पेमेंट विंडो लोड नहीं हुई। नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+  'payments.err.window': {
+    en: 'The payment window could not open. Please try again.',
+    hi: 'पेमेंट विंडो नहीं खुल पाई। कृपया फिर कोशिश करें।',
+  },
+  'payments.err.failed': {
+    en: 'The payment did not go through. You can try again.',
+    hi: 'भुगतान नहीं हो पाया। आप फिर कोशिश कर सकते हैं।',
+  },
+  'payments.err.failedWith': {
+    en: 'The payment did not go through: {reason}',
+    hi: 'भुगतान नहीं हो पाया: {reason}',
+  },
+  'payments.err.notCompleted': {
+    en: 'The payment was not completed. You can try again.',
+    hi: 'भुगतान पूरा नहीं हुआ। आप फिर कोशिश कर सकते हैं।',
+  },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

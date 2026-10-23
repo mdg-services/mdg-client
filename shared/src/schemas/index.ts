@@ -22,3 +22,4 @@ export * from './documentAsk';
 export * from './aiFirstLine';
 export * from './film';
 export * from './websiteIntake';
+export * from './payment';

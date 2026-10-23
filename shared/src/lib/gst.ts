@@ -2,11 +2,6 @@
  * GST on what a dealer pays MDG (ADR 0022 §11): the 18% inside a payment, how
  * it splits between the Centre and the State, and the GSTIN check.
  *
- * MERGE NOTE: this file is the first part of the same file on the payments
- * branch (`feat/razorpay-payments`), copied verbatim so onboarding v2's billing
- * card can check a GSTIN and list the states before that branch lands. When it
- * merges, take the branch's version whole: it is a superset of this one.
- *
  * EVERY PAYMENT AMOUNT INCLUDES GST. ₹3,540 is ₹3,000 for the service and ₹540
  * of tax. The invoice works backwards from the total the dealer paid, so the
  * figure on the invoice is always the figure that left their bank.
@@ -99,4 +94,54 @@ export function isGstin(raw: string): boolean {
   if (!GSTIN_SHAPE.test(g)) return false;
   if (!GST_STATES[g.slice(0, 2)]) return false;
   return gstinCheckChar(g.slice(0, 14)) === g[14];
+}
+
+export interface GstSplit {
+  /** The service's value before tax. */
+  taxablePaise: number;
+  cgstPaise: number;
+  sgstPaise: number;
+  igstPaise: number;
+  /** What rounding left over; may be negative. Taxable + taxes + this = total. */
+  roundOffPaise: number;
+  totalPaise: number;
+  /** Same state as the supplier: CGST + SGST. Otherwise IGST. */
+  intraState: boolean;
+}
+
+/**
+ * Split a GST-inclusive total. `placeOfSupply` is the buyer's two-digit state
+ * code. ₹3,540 in Haryana → ₹3,000 + CGST ₹270 + SGST ₹270; elsewhere →
+ * ₹3,000 + IGST ₹540.
+ */
+export function splitGstInclusive(totalPaise: number, placeOfSupply: string): GstSplit {
+  const intraState = placeOfSupply === SUPPLIER_STATE_CODE;
+  const taxablePaise = Math.round((totalPaise * 100) / (100 + GST_RATE_PERCENT));
+  const half = Math.round((taxablePaise * GST_RATE_PERCENT) / 2 / 100);
+  const full = Math.round((taxablePaise * GST_RATE_PERCENT) / 100);
+  const cgstPaise = intraState ? half : 0;
+  const sgstPaise = intraState ? half : 0;
+  const igstPaise = intraState ? 0 : full;
+  const roundOffPaise = totalPaise - taxablePaise - cgstPaise - sgstPaise - igstPaise;
+  return {
+    taxablePaise,
+    cgstPaise,
+    sgstPaise,
+    igstPaise,
+    roundOffPaise,
+    totalPaise,
+    intraState,
+  };
+}
+
+/**
+ * India's financial year for an instant, as invoice numbers print it:
+ * 23 Oct 2026 → `26-27`; 15 Mar 2027 → `26-27`; 1 Apr 2027 → `27-28`. In IST.
+ */
+export function financialYearLabel(at: Date): string {
+  const ist = new Date(at.getTime() + 5.5 * 60 * 60 * 1000);
+  const y = ist.getUTCFullYear();
+  const start = ist.getUTCMonth() >= 3 ? y : y - 1;
+  const two = (n: number) => String(n % 100).padStart(2, '0');
+  return `${two(start)}-${two(start + 1)}`;
 }

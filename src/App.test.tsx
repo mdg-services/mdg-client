@@ -36,6 +36,12 @@ vi.mock('@/pages/settings/TeamPage', () => ({
 }));
 vi.mock('@/pages/ServicesPage', () => ({ ServicesPage: () => <div>services-page</div> }));
 vi.mock('@/pages/StaffPage', () => ({ StaffPage: () => <div>staff-page</div> }));
+vi.mock('@/features/payments/PaymentsPage', () => ({
+  PaymentsPage: () => <div>payments-page</div>,
+}));
+vi.mock('@/features/payments/PaymentDetailPage', () => ({
+  PaymentDetailPage: () => <div>payment-detail-page</div>,
+}));
 // The redirect the four retired screens' addresses run is tested on its own
 // (`OpenMyChat.test.tsx`); here it only has to be the thing those routes mount.
 vi.mock('@/features/chat/OpenMyChat', () => ({ OpenMyChat: () => <div>open-my-chat</div> }));
@@ -138,6 +144,28 @@ describe('App routing', () => {
     renderWithProviders(<App />, { route });
     expect(await screen.findByText(marker)).toBeInTheDocument();
   });
+
+  // Payments (ADR 0022): two screens in the signed-in shell, reached by address
+  // only — no menu or Settings row points at them yet.
+  it.each([
+    ['/payments', 'payments-page'],
+    ['/payments/p1', 'payment-detail-page'],
+  ])('serves the payments screen %s inside the shell', async (route, marker) => {
+    signIn();
+    renderWithProviders(<App />, { route });
+    expect(await screen.findByText(marker)).toBeInTheDocument();
+    expect(screen.getByTestId('shell')).toBeInTheDocument();
+  });
+
+  it.each(['/payments', '/payments/p1'])(
+    'does not serve %s to someone who is signed out',
+    async (route) => {
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('login-page')).toBeInTheDocument();
+      expect(screen.queryByText('payments-page')).not.toBeInTheDocument();
+      expect(screen.queryByText('payment-detail-page')).not.toBeInTheDocument();
+    },
+  );
 
   // ASKS LIVE IN THE CHAT. The paper list, the density screen and Pump health are
   // gone, but a push or a link already out there still names them — each must

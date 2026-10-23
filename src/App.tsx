@@ -61,6 +61,16 @@ const ForcedPasswordChange = lazyWithRetry(() =>
     default: m.ForcedPasswordChange,
   })),
 );
+// Payments (ADR 0022). Their own chunk, so the Razorpay-facing code and its
+// strings never reach a dealer who does not open the screen.
+const PaymentsPage = lazyWithRetry(() =>
+  import('@/features/payments/PaymentsPage').then((m) => ({ default: m.PaymentsPage })),
+);
+const PaymentDetailPage = lazyWithRetry(() =>
+  import('@/features/payments/PaymentDetailPage').then((m) => ({
+    default: m.PaymentDetailPage,
+  })),
+);
 
 /**
  * What a screen looks like while its code is coming down the wire.
@@ -175,6 +185,14 @@ export function App() {
             <Route path="/services" element={<ServicesPage />} />
             {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
             <Route path="/staff" element={<StaffPage />} />
+            {/* Payments — what MDG has asked this pump to pay, and what it has
+                paid (ADR 0022). NO MENU OR SETTINGS ROW POINTS HERE YET: the
+                owner will say where it belongs, so for now it opens by address
+                only. Inside the Android app both screens are read-only (no Pay
+                button, no link on to a payment page) — that rule lives in
+                features/payments/policy.ts. */}
+            <Route path="/payments" element={<PaymentsPage />} />
+            <Route path="/payments/:id" element={<PaymentDetailPage />} />
             {/* ASKS LIVE IN THE CHAT NOW. The paper list (`/asks`, `/documents`),
                 the density register screen (`/density`) and Pump health
                 (`/kavach`) are gone: MDG asks for each thing in the chat, on a
