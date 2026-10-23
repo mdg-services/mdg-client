@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
+import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
@@ -167,6 +168,9 @@ export function useConversationSocket(
       // paper marked received, one sent back) — and the buttons on those
       // messages are drawn from it.
       invalidateChatAskStates(qc, conversationId);
+      // And where a login stands (saved by MDG, or refused by the portal) — the
+      // box in the thread draws it. Only a box on screen is asking.
+      invalidatePortalLogins(qc);
     });
 
     // Rechecks waiting on the server to finish filing a colleague's answer; they
@@ -243,6 +247,10 @@ export function useConversationSocket(
           invalidateChatAskStates(qc, conversationId);
         }
       }
+      // A LOGIN BOX ARRIVED: its state is read live, so ask again — the answer it
+      // was posted against may have moved since the cache last heard (MDG saved
+      // the login, or the portal refused it). Cheap when no box is on screen.
+      if (!alreadyPresent && payload.message.portalLogin) invalidatePortalLogins(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {

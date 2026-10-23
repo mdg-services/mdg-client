@@ -1,0 +1,133 @@
+/**
+ * The outlet's two IndianOil portal logins — SDMS and IRAS — as the dealer side
+ * may see and fill them.
+ *
+ * MDG's team works on these portals on the outlet's behalf: the daily sales
+ * report and the stock variation sheet come from IRAS, credit and due dates,
+ * water checks, the density register, supply status and inspection reports
+ * from SDMS. Until a login is in, the services that need it cannot start, and
+ * when the dealer changes a password on the portal they must give MDG the new
+ * one.
+ *
+ * MDG ASKS IN THE CHAT. An MDG message carrying {@link MessagePortalLogin} is
+ * drawn by the dealer's app as a small form — user ID, password, Save — inside
+ * the bubble. What is typed goes straight to the outlet's record over its own
+ * route (`PUT /me/portal-logins/:portal`), encrypted at rest, and NEVER into a
+ * chat message: the thread only ever learns that a login was saved, not what
+ * it was.
+ *
+ * DEALER-SAFE BY TYPE. Nothing here carries a user ID or a password. The box
+ * learns whether a login is saved, missing or was refused by the portal, and
+ * when — enough to draw "saved ✓" or the empty form, and nothing a screenshot
+ * of the chat could leak.
+ */
+
+export type PortalId = 'sdms' | 'iras';
+
+export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras'];
+
+/** The portal's name as a dealer knows it. The same in both languages. */
+export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
+  sdms: 'SDMS',
+  iras: 'IRAS',
+};
+
+/**
+ * Set on an MDG message that asks an owner for portal logins. The app draws
+ * one row per portal: the empty form while the login is missing or refused,
+ * "saved" once it is in. An app that predates the field shows the words only.
+ */
+export interface MessagePortalLogin {
+  /** The logins asked for, in the order the box shows them. */
+  portals: PortalId[];
+}
+
+/**
+ * Where one login stands:
+ *  - `missing`  no login on the outlet's record
+ *  - `refused`  a login is saved but the portal stopped accepting it (the
+ *               password was changed on the portal) — the box asks again
+ *  - `saved`    a login is in and nothing says it stopped working
+ */
+export type PortalLoginStatus = 'saved' | 'missing' | 'refused';
+
+export interface PortalLoginState {
+  portal: PortalId;
+  /**
+   * True when a service attached to this outlet uses this login (SDMS: any of
+   * the SDMS services; IRAS: the shift readings) — or when no service at all is
+   * attached yet, because then the outlet is still being set up and every MDG
+   * service it can take needs both. An outlet whose daily sales report is typed
+   * in by hand, with no shift readings attached, does not need IRAS.
+   */
+  needed: boolean;
+  status: PortalLoginStatus;
+  /** When the saved login was entered (ISO). Absent while `missing`. */
+  savedAt?: string;
+  /** Who entered it: an owner from the app, or MDG's team. Absent while `missing`. */
+  savedBy?: 'dealer' | 'mdg';
+  /** When the portal stopped accepting it (ISO). Only with `refused`. */
+  refusedAt?: string;
+}
+
+/** `GET /me/portal-logins` — the box's state for the signed-in dealer user. */
+export interface PortalLoginsView {
+  portals: PortalLoginState[];
+  /** True when this user may fill the box. Owners only: the logins are the owner's. */
+  canEdit: boolean;
+}
+
+/**
+ * The error code `PUT /me/portal-logins/:portal` answers when the dealer types
+ * the very user ID and password the portal has already refused. Saving it again
+ * would only be refused again, so the box says so instead.
+ */
+export const PORTAL_LOGIN_SAME_AS_REFUSED = 'PORTAL_LOGIN_SAME_AS_REFUSED';
+
+/** `POST /dealers/:id/portal-login/ask` — what an admin's ask posted. */
+export interface PortalLoginAskResult {
+  /** Owner chats the box went into. */
+  posted: number;
+  /** The logins asked for. */
+  portals: PortalId[];
+  /** True when the explainer video went with it. */
+  video: boolean;
+}
+
+/**
+ * The short videos MDG sends inside the chat. Hindi, portrait. One per step
+ * that repeats for every outlet, so MDG explains it once on film instead of
+ * typing it out to each dealer:
+ *  - `app_tour`          how the app works: one chat with MDG, reports arrive in
+ *                        it, ask anything, a person from MDG behind every answer
+ *  - `portal_login`      why MDG needs the SDMS and IRAS logins and how to fill the box
+ *  - `papers`            sending a paper or licence MDG asks for (photo or PDF),
+ *                        and a fresh one when it is about to run out
+ *  - `density_register`  yesterday's density register page, every morning
+ *  - `kavach_photos`     the photo a Kavach task needs, and what MDG does with it
+ *  - `add_manager`       an owner adding the pump's manager to the app
+ *  - `getting_started`   installing Dealer Kavach and signing in the first time
+ */
+export type GuideVideoId =
+  | 'app_tour'
+  | 'portal_login'
+  | 'papers'
+  | 'density_register'
+  | 'kavach_photos'
+  | 'add_manager'
+  | 'getting_started';
+
+export const GUIDE_VIDEO_IDS: readonly GuideVideoId[] = [
+  'app_tour',
+  'portal_login',
+  'papers',
+  'density_register',
+  'kavach_photos',
+  'add_manager',
+  'getting_started',
+];
+
+/** True for an attachment the chat should play inline rather than offer as a download. */
+export function isVideoAttachment(a: { contentType?: string | null }): boolean {
+  return typeof a.contentType === 'string' && a.contentType.toLowerCase().startsWith('video/');
+}

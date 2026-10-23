@@ -26,7 +26,7 @@ export function buildReplyContext(m: Message): MessageReplyContext {
   };
 }
 
-export type ReplyPreviewIcon = 'image' | 'audio' | 'file' | null;
+export type ReplyPreviewIcon = 'image' | 'audio' | 'video' | 'file' | null;
 
 export interface ReplyPreview {
   /** One-line snippet: the body excerpt or a localized kind label. */
@@ -35,10 +35,25 @@ export interface ReplyPreview {
   icon: ReplyPreviewIcon;
 }
 
+/**
+ * A quoted video. The quote carries the attachment's kind and name but not its
+ * content type, and a video is a `file` by kind — so the name's ending says it.
+ */
+function isVideoName(rc: MessageReplyContext): boolean {
+  return (
+    rc.attachmentKind === 'file' &&
+    !!rc.attachmentName &&
+    /\.(mp4|m4v|mov|webm)$/i.test(rc.attachmentName)
+  );
+}
+
 /** One-line presentation of a quoted message, shared by the composer strip and the bubble quote block. */
 export function replyPreview(rc: MessageReplyContext, t: TFunction): ReplyPreview {
   if (rc.body) {
-    return { text: rc.body, icon: rc.attachmentKind === 'image' ? 'image' : null };
+    return {
+      text: rc.body,
+      icon: rc.attachmentKind === 'image' ? 'image' : isVideoName(rc) ? 'video' : null,
+    };
   }
   if (rc.attachmentKind === 'image') return { text: t('chat.replyPhoto'), icon: 'image' };
   if (rc.attachmentKind === 'audio') {
@@ -50,6 +65,7 @@ export function replyPreview(rc: MessageReplyContext, t: TFunction): ReplyPrevie
       icon: 'audio',
     };
   }
+  if (isVideoName(rc)) return { text: t('chat.replyVideo'), icon: 'video' };
   if (rc.attachmentKind === 'file') {
     return { text: rc.attachmentName ?? t('chat.replyFile'), icon: 'file' };
   }

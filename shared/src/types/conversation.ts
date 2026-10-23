@@ -1,5 +1,6 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
+import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
 
@@ -258,8 +259,9 @@ export interface Attachment {
   size: number;
   kind: AttachmentKind;
   /**
-   * Length of the clip in milliseconds. Only set for `audio` attachments
-   * (voice notes) so the UI can show the duration before playback.
+   * Length of the clip in milliseconds. Set for `audio` attachments (voice
+   * notes), and for a video MDG sends (a `file` whose `contentType` is
+   * `video/*`), so the UI can show the duration before playback.
    */
   durationMs?: number;
   /** Signed download URL, populated by the API when returning messages. */
@@ -292,6 +294,13 @@ export interface Message {
    * the message's words and nothing more.
    */
   ask?: MessageAsk;
+  /**
+   * Set on an MDG message that asks an owner for the outlet's SDMS / IRAS
+   * logins: the dealer's app draws a small user ID + password form inside the
+   * bubble. What is typed is saved to the outlet's record over its own route and
+   * never becomes a message. See `portalLogin.ts`.
+   */
+  portalLogin?: MessagePortalLogin;
   /**
    * Set on a DEALER's message that answered one of those requests — the
    * request's ref (`doc:…`, `reg:…`, `kv:…`). It is what lets the admin inbox

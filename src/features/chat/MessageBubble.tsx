@@ -1,4 +1,4 @@
-import { Camera, Check, CheckCheck, Clock, FileText, Mic, Zap } from 'lucide-react';
+import { Camera, Check, CheckCheck, Clock, FileText, Mic, Video, Zap } from 'lucide-react';
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
@@ -11,6 +11,7 @@ import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
+import { PortalLoginBox } from './PortalLoginBox';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
 
@@ -67,6 +68,7 @@ function MessageTicks({ message }: { message: Message }) {
 const QUOTE_ICONS = {
   image: Camera,
   audio: Mic,
+  video: Video,
   file: FileText,
 } as const;
 
@@ -360,10 +362,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   });
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
-  const { images, voices, docs } = splitAttachments(message.attachments);
+  const { images, voices, videos, docs } = splitAttachments(message.attachments);
   const hasBody = !!message.body;
   const hasMedia = images.length > 0;
-  const hasOther = voices.length > 0 || docs.length > 0;
+  const hasOther = voices.length > 0 || videos.length > 0 || docs.length > 0;
   // A picture with no caption carries its time ON the picture, on a soft dark
   // gradient — never a bar of its own underneath.
   const timeOnPicture = hasMedia && !hasBody && !hasOther;
@@ -382,6 +384,11 @@ export const MessageBubble = React.memo(function MessageBubble({
   // field shows the words and nothing more, which is still a request a person
   // can answer by hand.
   const ask = message.ask;
+  // A LOGIN BOX MDG POSTED (`message.portalLogin`): the user ID and password
+  // form sits under the words, one block per portal. Like a request it is as
+  // wide as a picture and carries its time on its own line.
+  const portalLogin = message.portalLogin;
+  const wide = hasMedia || videos.length > 0 || !!ask || !!portalLogin;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
@@ -391,8 +398,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   //
   // A request always has its time on its own line: its button runs the full
   // width of the bubble, and a time pinned to the bottom-right corner would sit
-  // on top of it.
-  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody || !!ask);
+  // on top of it. So does a login box, for the same reason.
+  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody || !!ask || !!portalLogin);
 
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
@@ -418,15 +425,16 @@ export const MessageBubble = React.memo(function MessageBubble({
         className={cn(
           'flex flex-col',
           mine ? 'items-end' : 'items-start',
-          // A request is as wide as a picture, so its button is worth pressing.
-          hasMedia || ask ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
+          // A request (or a login box, or a video) is as wide as a picture, so its button is
+          // worth pressing.
+          wide ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
         )}
       >
         <div
           {...longPress}
           className={cn(
             'relative min-w-0 rounded-md text-wa-bubble-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
-            (hasMedia || ask) && 'w-full',
+            wide && 'w-full',
             mine ? 'bg-wa-out' : 'bg-wa-in',
             first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
             hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
@@ -518,6 +526,8 @@ export const MessageBubble = React.memo(function MessageBubble({
               )}
             </div>
           ) : null}
+
+          {portalLogin ? <PortalLoginBox portals={portalLogin.portals} /> : null}
 
           {ask ? (
             <AskFooter

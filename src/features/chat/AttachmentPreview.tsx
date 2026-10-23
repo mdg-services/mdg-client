@@ -1,4 +1,4 @@
-import { FileText, ImageOff, Mic, Pause, Play, X } from 'lucide-react';
+import { FileText, ImageOff, Mic, Pause, Play, VideoOff, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Avatar, Spinner } from '@/components/ui';
@@ -13,7 +13,7 @@ import { formatBytes, formatDuration } from '@/lib/uploadAttachment';
 import { useFreshImageSrc } from '@/lib/useFreshImageSrc';
 import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
 import { useAuthStore } from '@/store/auth';
-import type { Attachment, AttachmentKind } from '@dk/shared/types';
+import { isVideoAttachment, type Attachment, type AttachmentKind } from '@dk/shared/types';
 
 import { fileTypeLabel } from './fileKind';
 import { FileTypeBadge } from './FileTypeBadge';
@@ -659,6 +659,146 @@ function ImageAlbum({
   );
 }
 
+// ── Videos ────────────────────────────────────────────────────────────────
+
+/** The tallest a video bubble grows: a portrait clip must not fill a short phone. */
+const VIDEO_MAX_H = 'min(72vh, 560px)';
+
+/**
+ * A video plays in the bubble: portrait box, black behind it, the phone's own
+ * controls, its length in a chip until it starts. The first frame is the poster
+ * (`#t=0.1`), so a guide video shows what it is without a download.
+ *
+ * Its link is signed and goes stale, exactly as a voice note's does, and is
+ * replaced the same way: a clip that arrives with NO link is asked for at once,
+ * one that stops loading is asked for once more, and after that the box says so
+ * in words and a tap tries again.
+ */
+export function VideoMessage({
+  attachment,
+  source,
+}: {
+  attachment: Attachment;
+  /** The message it is in: how a link that is missing or stale gets replaced. */
+  source?: AttachmentSource;
+}) {
+  const t = useT();
+  const [src, setSrc] = React.useState(attachment.url);
+  const [started, setStarted] = React.useState(false);
+  const [failed, setFailed] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const refreshed = React.useRef(false);
+  const asked = React.useRef(false);
+  const failedNow = React.useRef(false);
+  failedNow.current = failed;
+  const unsent = !source || source.messageId.startsWith('temp-');
+
+  // A WORKING PLAYER KEEPS ITS LINK. Every refetch of the thread (a socket
+  // reconnect on 2G, reopening the chat) brings the same video back with a newly
+  // signed link, and swapping it in restarted a guide video from 0:00 halfway
+  // through. A new link is taken only when there is none yet or the old one failed.
+  React.useEffect(() => {
+    if (!attachment.url) return;
+    if (failedNow.current) {
+      setSrc(attachment.url);
+      setFailed(false);
+      refreshed.current = false;
+      return;
+    }
+    setSrc((cur) => cur ?? attachment.url);
+  }, [attachment.url]);
+
+  /** One fresh link through the message. */
+  const askForLink = React.useCallback(async (): Promise<void> => {
+    if (!source || source.messageId.startsWith('temp-')) return;
+    setBusy(true);
+    try {
+      setSrc(await fetchFreshInlineUrl(attachment, source));
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }, [attachment, source]);
+
+  // A video that arrives with no link at all (the live copy of a message, signed
+  // on the next read) is asked for straight away.
+  React.useEffect(() => {
+    if (attachment.url || unsent || asked.current) return;
+    asked.current = true;
+    refreshed.current = true;
+    void askForLink();
+  }, [attachment.url, unsent, askForLink]);
+
+  const retry = () => {
+    refreshed.current = true;
+    void askForLink();
+  };
+
+  // The fragment is added here, never stored: a link that already has one is left alone.
+  const playable = src ? (src.includes('#') ? src : `${src}#t=0.1`) : undefined;
+  const waiting = !playable && !failed && !unsent;
+
+  return (
+    <div
+      data-testid="video-message"
+      // The player's own controls take the touch: dragging the seek bar must not
+      // start a swipe-to-reply, nor a long press select the message — the same
+      // protection the voice note's scrubber and the login box have.
+      data-no-swipe
+      onPointerDown={(e) => e.stopPropagation()}
+      className="relative w-full overflow-hidden rounded-md bg-black"
+      style={{ aspectRatio: '9 / 16', maxHeight: VIDEO_MAX_H }}
+    >
+      {playable ? (
+        <video
+          src={playable}
+          controls
+          playsInline
+          preload="metadata"
+          disablePictureInPicture
+          controlsList="nodownload noremoteplayback"
+          aria-label={attachment.filename}
+          onPlay={() => setStarted(true)}
+          onError={() => {
+            // A stale link: ask once for a fresh one, then say so in words.
+            if (!refreshed.current && source) {
+              refreshed.current = true;
+              void askForLink();
+            } else {
+              setFailed(true);
+            }
+          }}
+          className="absolute inset-0 h-full w-full object-contain"
+        />
+      ) : null}
+      {attachment.durationMs && !started && !failed ? (
+        <span
+          data-testid="video-duration"
+          className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[12px] tabular-nums leading-tight text-white"
+        >
+          {formatDuration(attachment.durationMs)}
+        </span>
+      ) : null}
+      {failed ? (
+        <button
+          type="button"
+          onClick={retry}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black px-3 text-center text-white/80"
+        >
+          <VideoOff width={28} strokeWidth={1.5} aria-hidden />
+          <span className="text-[13px] leading-tight">{t('chat.voiceFailed')}</span>
+        </button>
+      ) : waiting || busy || (!playable && unsent) ? (
+        <span className="absolute inset-0 flex items-center justify-center text-white/80">
+          <Spinner size={22} />
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 // ── Documents ─────────────────────────────────────────────────────────────
 
 /**
@@ -709,19 +849,24 @@ function DocumentAttachment({
 export interface SplitAttachments {
   images: Attachment[];
   voices: Attachment[];
+  /** Anything whose type is video: played in the bubble, never a download row. */
+  videos: Attachment[];
   docs: Attachment[];
 }
 
 /**
  * Sort a message's attachments into what is drawn how. An image is an image
- * whether or not it came with a link, and a voice note is a voice note: neither
- * ever falls back to a file row.
+ * whether or not it came with a link, a voice note is a voice note, and a video
+ * is a video: none of them ever falls back to a file row.
  */
 export function splitAttachments(attachments: readonly Attachment[]): SplitAttachments {
-  const out: SplitAttachments = { images: [], voices: [], docs: [] };
+  const out: SplitAttachments = { images: [], voices: [], videos: [], docs: [] };
   for (const a of attachments) {
     if (a.kind === 'image') out.images.push(a);
     else if (a.kind === 'audio') out.voices.push(a);
+    // A video is a file by `kind` (there is no video kind on the wire); its
+    // content type is what says it plays.
+    else if (isVideoAttachment(a)) out.videos.push(a);
     else out.docs.push(a);
   }
   return out;
@@ -744,7 +889,7 @@ export function AttachmentStack({
   /** Drawn over the pictures' bottom-right corner: the time, when there is no caption. */
   mediaOverlay?: React.ReactNode;
 }) {
-  const { images, voices, docs } = splitAttachments(attachments);
+  const { images, voices, videos, docs } = splitAttachments(attachments);
   return (
     <>
       {images.length > 0 ? (
@@ -761,6 +906,9 @@ export function AttachmentStack({
           senderName={senderName}
           source={source}
         />
+      ))}
+      {videos.map((a, i) => (
+        <VideoMessage key={`vid-${i}`} attachment={a} source={source} />
       ))}
       {docs.map((a, i) => (
         <DocumentAttachment key={`d-${i}`} attachment={a} source={source} />

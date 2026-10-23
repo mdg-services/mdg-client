@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskStates';
 import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
+import { portalLoginsKey } from '@/hooks/api/usePortalLogins';
 import { type ReactVars } from '@/hooks/api/useReactToMessage';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
 import {
@@ -683,5 +684,53 @@ describe('useConversationSocket — where MDG\'s requests stand', () => {
       );
       expect(spy).toHaveBeenCalledWith(STATES);
     });
+  });
+});
+
+/**
+ * A login box MDG posts is drawn from the live state of the login, which can
+ * have moved since the cache last heard. So a message carrying a box asks again.
+ */
+describe('useConversationSocket — a login box arriving', () => {
+  afterEach(() => resetStores());
+  const LOGINS = { queryKey: portalLoginsKey };
+
+  it('asks where the logins stand when a box arrives', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({
+          id: 'box-1',
+          senderId: OTHER,
+          portalLogin: { portals: ['sdms', 'iras'] },
+        }),
+        conversation: {},
+      });
+    });
+    expect(spy).toHaveBeenCalledWith(LOGINS);
+  });
+
+  it('does not ask for an ordinary message', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'plain-1', senderId: OTHER }),
+        conversation: {},
+      });
+    });
+    expect(spy).not.toHaveBeenCalledWith(LOGINS);
+  });
+
+  it('asks once for a box the server echoes twice', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'box-2', senderId: OTHER, portalLogin: { portals: ['sdms'] } });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
+    expect(spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(LOGINS))).toHaveLength(1);
   });
 });

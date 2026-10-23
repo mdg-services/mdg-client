@@ -9,6 +9,7 @@ export * from './plugin';
 export * from './user';
 export * from './conversation';
 export * from './chatAsk';
+export * from './portalLogin';
 export * from './socket';
 export * from './device';
 export * from './serviceLog';

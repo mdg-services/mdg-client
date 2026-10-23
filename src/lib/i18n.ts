@@ -391,6 +391,7 @@ export const messages = {
   'chat.replyPhoto': { en: 'Photo', hi: 'फोटो' },
   'chat.replyVoice': { en: 'Voice message', hi: 'वॉइस मैसेज' },
   'chat.replyFile': { en: 'File', hi: 'फ़ाइल' },
+  'chat.replyVideo': { en: 'Video', hi: 'वीडियो' },
   'chat.originalNotFound': {
     en: 'That message is no longer available',
     hi: 'वह संदेश अब उपलब्ध नहीं है',
@@ -883,6 +884,39 @@ export const messages = {
   'chat.askStateFailed': {
     en: "Couldn't check this just now",
     hi: 'अभी यह जाँच नहीं हो पाया',
+  },
+
+  // The login box MDG posts when it needs the outlet's SDMS / IRAS login. The
+  // words above it are the message's own; these are the box. "{portal}" is the
+  // portal's name, the same in both languages. What is typed goes to the
+  // outlet's record and never into the chat, and the box says so.
+  'chat.portalTitle': { en: '{portal} login', hi: '{portal} लॉगिन' },
+  'chat.portalNeeded': { en: 'Needed', hi: 'बाकी' },
+  'chat.portalSaved': { en: 'Saved', hi: 'मिल गया' },
+  'chat.portalRefused': { en: 'Old password not working', hi: 'पुराना पासवर्ड नहीं चल रहा' },
+  'chat.portalSavedOn': { en: 'Saved · {date}', hi: 'मिल गया · {date}' },
+  'chat.portalChange': { en: 'Change', hi: 'बदलें' },
+  'chat.portalOwnerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },
+  'chat.portalUserId': { en: 'User ID', hi: 'यूज़र आईडी' },
+  'chat.portalPassword': { en: 'Password', hi: 'पासवर्ड' },
+  'chat.portalShowPassword': { en: 'Show password', hi: 'पासवर्ड दिखाएं' },
+  'chat.portalHidePassword': { en: 'Hide password', hi: 'पासवर्ड छुपाएं' },
+  'chat.portalSave': { en: 'Save', hi: 'सेव करें' },
+  'chat.portalKeptSafe': {
+    en: 'Kept safe — never shown in the chat',
+    hi: 'सुरक्षित रखा जाएगा, चैट में नहीं दिखेगा',
+  },
+  'chat.portalSameAsRefused': {
+    en: 'This is the password that stopped working. Enter the new one.',
+    hi: 'यही पासवर्ड नहीं चल रहा था। नया पासवर्ड भरिए।',
+  },
+  'chat.portalRateLimited': {
+    en: 'Try again in a little while',
+    hi: 'थोड़ी देर बाद फिर कोशिश करें',
+  },
+  'chat.portalSaveFailed': {
+    en: "Couldn't save — try again",
+    hi: 'सेव नहीं हुआ, फिर से कोशिश करें',
   },
 
   // Selecting messages (long-press).

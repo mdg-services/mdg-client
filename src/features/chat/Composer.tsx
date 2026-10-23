@@ -7,6 +7,7 @@ import {
   Paperclip,
   SendHorizonal,
   Trash2,
+  Video,
   X,
 } from 'lucide-react';
 import * as React from 'react';
@@ -276,6 +277,7 @@ function LiveWaveform({
 const REPLY_ICONS: Record<Exclude<ReplyPreviewIcon, null>, typeof Camera> = {
   image: Camera,
   audio: Mic,
+  video: Video,
   file: FileText,
 };
 
