@@ -15,6 +15,8 @@ import {
   PAYMENT_STATUSES,
 } from '../types/payment';
 
+import { GST_STATES, isGstin, cleanGstin } from '../lib/gst';
+
 import { objectIdSchema } from './common';
 
 const paise = z.number().int().min(PAYMENT_MIN_PAISE).max(PAYMENT_MAX_PAISE);
@@ -25,6 +27,28 @@ const optionalText = (max: number) =>
     .union([z.string().trim().max(max), z.literal('')])
     .optional()
     .transform((v) => (v ? v : undefined));
+
+/**
+ * Who the invoice is made out to. A GSTIN, when given, must be a real one, and
+ * its first two digits ARE the place of supply — a different state alongside
+ * it is refused rather than silently believed.
+ */
+export const billToSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160),
+    gstin: z
+      .union([z.string().trim(), z.literal(''), z.null()])
+      .optional()
+      .transform((v) => (v ? cleanGstin(v) : null))
+      .refine((v) => v === null || isGstin(v), { message: 'Not a valid GSTIN' }),
+    address: z.string().trim().min(5).max(300),
+    stateCode: z.string().refine((v) => v in GST_STATES, { message: 'Unknown state' }),
+  })
+  .refine((b) => b.gstin === null || b.gstin.slice(0, 2) === b.stateCode, {
+    message: 'The state must be the one in the GSTIN',
+    path: ['stateCode'],
+  });
+export type BillToInput = z.infer<typeof billToSchema>;
 
 /** An admin raising a payment for one outlet. */
 export const createPaymentSchema = z.object({
@@ -56,8 +80,14 @@ export const createPaymentSchema = z.object({
       email: z.string().trim().email().max(200).optional(),
     })
     .optional(),
+  /** Who the GST invoice is made out to. Can be set later, until the invoice is issued. */
+  billTo: billToSchema.optional(),
 });
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
+
+/** Setting or correcting who to bill, while no invoice has been issued. */
+export const updateBillToSchema = z.object({ billTo: billToSchema });
+export type UpdateBillToInput = z.infer<typeof updateBillToSchema>;
 
 export const cancelPaymentSchema = z.object({
   reason: z.string().trim().min(3).max(300),

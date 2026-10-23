@@ -9,6 +9,7 @@ import { formatPaise } from '@dk/shared';
 
 import { usePayment } from './api';
 import { isNotConfigured } from './errors';
+import { GstDocuments } from './GstDocuments';
 import { PayButton } from './PayButton';
 import { PaymentStatusChip } from './PaymentStatusChip';
 import { formatDueDate, hasReceipt } from './paymentView';
@@ -23,6 +24,8 @@ import { StateBlock } from './StateBlock';
  * The Pay button is here only where `canPayHere()` — see PaymentsPage for why.
  * The receipt is not payment-steering and is shown everywhere this page opens,
  * including the Android app (a link that was already out there can open it).
+ * So are the GST invoice and credit notes under it, with their Download
+ * buttons: a paper for something already paid is not a way to pay (§11).
  */
 export function PaymentDetailPage() {
   const t = useT();
@@ -108,7 +111,12 @@ export function PaymentDetailPage() {
             {canPayHere() && isOpen ? <PayButton payment={payment} /> : null}
           </CardContent>
         </Card>
-        {hasReceipt(payment.status) ? <Receipt payment={payment} /> : null}
+        {hasReceipt(payment.status) ? (
+          <>
+            <Receipt payment={payment} />
+            <GstDocuments payment={payment} />
+          </>
+        ) : null}
       </>
     );
   }

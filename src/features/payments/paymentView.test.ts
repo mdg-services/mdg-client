@@ -126,10 +126,17 @@ describe('the catalogue', () => {
   });
 
   // A Hindi string that is the English one pasted twice is a translation that
-  // was forgotten. The few that really are the same (UPI, EMI) are listed.
+  // was forgotten. The few that really are the same are listed: UPI and EMI,
+  // and the three taxes, which are called CGST, SGST and IGST on every return.
   it('has a real Hindi string wherever the English is words', () => {
     const same = paymentKeys.filter((k) => messages[k].en === messages[k].hi);
-    expect(same.sort()).toEqual(['payments.method.emi', 'payments.method.upi']);
+    expect(same.sort()).toEqual([
+      'payments.invoice.cgst',
+      'payments.invoice.igst',
+      'payments.invoice.sgst',
+      'payments.method.emi',
+      'payments.method.upi',
+    ]);
   });
 
   it('uses the same {placeholders} in both languages', () => {

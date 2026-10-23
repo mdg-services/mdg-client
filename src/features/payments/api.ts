@@ -4,7 +4,12 @@ import * as React from 'react';
 import { api, type ApiError } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { VerifyCheckoutInput } from '@dk/shared/schemas';
-import type { DealerPayment, DealerPaymentsList, PaymentCheckout } from '@dk/shared/types';
+import type {
+  DealerPayment,
+  DealerPaymentsList,
+  GstDocumentDownload,
+  PaymentCheckout,
+} from '@dk/shared/types';
 
 /**
  * The dealer's side of the payments API (ADR 0022 §6). Every route is scoped to
@@ -93,4 +98,20 @@ export function useRefreshPayment() {
   return useMutation<DealerPayment, ApiError, string>({
     mutationFn: (id) => api.post<DealerPayment>(`${base(id)}/refresh`),
   });
+}
+
+/**
+ * A short-lived link to the PDF of one GST invoice or credit note of this
+ * payment (ADR 0022 §11), with the file name to save it under. Asked for at the
+ * moment of the tap, never kept: the link expires within minutes, and the
+ * server checks every time that the document belongs to this outlet's payment.
+ *
+ * This is a read of something already paid for — not a way to pay — so it is
+ * not behind `canPayHere()`.
+ */
+export function fetchGstDocumentLink(
+  paymentId: string,
+  documentId: string,
+): Promise<GstDocumentDownload> {
+  return api.get<GstDocumentDownload>(`${base(paymentId)}/documents/${encodeURIComponent(documentId)}`);
 }

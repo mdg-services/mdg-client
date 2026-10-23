@@ -101,6 +101,61 @@ export interface PaymentExtraCapture {
   at: string;
 }
 
+/**
+ * Who the GST invoice is made out to (ADR 0022 §11). Typed by the admin when
+ * the payment is raised — a dealer has no stored name, only its code — with the
+ * GSTIN prefilled from the outlet. Fixed once the invoice is issued.
+ */
+export interface PaymentBillTo {
+  /** The legal or trade name as it should appear on the invoice. */
+  name: string;
+  /** Null for a buyer who is not registered for GST. */
+  gstin: string | null;
+  /** One line, as it should appear on the invoice. */
+  address: string;
+  /** Two-digit GST state code — the place of supply. From the GSTIN when there is one. */
+  stateCode: string;
+}
+
+export const GST_DOCUMENT_KINDS = ['invoice', 'credit_note'] as const;
+export type GstDocumentKind = (typeof GST_DOCUMENT_KINDS)[number];
+
+/**
+ * A GST tax invoice (one per paid payment) or a credit note (one per refund
+ * that went through). The figures are fixed when it is issued; the PDF is drawn
+ * from them on demand and is the same every time.
+ */
+export interface GstDocumentSummary {
+  id: string;
+  kind: GstDocumentKind;
+  /** `MDG/26-27/00001` for an invoice, `MDGCN/26-27/0001` for a credit note. */
+  number: string;
+  issuedAt: string;
+  taxablePaise: number;
+  cgstPaise: number;
+  sgstPaise: number;
+  igstPaise: number;
+  roundOffPaise: number;
+  totalPaise: number;
+  /** A credit note's invoice. */
+  againstNumber: string | null;
+}
+
+/**
+ * Why a paid payment has no invoice yet. `gst_not_configured`: the server does
+ * not have the company's GSTIN, address and SAC code. `no_bill_to`: nobody has
+ * said who to bill. Both clear when fixed and an admin presses Issue invoice
+ * (the reconcile job retries too).
+ */
+export const INVOICE_BLOCKERS = ['gst_not_configured', 'no_bill_to'] as const;
+export type InvoiceBlocker = (typeof INVOICE_BLOCKERS)[number];
+
+/** A GST document ready to download: a short-lived link and the file name to save it as. */
+export interface GstDocumentDownload {
+  url: string;
+  filename: string;
+}
+
 /** What a dealer sees of a payment. */
 export interface DealerPayment {
   id: string;
@@ -123,6 +178,10 @@ export interface DealerPayment {
   refundedPaise: number;
   /** The most recent failed try, while the payment is still due. */
   lastFailure: { reason: string; at: string } | null;
+  /** The GST tax invoice, once the payment is paid and the invoice issued. */
+  invoice: GstDocumentSummary | null;
+  /** One per refund that went through. */
+  creditNotes: GstDocumentSummary[];
 }
 
 /** What an admin sees of a payment. */
@@ -145,6 +204,10 @@ export interface AdminPayment extends DealerPayment {
   cancelReason: string | null;
   /** Where Razorpay sent the payment link by SMS / email, if it did. */
   linkSentTo: { phone: string | null; email: string | null } | null;
+  /** Who the invoice is made out to. Null until someone says. */
+  billTo: PaymentBillTo | null;
+  /** Why a paid payment has no invoice yet; null when it has one or is not paid. */
+  invoiceBlocker: InvoiceBlocker | null;
   /**
    * Something a person must look at (rules 5 and the wrong-amount row of the
    * table in ADR 0022 §5). Raises the `payment_problem` alert, which clears when

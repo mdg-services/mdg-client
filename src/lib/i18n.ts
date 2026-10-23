@@ -1034,6 +1034,46 @@ export const messages = {
   'payments.receipt.reference': { en: 'Reference', hi: 'रेफ़रेंस नंबर' },
   'payments.receipt.refunded': { en: 'Refunded', hi: 'वापस हुए' },
 
+  // The GST invoice and credit notes under the receipt (ADR 0022 §11). Shown
+  // inside the Android app too: it is a paper for something already paid.
+  'payments.invoice.title': { en: 'GST invoice', hi: 'GST इनवॉइस' },
+  'payments.invoice.number': { en: 'Invoice number', hi: 'इनवॉइस नंबर' },
+  'payments.invoice.date': { en: 'Date', hi: 'तारीख' },
+  'payments.invoice.taxable': { en: 'Value before tax', hi: 'टैक्स से पहले की रकम' },
+  // The tax names are the names on the return, so they read the same in both languages.
+  'payments.invoice.cgst': { en: 'CGST ({rate}%)', hi: 'CGST ({rate}%)' },
+  'payments.invoice.sgst': { en: 'SGST ({rate}%)', hi: 'SGST ({rate}%)' },
+  'payments.invoice.igst': { en: 'IGST ({rate}%)', hi: 'IGST ({rate}%)' },
+  'payments.invoice.roundOff': { en: 'Round off', hi: 'राउंड ऑफ़' },
+  'payments.invoice.total': { en: 'Total', hi: 'कुल' },
+  'payments.invoice.creditNoteTitle': { en: 'Credit note', hi: 'क्रेडिट नोट' },
+  'payments.invoice.creditNoteNumber': { en: 'Credit note number', hi: 'क्रेडिट नोट नंबर' },
+  'payments.invoice.against': { en: 'Against invoice', hi: 'किस इनवॉइस पर' },
+  'payments.invoice.totalCredited': { en: 'Total credited', hi: 'कुल क्रेडिट' },
+  'payments.invoice.download': { en: 'Download', hi: 'डाउनलोड करें' },
+  // What a screen reader says: two buttons that both read "Download" need telling apart.
+  'payments.invoice.downloadInvoiceAs': {
+    en: 'Download GST invoice {number}',
+    hi: 'GST इनवॉइस {number} डाउनलोड करें',
+  },
+  'payments.invoice.downloadCreditNoteAs': {
+    en: 'Download credit note {number}',
+    hi: 'क्रेडिट नोट {number} डाउनलोड करें',
+  },
+  // Paid, but the invoice is not issued yet. One quiet line: the reason is ours to fix.
+  'payments.invoice.preparing': {
+    en: 'GST invoice is being prepared',
+    hi: 'GST इनवॉइस तैयार हो रहा है',
+  },
+  'payments.invoice.downloading': {
+    en: 'Your download is starting',
+    hi: 'आपका डाउनलोड शुरू हो रहा है',
+  },
+  'payments.invoice.downloadFailed': {
+    en: "Couldn't download this. Please check your network and try again.",
+    hi: 'यह डाउनलोड नहीं हो पाया। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
+  },
+
   // What to say when a step of paying did not work. By the server's own codes.
   'payments.err.notConfigured': {
     en: 'Online payment is not switched on yet. Please try again later.',
