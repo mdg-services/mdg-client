@@ -10,6 +10,8 @@
  * recalled once posted (ADR 0014), which is why the hold comes first.
  */
 
+import type { SetupChecklistKey } from './outletSetup';
+
 export const HELD_MESSAGE_STATES = ['held', 'sent', 'dropped', 'expired'] as const;
 export type HeldMessageState = (typeof HELD_MESSAGE_STATES)[number];
 
@@ -48,4 +50,23 @@ export interface HeldMessageList {
   /** Oldest first: the one waiting longest is at the top. */
   items: HeldMessage[];
   counts: { held: number };
+}
+
+/** What the admin screen calls each sender, in plain words. */
+export const HELD_MESSAGE_SOURCE_LABELS: Readonly<Record<HeldMessageSource, string>> = {
+  kavach_digest: 'Kavach daily line',
+  morning_ask: 'Morning ask',
+  paper_reminder: 'Paper reminder',
+  density_notice: 'Tanker density notice',
+  onboarding_reminder: 'Onboarding reminder',
+  other: 'Message',
+};
+
+/**
+ * The body of the 409 `CHECKLIST_OPEN` that `POST /dealers/:id/setup/start` answers
+ * when a line of the setup checklist is still missing and no reason was given
+ * (`error.details`). The keys are those of `SetupChecklistItem`.
+ */
+export interface ChecklistOpenDetails {
+  missing: SetupChecklistKey[];
 }

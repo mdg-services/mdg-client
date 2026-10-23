@@ -107,7 +107,7 @@ describe('the setup strip', () => {
       [
         {
           stage: 'payment',
-          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null },
+          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         },
         'Your bill has been sent',
       ],
@@ -210,7 +210,7 @@ describe('the setup strip', () => {
         makeSetupView({
           stage: 'payment',
           strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
-          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null },
+          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         }),
       );
       renderWithProviders(<SetupStrip />);

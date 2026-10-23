@@ -49,6 +49,40 @@ describe('VideoMessage', () => {
     expect(box.style.aspectRatio).toBe('9 / 16');
   });
 
+  it('opens at the chapter the assistant picked: the fragment names the second', () => {
+    render(<VideoMessage attachment={video({ startSec: 14.2 })} source={SOURCE} />);
+    expect(el().getAttribute('src')).toBe('https://files.test/app-tour.mp4?sig=1#t=14.2');
+  });
+
+  it('moves a phone that ignored the fragment, once the length is known — and only once', () => {
+    render(<VideoMessage attachment={video({ startSec: 14.2 })} source={SOURCE} />);
+    const v = el();
+    // The phone started at the top.
+    v.currentTime = 0;
+    fireEvent.loadedMetadata(v);
+    expect(v.currentTime).toBe(14.2);
+    // The dealer scrubs back to the top: it is not pulled forward again.
+    v.currentTime = 1;
+    fireEvent.loadedMetadata(v);
+    expect(v.currentTime).toBe(1);
+  });
+
+  it('leaves a phone alone that already honoured the fragment, and a video with no chapter', () => {
+    render(<VideoMessage attachment={video({ startSec: 14.2 })} source={SOURCE} />);
+    const v = el();
+    v.currentTime = 14.2;
+    fireEvent.loadedMetadata(v);
+    expect(v.currentTime).toBe(14.2);
+    cleanup();
+
+    render(<VideoMessage attachment={video()} source={SOURCE} />);
+    const plain = el();
+    plain.currentTime = 0;
+    fireEvent.loadedMetadata(plain);
+    expect(plain.currentTime).toBe(0);
+    expect(plain.getAttribute('src')).toBe('https://files.test/app-tour.mp4?sig=1#t=0.1');
+  });
+
   it('shows the length in a chip until it starts', () => {
     render(<VideoMessage attachment={video()} source={SOURCE} />);
     expect(screen.getByTestId('video-duration')).toHaveTextContent('0:42');

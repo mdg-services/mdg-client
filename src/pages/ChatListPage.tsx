@@ -14,6 +14,8 @@ import {
   unreadState,
   type ChatChip,
 } from '@/features/chat/conversationLabel';
+import { OutletChip } from '@/features/outlets/OutletChip';
+import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -55,6 +57,9 @@ function ChatList() {
   const [searching, setSearching] = React.useState(false);
   const [query, setQuery] = React.useState('');
   const [chip, setChip] = React.useState<ChatChip>('all');
+  // ── one person, several pumps ── the chip's sheet
+  const [outletsOpen, setOutletsOpen] = React.useState(false);
+  const closeOutlets = React.useCallback(() => setOutletsOpen(false), []);
 
   const closeSearch = React.useCallback(() => {
     setSearching(false);
@@ -89,18 +94,24 @@ function ChatList() {
   const bar = searching ? (
     <SearchBar query={query} onChange={setQuery} onClose={closeSearch} />
   ) : (
-    <AppBar
-      variant="home"
-      title={t('app.brand')}
-      actions={
-        <AppBarIconButton
-          label={t('chatlist.search')}
-          icon={<Search width={22} strokeWidth={2} />}
-          onClick={() => setSearching(true)}
-        />
-      }
-      menu={menu}
-    />
+    <>
+      <AppBar
+        variant="home"
+        title={t('app.brand')}
+        actions={
+          <>
+            <OutletChip onOpen={() => setOutletsOpen(true)} />
+            <AppBarIconButton
+              label={t('chatlist.search')}
+              icon={<Search width={22} strokeWidth={2} />}
+              onClick={() => setSearching(true)}
+            />
+          </>
+        }
+        menu={menu}
+      />
+      {outletsOpen ? <OutletSheet onClose={closeOutlets} /> : null}
+    </>
   );
 
   // The server guarantees every dealer member at least one thread, so an empty

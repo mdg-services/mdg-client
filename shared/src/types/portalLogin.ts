@@ -95,37 +95,14 @@ export interface PortalLoginAskResult {
 }
 
 /**
- * The short videos MDG sends inside the chat. Hindi, portrait. One per step
- * that repeats for every outlet, so MDG explains it once on film instead of
- * typing it out to each dealer:
- *  - `app_tour`          how the app works: one chat with MDG, reports arrive in
- *                        it, ask anything, a person from MDG behind every answer
- *  - `portal_login`      why MDG needs the SDMS and IRAS logins and how to fill the box
- *  - `papers`            sending a paper or licence MDG asks for (photo or PDF),
- *                        and a fresh one when it is about to run out
- *  - `density_register`  yesterday's density register page, every morning
- *  - `kavach_photos`     the photo a Kavach task needs, and what MDG does with it
- *  - `add_manager`       an owner adding the pump's manager to the app
- *  - `getting_started`   installing Dealer Kavach and signing in the first time
+ * The id of one of the short videos MDG sends inside the chat — a plain string,
+ * validated against the video library (`types/videoLibrary.ts`), not a fixed
+ * list. A video is one folder with a `library.json` plus an upload, so adding
+ * one is never a code change: `app_tour`, `portal_login`, `papers`,
+ * `density_register`, `kavach_photos`, `add_manager`, `getting_started` and
+ * every service video are all just ids in the catalog.
  */
-export type GuideVideoId =
-  | 'app_tour'
-  | 'portal_login'
-  | 'papers'
-  | 'density_register'
-  | 'kavach_photos'
-  | 'add_manager'
-  | 'getting_started';
-
-export const GUIDE_VIDEO_IDS: readonly GuideVideoId[] = [
-  'app_tour',
-  'portal_login',
-  'papers',
-  'density_register',
-  'kavach_photos',
-  'add_manager',
-  'getting_started',
-];
+export type GuideVideoId = string;
 
 /** True for an attachment the chat should play inline rather than offer as a download. */
 export function isVideoAttachment(a: { contentType?: string | null }): boolean {

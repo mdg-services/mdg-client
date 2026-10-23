@@ -322,18 +322,41 @@ describe('PaymentsPage — inside the Android app', () => {
     expect(within(history).getByText('Receipt MDG-2026-00007')).toBeInTheDocument();
   });
 
-  it('has no Pay button and no link, and never loads Razorpay', async () => {
+  it('has no Pay button and no link on what is due, and never loads Razorpay', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments();
 
-    await screen.findByRole('region', { name: 'Due' });
-    // Only the bar's Back arrow is a button. Nothing is a link.
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    // Only the bar's Back arrow is a button.
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
       'Back',
     ]);
-    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    // What is due leads nowhere.
+    expect(within(due).queryAllByRole('link')).toHaveLength(0);
     expect(loadCheckoutScript).not.toHaveBeenCalled();
     expect(openCheckout).not.toHaveBeenCalled();
+  });
+
+  it('opens the receipt of a paid payment, and of a refunded one, but not of a due or processing one', async () => {
+    listReturns(
+      makePayment(),
+      makePayment({ id: 'p4', number: 'MDG-2026-00013', status: 'processing' }),
+      makePaidPayment(),
+      makePaidPayment({ id: 'p5', status: 'partially_refunded', refundedPaise: 50000 }),
+      makePaidPayment({ id: 'p6', status: 'refunded', refundedPaise: 499900 }),
+      makePayment({ id: 'p7', status: 'cancelled' }),
+    );
+    renderPayments();
+
+    await screen.findByRole('region', { name: 'Due' });
+    const hrefs = screen
+      .getAllByRole('link')
+      .map((a) => a.getAttribute('href'))
+      .sort();
+    // The three that took money. Not due (p1), not processing (p4), not cancelled (p7).
+    expect(hrefs).toEqual(['/payments/p2', '/payments/p5', '/payments/p6']);
+    // Still no Pay button anywhere.
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
   });
 
   it('is read-only in Hindi too', async () => {

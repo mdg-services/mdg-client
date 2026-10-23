@@ -7,6 +7,7 @@ import { EmptyState, Spinner } from '@/components/ui';
 import { FileTypeBadge } from '@/features/chat/FileTypeBadge';
 import { monthHeading, monthKey, shortDate } from '@/features/chat/mediaFormat';
 import { MediaViewer, type MediaViewerItem } from '@/features/chat/MediaViewer';
+import { senderDisplayName } from '@/features/chat/replyContext';
 import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -212,10 +213,7 @@ export function ChatMediaPage() {
         key: itemKey(item),
         attachment: item.attachment,
         source: { conversationId: conversationId!, messageId: item.messageId },
-        senderLabel:
-          userId && item.senderId === userId
-            ? t('chat.you')
-            : (item.senderName ?? t('chat.supportFallbackName')),
+        senderLabel: senderDisplayName(item, userId, t),
         createdAt: item.createdAt,
         ...(item.bodySnippet ? { caption: item.bodySnippet } : {}),
       })),

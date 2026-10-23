@@ -417,6 +417,21 @@ describe('ChatMediaPage — the viewer', () => {
     expect(within(viewer()).getByText('MDG team')).toBeInTheDocument();
   });
 
+  it('says MDG, in the dealer’s words, for a picture the system posted — never "MDG System"', async () => {
+    api.get.mockResolvedValue([
+      picture(2, { senderId: 'sys', senderName: 'MDG System' }),
+      picture(1, { senderId: 'sys' }),
+    ]);
+    renderPage();
+    for (const name of ['pic2.jpg', 'pic1.jpg']) {
+      fireEvent.click(await screen.findByRole('button', { name }));
+      expect(within(viewer()).getByText('MDG Support')).toBeInTheDocument();
+      expect(within(viewer()).queryByText('MDG System')).toBeNull();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull());
+    }
+  });
+
   it('says "You" for a picture the dealer sent, and shows its caption', async () => {
     api.get.mockResolvedValue(trio());
     renderPage();

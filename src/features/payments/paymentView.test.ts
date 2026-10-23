@@ -100,6 +100,9 @@ describe('methodLabel', () => {
     expect(methodLabel(t, 'netbanking')).toBe('Net banking');
     expect(methodLabel(t, 'wallet')).toBe('Wallet');
     expect(methodLabel(t, 'bank_transfer')).toBe('Bank transfer');
+    // money MDG recorded by hand
+    expect(methodLabel(t, 'cash')).toBe('Cash');
+    expect(methodLabel(t, 'cheque')).toBe('Cheque');
   });
 
   it('is not thrown by capital letters', () => {

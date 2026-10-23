@@ -127,6 +127,9 @@ const METHOD_KEY: Record<string, MessageKey> = {
   emi: 'payments.method.emi',
   paylater: 'payments.method.paylater',
   bank_transfer: 'payments.method.bankTransfer',
+  // Money MDG recorded by hand (a payment made outside Razorpay).
+  cash: 'payments.method.cash',
+  cheque: 'payments.method.cheque',
 };
 
 /** How it was paid, in the dealer's words. A method we have no word for is shown as Razorpay names it. */

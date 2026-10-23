@@ -34,11 +34,15 @@ import { CHECKOUT_SCRIPT_URL, resetCheckoutScript } from './checkout';
  * The same page in a browser is rendered alongside as a control, so a test that
  * stops finding the Pay button cannot pass by finding nothing at all.
  *
- * ONE THING MAY BE PRESSED BESIDE THE BACK ARROW: the Download button of a GST
- * invoice or credit note (ADR 0022 §11). That is a receipt for something already
- * paid, so it shows in the app — and these tests are what keep it from being the
- * thin end of a pay path: the list of buttons allowed on a page is written out
- * in full, and everything else on the page is held to the same rules as before.
+ * TWO THINGS MAY BE PRESSED IN THE APP, both for money already paid:
+ *   - the Download button of a GST invoice or credit note, beside the Back arrow
+ *     (ADR 0022 §11); and
+ *   - on the Payments list, a PAID row, which opens that payment's receipt
+ *     (§9) — so the Settings promise of "receipts and GST invoices" can be kept.
+ * These tests are what keep either from being the thin end of a pay path: the
+ * buttons and the links allowed on a page are written out in full, a row that is
+ * still due or processing is never one of them, and everything else on the page
+ * is held to the same rules as before.
  */
 
 // The shell's own side effects (sockets, push) are not what this file is about.
@@ -132,16 +136,23 @@ function allowedButtons(lang: 'en' | 'hi', downloads: string[], toast = false): 
 /**
  * Everything the page, as the app shows it, must not contain: a way to pay or a
  * pointer towards one. `downloads` are the numbers of the documents on the page,
- * whose Download buttons are the only buttons allowed beside Back.
+ * whose Download buttons are the only buttons allowed beside Back. `receipts` are
+ * the addresses of the PAID payments the page may link to — the receipt of money
+ * already paid — and the only links it may have.
  */
 function expectNoPayPath(
   container: HTMLElement,
   lang: 'en' | 'hi',
   downloads: string[],
   toast = false,
+  receipts: string[] = [],
 ) {
-  // No link of any kind, and no form to submit.
-  expect(container.querySelectorAll('a, [href], form, iframe')).toHaveLength(0);
+  // No form to submit and no frame. The only links are the receipts listed, each
+  // to a payment that was made; no element other than a link has an address.
+  expect(container.querySelectorAll('form, iframe, [href]:not(a), a:not([href])')).toHaveLength(0);
+  expect(
+    Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href')).sort(),
+  ).toEqual([...receipts].sort());
   // The only things to press are the bar's Back arrow and, on a page with a GST
   // document, that document's Download (and a toast's Dismiss while one shows).
   expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(
@@ -149,7 +160,11 @@ function expectNoPayPath(
   );
 
   // Nothing on the page — not an attribute, not a class — names Razorpay or a pay address.
-  const attributes = everyAttribute(document.documentElement).join('\n');
+  // (The receipt links above are the one pay-shaped address allowed, so they are
+  // taken out before looking; any other address of that shape still fails.)
+  const attributes = everyAttribute(document.documentElement)
+    .filter((attr) => !receipts.some((href) => attr === `a@href=${href}`))
+    .join('\n');
   expect(attributes).not.toMatch(/razorpay/i);
   expect(attributes).not.toMatch(/\/pay(ments)?\/[^\s"]*/i);
   expect(document.querySelector(`script[src="${CHECKOUT_SCRIPT_URL}"]`)).toBeNull();
@@ -166,15 +181,17 @@ function expectNoPayPath(
 }
 
 describe.each([
-  ['the payments list', '/payments', []],
-  ['one payment (due)', '/payments/p1', []],
-  ['one payment (paid, with its receipt, its invoice not issued yet)', '/payments/p2', []],
+  // The list links the two PAID rows to their receipts, and not the due one.
+  ['the payments list', '/payments', [], ['/payments/p2', '/payments/p3']],
+  ['one payment (due)', '/payments/p1', [], []],
+  ['one payment (paid, with its receipt, its invoice not issued yet)', '/payments/p2', [], []],
   [
     'one payment (paid, with its GST invoice and a credit note)',
     '/payments/p3',
     ['MDG/26-27/00001', 'MDGCN/26-27/0001'],
+    [],
   ],
-] as const)('%s, rendered as the Android app does', (_name, route, downloads) => {
+] as const)('%s, rendered as the Android app does', (_name, route, downloads, receipts) => {
   it.each(['en', 'hi'] as const)(
     'offers no way to pay and no pointer to one (%s)',
     async (lang) => {
@@ -184,8 +201,38 @@ describe.each([
 
       const { container } = await openRoute(route, MARKER[route], lang);
 
-      expectNoPayPath(container, lang, [...downloads]);
+      expectNoPayPath(container, lang, [...downloads], false, [...receipts]);
       expect(open).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe('the payments list, rendered as the Android app does', () => {
+  it.each(['en', 'hi'] as const)(
+    'opens the receipt of a paid row, and leaves a due row as plain text (%s)',
+    async (lang) => {
+      const user = userEvent.setup();
+      enterNativeShell();
+      serve([DUE, PAID, INVOICED]);
+
+      await openRoute('/payments', MARKER['/payments'], lang);
+
+      // The due row is not in any link; both paid rows are.
+      const links = screen.getAllByRole('link');
+      expect(links.map((a) => a.getAttribute('href')).sort()).toEqual([
+        '/payments/p2',
+        '/payments/p3',
+      ]);
+      expect(links.some((a) => a.textContent?.includes(DUE.title))).toBe(false);
+      // The due row is still on the page, as text.
+      expect(screen.getByText(DUE.title)).toBeInTheDocument();
+
+      // Pressing a paid row reaches its receipt — the reason the link is there.
+      const receipt = links.find((a) => a.getAttribute('href') === '/payments/p2') as HTMLElement;
+      await user.click(receipt);
+      await screen.findByText(MARKER['/payments/p2']);
+      expect(screen.queryAllByRole('link')).toHaveLength(0);
+      expect(api.post).not.toHaveBeenCalled();
     },
   );
 });

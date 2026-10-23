@@ -409,6 +409,25 @@ export interface OnboardingBoard {
   funnel: { registered: number; approved: number; signedIn: number; paid: number; live: number };
 }
 
+/** The owner a registration may be added to as another outlet (one person, several pumps). */
+export interface LinkOwner {
+  /** The login to link to (the person's most recently used live one): what Approve is sent. */
+  userId: string;
+  name: string;
+  /** That login's outlet. */
+  dealerId: string;
+  code: string;
+  /** Every live outlet of the person, in code order. */
+  codes: string[];
+}
+
+/** `GET /admin/registrations/:id/link-option` (super-admin). */
+export interface RegistrationLinkOption {
+  owner: LinkOwner | null;
+  /** In plain words, when `owner` is null. */
+  reason: string | null;
+}
+
 /** What Approve returns: the new outlet, and whether the WhatsApp welcome went. */
 export interface ApproveRegistrationResult {
   dealerId: string;

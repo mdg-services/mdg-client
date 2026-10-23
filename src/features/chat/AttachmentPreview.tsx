@@ -2,6 +2,7 @@ import { FileText, ImageOff, Mic, Pause, Play, VideoOff, X } from 'lucide-react'
 import * as React from 'react';
 
 import { Avatar, Spinner } from '@/components/ui';
+import { playableSrc } from '@/features/help/helpView';
 import { cn } from '@/lib/cn';
 import {
   fetchFreshInlineUrl,
@@ -669,6 +670,11 @@ const VIDEO_MAX_H = 'min(72vh, 560px)';
  * controls, its length in a chip until it starts. The first frame is the poster
  * (`#t=0.1`), so a guide video shows what it is without a download.
  *
+ * A video the assistant picked for a question carries `startSec`: the chapter that
+ * answers it. It opens there (`#t=<second>`), and a phone that ignores the fragment
+ * is moved once the video's length is known, so the dealer lands on the answer and
+ * not on the start of a minute-long film.
+ *
  * Its link is signed and goes stale, exactly as a voice note's does, and is
  * replaced the same way: a clip that arrives with NO link is asked for at once,
  * one that stops loading is asked for once more, and after that the box says so
@@ -692,6 +698,9 @@ export function VideoMessage({
   const failedNow = React.useRef(false);
   failedNow.current = failed;
   const unsent = !source || source.messageId.startsWith('temp-');
+  // Where it opens: the chapter the assistant matched, else the first frame.
+  const startAt = attachment.startSec && attachment.startSec > 0 ? attachment.startSec : 0;
+  const startApplied = React.useRef(false);
 
   // A WORKING PLAYER KEEPS ITS LINK. Every refetch of the thread (a socket
   // reconnect on 2G, reopening the chat) brings the same video back with a newly
@@ -737,7 +746,7 @@ export function VideoMessage({
   };
 
   // The fragment is added here, never stored: a link that already has one is left alone.
-  const playable = src ? (src.includes('#') ? src : `${src}#t=0.1`) : undefined;
+  const playable = src ? playableSrc(src, startAt) : undefined;
   const waiting = !playable && !failed && !unsent;
 
   return (
@@ -761,6 +770,15 @@ export function VideoMessage({
           controlsList="nodownload noremoteplayback"
           aria-label={attachment.filename}
           onPlay={() => setStarted(true)}
+          onLoadedMetadata={(e) => {
+            // A WebView that ignored `#t=`: move it to the chapter, once. The
+            // half-second slack leaves a phone that did honour it alone.
+            const v = e.currentTarget;
+            if (startAt > 0 && !startApplied.current && v.currentTime < startAt - 0.5) {
+              startApplied.current = true;
+              v.currentTime = startAt;
+            }
+          }}
           onError={() => {
             // A stale link: ask once for a fresh one, then say so in words.
             if (!refreshed.current && source) {

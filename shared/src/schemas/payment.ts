@@ -137,3 +137,20 @@ export const recordManualPaymentSchema = z
   })
   .strict();
 export type RecordManualPaymentInput = z.infer<typeof recordManualPaymentSchema>;
+
+/**
+ * "Send bill" for an outlet's onboarding (`POST /dealers/:id/setup/bill`). Both
+ * fields are optional: the amount is the flat monthly price and the due date is
+ * `PAYMENT_DUE_DAYS` ahead unless the person says otherwise. Whatever the amount,
+ * it is GST included, in whole paise, within what a payment may be.
+ */
+export const sendSetupBillRequestSchema = z
+  .object({
+    amountPaise: paise.optional(),
+    dueOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+      .optional(),
+  })
+  .strict();
+export type SendSetupBillRequest = z.infer<typeof sendSetupBillRequestSchema>;

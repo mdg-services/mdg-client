@@ -72,12 +72,35 @@ export function replyPreview(rc: MessageReplyContext, t: TFunction): ReplyPrevie
   return { text: rc.body ?? '', icon: null };
 }
 
+/**
+ * The server's own sender identity for asks, cards and notices
+ * (`mdg-backend/src/seed/kavachTemplate.ts`). An admin reads it as "MDG System";
+ * a dealer quoting one of those messages should see MDG, in their language.
+ */
+const SYSTEM_SENDER_NAME = 'MDG System';
+
+/**
+ * Display name for whoever sent a message, wherever a name is shown out of the
+ * message itself: "You", the wire name, or the support fallback. The server's
+ * own identity ("MDG System") is never shown to a dealer.
+ */
+export function senderDisplayName(
+  sender: { senderId: string; senderName?: string | undefined },
+  currentUserId: string | undefined,
+  t: TFunction,
+): string {
+  if (currentUserId && sender.senderId === currentUserId) return t('chat.you');
+  if (!sender.senderName || sender.senderName === SYSTEM_SENDER_NAME) {
+    return t('chat.supportFallbackName');
+  }
+  return sender.senderName;
+}
+
 /** Display name for a quoted sender: "You", the wire name, or the support fallback. */
 export function replySenderLabel(
   rc: MessageReplyContext,
   currentUserId: string | undefined,
   t: TFunction,
 ): string {
-  if (currentUserId && rc.senderId === currentUserId) return t('chat.you');
-  return rc.senderName ?? t('chat.supportFallbackName');
+  return senderDisplayName(rc, currentUserId, t);
 }

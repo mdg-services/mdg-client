@@ -7,7 +7,7 @@ import { LONG_PRESS_MS } from '@/lib/useLongPress';
 import { useLangStore } from '@/store/lang';
 import { GSTIN_HARYANA, GSTIN_MAHARASHTRA, makeSetupView, makeStrip } from '@/test/setupFixtures';
 import { makeMessage, renderWithProviders, signIn } from '@/test/utils';
-import type { OutletSetupView, SetupBilling, SetupCardKind } from '@dk/shared/types';
+import type { GuideVideoListItem, OutletSetupView, SetupBilling, SetupCardKind } from '@dk/shared/types';
 
 import { ServicesCard } from './ServicesCard';
 
@@ -24,8 +24,13 @@ beforeEach(() => {
   signIn({ role: 'dealer-owner' });
   h.get.mockReset();
   h.put.mockReset();
+  // The video player locks the page behind it and puts the scroll back on closing.
+  vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
 });
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function card(kind: SetupCardKind, view: OutletSetupView | Error, body = 'MDG says something.') {
   if (view instanceof Error) h.get.mockRejectedValue(view);
@@ -41,6 +46,9 @@ function card(kind: SetupCardKind, view: OutletSetupView | Error, body = 'MDG sa
   });
   return renderWithProviders(<MessageBubble message={message} mine={false} />);
 }
+
+/** How many times the OUTLET's setup was asked for (the card also asks the video library once). */
+const setupGets = (): number => h.get.mock.calls.filter((c) => c[0] === '/v1/me/setup').length;
 
 const box = (kind: string): HTMLElement => {
   const el = document.querySelector<HTMLElement>(`[data-setup-card="${kind}"]`);
@@ -182,19 +190,67 @@ describe('the services card', () => {
     expect(screen.queryByRole('button', { name: /Watch the video/ })).toBeNull();
   });
 
-  it('has a ▶ only on a service that has a video, and it plays that one', async () => {
-    renderWithProviders(
-      <ServicesCard view={makeSetupView()} videos={{ 'tt-density': 'https://files.test/tt.mp4' }} />,
-    );
-    const play = screen.getByRole('button', { name: 'Watch the video: TT Density' });
-    expect(screen.getAllByRole('button', { name: /Watch the video/ })).toHaveLength(1);
-    expect(document.querySelector('video')).toBeNull();
-    fireEvent.click(play);
-    expect(document.querySelector('video')).toHaveAttribute('src', 'https://files.test/tt.mp4');
-    // Tapping the ▶ does not tick the row.
-    expect(checkbox('TT Density')).not.toBeChecked();
-    fireEvent.click(play);
-    expect(document.querySelector('video')).toBeNull();
+  describe('the ▶ on a service, from the video library', () => {
+    const item = (service: string | null, over: Partial<GuideVideoListItem> = {}): GuideVideoListItem => ({
+      id: service ? `svc_${service.replace(/-/g, '_')}` : 'other',
+      title: { hi: 'टीटी डेंसिटी', en: 'TT Density, shown' },
+      summary: { hi: 'सार', en: 'summary' },
+      durationMs: 50_000,
+      service,
+      available: true,
+      ...over,
+    });
+
+    it('has a ▶ only on a service that has a video, and it opens that video in the app’s player', async () => {
+      const tt = item('tt-density', { id: 'svc_tt_density' });
+      h.get.mockImplementation(async (path: string) =>
+        path === '/v1/me/guide-videos/svc_tt_density'
+          ? { id: 'svc_tt_density', title: tt.title, url: 'https://files.test/tt.mp4?sig=1', durationMs: 50_000, startSec: 0, chapters: [] }
+          : makeSetupView(),
+      );
+      renderWithProviders(<ServicesCard view={makeSetupView()} videos={{ 'tt-density': tt }} />);
+      const play = screen.getByRole('button', { name: 'Watch the video: TT Density' });
+      expect(screen.getAllByRole('button', { name: /Watch the video/ })).toHaveLength(1);
+      expect(screen.queryByTestId('guide-video-sheet')).toBeNull();
+
+      fireEvent.click(play);
+      const player = await screen.findByTestId('guide-video');
+      // Asked for when it opens, and shown from the first frame.
+      expect(h.get).toHaveBeenCalledWith('/v1/me/guide-videos/svc_tt_density', { start: undefined });
+      expect(player.getAttribute('src')).toBe('https://files.test/tt.mp4?sig=1#t=0.1');
+      expect(screen.getByTestId('guide-video-sheet')).toHaveAttribute('aria-label', 'TT Density, shown');
+      // Opening the video does not tick the row.
+      expect(checkbox('TT Density')).not.toBeChecked();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close video' }));
+      expect(screen.queryByTestId('guide-video-sheet')).toBeNull();
+      expect(checkbox('TT Density')).not.toBeChecked();
+    });
+
+    it('takes the ▶ from the library by itself: a service whose video is uploaded gets one, one that is not does not', async () => {
+      h.get.mockImplementation(async (path: string) =>
+        path === '/v1/me/guide-videos'
+          ? [item('tt-density'), item('dsr-report', { id: 'svc_dsr', available: false }), item(null)]
+          : makeSetupView(),
+      );
+      renderWithProviders(<ServicesCard view={makeSetupView()} />);
+      await screen.findByRole('button', { name: 'Watch the video: TT Density' });
+      expect(screen.getAllByRole('button', { name: /Watch the video/ })).toHaveLength(1);
+      expect(screen.queryByRole('button', { name: 'Watch the video: Daily Sales Report' })).toBeNull();
+    });
+
+    it('says so in the player when the video will not load, and the card is untouched', async () => {
+      const tt = item('tt-density', { id: 'svc_tt_density' });
+      h.get.mockImplementation(async (path: string) => {
+        if (path.startsWith('/v1/me/guide-videos/')) throw new ApiError(404, 'VIDEO_NOT_UPLOADED', 'gone');
+        return makeSetupView();
+      });
+      renderWithProviders(<ServicesCard view={makeSetupView()} videos={{ 'tt-density': tt }} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Watch the video: TT Density' }));
+      expect(await screen.findByText(/didn.t play/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Close video' }));
+      expect(checkbox('Daily Sales Report')).toBeInTheDocument();
+    });
   });
 
   it('ticking one that needs another ticks that too, and says why', async () => {
@@ -255,8 +311,9 @@ describe('the services card', () => {
     expect(list).toEqual(['Daily Sales Report', 'TT Density', 'Load planner']);
     expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).toBeNull();
-    // The answer went straight into the cache.
-    expect(h.get).toHaveBeenCalledTimes(1);
+    // The answer went straight into the cache: the outlet was asked for once, the card's
+    // other question (which services have a video) is the library's, not the outlet's.
+    expect(setupGets()).toBe(1);
     expect(queryClient.getQueryData(['outlet-setup', 'me'])).toMatchObject({ stage: 'billing' });
   });
 
@@ -272,7 +329,7 @@ describe('the services card', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
     await screen.findByText('Your services');
-    expect(h.get).toHaveBeenCalledTimes(2);
+    expect(setupGets()).toBe(2);
     expect(within(box('services')).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
       'TT Density',
     ]);
@@ -309,7 +366,7 @@ describe('the services card', () => {
         makeSetupView({
           ...chosen,
           services: { ...chosen.services, locked: true },
-          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null },
+          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         }),
       );
       await screen.findByText('Your services');
@@ -579,7 +636,7 @@ describe('the billing card', () => {
         billingView({
           stage: 'payment',
           billing: SAVED,
-          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null },
+          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         }),
       );
       await screen.findByText('Bill details saved');
@@ -592,7 +649,7 @@ describe('the billing card', () => {
         billingView({
           stage: 'logins',
           billing: SAVED,
-          payment: { state: 'paid', amountPaise: 354000, dueOn: '2026-11-02', paidOn: '2026-10-30' },
+          payment: { state: 'paid', amountPaise: 354000, dueOn: '2026-11-02', paidOn: '2026-10-30', paymentId: null },
         }),
       );
       await screen.findByText('Bill details saved');
@@ -640,7 +697,7 @@ describe('the payment card', () => {
     stage: 'payment',
     waitingOn: 'dealer',
     strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
-    payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null },
+    payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
   });
 
   it('says what is due and by when, in English', async () => {
@@ -670,12 +727,93 @@ describe('the payment card', () => {
       'payment',
       makeSetupView({
         stage: 'logins',
-        payment: { state: 'paid', amountPaise: 354000, dueOn: '2026-11-02', paidOn: '2026-10-30' },
+        payment: {
+          state: 'paid',
+          amountPaise: 354000,
+          dueOn: '2026-11-02',
+          paidOn: '2026-10-30',
+          paymentId: null,
+        },
       }),
     );
     await screen.findByText('Payment received');
     expect(screen.getByText('Received on 30 October')).toBeInTheDocument();
+    // a bill that is paid but has no payment to open has nothing to press
     expect(box('payment').querySelector('a, button')).toBeNull();
+  });
+
+  it('once paid, links to the receipt and to nothing else: never a button, never a way to pay', async () => {
+    card(
+      'payment',
+      makeSetupView({
+        stage: 'logins',
+        payment: {
+          state: 'paid',
+          amountPaise: 354000,
+          dueOn: '2026-11-02',
+          paidOn: '2026-10-30',
+          paymentId: 'p-123',
+        },
+      }),
+    );
+    await screen.findByText('Payment received');
+    const link = within(box('payment')).getByRole('link', { name: 'View receipt' });
+    expect(link).toHaveAttribute('href', '/payments/p-123');
+    expect(box('payment').querySelectorAll('a')).toHaveLength(1);
+    expect(box('payment').querySelector('button, input, form')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\b(pay|upi|bank|account|ifsc|qr|razorpay)\b/i);
+  });
+
+  it('says the receipt link in Hindi', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: false });
+    card(
+      'payment',
+      makeSetupView({
+        payment: {
+          state: 'paid',
+          amountPaise: 354000,
+          dueOn: '2026-11-02',
+          paidOn: '2026-10-30',
+          paymentId: 'p-123',
+        },
+      }),
+    );
+    expect(await screen.findByRole('link', { name: 'रसीद देखें' })).toHaveAttribute('href', '/payments/p-123');
+  });
+
+  it('says the due date has passed when it has, as a fact, with nothing to press', async () => {
+    card(
+      'payment',
+      makeSetupView({
+        stage: 'payment',
+        payment: { state: 'sent', amountPaise: 354000, dueOn: '2020-01-01', paidOn: null, paymentId: 'p-123' },
+      }),
+    );
+    await screen.findByText('The due date has passed');
+    expect(box('payment').querySelector('a, button')).toBeNull();
+    expect(document.body.textContent).not.toMatch(/\b(pay|upi|bank|account|ifsc|qr|razorpay|link)\b/i);
+  });
+
+  it('and says nothing of the sort before the day, on the day, or in Hindi when it has', async () => {
+    card(
+      'payment',
+      makeSetupView({
+        stage: 'payment',
+        payment: { state: 'sent', amountPaise: 354000, dueOn: '2099-01-01', paidOn: null, paymentId: 'p-123' },
+      }),
+    );
+    await screen.findByText(/Bill: ₹3,540/);
+    expect(screen.queryByText('The due date has passed')).toBeNull();
+    cleanup();
+    useLangStore.setState({ lang: 'hi', explicit: false });
+    card(
+      'payment',
+      makeSetupView({
+        stage: 'payment',
+        payment: { state: 'sent', amountPaise: 354000, dueOn: '2020-01-01', paidOn: null, paymentId: 'p-123' },
+      }),
+    );
+    await screen.findByText('आख़िरी तारीख़ निकल चुकी है');
   });
 
   it('an old bill card on a paid bill says paid, not what was true when it was posted', async () => {
@@ -683,7 +821,13 @@ describe('the payment card', () => {
     card(
       'payment',
       makeSetupView({
-        payment: { state: 'paid', amountPaise: 354000, dueOn: '2026-11-02', paidOn: '2026-11-01' },
+        payment: {
+          state: 'paid',
+          amountPaise: 354000,
+          dueOn: '2026-11-02',
+          paidOn: '2026-11-01',
+          paymentId: null,
+        },
       }),
       'Your bill has been sent.',
     );

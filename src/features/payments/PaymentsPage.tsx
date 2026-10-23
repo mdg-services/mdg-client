@@ -32,9 +32,9 @@ function ListSkeleton() {
  * WHAT THIS SCREEN MAY SAY DEPENDS ON WHERE IT IS RUNNING. In a browser, a due
  * payment has a Pay button and every card opens its own page. Inside the Android
  * app (`canPayHere()` false) it is the same two lists, read-only: no Pay button,
- * no link to a payment page, and no sentence about paying somewhere else — Google
- * Play's Payments policy treats each of those as steering a user away from Play
- * Billing.
+ * no link to a payment that is still open, and no sentence about paying somewhere
+ * else — Google Play's Payments policy treats each of those as steering a user
+ * away from Play Billing. A payment that was made still opens its receipt.
  */
 export function PaymentsPage() {
   const t = useT();

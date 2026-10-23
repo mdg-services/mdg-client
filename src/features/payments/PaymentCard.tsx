@@ -14,10 +14,15 @@ import { formatDay, formatDueDate, hasReceipt, methodLabel } from './paymentView
  * One payment on the list.
  *
  * `interactive` is `canPayHere()`, decided once by the page. When it is false —
- * the Android app — the card is plain text: no link to the payment's own page,
- * no Pay button, nothing that leads anywhere (ADR 0022 §1). Everything the
+ * the Android app — a payment that is still open is plain text: no link to its
+ * page, no Pay button, nothing that leads anywhere (ADR 0022 §1). Everything the
  * dealer needs to read stays on the card itself: what, how much, by when, and for
  * a payment that was made, when, how, and the receipt number.
+ *
+ * A payment that WAS made (`hasReceipt`) opens its receipt and GST papers in the
+ * app too. That page is a record of money already paid, with no Pay button and no
+ * way to pay (ADR 0022 §9, §11); without the link, the Payments row in Settings
+ * promises receipts and invoices the dealer cannot reach.
  */
 export function PaymentCard({
   payment,
@@ -30,6 +35,9 @@ export function PaymentCard({
   const lang = useLang();
   const isOpen = payment.status === 'due' || payment.status === 'processing';
   const method = methodLabel(t, payment.method);
+  // Where this card may lead: anywhere in a browser, and to the receipt of a paid
+  // payment in the app. A due or processing row in the app leads nowhere.
+  const opensPage = interactive || hasReceipt(payment.status);
 
   const summary = (
     <div className="min-w-0 flex-1">
@@ -66,7 +74,7 @@ export function PaymentCard({
 
   return (
     <Card>
-      {interactive ? (
+      {opensPage ? (
         <Link
           to={`/payments/${payment.id}`}
           className="flex items-center gap-2 rounded-2xl p-4 active:bg-surface-2"

@@ -162,3 +162,26 @@ export function formatDay(ymd: string | null | undefined, lang: Lang): string {
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(LOCALES[lang], { day: 'numeric', month: 'long' }).replace(/॰/g, '');
 }
+
+/**
+ * Today in India as `YYYY-MM-DD`, whatever the phone's own zone says: a bill's due
+ * day is a day on India's calendar, and a phone set to another zone must not call
+ * it late (or on time) a few hours early.
+ */
+export function istToday(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+/**
+ * Has a bill's due day gone by? Only after the day itself: on the due day it is
+ * still due. Judged on the strings (both `YYYY-MM-DD`, so they order as days), and
+ * never for a bill with no day, or one whose day cannot be read.
+ */
+export function isPastDue(dueOn: string | null | undefined, today: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dueOn ?? '') && (dueOn as string) < today;
+}

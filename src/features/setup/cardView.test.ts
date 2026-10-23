@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { translate } from '@/lib/i18n';
 import { GSTIN_HARYANA, GSTIN_MAHARASHTRA } from '@/test/setupFixtures';
 import { GST_STATES } from '@dk/shared';
 import { SETUP_SERVICE_OPTIONS } from '@dk/shared/types';
@@ -10,6 +11,8 @@ import {
   dependentsOf,
   formatDay,
   formatRupees,
+  isPastDue,
+  istToday,
   stateLabel,
   stateOptions,
   toggleService,
@@ -104,5 +107,54 @@ describe('the bill', () => {
     expect(formatDay('2026-11-02', 'hi')).toBe('2 नवंबर');
     expect(formatDay(null, 'en')).toBe('');
     expect(formatDay('soon', 'en')).toBe('');
+  });
+});
+
+describe('the bill\'s day', () => {
+  it('reads today on India\'s calendar, whatever hour the instant is', () => {
+    // 20:00 UTC on 22 Oct is 01:30 on 23 Oct in India.
+    expect(istToday(new Date('2026-10-22T20:00:00.000Z'))).toBe('2026-10-23');
+    expect(istToday(new Date('2026-10-23T05:00:00.000Z'))).toBe('2026-10-23');
+    // 18:29 UTC is 23:59 in India: still the same day.
+    expect(istToday(new Date('2026-10-23T18:29:00.000Z'))).toBe('2026-10-23');
+    expect(istToday(new Date('2026-10-23T18:30:00.000Z'))).toBe('2026-10-24');
+  });
+
+  it('is past due only after the day itself', () => {
+    expect(isPastDue('2026-10-22', '2026-10-23')).toBe(true);
+    expect(isPastDue('2026-10-23', '2026-10-23')).toBe(false);
+    expect(isPastDue('2026-10-24', '2026-10-23')).toBe(false);
+  });
+
+  it('is never past due without a day, or with one that cannot be read', () => {
+    expect(isPastDue(null, '2026-10-23')).toBe(false);
+    expect(isPastDue(undefined, '2026-10-23')).toBe(false);
+    expect(isPastDue('', '2026-10-23')).toBe(false);
+    expect(isPastDue('soon', '2026-10-23')).toBe(false);
+  });
+});
+
+describe('the words billing added to the app', () => {
+  // Google Play: nothing inside the app may ask for payment, point to a way to pay
+  // or say where or how (ADR 0022 §1). These are facts about a bill, a receipt and
+  // a page of both, in both languages.
+  const KEYS = [
+    'setup.billOverdue',
+    'setup.viewReceipt',
+    'settings.payments',
+    'settings.paymentsDesc',
+    'setup.billLine',
+    'setup.billLineNoDate',
+    'setup.payPaid',
+    'setup.payPaidOn',
+    'setup.payPreparing',
+  ] as const;
+  const INSTRUCTION =
+    /\b(pay (now|here|online|via|using|through|at|on)|pay the|upi|bank|razorpay|link|website|browser|click|tap to pay)\b|वेबसाइट|ब्राउज़र|लिंक|यूपीआई|बैंक|अभी भुगतान करें|भुगतान करें/i;
+
+  it.each(KEYS)('%s asks for nothing and points nowhere', (key) => {
+    for (const lang of ['en', 'hi'] as const) {
+      expect(translate(lang, key, { amount: '₹3,540', date: '2 November' })).not.toMatch(INSTRUCTION);
+    }
   });
 });

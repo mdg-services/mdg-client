@@ -12,6 +12,8 @@ export * from './chatAsk';
 export * from './portalLogin';
 export * from './outletSetup';
 export * from './videoLibrary';
+export * from './onboardingOps';
+export * from './setupBilling';
 export * from './heldMessage';
 export * from './socket';
 export * from './device';

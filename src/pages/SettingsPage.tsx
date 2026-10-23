@@ -1,8 +1,10 @@
 import {
+  ArrowLeftRight,
   Globe,
   GraduationCap,
   KeyRound,
   LogOut,
+  ReceiptText,
   Users,
   UsersRound,
   Wrench,
@@ -14,25 +16,16 @@ import { useNavigate } from 'react-router-dom';
 import { AppBar } from '@/components/AppBar';
 import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, EmptyState } from '@/components/ui';
+import { OutletSheet } from '@/features/outlets/OutletSheet';
+import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
 import { useGoBack } from '@/lib/useGoBack';
 import { useAuthStore } from '@/store/auth';
+import { dealerCodeLabel } from '@dk/shared';
 
 import { roleLabel } from './settings/RoleBadge';
-
-/**
- * The public video guide.
- *
- * An env override so a preview build can point at a Vercel URL while the
- * `guide.` CNAME is being set up — the same escape hatch the admin portal uses
- * for the same site.
- */
-const GUIDE_URL: string = (
-  (import.meta.env.VITE_GUIDE_BASE_URL as string | undefined) ??
-  'https://guide.mdgservices.in'
-).replace(/\/$/, '') + '/';
 
 /**
  * Settings — where everything that is not the chat lives, laid out the way
@@ -64,6 +57,10 @@ export function SettingsPage() {
   const [confirmingLogout, setConfirmingLogout] = React.useState(false);
   const closeLanguage = React.useCallback(() => setLanguageOpen(false), []);
   const closeLogout = React.useCallback(() => setConfirmingLogout(false), []);
+  // ── one person, several pumps ── the row and its sheet (nothing for a one-pump login)
+  const outlets = useOutlets();
+  const [outletsOpen, setOutletsOpen] = React.useState(false);
+  const closeOutlets = React.useCallback(() => setOutletsOpen(false), []);
 
   const bar = <AppBar title={t('settings.title')} onBack={goBack} />;
 
@@ -114,6 +111,14 @@ export function SettingsPage() {
         </button>
 
         <ul>
+          {hasOtherOutlets(outlets.data) ? (
+            <Row
+              icon={ArrowLeftRight}
+              title={t('outlets.switchRow')}
+              subtitle={t('outlets.switchRowDesc', { code: dealerCodeLabel(outlets.data.current.code) })}
+              onClick={() => setOutletsOpen(true)}
+            />
+          ) : null}
           <Row
             icon={KeyRound}
             title={t('settings.account')}
@@ -148,18 +153,26 @@ export function SettingsPage() {
               onClick={() => navigate('/staff')}
             />
           ) : null}
-          {/* The way into the video guide. It carries the dealer's chosen
-              language across (`?lang=`), because the guide keeps its own
-              preference and would otherwise open in Hindi for someone who has
-              just been reading the app in English. `window.open` and not a
-              router push: this leaves the app, and inside the native shell the
-              nav gate is what hands the URL to Chrome — the same path every
-              other outward link here takes. */}
+          {/* ── billing ── What is due and the receipts: the read-only Payments page.
+              The owner's, like the bill itself. Inside the app that page shows what
+              is due and what was paid and nothing to pay with (ADR 0022 §1). */}
+          {isOwner ? (
+            <Row
+              icon={ReceiptText}
+              title={t('settings.payments')}
+              subtitle={t('settings.paymentsDesc')}
+              onClick={() => navigate('/payments')}
+            />
+          ) : null}
+          {/* ── /billing ── */}
+          {/* MDG's short videos, played inside the app. This used to open the
+              separate video website; that site is retired and the list now comes
+              from the server, so a new video needs no new app. */}
           <Row
             icon={GraduationCap}
             title={t('settings.help')}
             subtitle={t('settings.helpDesc')}
-            onClick={() => window.open(`${GUIDE_URL}?lang=${lang}`, '_blank', 'noopener')}
+            onClick={() => navigate('/settings/help')}
           />
           <Row
             icon={LogOut}
@@ -171,6 +184,7 @@ export function SettingsPage() {
       </div>
 
       {languageOpen ? <LanguageSheet onClose={closeLanguage} /> : null}
+      {outletsOpen ? <OutletSheet onClose={closeOutlets} /> : null}
       {confirmingLogout ? (
         <LogoutConfirm onCancel={closeLogout} onConfirm={onLogout} />
       ) : null}

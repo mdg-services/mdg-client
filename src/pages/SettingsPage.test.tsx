@@ -1,4 +1,4 @@
-import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Link, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -22,6 +22,8 @@ const DESTINATIONS = [
   '/settings/team',
   '/services',
   '/staff',
+  '/payments',
+  '/settings/help',
   '/login',
 ];
 
@@ -67,7 +69,7 @@ describe('SettingsPage — what is on it', () => {
       'Your team',
       'Your services',
       'Warriors & points',
-      'Help',
+      'Help videos',
       'Log out',
     ];
     const positions = order.map((title) => text.findIndex((t) => t.startsWith(title)));
@@ -78,6 +80,34 @@ describe('SettingsPage — what is on it', () => {
     expect(screen.getByText('Change your password')).toBeInTheDocument();
     expect(screen.getByText('Add or pause your manager')).toBeInTheDocument();
     expect(screen.getByText('Learn the app with short videos')).toBeInTheDocument();
+  });
+
+  // ── billing ── What is due and the receipts, read-only; the owner's, like the bill.
+  it('has a "Payments & receipts" row for the owner that leads to the read-only Payments page', () => {
+    signIn({ role: 'dealer-owner' });
+    renderSettings();
+    expect(screen.getByText('Your bills, receipts and GST invoices')).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Payments & receipts').closest('button')!);
+    expect(screen.getByText('went:/payments')).toBeInTheDocument();
+  });
+
+  it('says it in Hindi, and leaves it out for a manager', () => {
+    signIn({ role: 'dealer-owner' });
+    renderSettings();
+    cleanup();
+    signIn({ role: 'dealer-staff' });
+    renderSettings();
+    expect(screen.queryByText('Payments & receipts')).not.toBeInTheDocument();
+    cleanup();
+    signIn({ role: 'dealer-owner' });
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    renderWithProviders(
+      <Routes>
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>,
+      { route: '/settings', withRouter: true },
+    );
+    expect(screen.getByText('भुगतान और रसीदें')).toBeInTheDocument();
   });
 
   it('is headed Settings, with a back arrow', () => {
@@ -153,15 +183,13 @@ describe('SettingsPage — where a row goes', () => {
     expect(screen.getByText(`went:${path}`)).toBeInTheDocument();
   });
 
-  it('opens the video guide outside the app, in the dealer\'s language', () => {
+  // The guide website is retired: the videos play in the app now.
+  it('opens the Help videos screen inside the app, and never a web page', () => {
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
     renderSettings();
-    fireEvent.click(screen.getByText('Help').closest('button')!);
-    expect(open).toHaveBeenCalledTimes(1);
-    const [url, target, features] = open.mock.calls[0]!;
-    expect(String(url)).toMatch(/\?lang=en$/);
-    expect(target).toBe('_blank');
-    expect(features).toBe('noopener');
+    fireEvent.click(screen.getByText('Help videos').closest('button')!);
+    expect(screen.getByText('went:/settings/help')).toBeInTheDocument();
+    expect(open).not.toHaveBeenCalled();
   });
 });
 

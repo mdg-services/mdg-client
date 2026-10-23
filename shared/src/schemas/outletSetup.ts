@@ -45,6 +45,11 @@ export type SaveSetupBillingInput = z.infer<typeof saveSetupBillingSchema>;
 export const approveRegistrationSchema = z
   .object({
     code: dealerCodeSchema.optional(),
+    /** Add the registration as another outlet of the owner whose login this is (one person, several pumps). */
+    linkToUserId: z
+      .string()
+      .regex(/^[a-f0-9]{24}$/i, 'Invalid id')
+      .optional(),
   })
   .strict();
 export type ApproveRegistrationInput = z.infer<typeof approveRegistrationSchema>;
@@ -126,3 +131,9 @@ export const pauseForNonPaymentSchema = z
   .object({ reason: z.string().trim().min(3).max(300) })
   .strict();
 export type PauseForNonPaymentInput = z.infer<typeof pauseForNonPaymentSchema>;
+
+/** Change the flat monthly price (super-admin). GST included, in paise: 354000 = ₹3,540. */
+export const setMonthlyPriceSchema = z
+  .object({ monthlyPricePaise: z.number().int().min(100).max(10_000_000) })
+  .strict();
+export type SetMonthlyPriceInput = z.infer<typeof setMonthlyPriceSchema>;

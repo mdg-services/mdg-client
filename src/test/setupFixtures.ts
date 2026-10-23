@@ -23,7 +23,7 @@ export function makeSetupView(over: Partial<OutletSetupView> = {}): OutletSetupV
     services: { options: SETUP_SERVICE_OPTIONS, chosen: [], locked: false },
     billing: null,
     billingPrefill: { name: 'Sai Petroleums', stateCode: null, gstin: null },
-    payment: { state: 'not_sent', amountPaise: null, dueOn: null, paidOn: null },
+    payment: { state: 'not_sent', amountPaise: null, dueOn: null, paidOn: null, paymentId: null },
     loginsNeeded: [],
     canEdit: true,
     ...over,

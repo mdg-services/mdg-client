@@ -223,7 +223,17 @@ export interface AdminPayment extends DealerPayment {
     /** `YYYY-MM-DD`: the day the money arrived, as the person recording it says. */
     paidOn: string;
     recordedByName: string;
+    /** What actually reached MDG. Less than the payment's amount for a short payment (tax deducted at source). */
+    amountPaise: number;
+    /** The payment's amount minus what came; 0 when it was paid in full. */
+    shortfallPaise: number;
   } | null;
+  /**
+   * The month a subscription bill pays for (`YYYY-MM-DD` each, both days
+   * included), once it is known: a renewal knows it when it is raised; the first
+   * bill when it is paid. Null for anything that is not a subscription bill.
+   */
+  subscriptionPeriod: { from: string; to: string } | null;
   /** Why a paid payment has no invoice yet; null when it has one or is not paid. */
   invoiceBlocker: InvoiceBlocker | null;
   /**

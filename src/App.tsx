@@ -54,6 +54,10 @@ const SettingsAccountPage = lazyWithRetry(() =>
 const SettingsTeamPage = lazyWithRetry(() =>
   import('@/pages/settings/TeamPage').then((m) => ({ default: m.SettingsTeamPage })),
 );
+// Settings → Help videos: MDG's short videos, played in the app. Its own chunk.
+const HelpVideosPage = lazyWithRetry(() =>
+  import('@/features/help/HelpVideosPage').then((m) => ({ default: m.HelpVideosPage })),
+);
 // Seen once, by a member who signed in with a temporary password: its own chunk,
 // so nobody else downloads it.
 const ForcedPasswordChange = lazyWithRetry(() =>
@@ -178,6 +182,7 @@ export function App() {
             <Route path="/settings/profile" element={<SettingsProfilePage />} />
             <Route path="/settings/account" element={<SettingsAccountPage />} />
             <Route path="/settings/team" element={<SettingsTeamPage />} />
+            <Route path="/settings/help" element={<HelpVideosPage />} />
             {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
                 and not a redirect: nothing about it needs to change address. */}
             <Route path="/profile" element={<SettingsPage />} />

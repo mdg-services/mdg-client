@@ -1,6 +1,9 @@
 import { Play } from 'lucide-react';
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 
+import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
+import { videoTitle } from '@/features/help/helpView';
 import { ApiError } from '@/lib/api';
 import { pick, useLang, useT } from '@/lib/i18n';
 import { SERVICE_ABOUT, SERVICE_LABELS } from '@dk/shared';
@@ -8,7 +11,7 @@ import type { OutletSetupView, SetupServiceId } from '@dk/shared/types';
 
 import { Alert, Block, CardBox, LinkButton, Note, SaveButton } from './CardParts';
 import { dependentsOf, toggleService } from './cardView';
-import { SERVICE_VIDEO } from './serviceVideos';
+import { useServiceVideos, type ServiceVideos } from './serviceVideos';
 import { useSaveSetupServices } from './useOutletSetup';
 
 /** A service's name in the reader's language. */
@@ -27,7 +30,8 @@ function useServiceName() {
  * The services card: "which services would you like?"
  *
  * One checkbox row per service, in the order the server lists them, each with
- * its one-line description and — once a video exists for it — a ▶ beside it.
+ * its one-line description and — once a video exists for it in the video library —
+ * a ▶ beside it that opens the video in the app's player.
  * Ticking a service ticks what it needs too, and says so on the row that was
  * brought along; that row cannot be unticked while the service that needs it is
  * ticked. Saving shows the chosen list with "Change" until the bill is sent, after
@@ -38,15 +42,21 @@ function useServiceName() {
  */
 export function ServicesCard({
   view,
-  videos = SERVICE_VIDEO,
+  videos,
 }: {
   view: OutletSetupView;
-  /** Service id → where its video plays from. Only a service with one gets a ▶. */
-  videos?: Readonly<Partial<Record<SetupServiceId, string>>>;
+  /**
+   * Service id → its video in the library. Only a service with one gets a ▶. By
+   * default these come from the library's list; a screen that already has them (or a
+   * test) passes them in.
+   */
+  videos?: ServiceVideos;
 }) {
   const t = useT();
   const nameOf = useServiceName();
   const lang = useLang();
+  const libraryVideos = useServiceVideos();
+  const videoOf = videos ?? libraryVideos;
   const save = useSaveSetupServices();
   const { options, chosen, locked } = view.services;
   const chosenKey = chosen.join(',');
@@ -127,7 +137,7 @@ export function ServicesCard({
             const on = ticked.includes(o.id);
             const needers = dependentsOf(options, ticked, o.id);
             const about = SERVICE_ABOUT[o.id];
-            const video = videos[o.id];
+            const video = videoOf[o.id];
             return (
               <li key={o.id} data-service={o.id}>
                 <Block className="flex items-start gap-1">
@@ -159,25 +169,15 @@ export function ServicesCard({
                   {video ? (
                     <button
                       type="button"
-                      onClick={() => setPlaying((cur) => (cur === o.id ? null : o.id))}
+                      onClick={() => setPlaying(o.id)}
                       aria-label={t('setup.playVideo', { name: nameOf(o.id) })}
-                      aria-pressed={playing === o.id}
+                      aria-haspopup="dialog"
                       className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-wa-accent-strong active:bg-black/10"
                     >
                       <Play width={18} strokeWidth={2} aria-hidden />
                     </button>
                   ) : null}
                 </Block>
-                {video && playing === o.id ? (
-                  <video
-                    src={video}
-                    controls
-                    autoPlay
-                    playsInline
-                    preload="none"
-                    className="mt-1 w-full rounded-md bg-black"
-                  />
-                ) : null}
               </li>
             );
           })}
@@ -206,6 +206,21 @@ export function ServicesCard({
           </button>
         ) : null}
       </form>
+      {playing && videoOf[playing]
+        ? // The app's own player, full screen: asked for at the moment it opens, so the
+          // link is never stale. Closing it leaves the ticks exactly as they were. In a
+          // portal, so no ancestor of the chat bubble (a swipe's transform, a scroller)
+          // can pin or clip a full-screen layer; a touch inside it still stops at this
+          // card, so it never selects the message behind it.
+          createPortal(
+            <GuideVideoSheet
+              id={videoOf[playing]!.id}
+              title={videoTitle(videoOf[playing]!, lang)}
+              onClose={() => setPlaying(null)}
+            />,
+            document.body,
+          )
+        : null}
     </CardBox>
   );
 }

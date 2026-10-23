@@ -891,11 +891,48 @@ export const messages = {
   'settings.accountDesc': { en: 'Change your password', hi: 'अपना पासवर्ड बदलें' },
   'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
   'settings.teamDesc': { en: 'Add or pause your manager', hi: 'मैनेजर जोड़ें या रोकें' },
-  'settings.help': { en: 'Help', hi: 'मदद' },
+  'settings.help': { en: 'Help videos', hi: 'मदद के वीडियो' },
   'settings.helpDesc': {
     en: 'Learn the app with short videos',
     hi: 'छोटे वीडियो से ऐप चलाना सीखिए',
   },
+  // ── billing: the Payments & receipts row ──
+  // What is due and what was paid, read-only. The words name the page (a list of
+  // bills and receipts); none of them asks for anything or points to a way to pay.
+  'settings.payments': { en: 'Payments & receipts', hi: 'भुगतान और रसीदें' },
+  'settings.paymentsDesc': {
+    en: 'Your bills, receipts and GST invoices',
+    hi: 'आपके बिल, रसीदें और GST इनवॉइस',
+  },
+  // ── end billing ──
+  // ── guide-site retirement: the Help videos screen (Settings → Help videos) ──
+  'help.title': { en: 'Help videos', hi: 'मदद के वीडियो' },
+  'help.intro': {
+    en: 'Short videos in Hindi. Tap one to watch.',
+    hi: 'हिंदी में छोटे वीडियो। देखने के लिए किसी पर दबाइए।',
+  },
+  'help.play': { en: 'Play {title}', hi: '{title} चलाइए' },
+  'help.close': { en: 'Close video', hi: 'वीडियो बंद करें' },
+  'help.playerFailed': {
+    en: "This video didn't play. Tap to try again.",
+    hi: 'यह वीडियो नहीं चला। फिर कोशिश करने के लिए दबाइए।',
+  },
+  'help.emptyTitle': { en: 'No videos yet', hi: 'अभी कोई वीडियो नहीं है' },
+  'help.emptyDesc': {
+    en: 'Ask us in the chat and the MDG team will help you.',
+    hi: 'चैट में पूछिए, MDG की टीम आपकी मदद करेगी।',
+  },
+  'help.loadFailed': { en: 'The videos did not load', hi: 'वीडियो लोड नहीं हुए' },
+  'help.loadFailedDesc': {
+    en: 'Check your network and try again.',
+    hi: 'नेटवर्क जाँचिए और फिर कोशिश कीजिए।',
+  },
+  'help.askInChat': { en: 'Ask in chat', hi: 'चैट में पूछिए' },
+  'help.askInChatDesc': {
+    en: 'Not here? Write to the MDG team.',
+    hi: 'यहाँ नहीं मिला? MDG की टीम को लिखिए।',
+  },
+  // ── end guide-site retirement ──
   'settings.logout': { en: 'Log out', hi: 'लॉग आउट' },
   'settings.logoutTitle': { en: 'Log out?', hi: 'लॉग आउट करें?' },
   'settings.logoutDesc': {
@@ -1140,6 +1177,10 @@ export const messages = {
   'setup.billLineNoDate': { en: 'Bill: {amount}', hi: 'बिल: {amount}' },
   'setup.payPaid': { en: 'Payment received', hi: 'भुगतान मिल गया' },
   'setup.payPaidOn': { en: 'Received on {date}', hi: '{date} को मिला' },
+  // A bill past its day, and the receipt of one that was paid: facts about the bill,
+  // never an instruction. The receipt link opens the read-only receipt page.
+  'setup.billOverdue': { en: 'The due date has passed', hi: 'आख़िरी तारीख़ निकल चुकी है' },
+  'setup.viewReceipt': { en: 'View receipt', hi: 'रसीद देखें' },
   'setup.started': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
   /* ── payments (ADR 0022) ─────────────────────────────────────────────── */
   // What MDG has asked this pump to pay, and what it has paid. Written to be
@@ -1227,6 +1268,8 @@ export const messages = {
   'payments.method.emi': { en: 'EMI', hi: 'EMI' },
   'payments.method.paylater': { en: 'Pay later', hi: 'बाद में भुगतान' },
   'payments.method.bankTransfer': { en: 'Bank transfer', hi: 'बैंक ट्रांसफर' },
+  'payments.method.cash': { en: 'Cash', hi: 'नकद' },
+  'payments.method.cheque': { en: 'Cheque', hi: 'चेक' },
 
   // The receipt.
   'payments.receipt.title': { en: 'Receipt', hi: 'रसीद' },
@@ -1317,6 +1360,27 @@ export const messages = {
   'payments.err.notCompleted': {
     en: 'The payment was not completed. You can try again.',
     hi: 'भुगतान पूरा नहीं हुआ। आप फिर कोशिश कर सकते हैं।',
+  },
+
+  // ── one person, several outlets ──────────────────────────────────────────
+  // The dealer's own word is "pump"; the chip shows the pump's code (15E).
+  'outlets.chipLabel': {
+    en: 'Pump {code}. Tap to switch pump',
+    hi: 'पंप {code}। पंप बदलने के लिए दबाइए',
+  },
+  'outlets.title': { en: 'Your pumps', hi: 'आपके पंप' },
+  'outlets.switchRow': { en: 'Switch pump', hi: 'पंप बदलें' },
+  'outlets.switchRowDesc': { en: 'You are in {code} now', hi: 'अभी आप {code} में हैं' },
+  'outlets.here': { en: 'You are here', hi: 'अभी आप यहीं हैं' },
+  'outlets.opening': { en: 'Opening {code}…', hi: '{code} खुल रहा है…' },
+  'outlets.loading': { en: 'Loading your pumps…', hi: 'आपके पंप आ रहे हैं…' },
+  'outlets.failed': {
+    en: "Couldn't switch pump. Check your network and try again.",
+    hi: 'पंप बदला नहीं जा सका। नेटवर्क जांचकर फिर कोशिश कीजिए।',
+  },
+  'outlets.unavailable': {
+    en: 'That pump is not active right now. Please write to the MDG team in chat.',
+    hi: 'यह पंप अभी चालू नहीं है। कृपया चैट में MDG टीम को लिखिए।',
   },
 } satisfies Record<string, LangMessage>;
 

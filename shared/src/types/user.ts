@@ -59,3 +59,14 @@ export interface AuthLoginResponse {
   /** The person's other outlets, when they have more than one. Absent or empty otherwise. */
   outlets?: OutletChoice[];
 }
+
+/** `GET /auth/outlets`: the outlet this login is in, and the person's others. */
+export interface OutletsView {
+  /** Null only for a login with no outlet. */
+  current: OutletChoice | null;
+  /** The person's OTHER outlets, in code order. */
+  outlets: OutletChoice[];
+}
+
+/** A dealer member as an admin's Members tab gets it: the person's other outlets ride along. */
+export type DealerMemberRow = User & { alsoRuns?: string[] };
