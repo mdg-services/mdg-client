@@ -7,8 +7,9 @@
 import { z } from 'zod';
 
 import { GST_STATES, cleanGstin, isGstin } from '../lib/gst';
-import { dealerCodeSchema } from './dealer';
 import { SETUP_PAYMENT_MODES, SETUP_SERVICE_IDS } from '../types/outletSetup';
+
+import { dealerCodeSchema } from './dealer';
 
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
@@ -95,9 +96,8 @@ export const startSetupServicesSchema = z
 export type StartSetupServicesInput = z.infer<typeof startSetupServicesSchema>;
 
 /** End the watch now, or extend it by whole days. */
-export const changeSetupWatchSchema = z
-  .union([
-    z.object({ action: z.literal('end') }).strict(),
-    z.object({ action: z.literal('extend'), days: z.number().int().min(1).max(7) }).strict(),
-  ]);
+export const changeSetupWatchSchema = z.union([
+  z.object({ action: z.literal('end') }).strict(),
+  z.object({ action: z.literal('extend'), days: z.number().int().min(1).max(7) }).strict(),
+]);
 export type ChangeSetupWatchInput = z.infer<typeof changeSetupWatchSchema>;

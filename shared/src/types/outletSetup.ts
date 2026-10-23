@@ -204,7 +204,14 @@ export interface OutletSetupView {
 }
 
 /** A chat message that carries one of the setup cards. The card draws from GET /me/setup, never from the message. */
-export const SETUP_CARDS = ['welcome', 'services', 'billing', 'payment', 'logins', 'started'] as const;
+export const SETUP_CARDS = [
+  'welcome',
+  'services',
+  'billing',
+  'payment',
+  'logins',
+  'started',
+] as const;
 export type SetupCardKind = (typeof SETUP_CARDS)[number];
 
 export interface MessageSetupCard {
