@@ -10,12 +10,12 @@ import { z } from 'zod';
 
 import { GST_STATES, isGstin, cleanGstin } from '../lib/gst';
 import {
+  MANUAL_PAYMENT_MODES,
   PAYMENT_MAX_PAISE,
   PAYMENT_MIN_PAISE,
   PAYMENT_PURPOSES,
   PAYMENT_STATUSES,
 } from '../types/payment';
-
 
 import { objectIdSchema } from './common';
 
@@ -122,3 +122,18 @@ export const adminPaymentsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 export type AdminPaymentsQuery = z.infer<typeof adminPaymentsQuerySchema>;
+
+/**
+ * Record money that came outside Razorpay against a due payment (super-admin).
+ * The amount may be short of the payment's (TDS deducted at source): the row is
+ * then paid for what came, and the shortfall is visible on it.
+ */
+export const recordManualPaymentSchema = z
+  .object({
+    amountPaise: paise,
+    paidOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    mode: z.enum(MANUAL_PAYMENT_MODES),
+    reference: optionalText(120),
+  })
+  .strict();
+export type RecordManualPaymentInput = z.infer<typeof recordManualPaymentSchema>;

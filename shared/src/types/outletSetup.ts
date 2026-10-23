@@ -177,6 +177,12 @@ export interface SetupPaymentDealerView {
   dueOn: string | null;
   /** `YYYY-MM-DD`. */
   paidOn: string | null;
+  /**
+   * The Payment row the bill is (ADR 0022), once it is sent. The app may open
+   * that payment's RECEIPT once it is paid (a receipt for something already
+   * paid is not a way to pay); never anything that asks for the money.
+   */
+  paymentId: string | null;
 }
 
 // ── What the dealer app reads: GET /me/setup ───────────────────────────────
@@ -241,6 +247,80 @@ export interface SetupPaymentAdminView extends SetupPaymentDealerView {
   mode: SetupPaymentMode | null;
   reference: string | null;
   recordedByName: string | null;
+  /** The payment's own number (`MDG-2026-00012`) and its Razorpay link, when one was made. */
+  paymentNumber: string | null;
+  linkUrl: string | null;
+  /** How it was paid: Razorpay pop-up, Razorpay link, or recorded by hand. */
+  paidVia: 'checkout' | 'link' | 'manual' | null;
+}
+
+// ── Reminders and calls (plan §4) ──────────────────────────────────────────
+
+export const SETUP_CALL_OUTCOMES = [
+  'answered',
+  'no_answer',
+  'call_later',
+  'not_interested',
+] as const;
+export type SetupCallOutcome = (typeof SETUP_CALL_OUTCOMES)[number];
+
+/** A call a team member made to a registration or a new outlet, and what came of it. */
+export interface SetupCall {
+  at: string;
+  byName: string;
+  outcome: SetupCallOutcome;
+  /** One line: "will pay on Monday", "asked us to call his son". */
+  note: string | null;
+  /** `YYYY-MM-DD`, for `call_later`: the reminders stay quiet until then. */
+  nextCallOn: string | null;
+}
+
+/** Where the reminder ladder stands for an outlet waiting on its dealer. */
+export interface SetupReminderState {
+  /** Reminders sent to the dealer for the current stage (at most 3). */
+  sent: number;
+  lastSentAt: string | null;
+  /** When the next one is due, if one is. */
+  nextAt: string | null;
+}
+
+// ── The setup checklist and the watch (plan §5) ────────────────────────────
+
+export const SETUP_CHECKLIST_KEYS = [
+  'logins_working',
+  'files_received',
+  'services_attached',
+  'kavach_started',
+  'first_run_ok',
+] as const;
+export type SetupChecklistKey = (typeof SETUP_CHECKLIST_KEYS)[number];
+
+/** One line of the "ready to start?" checklist the team sees before Start services. */
+export interface SetupChecklistItem {
+  key: SetupChecklistKey;
+  state: 'done' | 'missing' | 'not_needed';
+  /** Plain words: "IRAS login not checked yet", "DSR: the two Excel files". */
+  detail: string | null;
+}
+
+/** What the portal said the last time a saved login was tried (one queued try, never retried on a refusal). */
+export interface PortalLoginCheck {
+  portal: PortalId;
+  result: 'ok' | 'refused' | 'could_not_check' | 'pending';
+  at: string | null;
+}
+
+// ── The subscription after the first bill (plan phase 9) ───────────────────
+
+export interface SetupSubscriptionView {
+  /** `YYYY-MM-DD`: service is paid up to and including this day. */
+  paidThrough: string | null;
+  /** `YYYY-MM-DD`: when the next month's bill will be raised. */
+  nextBillOn: string | null;
+  /** A raised bill is past its due date. */
+  overdue: boolean;
+  /** Services paused by a person for non-payment (not an archive: the dealer still signs in and sees the bill). */
+  billingHold: { at: string; byName: string; reason: string } | null;
 }
 
 export interface OutletSetupAdmin {
@@ -262,6 +342,20 @@ export interface OutletSetupAdmin {
   loginsNeeded: PortalId[];
   approvedByName: string | null;
   lost: { at: string; byName: string; reason: string } | null;
+  /** Newest first. */
+  calls: SetupCall[];
+  reminders: SetupReminderState;
+  /** Before Start services: what is in and what is missing. */
+  checklist: SetupChecklistItem[];
+  loginChecks: PortalLoginCheck[];
+  /** Messages held for a person while the outlet is watched. */
+  heldCount: number;
+  /** Somebody replied NO to the account-ready WhatsApp. */
+  notMe: { at: string } | null;
+  /** After the first bill: renewals, overdue, pause. */
+  subscription: SetupSubscriptionView;
+  /** The team member handling this onboarding (the approver), who gets its pushes. */
+  handlerName: string | null;
 }
 
 /** One row of the admin Onboarding page: a registration waiting for approval, or an outlet on its way. */
@@ -285,6 +379,8 @@ export type OnboardingBoardRow =
       /** The phone or SAP code already belongs to a live outlet. */
       alreadyClient: { dealerId: string; code: string } | null;
       waitingOn: 'mdg' | 'nobody';
+      /** The last call logged for this registration. */
+      lastCall: SetupCall | null;
     }
   | { kind: 'outlet'; outlet: OutletSetupAdmin };
 

@@ -40,6 +40,11 @@ export interface ServerToClientEvents {
    */
   'outletSetup:changed': (payload: { dealerId: string }) => void;
   /**
+   * The watch-period review queue changed: a message was held, sent, dropped or
+   * expired. Admin sockets only; the queue refetches its own list.
+   */
+  'heldMessages:changed': (payload: { dealerId: string }) => void;
+  /**
    * A ticket was raised, merged into, opened for the first time, resolved or
    * reopened. Admin room only — a dealer learns of a change through
    * `conversation:updated`, whose `tickets` carries the dealer-safe view.

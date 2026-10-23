@@ -33,13 +33,29 @@ export interface User {
    * new one before anything else. Cleared by `POST /auth/change-password`.
    */
   mustChangePassword?: boolean;
+  /** Shared by the login records of one person who runs several outlets. Absent for most. */
+  personId?: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export type UserPublic = User;
 
+/**
+ * One of the outlets a person can switch to (phase 9: one owner, several pumps).
+ * Each outlet keeps its own login record; the records of one person share a
+ * `personId` and a password, so one sign-in opens all of them.
+ */
+export interface OutletChoice {
+  userId: string;
+  dealerId: string;
+  code: string;
+  role: UserRole;
+}
+
 export interface AuthLoginResponse {
   token: string;
   user: UserPublic;
+  /** The person's other outlets, when they have more than one. Absent or empty otherwise. */
+  outlets?: OutletChoice[];
 }

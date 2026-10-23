@@ -9,6 +9,7 @@ export * from './onboarding';
 export * from './chat';
 export * from './portalLogin';
 export * from './outletSetup';
+export * from './heldMessage';
 export * from './device';
 export * from './serviceLog';
 export * from './kavach';

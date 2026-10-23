@@ -7,7 +7,7 @@
 import { z } from 'zod';
 
 import { GST_STATES, cleanGstin, isGstin } from '../lib/gst';
-import { SETUP_PAYMENT_MODES, SETUP_SERVICE_IDS } from '../types/outletSetup';
+import { SETUP_CALL_OUTCOMES, SETUP_PAYMENT_MODES, SETUP_SERVICE_IDS } from '../types/outletSetup';
 
 import { dealerCodeSchema } from './dealer';
 
@@ -101,3 +101,28 @@ export const changeSetupWatchSchema = z.union([
   z.object({ action: z.literal('extend'), days: z.number().int().min(1).max(7) }).strict(),
 ]);
 export type ChangeSetupWatchInput = z.infer<typeof changeSetupWatchSchema>;
+
+/** Log a call to a registration or a new outlet. `nextCallOn` only with `call_later`. */
+export const logSetupCallSchema = z
+  .object({
+    outcome: z.enum(SETUP_CALL_OUTCOMES),
+    note: z
+      .string()
+      .trim()
+      .max(300)
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    nextCallOn: isoDay.optional(),
+  })
+  .strict()
+  .refine((v) => v.outcome === 'call_later' || v.nextCallOn === undefined, {
+    message: 'A next-call date goes with "call later" only',
+    path: ['nextCallOn'],
+  });
+export type LogSetupCallInput = z.infer<typeof logSetupCallSchema>;
+
+/** Pause an outlet's services for non-payment, with a reason. Resuming takes no body. */
+export const pauseForNonPaymentSchema = z
+  .object({ reason: z.string().trim().min(3).max(300) })
+  .strict();
+export type PauseForNonPaymentInput = z.infer<typeof pauseForNonPaymentSchema>;

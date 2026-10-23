@@ -57,7 +57,17 @@ export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
  * Payments policy forbids a pay button or a link to one in an app that sells
  * software (ADR 0022 §4).
  */
-export const PAYMENT_CHANNELS = ['checkout', 'link'] as const;
+/**
+ * `manual`: money that reached MDG outside Razorpay (a UPI transfer to the
+ * company account, a bank transfer, cash, a cheque) and was recorded by a
+ * super-admin. It goes through the same single "paid" step, so the GST invoice
+ * and the receipt follow exactly as for a Razorpay payment (onboarding v2).
+ */
+/** How money recorded by hand came in. */
+export const MANUAL_PAYMENT_MODES = ['upi', 'bank', 'cash', 'cheque', 'other'] as const;
+export type ManualPaymentMode = (typeof MANUAL_PAYMENT_MODES)[number];
+
+export const PAYMENT_CHANNELS = ['checkout', 'link', 'manual'] as const;
 export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
 
 export const REFUND_STATUSES = ['pending', 'processed', 'failed'] as const;
@@ -206,6 +216,14 @@ export interface AdminPayment extends DealerPayment {
   linkSentTo: { phone: string | null; email: string | null } | null;
   /** Who the invoice is made out to. Null until someone says. */
   billTo: PaymentBillTo | null;
+  /** For a payment recorded by hand (`paidVia: 'manual'`): how it came, and who recorded it. */
+  manual: {
+    mode: ManualPaymentMode;
+    reference: string | null;
+    /** `YYYY-MM-DD`: the day the money arrived, as the person recording it says. */
+    paidOn: string;
+    recordedByName: string;
+  } | null;
   /** Why a paid payment has no invoice yet; null when it has one or is not paid. */
   invoiceBlocker: InvoiceBlocker | null;
   /**

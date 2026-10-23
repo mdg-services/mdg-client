@@ -50,6 +50,25 @@ export const ADMIN_ALERT_KINDS = [
   'callback_new',
   /** A payment went wrong in a way a person must look at: paid twice, paid after it was cancelled, or a refund that failed. */
   'payment_problem',
+  // ── Onboarding v2 (docs/specs/onboarding-v2.md §4) ──
+  /** A new outlet has not moved for a day and the next step is the dealer's. */
+  'onboarding_stalled',
+  /** A new outlet has not moved for two days or more: somebody should ring them. */
+  'onboarding_call',
+  /** A new outlet is waiting on MDG (send the bill, start the services) past the working-hours limit. */
+  'onboarding_mdg_waiting',
+  /** Somebody replied NO to the "your account is ready" WhatsApp: the registration may not be theirs. */
+  'onboarding_not_me',
+  /** The "your account is ready" WhatsApp did not reach the dealer. */
+  'welcome_not_delivered',
+  /** An owner signed in but their phone has never registered for notifications, so reminders cannot reach them. */
+  'no_working_device',
+  /** "Forgot password" from the sign-in screen: somebody should call the registered number. */
+  'password_help',
+  /** A message for an outlet in its watch period is waiting for a person to send or drop it. */
+  'held_message',
+  /** A subscription payment is past its due date. */
+  'payment_overdue',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -175,6 +194,51 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Payment',
     clearsWhen: 'Clears when someone marks the payment as checked.',
     superAdminOnly: true,
+  },
+  onboarding_stalled: {
+    label: 'New outlet stuck',
+    clearsWhen: 'Clears when the outlet moves to its next step, or the setup is closed.',
+    superAdminOnly: false,
+  },
+  onboarding_call: {
+    label: 'Call a new outlet',
+    clearsWhen: 'Clears when a call is logged, the outlet moves, or the setup is closed.',
+    superAdminOnly: false,
+  },
+  onboarding_mdg_waiting: {
+    label: 'New outlet waiting on us',
+    clearsWhen: 'Clears when MDG does the step (bill sent, services started).',
+    superAdminOnly: false,
+  },
+  onboarding_not_me: {
+    label: 'Registration disowned',
+    clearsWhen: 'Clears when a person has checked it and marked it.',
+    superAdminOnly: true,
+  },
+  welcome_not_delivered: {
+    label: 'Welcome not delivered',
+    clearsWhen: 'Clears when the owner signs in, or the welcome is sent again and arrives.',
+    superAdminOnly: false,
+  },
+  no_working_device: {
+    label: 'No notifications',
+    clearsWhen: "Clears when the owner's phone registers for notifications.",
+    superAdminOnly: false,
+  },
+  password_help: {
+    label: 'Forgot password',
+    clearsWhen: 'Clears when the request is marked done.',
+    superAdminOnly: false,
+  },
+  held_message: {
+    label: 'Message to check',
+    clearsWhen: 'Clears when every held message is sent, dropped or has expired.',
+    superAdminOnly: false,
+  },
+  payment_overdue: {
+    label: 'Payment overdue',
+    clearsWhen: 'Clears when the payment is paid or cancelled.',
+    superAdminOnly: false,
   },
   server_restarted: {
     label: 'Server',

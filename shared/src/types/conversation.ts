@@ -265,6 +265,11 @@ export interface Attachment {
    * `video/*`), so the UI can show the duration before playback.
    */
   durationMs?: number;
+  /**
+   * Where a guide video should start playing, in seconds: the chapter the chat
+   * assistant matched to the question (video library). Absent = the beginning.
+   */
+  startSec?: number;
   /** Signed download URL, populated by the API when returning messages. */
   url?: string;
 }

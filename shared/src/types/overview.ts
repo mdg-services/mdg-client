@@ -104,6 +104,14 @@ export type TriageKind =
   | 'service_quiet'
   /** ACTIVE attachment whose next run is comfortably past, and which is not currently running. */
   | 'service_late'
+  /** A new outlet has not moved for two days: ring them (onboarding v2). */
+  | 'onboarding_call'
+  /** A new outlet waits on MDG: send the bill, or start the services. */
+  | 'onboarding_mdg'
+  /** A message for an outlet in its watch period waits for a person. */
+  | 'held_message'
+  /** A subscription payment is past its due date. */
+  | 'payment_overdue'
   // ---- bucket 'context' ---------------------------------------------------
   /** Threads the AI answered that no human has since read. */
   | 'unread'

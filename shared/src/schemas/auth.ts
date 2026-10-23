@@ -31,6 +31,10 @@ export const changePasswordSchema = z
   });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+/** Switch to another of the same person's outlets (`OutletChoice.userId`). Answers a fresh token. */
+export const switchOutletSchema = z.object({ userId: z.string().regex(/^[0-9a-f]{24}$/) }).strict();
+export type SwitchOutletInput = z.infer<typeof switchOutletSchema>;
+
 /** "Forgot password": raises a request the team handles by calling the registered number. Always answers the same. */
 export const forgotPasswordSchema = z
   .object({ identifier: z.string().trim().min(3).max(200) })
