@@ -10,6 +10,7 @@ export * from './user';
 export * from './conversation';
 export * from './chatAsk';
 export * from './portalLogin';
+export * from './outletSetup';
 export * from './socket';
 export * from './device';
 export * from './serviceLog';

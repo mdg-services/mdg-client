@@ -32,6 +32,14 @@ export interface ServerToClientEvents {
    */
   'alerts:changed': () => void;
   /**
+   * An outlet's onboarding setup moved: services chosen, billing saved, a bill
+   * sent or paid, a login saved, services started (types/outletSetup.ts).
+   * Sent to that dealer's room (its setup cards and strip refetch
+   * `GET /me/setup`) and to every admin socket (the Onboarding page refetches).
+   * Carries only the outlet's id: each side reads its own scoped view.
+   */
+  'outletSetup:changed': (payload: { dealerId: string }) => void;
+  /**
    * A ticket was raised, merged into, opened for the first time, resolved or
    * reopened. Admin room only — a dealer learns of a change through
    * `conversation:updated`, whose `tickets` carries the dealer-safe view.

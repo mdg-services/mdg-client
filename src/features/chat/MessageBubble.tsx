@@ -2,6 +2,7 @@ import { Camera, Check, CheckCheck, Clock, FileText, Mic, Video, Zap } from 'luc
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
+import { SetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
@@ -388,7 +389,13 @@ export const MessageBubble = React.memo(function MessageBubble({
   // form sits under the words, one block per portal. Like a request it is as
   // wide as a picture and carries its time on its own line.
   const portalLogin = message.portalLogin;
-  const wide = hasMedia || videos.length > 0 || !!ask || !!portalLogin;
+  // A SETUP CARD MDG posted (`message.setupCard`): the services picker, the
+  // billing form, the bill. Drawn under the words from the outlet's state NOW,
+  // never from what was true when the message was posted. Wide, like the login
+  // box; a card that is only words (the welcome) leaves the bubble as it was.
+  const setupCard = message.setupCard;
+  const hasSetupBody = !!setupCard && setupCardHasBody(setupCard.card);
+  const wide = hasMedia || videos.length > 0 || !!ask || !!portalLogin || hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
@@ -399,7 +406,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   // A request always has its time on its own line: its button runs the full
   // width of the bubble, and a time pinned to the bottom-right corner would sit
   // on top of it. So does a login box, for the same reason.
-  const metaInFlow = !timeOnPicture && (showAiBadge || !hasBody || !!ask || !!portalLogin);
+  const metaInFlow =
+    !timeOnPicture && (showAiBadge || !hasBody || !!ask || !!portalLogin || hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
@@ -528,6 +536,8 @@ export const MessageBubble = React.memo(function MessageBubble({
           ) : null}
 
           {portalLogin ? <PortalLoginBox portals={portalLogin.portals} /> : null}
+
+          {setupCard ? <SetupCard card={setupCard.card} /> : null}
 
           {ask ? (
             <AskFooter

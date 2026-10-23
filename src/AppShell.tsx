@@ -3,6 +3,7 @@ import { Outlet, useMatch } from 'react-router-dom';
 
 import { Spinner } from '@/components/ui';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
+import { useOutletSetupSocket } from '@/features/setup/useOutletSetupSocket';
 import { useMe } from '@/hooks/api/useMe';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
@@ -35,6 +36,7 @@ import { useLangStore } from '@/store/lang';
 export function AppShell() {
   useMe(); // refresh /me when authed
   useConversationsListSocket(); // keep the chat LIST + unread counts live app-wide
+  useOutletSetupSocket(); // keep the setup cards + strip following MDG's team
   // …and loaded, wherever the app was opened. An old link can open it cold on
   // /documents or /density, and those routes now just open the member's own chat
   // (`OpenMyChat`) by reading this list — with nothing loaded they could only

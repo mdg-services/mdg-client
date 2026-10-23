@@ -1,4 +1,10 @@
-import { clearAuth, getAuthToken, useAuthStore } from '@/store/auth';
+import {
+  PASSWORD_CHANGE_REQUIRED,
+  clearAuth,
+  getAuthToken,
+  requirePasswordChange,
+  useAuthStore,
+} from '@/store/auth';
 import type { ApiError as ApiErrorEnvelope, ApiResponse } from '@dk/shared/types';
 
 
@@ -34,6 +40,14 @@ export interface RequestOptions {
   query?: QueryParams;
   signal?: AbortSignal;
   anonymous?: boolean;
+  /**
+   * Whether a 401 signs the member out (default true: it means the token is no
+   * good). Off for the calls where a 401 is an ANSWER about a password that was
+   * typed — signing in with the wrong one, or giving the wrong current password
+   * on the change screen — which must show a message, not end the session and
+   * leave a "signed in on another phone" note for the next sign-in screen.
+   */
+  signOutOn401?: boolean;
 }
 
 export function buildUrl(path: string, query?: QueryParams): string {
@@ -59,7 +73,14 @@ export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { method = 'GET', body, query, signal, anonymous = false } = options;
+  const {
+    method = 'GET',
+    body,
+    query,
+    signal,
+    anonymous = false,
+    signOutOn401 = true,
+  } = options;
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (!anonymous) {
@@ -135,9 +156,12 @@ export async function apiFetch<T>(
   }
 
   if (!res.ok) {
-    if (res.status === 401) clearAuth();
+    if (res.status === 401 && signOutOn401) clearAuth();
     const envelope = payload as ApiErrorEnvelope | null;
     const code = envelope?.error?.code ?? `HTTP_${res.status}`;
+    // A temporary password has to be replaced first: whatever was asked, the
+    // answer is the same, and the app's answer is the new-password screen.
+    if (res.status === 403 && code === PASSWORD_CHANGE_REQUIRED) requirePasswordChange();
     const message =
       envelope?.error?.message ?? res.statusText ?? 'Request failed';
     throw new ApiError(res.status, code, message, envelope?.error?.details);

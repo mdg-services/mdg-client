@@ -190,16 +190,30 @@ export const updateTicketSchema = z.object({
 });
 export type UpdateTicketInput = z.infer<typeof updateTicketSchema>;
 
-export const createDealerUserSchema = z.object({
-  dealerId: z.string().min(1),
-  email: z.string().email().toLowerCase(),
-  name: z.string().min(1).max(120),
-  role: z.enum(['dealer-owner', 'dealer-staff']),
-  /** Display label for the member, e.g. "Owner" or "Manager". */
-  title: z.string().trim().min(1).max(60).optional(),
-  password: z.string().min(8).max(200),
-  phone: z.string().max(40).optional(),
-});
+/**
+ * Add a member to an outlet. A mobile number OR an email, not necessarily both:
+ * the mobile is the sign-in name (onboarding v2), so a manager with no email is
+ * added by the number alone. The password is a temporary one — the member is
+ * asked for a new one at first sign-in.
+ */
+export const createDealerUserSchema = z
+  .object({
+    dealerId: z.string().min(1),
+    email: z
+      .union([z.string().trim().email().toLowerCase(), z.literal('')])
+      .optional()
+      .transform((v) => (v ? v : undefined)),
+    name: z.string().min(1).max(120),
+    role: z.enum(['dealer-owner', 'dealer-staff']),
+    /** Display label for the member, e.g. "Owner" or "Manager". */
+    title: z.string().trim().min(1).max(60).optional(),
+    password: z.string().min(8).max(200),
+    phone: z.string().max(40).optional(),
+  })
+  .refine((v) => Boolean(v.email) || (v.phone ?? '').replace(/\D/g, '').length >= 10, {
+    message: 'Give a mobile number or an email to sign in with',
+    path: ['phone'],
+  });
 export type CreateDealerUserInput = z.infer<typeof createDealerUserSchema>;
 
 export const updateDealerUserSchema = z

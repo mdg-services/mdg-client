@@ -11,6 +11,7 @@ import type * as UploadModule from '@/lib/uploadAttachment';
 import { GHOST_CLICK_GRACE_MS, LONG_PRESS_MS } from '@/lib/useLongPress';
 import { useLangStore } from '@/store/lang';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
+import { makeSetupView, makeStrip } from '@/test/setupFixtures';
 import {
   makeMessage,
   makeTestQueryClient,
@@ -23,6 +24,7 @@ import type {
   ChatAskState,
   Conversation,
   Message,
+  OutletSetupView,
   TicketDealerView,
 } from '@dk/shared/types';
 
@@ -168,6 +170,8 @@ interface MountOptions {
   search?: (q: string) => Promise<unknown> | unknown;
   listError?: boolean;
   messagesError?: boolean;
+  /** What `GET /me/setup` answers. Default: an outlet that is not in onboarding. */
+  setup?: OutletSetupView;
 }
 
 function mount(initial: Conversation, opts: MountOptions = {}) {
@@ -185,6 +189,9 @@ function mount(initial: Conversation, opts: MountOptions = {}) {
     }
     if (path === '/v1/asks/me/states') {
       return Promise.resolve(opts.askStates ? opts.askStates() : []);
+    }
+    if (path === '/v1/me/setup') {
+      return Promise.resolve(opts.setup ?? makeSetupView({ active: false }));
     }
     return Promise.resolve([]);
   });
@@ -1633,5 +1640,98 @@ describe('ChatPage — "Show in chat" from the gallery', () => {
     await waitFor(() =>
       expect(calls).toContain(view.container.querySelector('[data-mid="q"]')),
     );
+  });
+});
+
+describe('ChatPage — the setup strip', () => {
+  const onTheWay = makeSetupView({
+    stage: 'billing',
+    strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
+  });
+  const setupCalls = () => h.api.get.mock.calls.filter(([p]) => p === '/v1/me/setup');
+  const strip = () => document.querySelector('[data-setup-strip]');
+  const list = () => document.querySelectorAll('[data-scroller]');
+
+  it('sits between the top bar and the messages in the owner\'s chat with MDG', async () => {
+    mount(conversation(undefined), { setup: onTheWay });
+    await screen.findByText('Fill in the name and address for your bill');
+    const bar = screen.getByRole('button', { name: 'More options' });
+    const scroller = list()[0]!;
+    expect(bar.compareDocumentPosition(strip()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(strip()!.compareDocumentPosition(scroller) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list()).toHaveLength(1);
+  });
+
+  it('takes no room for an outlet that is not in onboarding', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Mera credit limit kab badhega?');
+    await waitFor(() => expect(setupCalls()).toHaveLength(1));
+    expect(strip()).toBeNull();
+  });
+
+  it('is not in the managers\' group chat, and does not even ask there', async () => {
+    mount(conversation(undefined, { kind: 'manager' }), { setup: onTheWay });
+    await screen.findByText('Mera credit limit kab badhega?');
+    await Promise.resolve();
+    expect(strip()).toBeNull();
+    expect(setupCalls()).toHaveLength(0);
+  });
+
+  // The strip steps aside while messages are picked or searched, and the thread
+  // must come out of that exactly as it went in: one list, not two.
+  it('steps aside while a message is selected, and comes back with one list, not two', async () => {
+    mount(conversation(undefined), { setup: onTheWay });
+    await screen.findByText('Fill in the name and address for your bill');
+    const bubble = screen.getByText('Mera credit limit kab badhega?').closest('.bg-wa-in, .bg-wa-out')!;
+    fireEvent.pointerDown(bubble, { pointerId: 1, clientX: 5, clientY: 5 });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, LONG_PRESS_MS + 60));
+    });
+    fireEvent.pointerUp(bubble, { pointerId: 1, clientX: 5, clientY: 5 });
+    // The long-press swallows the click its own release makes, for a moment.
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, GHOST_CLICK_GRACE_MS + 40));
+    });
+    const clear = await screen.findByRole('button', { name: 'Clear selection' });
+    expect(strip()).toBeNull();
+    expect(list()).toHaveLength(1);
+    fireEvent.click(clear);
+    await waitFor(() => expect(strip()).not.toBeNull());
+    expect(list()).toHaveLength(1);
+    expect(document.querySelectorAll('[data-mid="q"]')).toHaveLength(1);
+  });
+
+  it('steps aside while searching, and comes back when the search closes', async () => {
+    mount(conversation(undefined), { setup: onTheWay });
+    await screen.findByText('Fill in the name and address for your bill');
+    fireEvent.click(await screen.findByRole('button', { name: 'More options' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByText('Search'));
+    await screen.findByRole('searchbox');
+    expect(strip()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() => expect(strip()).not.toBeNull());
+    expect(list()).toHaveLength(1);
+  });
+
+  it('a card MDG posted in the thread draws from the outlet, under its words', async () => {
+    mount(conversation(undefined), {
+      setup: onTheWay,
+      messages: [
+        makeMessage({
+          id: 'card',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          system: true,
+          body: 'Which services would you like?',
+          setupCard: { card: 'services' },
+          createdAt: '2026-10-12T09:00:00.000Z',
+        }),
+      ],
+    });
+    await screen.findByText('Which services would you like?');
+    // Both: the strip above, the card in its bubble — one question to the server.
+    expect(await screen.findByRole('checkbox', { name: /Daily Sales Report/ })).toBeInTheDocument();
+    expect(setupCalls()).toHaveLength(1);
   });
 });

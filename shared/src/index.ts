@@ -37,6 +37,8 @@ export * from './audit/entityRef';
 export * from './dealer/profile';
 export * from './tt/materials';
 export * from './lib/serviceLabel';
+// GSTIN check and the GST state list (the payments branch's lib/gst.ts, first part).
+export * from './lib/gst';
 // Day arithmetic on `YYYY-MM-DD` strings, and the single verdict on whether a
 // dated paper is still good. Shared because the outlet Info tab, the documents
 // filing cabinet and the reminder sweep all answer that question about the same

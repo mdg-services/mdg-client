@@ -1,12 +1,13 @@
 /**
  * Registering a new dealer from the app.
  *
- * Nobody can create their own login: MDG makes every dealer's ID and password.
- * So "sign up" in the app is the website's enrolment form, filled in here and
- * sent to the SAME endpoint the website uses (`mdgservices.in/api/enroll`).
- * That endpoint emails the MDG inbox and, when an email was given, sends the
- * dealer a welcome. Nothing is written to our own API and no account exists
- * until the team sets one up after the call.
+ * "Sign up" in the app is the website's enrolment form, filled in here and sent
+ * to the SAME endpoint the website uses (`mdgservices.in/api/enroll`). That
+ * endpoint emails the MDG inbox, sends the dealer a welcome when an email was
+ * given, and hands the registration to our own API, where MDG's team approves
+ * it. The dealer chooses their own password on this form; it travels in that one
+ * request and is stored only as a one-way hash, never emailed or shown to
+ * anyone. Once approved, they sign in with their mobile number and that password.
  *
  * The rules below mirror the endpoint's own schema
  * (`mdg-landing/server/validation.ts`) so the screen never sends a form the
@@ -55,6 +56,19 @@ export function toMobile(raw: string): string | null {
 
 export const LIMITS = { name: 120, email: 200, pumpName: 160, sapCode: 60 } as const;
 
+/** The password rule: at least 8 characters (the endpoint's, and the sign-in screen's) and at most 200. */
+export const PASSWORD_LIMITS = { min: 8, max: 200 } as const;
+
+/**
+ * The film link's share code, when the registration screen was opened from one
+ * (`?r=<code>`). The endpoint's own rule (`[A-Za-z0-9_-]`, 1 to 32); anything
+ * else is left out rather than sent to be dropped.
+ */
+export function refFromSearch(search: string): string | undefined {
+  const raw = new URLSearchParams(search).get('r')?.trim();
+  return raw && /^[A-Za-z0-9_-]{1,32}$/.test(raw) ? raw : undefined;
+}
+
 export interface EnrollmentPayload {
   name: string;
   mobile: string;
@@ -66,6 +80,16 @@ export interface EnrollmentPayload {
   agree: true;
   /** Tells the MDG inbox the form came from the app, not the website. */
   source: 'app';
+  /** The password they chose. Goes to the endpoint and nowhere else; never logged. */
+  password: string;
+  /** The one tick also agrees to WhatsApp messages about the account. */
+  consentWhatsApp: true;
+  /** The screen's language: which Terms text the tick is recorded against. */
+  lang: 'hi' | 'en';
+  /** The film link's share code, when the screen was opened from one. */
+  ref?: string;
+  /** One id per filled-in form, so a send pressed twice is one registration. */
+  submissionId: string;
 }
 
 const ENROLL_URL: string =

@@ -100,8 +100,12 @@ export interface GrievanceList {
 
 // ── Enrolments ("Register your pump") ──────────────────────────────────────
 
-/** `NEW` until somebody at MDG has been in touch, then `CONTACTED`. */
-export const ENROLMENT_STATES = ['NEW', 'CONTACTED'] as const;
+/**
+ * `NEW` until somebody at MDG has been in touch, then `CONTACTED`. Onboarding
+ * v2 adds the two ends: `APPROVED` (an outlet was made from it, `dealerId` says
+ * which) and `LOST` (the lead said no; `lostReason` says why).
+ */
+export const ENROLMENT_STATES = ['NEW', 'CONTACTED', 'APPROVED', 'LOST'] as const;
 export type EnrolmentState = (typeof ENROLMENT_STATES)[number];
 
 export const ENROLMENT_SITE_TYPES = ['Type A', 'Type B'] as const;
@@ -126,6 +130,29 @@ export interface Enrolment {
   contactedByName: string | null;
   /** Whatever the person who called them wrote down. Optional. */
   note: string | null;
+  // ── Onboarding v2 (docs/specs/onboarding-v2.md) ──
+  /** The outlet made from it on approval. */
+  dealerId: string | null;
+  dealerCode: string | null;
+  approvedAt: string | null;
+  /** "MDG System" when it was approved because our campaigns messaged the number. */
+  approvedByName: string | null;
+  lostAt: string | null;
+  lostReason: string | null;
+  /** The phone or SAP code already belongs to a live outlet — a second pump, or a repeat. */
+  alreadyClient: { dealerId: string; code: string } | null;
+  /** Our WhatsApp campaigns sent to this number. */
+  fromCampaign: boolean;
+  /** The film link's share code the form was opened from, when it carried one. */
+  ref: string | null;
+  /** The Terms version they ticked, and when. Null for forms older than onboarding v2. */
+  termsVersion: string | null;
+  termsAcceptedAt: string | null;
+  /** They agreed to messages about their account on WhatsApp. */
+  consentWhatsApp: boolean;
+  /** They chose a password on the form (never shown — it is stored hashed). */
+  hasPassword: boolean;
+  lang: WebsiteLang | null;
 }
 
 export type EnrolmentView = 'new' | 'all';

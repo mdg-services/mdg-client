@@ -23,6 +23,7 @@ import {
 } from '@/features/chat/replyContext';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
+import { SetupStrip } from '@/features/setup/SetupStrip';
 import { useChatAskStates } from '@/hooks/api/useChatAskStates';
 import { messagesQueryKey, useMessages } from '@/hooks/api/useMessages';
 import { useMessageSearch } from '@/hooks/api/useMessageSearch';
@@ -541,6 +542,14 @@ export function ChatPage() {
         />
       )}
 
+      {/* The setup strip: where the outlet is on its way to live service. Only
+          in the owner's own chat with MDG (the manager group never carries
+          setup), and out of the way while picking messages or searching.
+          ALWAYS MOUNTED, hiding itself: a child that came and went (`cond ?
+          <X/> : null`) would make React rebuild this list of children by key
+          — and the list and the composer below both carry the thread's id. */}
+      <SetupStrip disabled={isGroup} hidden={selecting || searching} />
+
       <MessageList
         key={conversationId}
         messages={messages}
@@ -578,7 +587,7 @@ export function ChatPage() {
         // switch between chats — a push for the group chat opening while the
         // dealer is half-way through a note to MDG — and the draft, the staged
         // photos and an open send preview all went to the other chat on Send.
-        key={conversationId}
+        key={`composer:${conversationId}`}
         onSend={handleSend}
         onTyping={emitTyping}
         initialText={composerSeed?.text}

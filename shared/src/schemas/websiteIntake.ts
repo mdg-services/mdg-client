@@ -65,6 +65,27 @@ export const websiteEnrolmentIntakeSchema = z.object({
   pumpName: optionalText(160),
   sapCode: z.string().trim().min(1).max(60),
   source: z.enum(ENROLMENT_SOURCES).default('website'),
+  // ── Onboarding v2 — all optional, so a website or app build from before it still registers ──
+  /**
+   * The password they chose for Dealer Kavach. Hashed the moment it arrives and
+   * never stored, logged or emailed as typed. Absent from older forms: such a
+   * registration gets a temporary password on approval instead.
+   */
+  password: z.string().min(8).max(200).optional(),
+  /** The Terms version on the page they ticked (e.g. "2026-10-06"), and a fingerprint of its text. */
+  termsVersion: z.string().trim().min(1).max(40).optional(),
+  termsTextHash: z
+    .string()
+    .regex(/^[0-9a-f]{64}$/)
+    .optional(),
+  /** "Messages about my account on WhatsApp" — part of the same tick. */
+  consentWhatsApp: z.boolean().optional(),
+  /** The film link's share code, when the page was opened from one. */
+  ref: z
+    .string()
+    .regex(/^[A-Za-z0-9_-]{1,32}$/)
+    .optional(),
+  lang: z.enum(WEBSITE_LANGS).optional(),
 });
 export type WebsiteEnrolmentIntake = z.infer<typeof websiteEnrolmentIntakeSchema>;
 

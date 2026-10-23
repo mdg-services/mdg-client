@@ -7,20 +7,26 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 import { Button, Card, CardContent, Input } from '@/components/ui';
+import { PasswordInput } from '@/features/auth/PasswordInput';
 import {
   LIMITS,
+  PASSWORD_LIMITS,
   SITE_TYPES,
+  refFromSearch,
   submitEnrollment,
   toMobile,
   type SiteType,
 } from '@/features/register/enroll';
+import { useSubmissionId } from '@/features/register/submissionId';
 import { TermsSheet } from '@/features/register/TermsSheet';
 import { cn } from '@/lib/cn';
-import { useT } from '@/lib/i18n';
+import { useLang, useT } from '@/lib/i18n';
 
 interface FormValues {
   name: string;
   mobile: string;
+  password: string;
+  confirmPassword: string;
   email: string;
   siteType: SiteType | '';
   pumpName: string;
@@ -31,16 +37,19 @@ interface FormValues {
 /**
  * Sign-up for someone who has downloaded the app and has no login.
  *
- * MDG creates every dealer's ID and password, so this does not create an
- * account. It is the website's enrolment form — the same six details and the
- * same Terms & Conditions — filled in without leaving the app, and sent to the
- * same place the website sends it, which emails the MDG inbox. The team calls,
- * sets the dealer up, and sends the login.
+ * This does not open an account by itself. It is the website's enrolment form —
+ * the same details, the same Terms & Conditions, and a password the dealer
+ * chooses — filled in without leaving the app and sent to the same place the
+ * website sends it. That emails the MDG inbox and hands the registration to our
+ * API, where MDG's team approves it; a WhatsApp message then says the account
+ * is ready, and the dealer signs in with their mobile number and this password.
  */
 export function RegisterPage() {
   const t = useT();
+  const lang = useLang();
   const navigate = useNavigate();
   const location = useLocation();
+  const submissionIdFor = useSubmissionId();
   const [termsOpen, setTermsOpen] = React.useState(false);
   const [sentTo, setSentTo] = React.useState<{ email: string } | null>(null);
 
@@ -60,6 +69,12 @@ export function RegisterPage() {
           .string()
           .trim()
           .refine((v) => toMobile(v) !== null, t('register.mobileInvalid')),
+        // Taken as typed, spaces included: trimming a password changes it.
+        password: z
+          .string()
+          .min(PASSWORD_LIMITS.min, t('profile.min8'))
+          .max(PASSWORD_LIMITS.max, t('register.passwordTooLong')),
+        confirmPassword: z.string().min(1, t('common.required')),
         email: z
           .string()
           .trim()
@@ -76,6 +91,10 @@ export function RegisterPage() {
         agree: z.literal(true, {
           errorMap: () => ({ message: t('register.agreeRequired') }),
         }),
+      })
+      .refine((v) => v.password === v.confirmPassword, {
+        path: ['confirmPassword'],
+        message: t('profile.passwordsDontMatch'),
       }),
     [t],
   );
@@ -91,6 +110,8 @@ export function RegisterPage() {
     defaultValues: {
       name: '',
       mobile: '',
+      password: '',
+      confirmPassword: '',
       email: '',
       siteType: '',
       pumpName: '',
@@ -100,9 +121,15 @@ export function RegisterPage() {
   });
   const siteType = watch('siteType');
 
+  // The film link's share code, when this screen was opened from one.
+  const ref = React.useMemo(() => refFromSearch(location.search), [location.search]);
+
   const enroll = useMutation({
-    mutationFn: (v: FormValues) =>
-      submitEnrollment({
+    // The password is in `variables` while the call lives; the mutation's own
+    // record of it goes as soon as it settles.
+    gcTime: 0,
+    mutationFn: (v: FormValues) => {
+      const fields = {
         name: v.name,
         // As ten plain digits, however it was typed (the check above passed it).
         mobile: toMobile(v.mobile) ?? v.mobile,
@@ -110,14 +137,28 @@ export function RegisterPage() {
         siteType: v.siteType as SiteType,
         pumpName: v.pumpName,
         sapCode: v.sapCode,
-        agree: true,
-        source: 'app',
-      }),
+        agree: true as const,
+        source: 'app' as const,
+        password: v.password,
+        // The one tick covers WhatsApp messages about the account (the label says so).
+        consentWhatsApp: true as const,
+        lang,
+        ...(ref ? { ref } : {}),
+      };
+      return submitEnrollment({ ...fields, submissionId: submissionIdFor(fields) });
+    },
     onSuccess: (_data, v) => {
       setSentTo({ email: v.email });
       window.scrollTo({ top: 0 });
     },
   });
+
+  // Once it has gone through, drop the mutation's own copy of what was sent
+  // (the password is in it). The confirmation is drawn from `sentTo`.
+  const { isSuccess, reset: resetEnroll } = enroll;
+  React.useEffect(() => {
+    if (isSuccess) resetEnroll();
+  }, [isSuccess, resetEnroll]);
 
   return (
     <div className="min-h-full bg-bg px-4 pb-12 pt-4">
@@ -168,6 +209,8 @@ export function RegisterPage() {
             <Card className="mt-5">
               <CardContent>
                 <form
+                  // Never the default GET: a password must not reach a URL.
+                  method="post"
                   onSubmit={handleSubmit((v) => enroll.mutate(v))}
                   className="flex flex-col gap-4"
                   noValidate
@@ -193,6 +236,35 @@ export function RegisterPage() {
                       invalid={!!errors.mobile}
                       placeholder={t('register.mobilePlaceholder')}
                       {...register('mobile')}
+                    />
+                  </Field>
+
+                  <Field
+                    id="reg-password"
+                    label={t('register.password')}
+                    hint={t('register.passwordHint')}
+                    error={errors.password?.message}
+                  >
+                    <PasswordInput
+                      id="reg-password"
+                      autoComplete="new-password"
+                      maxLength={PASSWORD_LIMITS.max}
+                      invalid={!!errors.password}
+                      {...register('password')}
+                    />
+                  </Field>
+
+                  <Field
+                    id="reg-confirm"
+                    label={t('register.confirmPassword')}
+                    error={errors.confirmPassword?.message}
+                  >
+                    <PasswordInput
+                      id="reg-confirm"
+                      autoComplete="new-password"
+                      maxLength={PASSWORD_LIMITS.max}
+                      invalid={!!errors.confirmPassword}
+                      {...register('confirmPassword')}
                     />
                   </Field>
 
@@ -349,12 +421,15 @@ function Field({
   id,
   label,
   optional,
+  hint,
   error,
   children,
 }: {
   id: string;
   label: string;
   optional?: string;
+  /** A line under the box, shown while there is no error to show instead. */
+  hint?: string;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -365,7 +440,11 @@ function Field({
         {optional ? <span className="ml-1 font-normal text-text-subtle">{optional}</span> : null}
       </label>
       {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
+      {error ? (
+        <p className="text-xs text-danger">{error}</p>
+      ) : hint ? (
+        <p className="text-xs text-text-subtle">{hint}</p>
+      ) : null}
     </div>
   );
 }

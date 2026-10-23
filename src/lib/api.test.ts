@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { api, buildUrl } from '@/lib/api';
-import { useAuthStore } from '@/store/auth';
+import { api, apiFetch, buildUrl } from '@/lib/api';
+import { SESSION_EXPIRED_KEY, useAuthStore } from '@/store/auth';
 import { resetStores, signIn } from '@/test/utils';
 
 function jsonResponse(payload: unknown, status = 200): Response {
@@ -126,6 +126,53 @@ describe('apiFetch', () => {
     );
     await expect(api.get('/v1/x')).rejects.toMatchObject({ status: 401 });
     expect(useAuthStore.getState().token).toBeNull();
+  });
+
+  it('a 401 the caller asked not to sign out on (a wrong password) leaves the session and says nothing about one', async () => {
+    signIn();
+    sessionStorage.removeItem(SESSION_EXPIRED_KEY);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(jsonResponse(err('UNAUTHENTICATED', 'wrong password'), 401)),
+    );
+    await expect(
+      apiFetch('/v1/auth/change-password', { method: 'POST', body: {}, signOutOn401: false }),
+    ).rejects.toMatchObject({ status: 401, code: 'UNAUTHENTICATED' });
+    expect(useAuthStore.getState().token).not.toBeNull();
+    expect(sessionStorage.getItem(SESSION_EXPIRED_KEY)).toBeNull();
+  });
+
+  describe('a temporary password that has not been replaced', () => {
+    it('a 403 PASSWORD_CHANGE_REQUIRED flags the member, which sends the app to the new-password screen', async () => {
+      signIn({ mustChangePassword: false });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(jsonResponse(err('PASSWORD_CHANGE_REQUIRED', 'change it'), 403)),
+      );
+      await expect(api.get('/v1/conversations/mine')).rejects.toMatchObject({
+        status: 403,
+        code: 'PASSWORD_CHANGE_REQUIRED',
+      });
+      expect(useAuthStore.getState().user?.mustChangePassword).toBe(true);
+      // Still signed in: the one thing they may do is change it.
+      expect(useAuthStore.getState().token).not.toBeNull();
+    });
+
+    it('any other 403 changes nothing', async () => {
+      signIn({ mustChangePassword: false });
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(err('FORBIDDEN', 'no'), 403)));
+      await expect(api.get('/v1/x')).rejects.toMatchObject({ status: 403 });
+      expect(useAuthStore.getState().user?.mustChangePassword).toBe(false);
+    });
+
+    it('does nothing for nobody signed in', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(jsonResponse(err('PASSWORD_CHANGE_REQUIRED', 'x'), 403)),
+      );
+      await expect(api.get('/v1/x')).rejects.toMatchObject({ status: 403 });
+      expect(useAuthStore.getState().user).toBeNull();
+    });
   });
 
   it('wraps a network failure as NETWORK_ERROR', async () => {

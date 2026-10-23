@@ -54,6 +54,13 @@ const SettingsAccountPage = lazyWithRetry(() =>
 const SettingsTeamPage = lazyWithRetry(() =>
   import('@/pages/settings/TeamPage').then((m) => ({ default: m.SettingsTeamPage })),
 );
+// Seen once, by a member who signed in with a temporary password: its own chunk,
+// so nobody else downloads it.
+const ForcedPasswordChange = lazyWithRetry(() =>
+  import('@/features/auth/ForcedPasswordChange').then((m) => ({
+    default: m.ForcedPasswordChange,
+  })),
+);
 
 /**
  * What a screen looks like while its code is coming down the wire.
@@ -96,13 +103,21 @@ function FullScreenSpinner() {
  * which hosts the app-wide realtime hooks and an <Outlet/> for the active
  * screen. Rendered once by the layout route, so the shell persists as the dealer
  * moves between screens.
+ *
+ * A member who signed in with a temporary password (one MDG's team gave them) is
+ * stopped one step earlier: they choose their own before anything else. The shell
+ * is not mounted for them at all, since the server refuses everything it would
+ * ask for. `mustChangePassword` comes with the sign-in, and is set too when any
+ * call is answered `PASSWORD_CHANGE_REQUIRED` (`lib/api.ts`).
  */
 function ProtectedLayout() {
   const token = useAuthStore((s) => s.token);
+  const mustChangePassword = useAuthStore((s) => !!s.user?.mustChangePassword);
   const location = useLocation();
   if (!token) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
+  if (mustChangePassword) return <ForcedPasswordChange />;
   return <AppShell />;
 }
 

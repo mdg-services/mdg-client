@@ -16,10 +16,17 @@ vi.mock('@/features/chat/useConversationsListSocket', () => ({
 }));
 vi.mock('@/hooks/useDeliveryAck', () => ({ useDeliveryAck: () => undefined }));
 vi.mock('@/hooks/usePushBridge', () => ({ usePushBridge: () => undefined }));
+// Likewise the setup cards' socket listener: it reaches for the realtime socket.
+vi.mock('@/features/setup/useOutletSetupSocket', () => ({
+  useOutletSetupSocket: () => {
+    h.setupSocketCalls += 1;
+  },
+}));
 
 const h = vi.hoisted(() => ({
   keyboardOpen: false,
   keyboardHookCalls: 0,
+  setupSocketCalls: 0,
   convos: [] as Conversation[],
 }));
 
@@ -108,6 +115,7 @@ afterEach(() => {
   resetStores();
   h.keyboardOpen = false;
   h.keyboardHookCalls = 0;
+  h.setupSocketCalls = 0;
   h.convos = [];
 });
 
@@ -199,6 +207,17 @@ describe('AppShell — the frame', () => {
     renderShell('/settings');
     await screen.findByText('settings-page');
     expect(h.keyboardHookCalls).toBeGreaterThan(0);
+  });
+});
+
+describe('AppShell — the setup cards stay live', () => {
+  // The cards and the strip draw from the outlet's state and follow MDG's team
+  // through the socket; the listener lives in the frame so it is on wherever the
+  // dealer opened the app.
+  it('keeps the setup listener mounted, on any screen', async () => {
+    renderShell('/settings');
+    await screen.findByText('settings-page');
+    expect(h.setupSocketCalls).toBeGreaterThan(0);
   });
 });
 

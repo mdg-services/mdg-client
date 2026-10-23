@@ -8,13 +8,36 @@ import { z } from 'zod';
 
 import { BrandMark } from '@/components/BrandMark';
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
-import { ApiError, api } from '@/lib/api';
-import { useT } from '@/lib/i18n';
+import { ForgotPasswordSheet } from '@/features/auth/ForgotPasswordSheet';
+import { parseIdentifier } from '@/features/auth/identifier';
+import { PasswordInput } from '@/features/auth/PasswordInput';
+import { ApiError, apiFetch } from '@/lib/api';
+import { useT, type MessageKey } from '@/lib/i18n';
 import { postToNative } from '@/lib/nativeBridge';
-import { SESSION_EXPIRED_KEY, useAuthStore } from '@/store/auth';
+import { PASSWORD_CHANGE_REQUIRED, SESSION_EXPIRED_KEY, useAuthStore } from '@/store/auth';
 import type { AuthLoginResponse } from '@dk/shared/types';
 
-type FormValues = { email: string; password: string };
+type FormValues = { identifier: string; password: string };
+
+/**
+ * The one warm sentence under a sign-in that did not go through. Never a raw
+ * server or network string.
+ *
+ *  - 401: the number, email or password is wrong (the server does not say which)
+ *  - 409: that mobile number is on more than one account, so only an email can
+ *    tell them apart
+ *  - 403: the account is suspended or archived
+ *  - 429: too many tries
+ */
+function loginErrorKey(err: unknown): MessageKey {
+  if (err instanceof ApiError) {
+    if (err.status === 401) return 'auth.loginFailed';
+    if (err.status === 409) return 'auth.multipleAccounts';
+    if (err.status === 429) return 'auth.tooManyTries';
+    if (err.status === 403 && err.code !== PASSWORD_CHANGE_REQUIRED) return 'auth.accountInactive';
+  }
+  return 'common.networkError';
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -32,6 +55,7 @@ export function LoginPage() {
   });
   const login = useAuthStore((s) => s.login);
   const token = useAuthStore((s) => s.token);
+  const [forgotOpen, setForgotOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (token) navigate('/chat', { replace: true });
@@ -40,7 +64,13 @@ export function LoginPage() {
   const schema = React.useMemo(
     () =>
       z.object({
-        email: z.string().email(t('auth.emailInvalid')),
+        // A mobile number or an email: one box, since the mobile is the name
+        // most dealers sign in with.
+        identifier: z
+          .string()
+          .trim()
+          .min(1, t('auth.identifierRequired'))
+          .refine((v) => parseIdentifier(v) !== null, t('auth.identifierInvalid')),
         password: z.string().min(1, t('auth.passwordRequired')),
       }),
     [t],
@@ -53,8 +83,20 @@ export function LoginPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   const loginMutation = useMutation({
+    // `gcTime: 0`: the password is in `variables` while the call lives, so the
+    // mutation's record of it goes the moment it settles.
+    gcTime: 0,
     mutationFn: (values: FormValues) =>
-      api.post<AuthLoginResponse>('/v1/auth/login', values),
+      apiFetch<AuthLoginResponse>('/v1/auth/login', {
+        method: 'POST',
+        body: {
+          // Ten plain digits for a mobile, lower-case for an email.
+          identifier: parseIdentifier(values.identifier)?.value ?? values.identifier.trim(),
+          password: values.password,
+        },
+        // A 401 here is "that password is wrong", not "your session ended".
+        signOutOn401: false,
+      }),
     onSuccess: (data) => {
       login({ token: data.token, user: data.user });
       // Tell the native shell (if any) to register for push notifications.
@@ -64,13 +106,17 @@ export function LoginPage() {
     },
     onError: (err) => {
       // Never leak a raw server/network string — always one warm sentence.
-      const msg =
-        err instanceof ApiError && err.status === 401
-          ? t('auth.loginFailed')
-          : t('common.networkError');
-      toast.error(msg);
+      toast.error(t(loginErrorKey(err)));
     },
   });
+
+  // A refused sign-in has already said so (the toast); drop the mutation's own
+  // copy of what was typed, the password included, rather than keep it for the
+  // life of the screen.
+  const { isError: loginFailed, reset: resetLogin } = loginMutation;
+  React.useEffect(() => {
+    if (loginFailed) resetLogin();
+  }, [loginFailed, resetLogin]);
 
   return (
     <div className="flex min-h-full items-center justify-center bg-bg px-4 py-12">
@@ -98,32 +144,32 @@ export function LoginPage() {
               noValidate
             >
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-text" htmlFor="email">
-                  {t('auth.email')}
+                <label className="text-sm font-medium text-text" htmlFor="identifier">
+                  {t('auth.identifier')}
                 </label>
                 <Input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
+                  id="identifier"
+                  type="text"
+                  autoComplete="username"
                   inputMode="email"
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  invalid={!!errors.email}
-                  placeholder={t('auth.emailPlaceholder')}
-                  {...register('email')}
+                  maxLength={200}
+                  invalid={!!errors.identifier}
+                  placeholder={t('auth.identifierPlaceholder')}
+                  {...register('identifier')}
                 />
-                {errors.email ? (
-                  <p className="text-xs text-danger">{errors.email.message}</p>
+                {errors.identifier ? (
+                  <p className="text-xs text-danger">{errors.identifier.message}</p>
                 ) : null}
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text" htmlFor="password">
                   {t('auth.password')}
                 </label>
-                <Input
+                <PasswordInput
                   id="password"
-                  type="password"
                   autoComplete="current-password"
                   invalid={!!errors.password}
                   placeholder="••••••••"
@@ -143,12 +189,20 @@ export function LoginPage() {
               >
                 {t('auth.signIn')}
               </Button>
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="-mt-1 min-h-11 self-center rounded-lg px-3 text-sm font-medium text-brand underline underline-offset-4"
+              >
+                {t('auth.forgot')}
+              </button>
             </form>
           </CardContent>
         </Card>
-        {/* Nobody can make their own login — MDG creates every ID and
-            password. Someone who installed the app from the Play Store with
-            nothing to sign in with is sent to the enrolment form, in the app. */}
+        {/* A dealer makes their own login: they register, choose a password,
+            and MDG's team approves. Someone who installed the app from the
+            Play Store with nothing to sign in with is sent to the enrolment
+            form, in the app. */}
         <div className="mt-6 flex flex-col items-center gap-3">
           <p className="text-center text-xs leading-relaxed text-text-subtle">
             {t('auth.noLogin')}
@@ -163,6 +217,7 @@ export function LoginPage() {
           </Button>
         </div>
       </div>
+      {forgotOpen ? <ForgotPasswordSheet onClose={() => setForgotOpen(false)} /> : null}
     </div>
   );
 }

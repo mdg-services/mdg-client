@@ -1,5 +1,6 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
+import type { MessageSetupCard } from './outletSetup';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -301,6 +302,14 @@ export interface Message {
    * never becomes a message. See `portalLogin.ts`.
    */
   portalLogin?: MessagePortalLogin;
+  /**
+   * Set on an MDG message that carries one of the onboarding setup cards
+   * (choose services, billing details, the bill, logins). The app draws the
+   * card from `GET /me/setup` — the outlet's state NOW — never from what was
+   * true when the message was posted, because a message cannot be edited. See
+   * `outletSetup.ts`.
+   */
+  setupCard?: MessageSetupCard;
   /**
    * Set on a DEALER's message that answered one of those requests — the
    * request's ref (`doc:…`, `reg:…`, `kv:…`). It is what lets the admin inbox

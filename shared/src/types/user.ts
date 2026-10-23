@@ -3,6 +3,7 @@ export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 
 export interface User {
   id: string;
+  /** Empty string for a dealer user who registered without one: they sign in with their mobile. */
   email: string;
   name: string;
   role: UserRole;
@@ -27,6 +28,11 @@ export interface User {
    */
   archivedAt?: string | null;
   lastLoginAt?: string;
+  /**
+   * Signed in with a temporary password (one the team set): the app asks for a
+   * new one before anything else. Cleared by `POST /auth/change-password`.
+   */
+  mustChangePassword?: boolean;
   createdAt: string;
   updatedAt: string;
 }

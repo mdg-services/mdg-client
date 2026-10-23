@@ -10,7 +10,7 @@ import { renderWithProviders, resetStores } from '@/test/utils';
 import { LoginPage } from './LoginPage';
 import { RegisterPage } from './RegisterPage';
 
-function renderAt(route: '/login' | '/register', lang: 'en' | 'hi' = 'en') {
+function renderAt(route: string, lang: 'en' | 'hi' = 'en') {
   useLangStore.setState({ lang, explicit: true });
   return renderWithProviders(
     <Routes>
@@ -28,9 +28,13 @@ function okResponse() {
   });
 }
 
+const PASSWORD = 'Sai-pump-2026';
+
 async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Your name'), '  Ramesh Kumar ');
   await user.type(screen.getByLabelText('Your mobile'), '98765 43210');
+  await user.type(screen.getByLabelText('Choose a password'), PASSWORD);
+  await user.type(screen.getByLabelText('Password again'), PASSWORD);
   await user.type(screen.getByLabelText(/Your email/), 'ramesh@example.com');
   await user.click(screen.getByLabelText('Type B'));
   await user.type(screen.getByLabelText(/Pump name/), 'Sai Petroleums');
@@ -47,11 +51,11 @@ describe('RegisterPage', () => {
 
   afterEach(() => resetStores());
 
-  it('is reached from the sign-in footer, which says MDG makes the login', async () => {
+  it('is reached from the sign-in footer, which says you choose your own password', async () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    expect(screen.getByText(/MDG team will send you your ID and password/)).toBeInTheDocument();
+    expect(screen.getByText(/Register your pump and choose a password/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Register your pump' }));
 
     expect(await screen.findByRole('heading', { name: 'Register your pump' })).toBeInTheDocument();
@@ -70,6 +74,8 @@ describe('RegisterPage', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Choose Type A or Type B')).toBeInTheDocument();
     expect(screen.getByText('Enter your SAP code')).toBeInTheDocument();
+    // The password is not optional: a registration is how the dealer gets their login.
+    expect(screen.getByText('At least 8 characters')).toBeInTheDocument();
     expect(
       screen.getByText('Read and accept the Terms & Conditions to continue'),
     ).toBeInTheDocument();
@@ -118,7 +124,12 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
-    expect(await screen.findByText('Thank you. Your details are with us.')).toBeInTheDocument();
+    expect(await screen.findByText('You are registered.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Once the MDG team approves it, you will get a WhatsApp message. Then sign in with your mobile number and this same password.',
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('A welcome email is on its way to ramesh@example.com.'),
     ).toBeInTheDocument();
@@ -137,7 +148,152 @@ describe('RegisterPage', () => {
       sapCode: '41001234',
       agree: true,
       source: 'app',
+      // The password goes to the endpoint as typed, the tick covers WhatsApp,
+      // and the screen's language says which Terms text was ticked.
+      password: PASSWORD,
+      consentWhatsApp: true,
+      lang: 'en',
+      submissionId: expect.stringMatching(/^[A-Za-z0-9_-]{8,64}$/),
     });
+  });
+
+  it('sends the film link\'s share code, and the Hindi screen\'s language', async () => {
+    fetchMock.mockResolvedValue(okResponse());
+    const user = userEvent.setup();
+    renderAt('/register?r=Ab3_x-9', 'hi');
+
+    await user.type(screen.getByLabelText('आपका नाम'), 'रमेश कुमार');
+    await user.type(screen.getByLabelText('आपका मोबाइल'), '9876543210');
+    await user.type(screen.getByLabelText('पासवर्ड चुनिए'), PASSWORD);
+    await user.type(screen.getByLabelText('पासवर्ड दोबारा'), PASSWORD);
+    await user.click(screen.getByLabelText('Type A'));
+    await user.type(screen.getByLabelText('SAP कोड'), '41001234');
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'भेजिए' }));
+
+    expect(await screen.findByText('रजिस्ट्रेशन हो गया।')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'मंज़ूरी के बाद WhatsApp पर संदेश आएगा — फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
+      ),
+    ).toBeInTheDocument();
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body).toMatchObject({ ref: 'Ab3_x-9', lang: 'hi', consentWhatsApp: true });
+  });
+
+  it('leaves out a share code the endpoint would refuse', async () => {
+    fetchMock.mockResolvedValue(okResponse());
+    const user = userEvent.setup();
+    renderAt('/register?r=not%20a%20code!');
+
+    await fillValidForm(user);
+    await user.click(screen.getByRole('checkbox'));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
+    await screen.findByText('You are registered.');
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body).not.toHaveProperty('ref');
+  });
+
+  describe('the password', () => {
+    it('must be at least 8 characters, and typed twice the same', async () => {
+      const user = userEvent.setup();
+      renderAt('/register');
+      await fillValidForm(user);
+      await user.click(screen.getByRole('checkbox'));
+
+      const first = screen.getByLabelText('Choose a password');
+      const again = screen.getByLabelText('Password again');
+
+      await user.clear(first);
+      await user.clear(again);
+      await user.type(first, 'short7!');
+      await user.type(again, 'short7!');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      expect(await screen.findByText('At least 8 characters')).toBeInTheDocument();
+
+      await user.clear(first);
+      await user.clear(again);
+      await user.type(first, 'long-enough-1');
+      await user.type(again, 'long-enough-2');
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      expect(await screen.findByText('Passwords do not match')).toBeInTheDocument();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('is hidden by default, and each box has its own eye', async () => {
+      const user = userEvent.setup();
+      renderAt('/register');
+      const first = screen.getByLabelText('Choose a password');
+      const again = screen.getByLabelText('Password again');
+      expect(first).toHaveAttribute('type', 'password');
+      expect(first).toHaveAttribute('autocomplete', 'new-password');
+      expect(again).toHaveAttribute('autocomplete', 'new-password');
+
+      const eyes = screen.getAllByRole('button', { name: 'Show password' });
+      expect(eyes).toHaveLength(2);
+      await user.click(eyes[0]!);
+      expect(first).toHaveAttribute('type', 'text');
+      expect(again).toHaveAttribute('type', 'password');
+      await user.click(screen.getByRole('button', { name: 'Hide password' }));
+      expect(first).toHaveAttribute('type', 'password');
+    });
+
+    it('is never left in the mutation cache or a console line', async () => {
+      const spies = (['log', 'info', 'warn', 'error', 'debug'] as const).map((k) =>
+        vi.spyOn(console, k).mockImplementation(() => {}),
+      );
+      fetchMock.mockResolvedValue(okResponse());
+      const user = userEvent.setup();
+      const { queryClient } = renderAt('/register');
+      await fillValidForm(user);
+      await user.click(screen.getByRole('checkbox'));
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+      await screen.findByText('You are registered.');
+      await waitFor(() => expect(queryClient.getMutationCache().getAll()).toHaveLength(0));
+      expect(document.body.innerHTML).not.toContain(PASSWORD);
+      for (const spy of spies) {
+        for (const call of spy.mock.calls) expect(JSON.stringify(call)).not.toContain(PASSWORD);
+      }
+    });
+  });
+
+  it('the one tick says it covers WhatsApp messages about the account', () => {
+    renderAt('/register');
+    expect(screen.getByRole('checkbox')).toHaveAccessibleName(
+      'I accept the Terms and Conditions and agree to get messages about my account on WhatsApp',
+    );
+    expect(
+      screen.getByText(/and I agree to get messages about my account on WhatsApp/),
+    ).toBeInTheDocument();
+  });
+
+  it('a retry of the same form carries the same id, a corrected one a new id', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+    fetchMock.mockResolvedValue(okResponse());
+    const user = userEvent.setup();
+    renderAt('/register');
+    await fillValidForm(user);
+    await user.click(screen.getByRole('checkbox'));
+
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await screen.findByRole('alert');
+    // Corrected: a different form.
+    const sap = screen.getByLabelText('SAP code');
+    await user.clear(sap);
+    await user.type(sap, '41009999');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    await screen.findByText('You are registered.');
+
+    const ids = fetchMock.mock.calls.map(
+      (c) => JSON.parse((c as [string, RequestInit])[1].body as string).submissionId as string,
+    );
+    expect(ids[0]).toBe(ids[1]);
+    expect(ids[2]).not.toBe(ids[0]);
   });
 
   it('takes a number typed in Hindi digits and refuses one that is not a mobile', async () => {
@@ -160,7 +316,7 @@ describe('RegisterPage', () => {
     await user.clear(mobile);
     await user.type(mobile, '+९१ ९४६७४ ६६९६३');
     await user.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(await screen.findByText('Thank you. Your details are with us.')).toBeInTheDocument();
+    expect(await screen.findByText('You are registered.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(JSON.parse(init.body as string).mobile).toBe('9467466963');
   });
@@ -175,10 +331,10 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "Couldn't send your details. Check your network and try again.",
+      'Your registration could not be completed. Check your network and try again.',
     );
     expect(screen.getByLabelText('SAP code')).toHaveValue('41001234');
-    expect(screen.queryByText('Thank you. Your details are with us.')).not.toBeInTheDocument();
+    expect(screen.queryByText('You are registered.')).not.toBeInTheDocument();
   });
 
   it('treats an answer without ok:true as a failure', async () => {

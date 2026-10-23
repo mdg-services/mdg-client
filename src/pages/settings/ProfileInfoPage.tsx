@@ -46,7 +46,9 @@ export function SettingsProfilePage() {
         <dl className="divide-y divide-wa-divider border-y border-wa-divider">
           <Field label={t('settings.fieldName')} value={user.name} />
           <Field label={t('settings.fieldRole')} value={roleLabel(user.role, t)} />
-          <Field label={t('auth.email')} value={user.email} />
+          {/* A dealer who registered with a mobile number only has no email: say so
+              instead of leaving a blank. */}
+          <Field label={t('auth.email')} value={user.email || t('settings.notAdded')} />
           <Field label={t('settings.fieldPhone')} value={user.phone || t('settings.notAdded')} />
           <Field
             label={t('settings.fieldStatus')}

@@ -63,10 +63,18 @@ describe('Settings → profile', () => {
   });
 
   it('says a missing phone is "Not added" rather than leaving a blank', () => {
-    signIn({ role: 'dealer-staff', status: 'ACTIVE' });
+    signIn({ role: 'dealer-staff', status: 'ACTIVE', email: 'manager@pump.in' });
     renderAt('/settings/profile');
     expect(screen.getByText('Not added')).toBeInTheDocument();
     expect(screen.getByText('Manager', { selector: 'dd' })).toBeInTheDocument();
+  });
+
+  // A dealer who registered with a mobile number only has no email at all.
+  it('says a missing email is "Not added" too — the mobile number is what they sign in with', () => {
+    signIn({ role: 'dealer-owner', status: 'ACTIVE', email: '', phone: '9876543210' });
+    renderAt('/settings/profile');
+    expect(screen.getByText('Not added')).toBeInTheDocument();
+    expect(screen.getByText('9876543210')).toBeInTheDocument();
   });
 
   it('shows a paused login as paused', () => {
@@ -208,14 +216,51 @@ describe('Settings → your team', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
     await user.type(screen.getByPlaceholderText('Full name'), 'New Manager');
-    await user.type(screen.getByPlaceholderText('Email'), 'new@pump.in');
+    await user.type(
+      screen.getByPlaceholderText("Manager's mobile number (they sign in with it)"),
+      '+91 98765 43210',
+    );
+    await user.type(screen.getByPlaceholderText('Email (optional)'), 'new@pump.in');
     await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
     expect(api.post).toHaveBeenCalledWith('/v1/dealer-users', {
       dealerId: 'd1',
+      phone: '9876543210',
       email: 'new@pump.in',
+      name: 'New Manager',
+      role: 'dealer-staff',
+      password: 'temp-pass-1',
+    });
+  });
+
+  it('adds a manager by mobile alone — no email needed — and refuses a number that is not a mobile', async () => {
+    signIn(owner);
+    vi.mocked(api.get).mockResolvedValue([] as never);
+    vi.mocked(api.post).mockResolvedValue({} as never);
+    renderAt('/settings/team');
+
+    await screen.findByText('No teammates yet.');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Invite' }));
+    await user.type(screen.getByPlaceholderText('Full name'), 'New Manager');
+    const mobile = screen.getByPlaceholderText("Manager's mobile number (they sign in with it)");
+    await user.type(mobile, '12345');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
+    await user.click(screen.getByRole('button', { name: 'Send invite' }));
+    expect(
+      await screen.findByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
+    ).toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+
+    await user.clear(mobile);
+    await user.type(mobile, '9876543210');
+    await user.click(screen.getByRole('button', { name: 'Send invite' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith('/v1/dealer-users', {
+      dealerId: 'd1',
+      phone: '9876543210',
       name: 'New Manager',
       role: 'dealer-staff',
       password: 'temp-pass-1',
@@ -234,7 +279,10 @@ describe('Settings → your team', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
     await user.type(screen.getByPlaceholderText('Full name'), 'Second');
-    await user.type(screen.getByPlaceholderText('Email'), 'second@pump.in');
+    await user.type(
+      screen.getByPlaceholderText("Manager's mobile number (they sign in with it)"),
+      '9876543211',
+    );
     await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 

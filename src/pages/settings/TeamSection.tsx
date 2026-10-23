@@ -21,7 +21,12 @@ import type { User } from '@dk/shared/types';
 
 import { RoleBadge, StatusDot } from './RoleBadge';
 
-type InviteValues = { name: string; email: string; password: string };
+type InviteValues = { name: string; mobile: string; email: string; password: string };
+
+/** "+91 98765 43210" → "9876543210": the sign-in name the server matches on. */
+function tenDigits(mobile: string): string {
+  return mobile.replace(/\D/g, '').slice(-10);
+}
 
 export function TeamSection() {
   const toast = useToast();
@@ -66,7 +71,11 @@ export function TeamSection() {
     () =>
       z.object({
         name: z.string().min(1, t('common.required')).max(120),
-        email: z.string().email(t('auth.emailInvalid')),
+        // The manager signs in with this number (onboarding v2); an email is optional.
+        mobile: z
+          .string()
+          .refine((v) => /^[6-9]\d{9}$/.test(tenDigits(v)), t('register.mobileInvalid')),
+        email: z.union([z.literal(''), z.string().trim().email(t('auth.emailInvalid'))]),
         password: z.string().min(8, t('profile.min8')),
       }),
     [t],
@@ -83,7 +92,8 @@ export function TeamSection() {
     mutationFn: (values: InviteValues) =>
       api.post<User>('/v1/dealer-users', {
         dealerId,
-        email: values.email,
+        phone: tenDigits(values.mobile),
+        ...(values.email.trim() ? { email: values.email.trim() } : {}),
         name: values.name,
         role: 'dealer-staff',
         password: values.password,
@@ -143,8 +153,19 @@ export function TeamSection() {
               <p className="text-xs text-danger">{errors.name.message}</p>
             ) : null}
             <Input
+              type="tel"
+              placeholder={t('profile.managerMobile')}
+              inputMode="numeric"
+              autoComplete="off"
+              invalid={!!errors.mobile}
+              {...register('mobile')}
+            />
+            {errors.mobile ? (
+              <p className="text-xs text-danger">{errors.mobile.message}</p>
+            ) : null}
+            <Input
               type="email"
-              placeholder={t('auth.email')}
+              placeholder={t('profile.emailOptional')}
               inputMode="email"
               autoCapitalize="none"
               autoCorrect="off"
@@ -167,7 +188,9 @@ export function TeamSection() {
             />
             {errors.password ? (
               <p className="text-xs text-danger">{errors.password.message}</p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-text-subtle">{t('profile.tempPasswordNote')}</p>
+            )}
             <div className="flex gap-2">
               <Button
                 type="submit"
@@ -230,7 +253,7 @@ export function TeamSection() {
                     <StatusDot status={member.status} />
                   </div>
                   <p className="truncate text-xs text-text-muted">
-                    {member.email}
+                    {member.email || member.phone}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">

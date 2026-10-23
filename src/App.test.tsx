@@ -1,7 +1,8 @@
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import * as React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { requirePasswordChange, useAuthStore } from '@/store/auth';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 
 import { App } from './App';
@@ -39,6 +40,11 @@ vi.mock('@/pages/StaffPage', () => ({ StaffPage: () => <div>staff-page</div> }))
 // (`OpenMyChat.test.tsx`); here it only has to be the thing those routes mount.
 vi.mock('@/features/chat/OpenMyChat', () => ({ OpenMyChat: () => <div>open-my-chat</div> }));
 vi.mock('@/pages/RegisterPage', () => ({ RegisterPage: () => <div>register-page</div> }));
+// The screen itself is tested on its own (`ForcedPasswordChange.test.tsx`); here
+// it only has to be what the gate shows.
+vi.mock('@/features/auth/ForcedPasswordChange', () => ({
+  ForcedPasswordChange: () => <div>forced-password-change</div>,
+}));
 vi.mock('@/pages/LoginPage', async () => {
   const { useLocation } = await import('react-router-dom');
   return {
@@ -160,6 +166,52 @@ describe('App routing', () => {
     expect(await screen.findByText('register-page')).toBeInTheDocument();
     expect(screen.queryByText('login-page')).not.toBeInTheDocument();
     expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
+  });
+
+  // A temporary password (one MDG's team gave) has to be replaced before anything
+  // else: the whole app is swapped for the new-password screen.
+  describe('a member on a temporary password', () => {
+    it.each(['/', '/chat', '/chat/c1', '/settings', '/services'])(
+      'sees only the new-password screen at %s, with no shell behind it',
+      async (route) => {
+        signIn({ mustChangePassword: true });
+        renderWithProviders(<App />, { route });
+        expect(await screen.findByText('forced-password-change')).toBeInTheDocument();
+        expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
+        expect(screen.queryByText('chat-list-page')).not.toBeInTheDocument();
+      },
+    );
+
+    it('gets the app the moment the password is replaced', async () => {
+      const user = signIn({ mustChangePassword: true });
+      renderWithProviders(<App />, { route: '/chat' });
+      await screen.findByText('forced-password-change');
+      act(() => useAuthStore.getState().setUser({ ...user, mustChangePassword: false }));
+      expect(await screen.findByTestId('shell')).toBeInTheDocument();
+      expect(screen.getByText('chat-list-page')).toBeInTheDocument();
+      expect(screen.queryByText('forced-password-change')).not.toBeInTheDocument();
+    });
+
+    it('is sent there when any call is refused for it', async () => {
+      signIn();
+      renderWithProviders(<App />, { route: '/chat' });
+      expect(await screen.findByTestId('shell')).toBeInTheDocument();
+      act(() => requirePasswordChange());
+      expect(await screen.findByText('forced-password-change')).toBeInTheDocument();
+      expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
+    });
+
+    it('is not asked again once it is done', async () => {
+      signIn({ mustChangePassword: false });
+      renderWithProviders(<App />, { route: '/chat' });
+      expect(await screen.findByTestId('shell')).toBeInTheDocument();
+      expect(screen.queryByText('forced-password-change')).not.toBeInTheDocument();
+    });
+
+    it('still reaches the login and register screens signed out', async () => {
+      renderWithProviders(<App />, { route: '/register' });
+      expect(await screen.findByText('register-page')).toBeInTheDocument();
+    });
   });
 
   it('serves /login without pulling the shell', async () => {

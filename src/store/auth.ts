@@ -166,3 +166,21 @@ export function clearAuth(): void {
   }
   useAuthStore.getState().logout();
 }
+
+/**
+ * The code the server answers with, on any route, to a member who signed in
+ * with a temporary password and has not yet chosen their own. Only
+ * `GET /me`, the password change and sign-out are open to them until they do.
+ */
+export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED';
+
+/**
+ * The server says a new password is due before anything else: flag the signed-in
+ * member, which swaps the whole app for the "choose a new password" screen
+ * (`ProtectedLayout`). This is what catches a member whose cached profile
+ * predates the flag — an admin reset their password while the app was signed in.
+ */
+export function requirePasswordChange(): void {
+  const { user, setUser } = useAuthStore.getState();
+  if (user && !user.mustChangePassword) setUser({ ...user, mustChangePassword: true });
+}

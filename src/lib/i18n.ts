@@ -56,27 +56,82 @@ export const messages = {
     hi: 'MDG टीम से बात करने के लिए साइन इन करें।',
   },
   'auth.email': { en: 'Email', hi: 'ईमेल' },
-  'auth.emailPlaceholder': {
-    en: 'you@dealership.com',
-    hi: 'you@dealership.com',
+  // One box for both: a dealer's mobile number is the name most of them sign in
+  // with, an email still works.
+  'auth.identifier': { en: 'Mobile number or email', hi: 'मोबाइल नंबर या ईमेल' },
+  'auth.identifierPlaceholder': {
+    en: 'Your mobile number or email',
+    hi: 'अपना मोबाइल नंबर या ईमेल लिखिए',
+  },
+  'auth.identifierRequired': {
+    en: 'Enter your mobile number or email',
+    hi: 'अपना मोबाइल नंबर या ईमेल भरिए',
+  },
+  'auth.identifierInvalid': {
+    en: 'Enter a 10-digit mobile number or a valid email',
+    hi: '10 अंकों का मोबाइल नंबर या सही ईमेल लिखिए',
   },
   'auth.password': { en: 'Password', hi: 'पासवर्ड' },
+  'auth.showPassword': { en: 'Show password', hi: 'पासवर्ड दिखाएं' },
+  'auth.hidePassword': { en: 'Hide password', hi: 'पासवर्ड छुपाएं' },
   'auth.emailInvalid': { en: 'Enter a valid email', hi: 'सही ईमेल भरें' },
   'auth.passwordRequired': {
     en: 'Enter your password',
     hi: 'अपना पासवर्ड भरें',
   },
   'auth.signIn': { en: 'Sign in', hi: 'साइन इन करें' },
-  // Nobody makes their own login: MDG creates every ID and password. So the
-  // footer says where a login comes from and offers the way to get one.
+  // A dealer chooses their own password when they register, and signs in with
+  // it once MDG's team has approved the registration.
   'auth.noLogin': {
-    en: 'No login yet? Register your pump and the MDG team will send you your ID and password.',
-    hi: 'अभी लॉगिन नहीं है? अपना पंप रजिस्टर कीजिए, MDG टीम आपको ID और पासवर्ड भेज देगी।',
+    en: 'No account yet? Register your pump and choose a password. Once the MDG team approves it, sign in with your mobile number and that password.',
+    hi: 'अभी खाता नहीं है? अपना पंप रजिस्टर कीजिए और अपना पासवर्ड चुनिए। MDG टीम की मंज़ूरी के बाद अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन कीजिए।',
   },
   'auth.register': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
   'auth.loginFailed': {
-    en: "That email or password didn't work. Try again or contact support.",
-    hi: 'यह ईमेल या पासवर्ड सही नहीं है। फिर से कोशिश करें या सपोर्ट से संपर्क करें।',
+    en: "That mobile number, email or password didn't work. Try again, or tap \"Forgot your password?\".",
+    hi: 'यह मोबाइल नंबर, ईमेल या पासवर्ड सही नहीं है। फिर कोशिश कीजिए, या "पासवर्ड भूल गए?" दबाइए।',
+  },
+  // A mobile number two accounts share (one owner, two pumps): only an email can
+  // tell them apart.
+  'auth.multipleAccounts': {
+    en: 'This number has more than one account. Sign in with your email.',
+    hi: 'इस नंबर पर एक से ज़्यादा खाते हैं। अपने ईमेल से साइन इन कीजिए।',
+  },
+  'auth.tooManyTries': {
+    en: 'Too many tries. Please wait a little and try again.',
+    hi: 'बहुत बार कोशिश हो गई। थोड़ी देर बाद फिर कोशिश कीजिए।',
+  },
+  'auth.accountInactive': {
+    en: 'This account is not active right now. Please contact the MDG team.',
+    hi: 'यह खाता अभी चालू नहीं है। MDG की टीम से संपर्क कीजिए।',
+  },
+  /* ── forgot password ─────────────────────────────────────────────────── */
+  'auth.forgot': { en: 'Forgot your password?', hi: 'पासवर्ड भूल गए?' },
+  'auth.forgotTitle': { en: 'Forgot your password?', hi: 'पासवर्ड भूल गए?' },
+  'auth.forgotIntro': {
+    en: 'Type your mobile number or email. The MDG team will call you on your registered number.',
+    hi: 'अपना मोबाइल नंबर या ईमेल लिखिए। MDG की टीम आपके रजिस्टर्ड नंबर पर कॉल करेगी।',
+  },
+  'auth.forgotSend': { en: 'Send', hi: 'भेजिए' },
+  'auth.forgotDone': { en: 'The MDG team will call you.', hi: 'MDG की टीम आपको कॉल करेगी।' },
+  'auth.forgotOk': { en: 'OK', hi: 'ठीक है' },
+  /* ── the screen after signing in with a temporary password ───────────── */
+  'auth.forcedTitle': { en: 'Create a new password', hi: 'नया पासवर्ड बनाइए' },
+  'auth.forcedIntro': {
+    en: 'You signed in with a password the MDG team gave you. Before you go on, choose a password of your own.',
+    hi: 'आपने MDG की टीम का दिया हुआ पासवर्ड इस्तेमाल किया है। आगे बढ़ने से पहले अपना खुद का पासवर्ड बनाइए।',
+  },
+  'auth.forcedCurrent': { en: 'The password you were given', hi: 'जो पासवर्ड आपको मिला था' },
+  'auth.forcedConfirm': { en: 'New password again', hi: 'नया पासवर्ड दोबारा' },
+  'auth.forcedSave': { en: 'Save and continue', hi: 'सेव करके आगे बढ़िए' },
+  'auth.forcedSignOut': { en: 'Sign out', hi: 'साइन आउट' },
+  'auth.forcedCurrentWrong': {
+    en: "That is not the password you were given. Check it and try again.",
+    hi: 'यह वो पासवर्ड नहीं है जो आपको मिला था। जाँचकर फिर कोशिश कीजिए।',
+  },
+  'auth.forcedMustDiffer': {
+    en: 'Choose a password different from the one you were given',
+    hi: 'जो पासवर्ड मिला था, उससे अलग पासवर्ड चुनिए',
   },
 
   /* ── register (the website's enrolment form, inside the app) ─────────── */
@@ -84,8 +139,8 @@ export const messages = {
   // the two say the same thing, so a dealer who has seen one recognises the other.
   'register.title': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
   'register.intro': {
-    en: 'Fill in your details. Our team will call you to confirm your services and pricing, then send you your login ID and password.',
-    hi: 'अपनी जानकारी भरिए। हमारी टीम कॉल करके आपकी सेवाएँ और क़ीमत पक्की करेगी, फिर आपको लॉगिन ID और पासवर्ड भेजेगी।',
+    en: 'Fill in your details and choose a password. Once the MDG team approves, you sign in with your mobile number and that password.',
+    hi: 'अपनी जानकारी भरिए और अपना पासवर्ड चुनिए। MDG की टीम की मंज़ूरी के बाद आप अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन करेंगे।',
   },
   'register.back': { en: 'Back to sign in', hi: 'साइन इन पर वापस' },
   'register.optional': { en: '(optional)', hi: '(ज़रूरी नहीं)' },
@@ -93,6 +148,18 @@ export const messages = {
   'register.namePlaceholder': { en: 'Ramesh Kumar', hi: 'रमेश कुमार' },
   'register.mobile': { en: 'Your mobile', hi: 'आपका मोबाइल' },
   'register.mobilePlaceholder': { en: 'Your mobile number', hi: 'अपना मोबाइल नंबर' },
+  // The password the dealer chooses here is what they sign in with, together with
+  // the mobile number above it.
+  'register.password': { en: 'Choose a password', hi: 'पासवर्ड चुनिए' },
+  'register.passwordHint': {
+    en: 'At least 8 characters. You will sign in with your mobile number and this password.',
+    hi: 'कम से कम 8 अक्षर। इसी पासवर्ड और अपने मोबाइल नंबर से साइन इन करेंगे।',
+  },
+  'register.confirmPassword': { en: 'Password again', hi: 'पासवर्ड दोबारा' },
+  'register.passwordTooLong': {
+    en: 'Use at most 200 characters',
+    hi: 'ज़्यादा से ज़्यादा 200 अक्षर',
+  },
   'register.email': { en: 'Your email', hi: 'आपका ईमेल' },
   'register.emailPlaceholder': { en: 'Enter your email', hi: 'अपना ईमेल लिखिए' },
   'register.siteType': { en: 'Site type', hi: 'साइट का प्रकार' },
@@ -102,14 +169,19 @@ export const messages = {
   'register.sapCodePlaceholder': { en: 'Your SAP code', hi: 'अपना SAP कोड' },
   // The link sits inside the sentence, and in Hindi the verb lands after it,
   // so the tail carries the verb as well as the full stop.
-  'register.agreeLead': { en: 'I have read and agree to the', hi: 'मैंने' },
+  // The one tick also covers WhatsApp messages about the account: the approval
+  // message and the bill reach the dealer there.
+  'register.agreeLead': { en: 'I have read and accept the', hi: 'मैंने' },
   'register.termsLink': { en: 'Terms & Conditions', hi: 'नियम व शर्तें' },
-  'register.agreeTail': { en: '.', hi: ' पढ़ ली हैं और मुझे मंज़ूर हैं।' },
+  'register.agreeTail': {
+    en: ', and I agree to get messages about my account on WhatsApp.',
+    hi: ' पढ़ ली हैं और मुझे मंज़ूर हैं, और मैं अपने खाते से जुड़े संदेश WhatsApp पर पाने के लिए सहमत हूँ।',
+  },
   // The link inside the sentence drops out of the box's spoken name, so the
   // box carries the whole sentence itself.
   'register.agreeAria': {
-    en: 'I agree to the Terms and Conditions',
-    hi: 'मैं नियम व शर्तें मानता हूँ',
+    en: 'I accept the Terms and Conditions and agree to get messages about my account on WhatsApp',
+    hi: 'मैं नियम व शर्तें मानता हूँ और अपने खाते से जुड़े संदेश WhatsApp पर पाने के लिए सहमत हूँ',
   },
   'register.nameRequired': { en: 'Enter your name', hi: 'अपना नाम भरिए' },
   'register.mobileInvalid': {
@@ -130,18 +202,20 @@ export const messages = {
     en: 'We will never share your details.',
     hi: 'आपकी जानकारी हम किसी के साथ साझा नहीं करेंगे।',
   },
+  // The website answers an error when it could not hand the registration to MDG,
+  // so a dealer who sees this has NOT registered and should try again.
   'register.failed': {
-    en: "Couldn't send your details. Check your network and try again.",
-    hi: 'आपकी जानकारी नहीं भेजी जा सकी। नेटवर्क जांचें और फिर कोशिश करें।',
+    en: "Your registration could not be completed. Check your network and try again.",
+    hi: 'आपका रजिस्ट्रेशन पूरा नहीं हो सका। नेटवर्क जांचें और फिर कोशिश करें।',
   },
   'register.successBadge': { en: 'Registration received', hi: 'नामांकन मिल गया' },
   'register.successTitle': {
-    en: 'Thank you. Your details are with us.',
-    hi: 'धन्यवाद। आपकी जानकारी हम तक पहुँच गई है।',
+    en: 'You are registered.',
+    hi: 'रजिस्ट्रेशन हो गया।',
   },
   'register.successBody': {
-    en: 'Our team will call you to confirm your services and pricing, usually within the hour (9am to 9pm, every day). After that we send you your login ID and password, and you sign in here.',
-    hi: 'हमारी टीम कॉल करके आपकी सेवाएँ और क़ीमत पक्की कर लेगी, आमतौर पर एक घंटे के भीतर (सुबह 9 से रात 9, हर दिन)। इसके बाद हम आपको लॉगिन ID और पासवर्ड भेजेंगे, और आप यहीं साइन इन करेंगे।',
+    en: 'Once the MDG team approves it, you will get a WhatsApp message. Then sign in with your mobile number and this same password.',
+    hi: 'मंज़ूरी के बाद WhatsApp पर संदेश आएगा — फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
   },
   'register.successEmail': {
     en: 'A welcome email is on its way to {email}.',
@@ -464,6 +538,15 @@ export const messages = {
     hi: 'अस्थायी पासवर्ड',
   },
   'profile.sendInvite': { en: 'Send invite', hi: 'न्योता भेजें' },
+  'profile.managerMobile': {
+    en: "Manager's mobile number (they sign in with it)",
+    hi: 'मैनेजर का मोबाइल नंबर (इसी से साइन इन करेंगे)',
+  },
+  'profile.emailOptional': { en: 'Email (optional)', hi: 'ईमेल (ज़रूरी नहीं)' },
+  'profile.tempPasswordNote': {
+    en: 'Tell your manager this password. They will choose their own when they first sign in.',
+    hi: 'यह पासवर्ड अपने मैनेजर को बताइए। पहली बार साइन इन करते ही वे अपना नया पासवर्ड बनाएँगे।',
+  },
   'profile.noTeammates': { en: 'No teammates yet.', hi: 'अभी कोई साथी नहीं।' },
   'profile.actionFailed': {
     en: "That didn't work. Please try again, or message us in Chat.",
@@ -971,6 +1054,93 @@ export const messages = {
   'composer.addMore': { en: 'Add more photos', hi: 'और फोटो जोड़ें' },
   'composer.dropPhoto': { en: 'Remove this photo', hi: 'यह फोटो हटाएं' },
   'composer.photoN': { en: 'Photo {n} of {total}', hi: 'फोटो {n} / {total}' },
+
+  /* ── setting up a new outlet (onboarding): the strip and its cards ───── */
+  'setup.stripLabel': { en: 'Getting your services started', hi: 'आपकी सेवाएँ शुरू करने के कदम' },
+  'setup.stepServices': { en: 'Services', hi: 'सेवाएँ' },
+  'setup.stepBilling': { en: 'Bill address', hi: 'बिल का पता' },
+  'setup.stepPayment': { en: 'Payment', hi: 'भुगतान' },
+  'setup.stepLogins': { en: 'Logins', hi: 'लॉगिन' },
+  'setup.stepStart': { en: 'Start', hi: 'शुरू' },
+  // Spoken by a screen reader beside each step, never drawn.
+  'setup.stateDone': { en: 'done', hi: 'हो गया' },
+  'setup.stateCurrent': { en: 'now', hi: 'अभी' },
+  'setup.stateTodo': { en: 'later', hi: 'बाद में' },
+  'setup.stateSkipped': { en: 'not needed', hi: 'ज़रूरत नहीं' },
+  // The one line under the strip: what is happening now. Nothing here says how
+  // to pay, or where: the Play Store does not allow it inside the app.
+  'setup.nowServices': { en: 'Choose your services', hi: 'अपनी सेवाएँ चुनिए' },
+  'setup.nowBilling': {
+    en: 'Fill in the name and address for your bill',
+    hi: 'बिल का नाम और पता भरिए',
+  },
+  'setup.nowBillPrep': {
+    en: "MDG's team is getting your bill ready",
+    hi: 'MDG की टीम आपका बिल तैयार कर रही है',
+  },
+  'setup.nowBillSent': { en: 'Your bill has been sent', hi: 'आपका बिल भेज दिया गया है' },
+  'setup.nowLogins': { en: 'Add your portal logins', hi: 'अपने पोर्टल के लॉगिन भरिए' },
+  'setup.nowSetup': {
+    en: "MDG's team is getting your services ready",
+    hi: 'MDG की टीम आपकी सेवाएँ तैयार कर रही है',
+  },
+  'setup.nowWatch': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
+  'setup.loadFailed': { en: "Couldn't load this just now", hi: 'अभी यह लोड नहीं हो सका' },
+  'setup.ownerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },
+  'setup.change': { en: 'Change', hi: 'बदलें' },
+  'setup.saveFailed': { en: "Couldn't save — try again", hi: 'सेव नहीं हो सका — फिर कोशिश कीजिए' },
+  /* services card */
+  'setup.servicesChosen': { en: 'Your services', hi: 'आपकी चुनी हुई सेवाएँ' },
+  'setup.servicesSave': { en: 'Save my services', hi: 'सेवाएँ सेव करें' },
+  'setup.servicesPickOne': { en: 'Tick at least one service', hi: 'कम से कम एक सेवा चुनिए' },
+  'setup.servicesLocked': {
+    en: 'Your bill has been sent. To change your services, write to us in this chat.',
+    hi: 'आपका बिल भेज दिया गया है। सेवाएँ बदलनी हों तो इसी चैट में हमें लिखिए।',
+  },
+  // On the row that was ticked for you, naming the service that needs it.
+  'setup.requiredWith': { en: 'Needed with {name}', hi: '{name} के साथ ज़रूरी' },
+  'setup.playVideo': { en: 'Watch the video: {name}', hi: 'वीडियो देखिए: {name}' },
+  /* billing card */
+  'setup.billName': { en: 'Name on the bill', hi: 'बिल पर नाम' },
+  'setup.billAddress': { en: 'Address (one line)', hi: 'पता (एक लाइन में)' },
+  'setup.billState': { en: 'State', hi: 'राज्य' },
+  'setup.billStatePick': { en: 'Choose your state', hi: 'अपना राज्य चुनिए' },
+  'setup.billGstin': { en: 'GST number (only if you have one)', hi: 'GST नंबर (हो तो)' },
+  'setup.billNoGst': { en: 'No GST number', hi: 'GST नंबर नहीं देना' },
+  'setup.noGstGiven': { en: 'No GST number given', hi: 'GST नंबर नहीं दिया' },
+  'setup.gstinHelp': {
+    en: 'Only if you want GST credit. 15 letters and digits.',
+    hi: 'GST क्रेडिट चाहिए तभी भरिए। 15 अक्षर और अंक।',
+  },
+  'setup.gstinCount': { en: '{n} of 15', hi: '{n} / 15' },
+  'setup.gstinOk': { en: 'GST number looks right', hi: 'GST नंबर सही है' },
+  'setup.gstinBad': {
+    en: 'This GST number does not look right. Please check it.',
+    hi: 'यह GST नंबर सही नहीं लगता। कृपया जाँच लीजिए।',
+  },
+  'setup.gstinState': {
+    en: 'State taken from the GST number',
+    hi: 'राज्य GST नंबर से लिया गया है',
+  },
+  'setup.billSave': { en: 'Save', hi: 'सेव करें' },
+  'setup.billSaved': { en: 'Bill details saved', hi: 'बिल की जानकारी सेव हो गई' },
+  'setup.billLocked': {
+    en: 'Payment has been received, so these details cannot be changed here any more.',
+    hi: 'भुगतान मिल चुका है, इसलिए ये जानकारी अब यहाँ बदली नहीं जा सकती।',
+  },
+  'setup.billErrName': { en: 'Enter the name for the bill', hi: 'बिल का नाम भरिए' },
+  'setup.billErrAddress': { en: 'Enter the address', hi: 'पता भरिए' },
+  'setup.billErrState': { en: 'Choose your state', hi: 'अपना राज्य चुनिए' },
+  /* the bill: what is due and what was paid, and nothing to press */
+  'setup.payPreparing': {
+    en: "MDG's team is getting your bill ready.",
+    hi: 'MDG की टीम आपका बिल तैयार कर रही है।',
+  },
+  'setup.billLine': { en: 'Bill: {amount} · due {date}', hi: 'बिल: {amount} · आख़िरी तारीख़ {date}' },
+  'setup.billLineNoDate': { en: 'Bill: {amount}', hi: 'बिल: {amount}' },
+  'setup.payPaid': { en: 'Payment received', hi: 'भुगतान मिल गया' },
+  'setup.payPaidOn': { en: 'Received on {date}', hi: '{date} को मिला' },
+  'setup.started': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

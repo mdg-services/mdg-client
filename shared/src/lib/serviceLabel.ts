@@ -88,3 +88,55 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
 export function serviceLabel(serviceId: string): ServiceLabel {
   return SERVICE_LABELS[serviceId] ?? { en: serviceId, hi: serviceId };
 }
+
+/**
+ * What each service gives the pump, in plain words, both languages. Keyed by
+ * service id. Read by the services card in the dealer app (onboarding v2) and
+ * by the chat assistant's catalogue (`brief/about.ts`), so a service is
+ * described one way everywhere.
+ *
+ * The rules these lines keep, because the assistant repeats them and its fence
+ * checks every word: NO DIGITS, NO PRICES, NO TERMS, NO TIMES, and no method
+ * beyond "MDG's team does it" — never software, automation or schedules.
+ */
+export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>> = {
+  // Not "stock variation sheet": the fence refuses the word "variation" unless the
+  // turn holds that sheet's figures, and a description it cannot see past would
+  // only manufacture refusals. The DSR card shows the second sheet itself.
+  'dsr-report': {
+    en: "the day's sales and the stock in the tanks, as two sheets every day",
+    hi: 'दिन की बिक्री और टंकी का स्टॉक, रोज़ दो शीट में',
+  },
+  'credit-dod-monitoring': {
+    en: "how much has to reach IndianOil's account, and by when",
+    hi: 'इंडियन ऑयल के खाते में कितना जमा करना है, और कब तक',
+  },
+  'water-ingress-testing': {
+    en: 'the tank water checks, kept up to date on time',
+    hi: 'टैंक में पानी की जाँच, समय पर अपडेट',
+  },
+  'tt-density': {
+    en: "the density register: the day's page, and the density of each tanker",
+    hi: 'डेंसिटी रजिस्टर: रोज़ का पन्ना, और हर टैंकर की डेंसिटी',
+  },
+  'ro-supply-status': {
+    en: 'whether supply to the pump is open, and what to do if it stops',
+    hi: 'पंप की सप्लाई खुली है या नहीं, और रुके तो क्या करना है',
+  },
+  'inspection-reports': {
+    en: "the pump's inspection reports, kept in one place",
+    hi: 'पंप की इंस्पेक्शन रिपोर्ट, एक जगह',
+  },
+  'load-planner': {
+    en: 'when to order the next tanker, planned a few days ahead',
+    hi: 'अगला टैंकर कब मंगाना है, कुछ दिन पहले से योजना',
+  },
+  'iras-shift-data': {
+    en: 'the readings of every shift, which the daily sales report is built from',
+    hi: 'हर शिफ्ट की रीडिंग, जिससे रोज़ की बिक्री रिपोर्ट बनती है',
+  },
+  'custom-request': {
+    en: 'any other piece of work the owner asks MDG for',
+    hi: 'कोई भी और काम जो मालिक MDG से करवाना चाहें',
+  },
+};
