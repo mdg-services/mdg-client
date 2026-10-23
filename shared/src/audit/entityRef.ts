@@ -91,6 +91,13 @@ const dealerHref = (tab: string) => (entityId: string) =>
  * is nothing to link to.
  */
 export const AUDIT_ENTITY_REFS: Record<string, AuditEntityRef> = {
+  Payment: {
+    // Raised, cancelled or refunded by an admin (ADR 0022). The Payments page
+    // opens the row's drawer from `?payment=`.
+    label: 'payment',
+    shape: 'objectId',
+    href: (entityId) => (isObjectId(entityId) ? `/payments?payment=${entityId}` : null),
+  },
   Dealer: {
     label: 'outlet',
     shape: 'dealerId',

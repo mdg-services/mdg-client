@@ -48,6 +48,8 @@ export const ADMIN_ALERT_KINDS = [
   'enrolment_new',
   /** Somebody asked for a call on the website (the film pages' form, among others) and nobody has called yet. */
   'callback_new',
+  /** A payment went wrong in a way a person must look at: paid twice, paid after it was cancelled, or a refund that failed. */
+  'payment_problem',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -167,6 +169,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   callback_new: {
     label: 'Call-back',
     clearsWhen: 'Clears when the request is marked as called.',
+    superAdminOnly: true,
+  },
+  payment_problem: {
+    label: 'Payment',
+    clearsWhen: 'Clears when someone marks the payment as checked.',
     superAdminOnly: true,
   },
   server_restarted: {

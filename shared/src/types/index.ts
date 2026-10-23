@@ -39,3 +39,4 @@ export * from './depotHoliday';
 export * from './share';
 export * from './ticket';
 export * from './websiteIntake';
+export * from './payment';
