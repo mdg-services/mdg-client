@@ -45,3 +45,4 @@ export * from './share';
 export * from './ticket';
 export * from './websiteIntake';
 export * from './payment';
+export * from './lead';

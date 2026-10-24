@@ -24,3 +24,4 @@ export * from './aiFirstLine';
 export * from './film';
 export * from './websiteIntake';
 export * from './payment';
+export * from './lead';

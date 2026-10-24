@@ -189,6 +189,12 @@ export const AUDIT_ENTITY_REFS: Record<string, AuditEntityRef> = {
   FestivalSetting: { label: 'festival greeting', shape: 'objectId', href: () => '/festival' },
   // The id is the link's code (`?r=`), not an ObjectId.
   FilmShareLink: { label: 'film share link', shape: 'opaque', href: () => '/films' },
+  // A lead on the Leads page (ADR 0024), which opens its drawer from `?lead=`.
+  Lead: {
+    label: 'lead',
+    shape: 'objectId',
+    href: (entityId) => (isObjectId(entityId) ? `/leads?lead=${entityId}` : null),
+  },
 };
 
 /**

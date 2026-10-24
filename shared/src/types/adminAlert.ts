@@ -69,6 +69,13 @@ export const ADMIN_ALERT_KINDS = [
   'held_message',
   /** A subscription payment is past its due date. */
   'payment_overdue',
+  // ── Leads (ADR 0024) ──
+  /** Somebody started the full film and nobody has been in touch yet. */
+  'lead_new',
+  /** A lead's follow-up time has come. */
+  'lead_due',
+  /** A lead's follow-up is a working day late. */
+  'lead_cold',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -240,6 +247,24 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   payment_overdue: {
     label: 'Payment overdue',
     clearsWhen: 'Clears when the payment is paid or cancelled.',
+    superAdminOnly: false,
+  },
+  // Every admin, by the owner's request (24 Oct 2026): the whole team works the
+  // leads. The alert names the lead and nothing else — never a number or
+  // anything a stranger typed — because it lands on a lock screen.
+  lead_new: {
+    label: 'New lead',
+    clearsWhen: 'Clears when somebody logs a contact, or the lead is closed.',
+    superAdminOnly: false,
+  },
+  lead_due: {
+    label: 'Lead follow-up',
+    clearsWhen: 'Clears when somebody logs a contact or sets a new follow-up time.',
+    superAdminOnly: false,
+  },
+  lead_cold: {
+    label: 'Lead going cold',
+    clearsWhen: 'Clears when somebody logs a contact or sets a new follow-up time.',
     superAdminOnly: false,
   },
   server_restarted: {
