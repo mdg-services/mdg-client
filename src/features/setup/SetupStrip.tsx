@@ -1,8 +1,12 @@
 import { Check, Minus, X } from 'lucide-react';
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 
+import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
+import { videoTitle } from '@/features/help/helpView';
+import { useGuideVideos } from '@/features/help/useGuideVideos';
 import { cn } from '@/lib/cn';
-import { useT, type MessageKey } from '@/lib/i18n';
+import { useLang, useT, type MessageKey } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
 import type { OutletSetupView, SetupStripState, SetupStripStep } from '@dk/shared/types';
 
@@ -73,6 +77,9 @@ function Dot({ state, index }: { state: SetupStripState; index: number }) {
  * `disabled` is a thread that never carries setup (the managers' group), where it
  * does not even ask.
  */
+/** The library id of the dealer's setup walkthrough (marketing/explainers/setup-steps). */
+const SETUP_VIDEO_ID = 'setup_steps';
+
 export function SetupStrip({
   hidden = false,
   disabled = false,
@@ -81,9 +88,15 @@ export function SetupStrip({
   disabled?: boolean;
 }) {
   const t = useT();
+  const lang = useLang();
   const q = useOutletSetup({ enabled: !disabled });
   const view = q.data;
   const [open, setOpen] = React.useState<SetupStripStep | null>(null);
+  // "How setup works": the dealer's own walkthrough of these steps, once it is in
+  // the library (uploaded) — never a dead link before then.
+  const videos = useGuideVideos();
+  const setupVideo = videos.data?.find((v) => v.id === SETUP_VIDEO_ID && v.available) ?? null;
+  const [playing, setPlaying] = React.useState(false);
 
   const now = !disabled && view && stripVisible(view) ? currentStep(view) : null;
   // The step has moved on (the dealer saved it, or MDG's team did something):
@@ -139,6 +152,27 @@ export function SetupStrip({
           {t(caption)}
         </p>
       ) : null}
+      {setupVideo ? (
+        <p className="text-center">
+          <button
+            type="button"
+            onClick={() => setPlaying(true)}
+            className="min-h-8 px-2 text-[12px] font-medium text-wa-bar-text underline-offset-2 hover:underline"
+          >
+            ▶ {t('setup.howItWorks')}
+          </button>
+        </p>
+      ) : null}
+      {playing && setupVideo
+        ? createPortal(
+            <GuideVideoSheet
+              id={setupVideo.id}
+              title={videoTitle(setupVideo, lang)}
+              onClose={() => setPlaying(false)}
+            />,
+            document.body,
+          )
+        : null}
       {open && open in STEP_CARD ? (
         <SetupSheet step={open} view={view} onClose={() => setOpen(null)} />
       ) : null}

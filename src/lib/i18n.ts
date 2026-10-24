@@ -1107,6 +1107,8 @@ export const messages = {
   // The one line under the strip: what is happening now. Nothing here says how
   // to pay, or where: the Play Store does not allow it inside the app.
   'setup.nowServices': { en: 'Choose your services', hi: 'अपनी सेवाएँ चुनिए' },
+  // Under the strip, once the setup walkthrough video is uploaded.
+  'setup.howItWorks': { en: 'How setup works — a short video', hi: 'सेटअप कैसे होता है — छोटा वीडियो' },
   'setup.nowBilling': {
     en: 'Fill in the name and address for your bill',
     hi: 'बिल का नाम और पता भरिए',

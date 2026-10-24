@@ -20,14 +20,28 @@ const PORTALS: PortalLoginsView = {
   canEdit: true,
 };
 
-/** The server: the setup view, and the portal logins the login box asks for. */
-function serve(view: OutletSetupView | Error | (() => OutletSetupView)) {
+/** The dealer's setup walkthrough as the library lists it. */
+const SETUP_VIDEO = {
+  id: 'setup_steps',
+  title: { hi: 'आपका सेटअप, कदम-दर-कदम', en: 'Your setup, step by step' },
+  summary: { hi: 'पाँच कदम', en: 'The five steps' },
+  durationMs: 93_500,
+  service: null,
+  available: true,
+};
+
+/** The server: the setup view, the portal logins the login box asks for, and the video list. */
+function serve(view: OutletSetupView | Error | (() => OutletSetupView), videos: unknown[] = []) {
   h.get.mockImplementation((path: string) => {
     if (path === '/v1/me/setup') {
       if (view instanceof Error) return Promise.reject(view);
       return Promise.resolve(typeof view === 'function' ? view() : view);
     }
     if (path === '/v1/me/portal-logins') return Promise.resolve(PORTALS);
+    if (path === '/v1/me/guide-videos') return Promise.resolve(videos);
+    if (path === '/v1/me/guide-videos/setup_steps') {
+      return Promise.resolve({ ...SETUP_VIDEO, url: 'https://example.test/setup.mp4', startSec: 0, chapters: [] });
+    }
     return Promise.reject(new Error(`unexpected GET ${path}`));
   });
 }
@@ -309,4 +323,23 @@ describe('the setup strip', () => {
     await waitFor(() => expect(document.querySelector(`[data-step="${name}"]`)).not.toBeNull());
     return step(name);
   }
+});
+
+describe('the "how setup works" video under the strip', () => {
+  it('is offered once the walkthrough is uploaded, and plays in the app', async () => {
+    serve(atBilling, [SETUP_VIDEO]);
+    renderWithProviders(<SetupStrip />);
+    const link = await screen.findByRole('button', { name: /How setup works/ });
+    fireEvent.click(link);
+    await waitFor(() =>
+      expect(h.get).toHaveBeenCalledWith('/v1/me/guide-videos/setup_steps', expect.anything()),
+    );
+  });
+
+  it('is not there before the video is uploaded — never a dead link', async () => {
+    serve(atBilling, [{ ...SETUP_VIDEO, available: false }]);
+    renderWithProviders(<SetupStrip />);
+    await screen.findByText('Fill in the name and address for your bill');
+    expect(screen.queryByRole('button', { name: /How setup works/ })).toBeNull();
+  });
 });
