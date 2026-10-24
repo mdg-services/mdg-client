@@ -9,7 +9,7 @@
  * them read-only.
  */
 
-import type { OutletSetupAdmin } from './outletSetup';
+import type { OutletSetupAdmin, SetupMessageLang } from './outletSetup';
 
 /**
  * How the bill's WhatsApp message went. With an approved utility template
@@ -23,7 +23,7 @@ export type SetupBillWhatsApp =
       sent: false;
       /** Why not, in plain words ("The WhatsApp template is not approved yet"). */
       reason: string;
-      /** The message, in the dealer's language, for a person to send by hand. */
+      /** The message, in the language chosen for it (one language, never both), for a person to send by hand. */
       text: string;
       /** A wa.me link that opens WhatsApp with `text` ready to send. */
       waLink: string;
@@ -39,6 +39,8 @@ export interface SetupBillLink {
 export interface SendSetupBillResult {
   setup: OutletSetupAdmin;
   whatsapp: SetupBillWhatsApp;
+  /** The language the bill's WhatsApp is in: what the admin chose, else the outlet's default. */
+  messageLang: SetupMessageLang;
   /** Null when payments are not switched on, or Razorpay could not make the link (see `linkError`). */
   link: SetupBillLink | null;
   linkError: string | null;

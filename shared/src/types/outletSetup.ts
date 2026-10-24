@@ -169,6 +169,18 @@ export type SetupPaymentState = (typeof SETUP_PAYMENT_STATES)[number];
 export const SETUP_PAYMENT_MODES = ['upi', 'bank', 'cash', 'cheque', 'other'] as const;
 export type SetupPaymentMode = (typeof SETUP_PAYMENT_MODES)[number];
 
+// ── The language of a WhatsApp message ─────────────────────────────────────
+
+/**
+ * The two languages a WhatsApp message of the onboarding can be in, one per
+ * message — never both. `hi` is Hindi written in English letters (Hinglish: "aapka
+ * account taiyaar hai"), `en` is English. The template language code Meta is given
+ * stays `hi` for Hinglish and `en` for English. This is ONLY the WhatsApp texts:
+ * the app's own screens stay in Devanagari Hindi and English.
+ */
+export const SETUP_MESSAGE_LANGS = ['hi', 'en'] as const;
+export type SetupMessageLang = (typeof SETUP_MESSAGE_LANGS)[number];
+
 export interface SetupPaymentDealerView {
   state: SetupPaymentState;
   /** What the bill is for, GST included. Null until a bill is sent. */
@@ -356,6 +368,12 @@ export interface OutletSetupAdmin {
   subscription: SetupSubscriptionView;
   /** The team member handling this onboarding (the approver), who gets its pushes. */
   handlerName: string | null;
+  /**
+   * The language the outlet's WhatsApp messages start in (the admin may pick the
+   * other when sending): the owner's app language, else the language they last
+   * wrote to us in, else the registration form's, else Hinglish.
+   */
+  messageLang: SetupMessageLang;
 }
 
 /** One row of the admin Onboarding page: a registration waiting for approval, or an outlet on its way. */
@@ -381,6 +399,8 @@ export type OnboardingBoardRow =
       waitingOn: 'mdg' | 'nobody';
       /** The last call logged for this registration. */
       lastCall: SetupCall | null;
+      /** The language the welcome starts in: what they last wrote to us in, else the form's, else Hinglish. */
+      messageLang: SetupMessageLang;
     }
   | { kind: 'outlet'; outlet: OutletSetupAdmin };
 
@@ -421,7 +441,7 @@ export interface LinkOwner {
   codes: string[];
 }
 
-/** `GET /admin/registrations/:id/link-option` (super-admin). */
+/** `GET /admin/registrations/:id/link-option`. */
 export interface RegistrationLinkOption {
   owner: LinkOwner | null;
   /** In plain words, when `owner` is null. */
@@ -432,6 +452,8 @@ export interface RegistrationLinkOption {
 export interface ApproveRegistrationResult {
   dealerId: string;
   code: string;
+  /** The language the welcome is in: what the approver chose, else the default for this person. */
+  messageLang: SetupMessageLang;
   /**
    * Only when the registration carried no password (a form from before
    * onboarding v2): a temporary one, shown to the approver ONCE to pass on.

@@ -174,16 +174,17 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     superAdminOnly: true,
   },
   // Super-admin only for the same reason: a member of the public's complaint,
-  // which may be about one of our own staff, and a stranger's sign-up.
+  // which may be about one of our own staff.
   grievance_open: {
     label: 'Grievance',
     clearsWhen: 'Clears when someone resolves the grievance with a note.',
     superAdminOnly: true,
   },
+  // Every admin: approving a registration is onboarding work any admin does.
   enrolment_new: {
     label: 'New registration',
     clearsWhen: 'Clears when the registration is marked as contacted.',
-    superAdminOnly: true,
+    superAdminOnly: false,
   },
   callback_new: {
     label: 'Call-back',
@@ -210,10 +211,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     clearsWhen: 'Clears when MDG does the step (bill sent, services started).',
     superAdminOnly: false,
   },
+  // Every admin: any admin checks a disowned registration and clears it.
   onboarding_not_me: {
     label: 'Registration disowned',
     clearsWhen: 'Clears when a person has checked it and marked it.',
-    superAdminOnly: true,
+    superAdminOnly: false,
   },
   welcome_not_delivered: {
     label: 'Welcome not delivered',

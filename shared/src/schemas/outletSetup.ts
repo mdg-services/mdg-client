@@ -7,7 +7,12 @@
 import { z } from 'zod';
 
 import { GST_STATES, cleanGstin, isGstin } from '../lib/gst';
-import { SETUP_CALL_OUTCOMES, SETUP_PAYMENT_MODES, SETUP_SERVICE_IDS } from '../types/outletSetup';
+import {
+  SETUP_CALL_OUTCOMES,
+  SETUP_MESSAGE_LANGS,
+  SETUP_PAYMENT_MODES,
+  SETUP_SERVICE_IDS,
+} from '../types/outletSetup';
 
 import { dealerCodeSchema } from './dealer';
 
@@ -50,6 +55,11 @@ export const approveRegistrationSchema = z
       .string()
       .regex(/^[a-f0-9]{24}$/i, 'Invalid id')
       .optional(),
+    /**
+     * The language of the WhatsApp welcome: Hinglish (`hi`) or English (`en`). Unset:
+     * the default for this person (`services/outletSetup/messageLang.ts`).
+     */
+    messageLang: z.enum(SETUP_MESSAGE_LANGS).optional(),
   })
   .strict();
 export type ApproveRegistrationInput = z.infer<typeof approveRegistrationSchema>;
@@ -70,7 +80,7 @@ export const sendSetupBillSchema = z
   .strict();
 export type SendSetupBillInput = z.infer<typeof sendSetupBillSchema>;
 
-/** "Payment received" for money that came by UPI, bank transfer, cash or cheque. Super-admin. */
+/** "Payment received" for money that came by UPI, bank transfer, cash or cheque. */
 export const recordSetupPaymentSchema = z
   .object({
     amountPaise: z.number().int().positive().max(100_000_000),
@@ -132,7 +142,7 @@ export const pauseForNonPaymentSchema = z
   .strict();
 export type PauseForNonPaymentInput = z.infer<typeof pauseForNonPaymentSchema>;
 
-/** Change the flat monthly price (super-admin). GST included, in paise: 354000 = ₹3,540. */
+/** Change the flat monthly price. GST included, in paise: 354000 = ₹3,540. */
 export const setMonthlyPriceSchema = z
   .object({ monthlyPricePaise: z.number().int().min(100).max(10_000_000) })
   .strict();
