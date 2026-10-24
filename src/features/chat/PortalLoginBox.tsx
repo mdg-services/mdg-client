@@ -186,8 +186,22 @@ function PortalForm({
 }
 
 /** What the header chip says about one login. */
-function StatusChip({ status }: { status: PortalLoginState['status'] }) {
+function StatusChip({
+  status,
+  notNeeded = false,
+}: {
+  status: PortalLoginState['status'];
+  /** The team marked this login "not needed" and none is saved: nothing to ask. */
+  notNeeded?: boolean;
+}) {
   const t = useT();
+  if (notNeeded) {
+    return (
+      <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-meta">
+        {t('chat.portalNotNeeded')}
+      </span>
+    );
+  }
   if (status === 'saved') {
     return (
       <span className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-bubble-text">
@@ -230,13 +244,18 @@ function PortalRow({
   const lang = useLang();
   const [changing, setChanging] = React.useState(false);
   const name = PORTAL_NAMES[portal];
-  const formOpen = !!state && canEdit && (state.status !== 'saved' || changing);
+  // A box posted before the team marked this login "not needed" (the server says
+  // so with `needed: false`) stops asking for it. A login already saved still
+  // shows as saved, and can still be changed.
+  const notNeeded = !!state && state.needed === false && state.status !== 'saved';
+  const formOpen = !!state && !notNeeded && canEdit && (state.status !== 'saved' || changing);
   const savedDate = state?.savedAt ? portalSavedDate(state.savedAt, lang) : '';
 
   return (
     <div
       data-portal={portal}
       data-status={state?.status ?? (failed ? 'failed' : 'loading')}
+      data-not-needed={notNeeded ? '' : undefined}
       className="rounded-md bg-wa-row-active px-2.5 py-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
@@ -247,7 +266,11 @@ function PortalRow({
         {/* Read out when it changes: a save that goes through turns "Needed" into
             "Saved", and that is the answer to the button the owner just pressed. */}
         <span aria-live="polite">
-          {state ? <StatusChip status={state.status} /> : loading ? <Spinner size={14} /> : null}
+          {state ? (
+            <StatusChip status={state.status} notNeeded={notNeeded} />
+          ) : loading ? (
+            <Spinner size={14} />
+          ) : null}
         </span>
       </div>
 
@@ -264,15 +287,21 @@ function PortalRow({
         </div>
       ) : null}
 
-      {state && !canEdit && state.status !== 'saved' ? (
+      {state && !canEdit && !notNeeded && state.status !== 'saved' ? (
         <p className="mt-1 text-[13px] leading-snug text-wa-meta">{t('chat.portalOwnerFills')}</p>
       ) : null}
 
       {state && state.status === 'saved' && !formOpen ? (
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <span className="min-w-0 break-words text-[13px] leading-snug text-wa-meta">
-            {savedDate ? t('chat.portalSavedOn', { date: savedDate }) : t('chat.portalSaved')}
-          </span>
+          <div className="min-w-0 text-[13px] leading-snug text-wa-meta">
+            <span className="break-words">
+              {savedDate ? t('chat.portalSavedOn', { date: savedDate }) : t('chat.portalSaved')}
+            </span>
+            {/* Only where the view says the team typed it (round 3). */}
+            {state.savedBy === 'mdg' ? (
+              <span className="block break-words">{t('setup.filledByMdg')}</span>
+            ) : null}
+          </div>
           {canEdit ? (
             <button
               type="button"

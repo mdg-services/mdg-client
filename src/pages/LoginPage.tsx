@@ -79,8 +79,20 @@ export function LoginPage() {
   const {
     register,
     handleSubmit,
+    setValue,
+    setFocus,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // A new password was set from "Forgot your password?": back to this form with the
+  // mobile or email already in the box, and the cursor where the password goes. The
+  // sheet's own close puts focus back on the button that opened it, so the cursor
+  // moves one beat later.
+  const passwordReset = (identifier: string) => {
+    setValue('identifier', identifier, { shouldValidate: false });
+    setForgotOpen(false);
+    window.setTimeout(() => setFocus('password'), 50);
+  };
 
   const loginMutation = useMutation({
     // `gcTime: 0`: the password is in `variables` while the call lives, so the
@@ -217,7 +229,9 @@ export function LoginPage() {
           </Button>
         </div>
       </div>
-      {forgotOpen ? <ForgotPasswordSheet onClose={() => setForgotOpen(false)} /> : null}
+      {forgotOpen ? (
+        <ForgotPasswordSheet onClose={() => setForgotOpen(false)} onReset={passwordReset} />
+      ) : null}
     </div>
   );
 }

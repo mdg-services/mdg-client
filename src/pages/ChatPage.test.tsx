@@ -1646,7 +1646,7 @@ describe('ChatPage — "Show in chat" from the gallery', () => {
 describe('ChatPage — the setup strip', () => {
   const onTheWay = makeSetupView({
     stage: 'billing',
-    strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
+    strip: makeStrip(['current', 'todo', 'todo', 'todo']),
   });
   const setupCalls = () => h.api.get.mock.calls.filter(([p]) => p === '/v1/me/setup');
   const strip = () => document.querySelector('[data-setup-strip]');
@@ -1723,15 +1723,48 @@ describe('ChatPage — the setup strip', () => {
           senderId: 'system-user',
           senderRole: 'admin',
           system: true,
-          body: 'Which services would you like?',
-          setupCard: { card: 'services' },
+          body: 'To begin, fill in your bill details.',
+          setupCard: { card: 'billing' },
           createdAt: '2026-10-12T09:00:00.000Z',
         }),
       ],
     });
-    await screen.findByText('Which services would you like?');
+    await screen.findByText('To begin, fill in your bill details.');
     // Both: the strip above, the card in its bubble — one question to the server.
-    expect(await screen.findByRole('checkbox', { name: /Daily Sales Report/ })).toBeInTheDocument();
+    expect(await screen.findByLabelText('Name on the bill')).toBeInTheDocument();
     expect(setupCalls()).toHaveLength(1);
+  });
+
+  it('an old "which services?" card is not in the thread at all: no words, no card', async () => {
+    mount(conversation(undefined), {
+      setup: onTheWay,
+      messages: [
+        makeMessage({
+          id: 'old-card',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          system: true,
+          body: 'Which services would you like?',
+          setupCard: { card: 'services' },
+          createdAt: '2026-10-12T09:00:00.000Z',
+        }),
+        makeMessage({
+          id: 'after',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          system: true,
+          body: 'To begin, fill in your bill details.',
+          setupCard: { card: 'billing' },
+          createdAt: '2026-10-12T09:05:00.000Z',
+        }),
+      ],
+    });
+    await screen.findByText('To begin, fill in your bill details.');
+    expect(await screen.findByLabelText('Name on the bill')).toBeInTheDocument();
+    expect(screen.queryByText('Which services would you like?')).toBeNull();
+    expect(document.querySelectorAll('[data-setup-card]')).toHaveLength(1);
+    expect(screen.queryByRole('checkbox', { name: /Daily Sales Report/ })).toBeNull();
   });
 });

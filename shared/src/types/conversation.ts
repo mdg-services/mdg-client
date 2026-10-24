@@ -270,6 +270,13 @@ export interface Attachment {
    * assistant matched to the question (video library). Absent = the beginning.
    */
   startSec?: number;
+  /**
+   * What a voice note says, written down once MDG's first line has listened to it.
+   * Set only on an `audio` attachment, only after the note was understood, and
+   * never sent by a client. Both apps draw it under the player (small, muted;
+   * hi "लिखा हुआ" / en "Transcript"); until it is saved the bubble has none.
+   */
+  transcript?: string;
   /** Signed download URL, populated by the API when returning messages. */
   url?: string;
 }

@@ -331,11 +331,50 @@ export function useConversationSocket(
       );
     };
 
+    // A VOICE NOTE'S WORDS were saved (MDG listened to it). The note is already on
+    // screen and a repeated `message:new` is dropped as a duplicate above, so this is
+    // the only way an open thread learns them; a thread that is not open reads them
+    // with the message on its next load. Only the one attachment is touched, found
+    // by its storage key, and a message that is not in the cache is left alone.
+    const onTranscript = (payload: {
+      conversationId: string;
+      messageId: string;
+      storageKey: string;
+      transcript: string;
+    }) => {
+      if (payload.conversationId !== conversationId) return;
+      if (!payload.transcript) return;
+      qc.setQueryData<InfiniteData<Message[]>>(
+        messagesQueryKey(conversationId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === payload.messageId
+                  ? {
+                      ...m,
+                      attachments: m.attachments.map((a) =>
+                        a.storageKey === payload.storageKey
+                          ? { ...a, transcript: payload.transcript }
+                          : a,
+                      ),
+                    }
+                  : m,
+              ),
+            ),
+          };
+        },
+      );
+    };
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('delivered', onDelivered);
     socket.on('read', onRead);
     socket.on('message:reaction', onReaction);
+    socket.on('message:transcript', onTranscript);
 
     return () => {
       socket.emit('conversation:leave', conversationId);
@@ -346,6 +385,7 @@ export function useConversationSocket(
       socket.off('delivered', onDelivered);
       socket.off('read', onRead);
       socket.off('message:reaction', onReaction);
+      socket.off('message:transcript', onTranscript);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = null;
       for (const timer of recheckTimers) window.clearTimeout(timer);

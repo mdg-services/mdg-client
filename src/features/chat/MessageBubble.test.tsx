@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -986,6 +986,100 @@ describe('MessageBubble — voice notes', () => {
     expect(audio.currentTime).toBe(2.5);
     // It was playing when the finger went down, so it plays on.
     expect(screen.getByRole('button', { name: 'Pause voice message' })).toBeInTheDocument();
+  });
+
+  describe('what the note says', () => {
+    const spoken = (transcript?: string, mine = false) =>
+      makeMessage({
+        id: 'vt',
+        senderId: mine ? 'me' : 'x',
+        senderName: mine ? 'Ramesh' : 'MDG',
+        body: undefined,
+        attachments: [note('nt', { transcript })],
+      });
+    const LONG =
+      'Bhai diesel ka tanker kal subah aana tha lekin abhi tak nahi aaya, tanki mein sirf ' +
+      'do hazaar litre bacha hai aur aaj ki bikri ke liye bhi kam padega, kripya jaldi bataiye ' +
+      'ki tanker kab tak pahunchega.';
+
+    it('shows it under the player with a small label, once MDG has written it down', () => {
+      render(<MessageBubble message={spoken('tanki mein diesel kam hai', true)} mine />);
+      const block = screen.getByTestId('voice-transcript');
+      expect(within(block).getByText('Transcript')).toBeInTheDocument();
+      expect(within(block).getByText('tanki mein diesel kam hai')).toBeInTheDocument();
+      // Under the player, not inside it.
+      const player = screen.getByRole('button', { name: 'Play voice message' });
+      expect(
+        player.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // Small and muted, never the bubble's own text size or colour.
+      expect(block.className).toContain('text-wa-meta');
+      // A short one has nothing to open.
+      expect(within(block).queryByRole('button')).toBeNull();
+    });
+
+    it('is labelled in Hindi on the Hindi screen', () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      render(<MessageBubble message={spoken('diesel kam hai')} mine={false} />);
+      expect(within(screen.getByTestId('voice-transcript')).getByText('लिखा हुआ')).toBeInTheDocument();
+      useLangStore.setState({ lang: 'en', explicit: false });
+    });
+
+    it('is not there before the words are saved, or when they are empty', () => {
+      const first = render(<MessageBubble message={spoken(undefined)} mine={false} />);
+      expect(screen.queryByTestId('voice-transcript')).toBeNull();
+      first.unmount();
+      render(<MessageBubble message={spoken('   ')} mine={false} />);
+      expect(screen.queryByTestId('voice-transcript')).toBeNull();
+    });
+
+    it('draws the words as plain text, never as markup', () => {
+      render(<MessageBubble message={spoken('<b>bold</b> & <script>x()</script>')} mine={false} />);
+      const block = screen.getByTestId('voice-transcript');
+      expect(block.querySelector('b, script')).toBeNull();
+      expect(block).toHaveTextContent('<b>bold</b> & <script>x()</script>');
+    });
+
+    it('a long one shows its first lines and opens and closes with a tap', () => {
+      render(<MessageBubble message={spoken(LONG)} mine={false} />);
+      const block = screen.getByTestId('voice-transcript');
+      const words = within(block).getByText(LONG);
+      expect(words.className).toContain('line-clamp-3');
+      const more = within(block).getByRole('button', { name: 'Show more' });
+      expect(more).toHaveAttribute('aria-expanded', 'false');
+      fireEvent.click(more);
+      expect(words.className).not.toContain('line-clamp-3');
+      const less = within(block).getByRole('button', { name: 'Show less' });
+      expect(less).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.click(less);
+      expect(words.className).toContain('line-clamp-3');
+    });
+
+    it('its link keeps the swipe-to-reply gesture and the long press off', () => {
+      const onLongPress = vi.fn();
+      render(<MessageBubble message={spoken(LONG)} mine={false} onLongPress={onLongPress} />);
+      const more = screen.getByRole('button', { name: 'Show more' });
+      expect(more).toHaveAttribute('data-no-swipe');
+    });
+
+    it('sits under each voice note of a message that has two', () => {
+      render(
+        <MessageBubble
+          message={makeMessage({
+            id: 'two',
+            senderId: 'x',
+            body: undefined,
+            attachments: [note('a', { transcript: 'pehla' }), note('b'), note('c', { transcript: 'teesra' })],
+          })}
+          mine={false}
+        />,
+      );
+      expect(screen.getAllByTestId('voice-transcript').map((e) => e.textContent)).toEqual([
+        'Transcriptpehla',
+        'Transcriptteesra',
+      ]);
+      expect(screen.getAllByRole('button', { name: 'Play voice message' })).toHaveLength(3);
+    });
   });
 
   it('keeps the swipe-to-reply gesture off the scrubber', () => {

@@ -3,50 +3,17 @@ import { describe, expect, it } from 'vitest';
 import { translate } from '@/lib/i18n';
 import { GSTIN_HARYANA, GSTIN_MAHARASHTRA } from '@/test/setupFixtures';
 import { GST_STATES } from '@dk/shared';
-import { SETUP_SERVICE_OPTIONS } from '@dk/shared/types';
 
 import {
   GST_STATE_HI,
   checkGstin,
-  dependentsOf,
   formatDay,
   formatRupees,
   isPastDue,
   istToday,
   stateLabel,
   stateOptions,
-  toggleService,
 } from './cardView';
-
-const O = SETUP_SERVICE_OPTIONS;
-
-describe('toggleService', () => {
-  it('ticking a service ticks what it needs, in card order', () => {
-    expect(toggleService(O, [], 'load-planner')).toEqual(['dsr-report', 'load-planner']);
-    expect(toggleService(O, [], 'ro-supply-status')).toEqual([
-      'water-ingress-testing',
-      'ro-supply-status',
-    ]);
-  });
-
-  it('keeps what was already ticked, and card order, not tap order', () => {
-    expect(toggleService(O, ['tt-density'], 'dsr-report')).toEqual(['dsr-report', 'tt-density']);
-  });
-
-  it('a service another ticked one needs cannot be unticked', () => {
-    const ticked = toggleService(O, [], 'load-planner');
-    expect(toggleService(O, ticked, 'dsr-report')).toEqual(ticked);
-    expect(dependentsOf(O, ticked, 'dsr-report')).toEqual(['load-planner']);
-  });
-
-  it('unticking the one that needed it frees the other, which stays ticked', () => {
-    const ticked = toggleService(O, [], 'load-planner');
-    const after = toggleService(O, ticked, 'load-planner');
-    expect(after).toEqual(['dsr-report']);
-    expect(dependentsOf(O, after, 'dsr-report')).toEqual([]);
-    expect(toggleService(O, after, 'dsr-report')).toEqual([]);
-  });
-});
 
 describe('checkGstin', () => {
   it('nothing typed is fine: a GSTIN is optional', () => {

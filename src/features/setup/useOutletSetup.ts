@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
-import type { OutletSetupView, SetupBilling, SetupServiceId } from '@dk/shared/types';
+import type { OutletSetupView, SetupBilling } from '@dk/shared/types';
 
 /**
  * Where the signed-in dealer's outlet stands on the way to live service — the
@@ -41,11 +41,16 @@ export function invalidateOutletSetup(qc: QueryClient): void {
   void qc.invalidateQueries({ queryKey: outletSetupKey });
 }
 
-/** Whether a route's answer is the whole fresh view (so it can go straight into the cache). */
+/**
+ * Whether a route's answer is the whole fresh view (so it can go straight into the cache).
+ *
+ * Nothing here reads `services` or `billingSavedBy`: a server from before round 3 still
+ * sends the first and lacks the second, and both must pass.
+ */
 function isSetupView(data: unknown): data is OutletSetupView {
   if (!data || typeof data !== 'object') return false;
   const v = data as Partial<OutletSetupView>;
-  return typeof v.stage === 'string' && Array.isArray(v.strip) && !!v.services && !!v.payment;
+  return typeof v.stage === 'string' && Array.isArray(v.strip) && !!v.payment;
 }
 
 /**
@@ -60,19 +65,6 @@ function takeAnswer(qc: QueryClient, data: unknown): Promise<unknown> | undefine
     return undefined;
   }
   return qc.invalidateQueries({ queryKey: outletSetupKey });
-}
-
-/** Save the ticked services. The server adds whatever a choice requires. Never retried. */
-export function useSaveSetupServices() {
-  const qc = useQueryClient();
-  return useMutation({
-    retry: false,
-    mutationFn: (serviceIds: SetupServiceId[]) =>
-      api.put<unknown>('/v1/me/setup/services', { serviceIds }),
-    onSuccess: (data) => takeAnswer(qc, data),
-    // A refusal means the outlet moved on (the bill was sent): show it as it is now.
-    onError: () => invalidateOutletSetup(qc),
-  });
 }
 
 /** Save the bill name, address, state and optional GSTIN. Never retried. */

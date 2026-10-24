@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { toMobile } from './enroll';
+import { digitsOf, toMobile } from './enroll';
 
 describe('toMobile', () => {
   it('takes a mobile however it is typed', () => {
@@ -47,5 +47,20 @@ describe('toMobile', () => {
     ]) {
       expect(toMobile(typed), typed).toBeNull();
     }
+  });
+});
+
+describe('digitsOf', () => {
+  it('keeps the digits, in plain 0-9 whatever script they were typed in', () => {
+    expect(digitsOf('482913')).toBe('482913');
+    expect(digitsOf('४८२ 913')).toBe('482913');
+    expect(digitsOf('٤٨٢٩١٣')).toBe('482913'); // Arabic-Indic
+    expect(digitsOf('４８２９１３')).toBe('482913'); // full-width
+  });
+
+  it('drops everything that is not a digit', () => {
+    expect(digitsOf(' 48-29 13 ')).toBe('482913');
+    expect(digitsOf('abc')).toBe('');
+    expect(digitsOf('')).toBe('');
   });
 });

@@ -18,6 +18,7 @@ import { isVideoAttachment, type Attachment, type AttachmentKind } from '@dk/sha
 
 import { fileTypeLabel } from './fileKind';
 import { FileTypeBadge } from './FileTypeBadge';
+import { VoiceTranscript, transcriptOf } from './VoiceTranscript';
 
 export interface StagedFile {
   id: string;
@@ -395,76 +396,82 @@ export function VoiceMessage({
     avatar
   );
 
+  // What the note says, once MDG has listened to it: under the player, not part of it.
+  const transcript = transcriptOf(attachment);
+
   return (
-    <div className="flex w-[min(68vw,264px)] items-center gap-2 py-1">
-      {mine ? null : sideSlot}
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={playing ? t('chat.pauseVoice') : t('chat.playVoice')}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-wa-bar-icon"
-      >
-        {busy ? (
-          <Spinner size={20} />
-        ) : playing ? (
-          <Pause width={24} strokeWidth={0} fill="currentColor" />
-        ) : (
-          <Play width={24} strokeWidth={0} fill="currentColor" />
-        )}
-      </button>
-      {/* data-no-swipe: dragging the scrubber must never engage the
-          swipe-to-reply gesture on the row. */}
-      <div data-no-swipe className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <Waveform peaks={peaks} progress={progress} mine={mine} knob onScrub={scrub} />
-        <span
-          className={cn(
-            'text-[11px] tabular-nums',
-            failed ? 'text-danger' : 'text-wa-meta',
-          )}
+    <>
+      <div className="flex w-[min(68vw,264px)] items-center gap-2 py-1">
+        {mine ? null : sideSlot}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={playing ? t('chat.pauseVoice') : t('chat.playVoice')}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-wa-bar-icon"
         >
-          {failed
-            ? t('chat.voiceFailed')
-            : formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
-        </span>
+          {busy ? (
+            <Spinner size={20} />
+          ) : playing ? (
+            <Pause width={24} strokeWidth={0} fill="currentColor" />
+          ) : (
+            <Play width={24} strokeWidth={0} fill="currentColor" />
+          )}
+        </button>
+        {/* data-no-swipe: dragging the scrubber must never engage the
+            swipe-to-reply gesture on the row. */}
+        <div data-no-swipe className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <Waveform peaks={peaks} progress={progress} mine={mine} knob onScrub={scrub} />
+          <span
+            className={cn(
+              'text-[11px] tabular-nums',
+              failed ? 'text-danger' : 'text-wa-meta',
+            )}
+          >
+            {failed
+              ? t('chat.voiceFailed')
+              : formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
+          </span>
+        </div>
+        {mine ? sideSlot : null}
+        <audio
+          ref={audioRef}
+          src={src}
+          preload="metadata"
+          onPlay={(e) => {
+            const el = e.currentTarget;
+            if (playingElement && playingElement !== el) playingElement.pause();
+            playingElement = el;
+            el.playbackRate = chosenRate;
+            setRate(chosenRate);
+            playedKeys.add(noteKey);
+            setPlayed(true);
+            setPlaying(true);
+          }}
+          onPause={() => setPlaying(false)}
+          onEnded={(e) => {
+            setPlaying(false);
+            setCurrentMs(0);
+            if (playingElement === e.currentTarget) playingElement = null;
+          }}
+          onError={() => {
+            // A stale link: ask once for a fresh one, then say so in words.
+            if (!refreshed.current && source) {
+              refreshed.current = true;
+              void askForLink();
+            } else {
+              setFailed(true);
+            }
+          }}
+          onTimeUpdate={(e) => setCurrentMs(e.currentTarget.currentTime * 1000)}
+          onLoadedMetadata={(e) => {
+            const d = e.currentTarget.duration;
+            if (Number.isFinite(d) && d > 0) setLoadedMs(d * 1000);
+          }}
+          className="hidden"
+        />
       </div>
-      {mine ? sideSlot : null}
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="metadata"
-        onPlay={(e) => {
-          const el = e.currentTarget;
-          if (playingElement && playingElement !== el) playingElement.pause();
-          playingElement = el;
-          el.playbackRate = chosenRate;
-          setRate(chosenRate);
-          playedKeys.add(noteKey);
-          setPlayed(true);
-          setPlaying(true);
-        }}
-        onPause={() => setPlaying(false)}
-        onEnded={(e) => {
-          setPlaying(false);
-          setCurrentMs(0);
-          if (playingElement === e.currentTarget) playingElement = null;
-        }}
-        onError={() => {
-          // A stale link: ask once for a fresh one, then say so in words.
-          if (!refreshed.current && source) {
-            refreshed.current = true;
-            void askForLink();
-          } else {
-            setFailed(true);
-          }
-        }}
-        onTimeUpdate={(e) => setCurrentMs(e.currentTarget.currentTime * 1000)}
-        onLoadedMetadata={(e) => {
-          const d = e.currentTarget.duration;
-          if (Number.isFinite(d) && d > 0) setLoadedMs(d * 1000);
-        }}
-        className="hidden"
-      />
-    </div>
+      {transcript ? <VoiceTranscript text={transcript} /> : null}
+    </>
   );
 }
 

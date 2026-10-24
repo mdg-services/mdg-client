@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import type { SetupCardKind } from '@dk/shared/types';
+import type { Message, SetupCardKind } from '@dk/shared/types';
 
 import { CardPending } from './CardParts';
 import { LazyCardView } from './LazyCardView';
@@ -13,7 +13,17 @@ import { useOutletSetup } from './useOutletSetup';
  * anything here, and a bubble with only those keeps its ordinary shape.
  */
 export function setupCardHasBody(card: SetupCardKind): boolean {
-  return card === 'services' || card === 'billing' || card === 'payment' || card === 'started';
+  return card === 'billing' || card === 'payment' || card === 'started';
+}
+
+/**
+ * The services card is RETIRED: every outlet gets the full set, so nobody is asked
+ * to choose. A message posted before that still carries the kind, and its question
+ * ("which services would you like?") has nothing left to answer — so such a message
+ * is not drawn at all, rather than left as a question with no way to reply.
+ */
+export function isRetiredSetupCard(message: Pick<Message, 'setupCard'>): boolean {
+  return message.setupCard?.card === 'services';
 }
 
 /**

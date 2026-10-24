@@ -40,3 +40,51 @@ export const forgotPasswordSchema = z
   .object({ identifier: z.string().trim().min(3).max(200) })
   .strict();
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+// ── "Forgot password" by a code on WhatsApp or by email ─────────────────────
+// Three public steps (no token yet): ask for a code, hand the code in, choose a
+// new password. `forgotPasswordSchema` above stays for the "ask the team to call
+// me" fallback.
+
+/** Where a reset code can be sent. */
+export const PASSWORD_RESET_CHANNELS = ['whatsapp', 'email'] as const;
+export type PasswordResetChannel = (typeof PASSWORD_RESET_CHANNELS)[number];
+
+/** The code is this many digits, and nothing else. */
+export const PASSWORD_RESET_CODE_LENGTH = 6;
+
+/** Step 1. Always answers `{ sent: true }`, whether or not the account exists. */
+export const resetRequestSchema = z
+  .object({
+    identifier: z.string().trim().min(3).max(200),
+    channel: z.enum(PASSWORD_RESET_CHANNELS),
+  })
+  .strict();
+export type ResetRequestInput = z.infer<typeof resetRequestSchema>;
+
+/** Step 2. The code from the message; answers a one-time `resetToken`. */
+export const resetVerifySchema = z
+  .object({
+    identifier: z.string().trim().min(3).max(200),
+    code: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, 'The code is 6 digits'),
+  })
+  .strict();
+export type ResetVerifyInput = z.infer<typeof resetVerifySchema>;
+
+/** Step 3. The token from step 2 and the password the person chose (same rule as every password). */
+export const resetConfirmSchema = z
+  .object({
+    resetToken: z.string().regex(/^[A-Za-z0-9_-]{20,200}$/, 'Not a reset token'),
+    newPassword: z.string().min(8).max(200),
+  })
+  .strict();
+export type ResetConfirmInput = z.infer<typeof resetConfirmSchema>;
+
+/** Which channels the server can send a code on at all (`GET /auth/password-reset/options`). */
+export interface PasswordResetOptions {
+  whatsapp: boolean;
+  email: boolean;
+}

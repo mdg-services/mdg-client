@@ -7,16 +7,23 @@
  * The old seven onboarding steps (`types/onboarding.ts`) were ticks an admin
  * pressed; three of them recorded that something was "sent" when nothing could
  * be. Here every stage is read from a fact that is true or not: the owner has
- * signed in, services are chosen, a bill was sent, a payment was recorded, the
- * logins the chosen services need are saved. `services/outletSetup/stage.ts` in
+ * signed in, billing details are saved, a bill was sent, a payment was recorded, the
+ * logins the outlet needs are saved. `services/outletSetup/stage.ts` in
  * the backend is the one function that reads them; nothing stores "the current
  * stage" as a field that could disagree with the facts.
  *
  * WHO DOES WHAT
  * -------------
- * The dealer: sign in, tick services, confirm billing details, pay (outside the
- * app — see below), type portal logins. MDG: approve the registration, send the
- * bill, record the payment, start the services. Each stage says who it waits on.
+ * The dealer: sign in, confirm billing details, pay (outside the app — see
+ * below), type portal logins. MDG: approve the registration, send the bill, record
+ * the payment, start the services. Each stage says who it waits on. Any step of
+ * the dealer's an admin can also do FOR them (round 3, 24 Oct): the facts then
+ * say who did it (`SetupDoneBy`).
+ *
+ * NO CHOICE OF SERVICES. Every outlet gets the full standard set at the one flat
+ * price (D2), so nothing about a choice is asked or stored. The team attaches the
+ * services in the Services tab; the logins step asks for both portals
+ * (`STANDARD_PORTALS`) except one an admin marked "not needed for this outlet".
  *
  * GOOGLE PLAY AND MONEY
  * ---------------------
@@ -34,10 +41,9 @@ import type { PortalId } from './portalLogin';
  * Where an outlet's setup stands — the step that is OPEN now.
  *
  * - `sign_in`   approved, the owner has never signed in
- * - `services`  waiting for the owner to tick services
  * - `billing`   waiting for the bill name / address / state (GSTIN optional)
  * - `payment`   bill not sent (MDG), sent and unpaid (dealer), or paid
- * - `logins`    the portals the chosen services need are not all saved
+ * - `logins`    a portal login the outlet needs is not saved
  * - `setup`     MDG sets the services up and presses Start services
  * - `watch`     services started; the first days are watched (§5 of the plan)
  * - `live`      done
@@ -45,7 +51,6 @@ import type { PortalId } from './portalLogin';
  */
 export const SETUP_STAGES = [
   'sign_in',
-  'services',
   'billing',
   'payment',
   'logins',
@@ -59,17 +64,17 @@ export type SetupStage = (typeof SETUP_STAGES)[number];
 export const SETUP_WAITING_ON = ['dealer', 'mdg', 'nobody'] as const;
 export type SetupWaitingOn = (typeof SETUP_WAITING_ON)[number];
 
-/** The four steps on the strip at the top of the owner's chat, plus the last one. */
-export const SETUP_STRIP_STEPS = ['services', 'billing', 'payment', 'logins', 'start'] as const;
+/** The steps on the strip at the top of the owner's chat: three of the dealer's, then "we start". */
+export const SETUP_STRIP_STEPS = ['billing', 'payment', 'logins', 'start'] as const;
 export type SetupStripStep = (typeof SETUP_STRIP_STEPS)[number];
 export type SetupStripState = 'done' | 'current' | 'todo' | 'skipped';
 
-// ── The services card ──────────────────────────────────────────────────────
+// ── The services and the portals ───────────────────────────────────────────
 
 /**
- * The services a dealer can tick. Everything else MDG runs is either brought
- * along by one of these (shift readings and inspection reports come with the
- * daily sales report) or is not a product (`custom-request`).
+ * The ids of the services MDG sells as products. NOT a choice any more: every
+ * outlet gets the full set. Kept because the video library tags a video with the
+ * service it is about (`service` on a library entry) and checks it against this list.
  */
 export const SETUP_SERVICE_IDS = [
   'dsr-report',
@@ -81,65 +86,12 @@ export const SETUP_SERVICE_IDS = [
 ] as const;
 export type SetupServiceId = (typeof SETUP_SERVICE_IDS)[number];
 
-export interface SetupServiceOption {
-  id: SetupServiceId;
-  /**
-   * Other choices that must be ticked with this one; the card ticks them too
-   * and says why. The same rule the attach route enforces (`dependsOn`).
-   */
-  requires: SetupServiceId[];
-  /** Plugins attached with it during setup, never offered on their own. */
-  bringsAlong: string[];
-  /** Portal logins this choice's work needs (its own and what it brings along). */
-  portals: PortalId[];
-}
-
 /**
- * The card's rows, in the order shown. Names come from `SERVICE_LABELS` and the
- * one-line description from `SERVICE_ABOUT` (`lib/serviceLabel.ts`), so a
- * service is called and described one way everywhere.
+ * The portal logins every outlet is asked for, SDMS first. The full standard set
+ * needs both. An admin may mark one "not needed for this outlet" (an outlet with
+ * no IRAS automation, say); `setup.portalsNotNeeded` then takes it out of the ask.
  */
-export const SETUP_SERVICE_OPTIONS: readonly SetupServiceOption[] = [
-  {
-    id: 'dsr-report',
-    requires: [],
-    bringsAlong: ['iras-shift-data', 'inspection-reports'],
-    portals: ['iras', 'sdms'],
-  },
-  { id: 'credit-dod-monitoring', requires: [], bringsAlong: [], portals: ['sdms'] },
-  { id: 'water-ingress-testing', requires: [], bringsAlong: [], portals: ['sdms'] },
-  { id: 'tt-density', requires: [], bringsAlong: [], portals: ['sdms'] },
-  { id: 'load-planner', requires: ['dsr-report'], bringsAlong: [], portals: [] },
-  {
-    id: 'ro-supply-status',
-    requires: ['water-ingress-testing'],
-    bringsAlong: [],
-    portals: ['sdms'],
-  },
-];
-
-/** The chosen ids plus everything they require, in card order. */
-export function withRequiredServices(ids: readonly string[]): SetupServiceId[] {
-  const want = new Set<SetupServiceId>();
-  const add = (id: SetupServiceId): void => {
-    if (want.has(id)) return;
-    want.add(id);
-    for (const r of SETUP_SERVICE_OPTIONS.find((o) => o.id === id)?.requires ?? []) add(r);
-  };
-  for (const id of ids) {
-    if ((SETUP_SERVICE_IDS as readonly string[]).includes(id)) add(id as SetupServiceId);
-  }
-  return SETUP_SERVICE_OPTIONS.map((o) => o.id).filter((id) => want.has(id));
-}
-
-/** The portal logins a set of choices needs, SDMS first. Empty when none does. */
-export function portalsForServices(ids: readonly string[]): PortalId[] {
-  const need = new Set<PortalId>();
-  for (const id of withRequiredServices(ids)) {
-    for (const p of SETUP_SERVICE_OPTIONS.find((o) => o.id === id)?.portals ?? []) need.add(p);
-  }
-  return (['sdms', 'iras'] as const).filter((p) => need.has(p));
-}
+export const STANDARD_PORTALS: readonly PortalId[] = ['sdms', 'iras'];
 
 // ── Billing details and the bill ───────────────────────────────────────────
 
@@ -181,6 +133,37 @@ export type SetupPaymentMode = (typeof SETUP_PAYMENT_MODES)[number];
 export const SETUP_MESSAGE_LANGS = ['hi', 'en'] as const;
 export type SetupMessageLang = (typeof SETUP_MESSAGE_LANGS)[number];
 
+/**
+ * Where the "your account is ready" WhatsApp stands (`setup.welcomeWhatsApp.state`).
+ * `not_sent`: the template could not go and the team has the words to send by hand.
+ * `handSent`: a person at MDG says they sent the words themselves. `sent` and
+ * `delivered` are Meta's; `failed` is Meta saying it did not arrive.
+ */
+export const SETUP_WELCOME_STATES = [
+  'not_sent',
+  'sent',
+  'delivered',
+  'failed',
+  'handSent',
+] as const;
+export type SetupWelcomeState = (typeof SETUP_WELCOME_STATES)[number];
+
+/**
+ * What a try at the welcome WhatsApp came to: it went, or why it could not and the
+ * same words for a person to send by hand with a link that opens WhatsApp on them.
+ */
+export type SetupWelcomeOutcome =
+  | { sent: true }
+  | {
+      sent: false;
+      /** Why not, in plain words ("template not approved yet"). */
+      reason: string;
+      /** The same words, for a person to send by hand. */
+      text: string;
+      /** A wa.me link that opens WhatsApp with `text` ready to send. */
+      waLink: string;
+    };
+
 export interface SetupPaymentDealerView {
   state: SetupPaymentState;
   /** What the bill is for, GST included. Null until a bill is sent. */
@@ -205,23 +188,31 @@ export interface OutletSetupView {
   stage: SetupStage;
   waitingOn: SetupWaitingOn;
   strip: Array<{ step: SetupStripStep; state: SetupStripState }>;
-  services: {
-    options: readonly SetupServiceOption[];
-    chosen: SetupServiceId[];
-    /** True once the bill is sent: a change after that goes through the chat. */
-    locked: boolean;
-  };
   billing: SetupBilling | null;
+  /**
+   * Who saved the billing details: the dealer, or MDG's team for them (the card says
+   * so in a small line). Null while there are none. An outlet saved before round 3
+   * reads as the dealer.
+   */
+  billingSavedBy: 'dealer' | 'mdg' | null;
   /** What the billing card starts from: the registration's name, the outlet's GSTIN. */
   billingPrefill: { name: string | null; stateCode: string | null; gstin: string | null };
   payment: SetupPaymentDealerView;
-  /** The portals the chosen services need. Their state is `GET /me/portal-logins`. */
+  /**
+   * The portals the logins step asks for: both (`STANDARD_PORTALS`), minus any an
+   * admin marked "not needed for this outlet". Their state is `GET /me/portal-logins`.
+   */
   loginsNeeded: PortalId[];
-  /** Only an owner may tick, save or type; a manager sees the same cards read-only. */
+  /** Only an owner may save or type; a manager sees the same cards read-only. */
   canEdit: boolean;
 }
 
-/** A chat message that carries one of the setup cards. The card draws from GET /me/setup, never from the message. */
+/**
+ * A chat message that carries one of the setup cards. The card draws from GET /me/setup, never from the message.
+ *
+ * `services` is RETIRED (round 3, no choice of services any more) and kept only so a
+ * message posted before then still parses: the app draws that kind as nothing.
+ */
 export const SETUP_CARDS = [
   'welcome',
   'services',
@@ -245,7 +236,6 @@ export type SetupSource = (typeof SETUP_SOURCES)[number];
 export interface SetupMilestones {
   approvedAt: string | null;
   firstSignInAt: string | null;
-  servicesChosenAt: string | null;
   billingSavedAt: string | null;
   billSentAt: string | null;
   paidAt: string | null;
@@ -253,6 +243,48 @@ export interface SetupMilestones {
   servicesStartedAt: string | null;
   watchUntil: string | null;
   liveAt: string | null;
+}
+
+/**
+ * Who did a step: the dealer, or a person at MDG FOR the dealer (the admin's
+ * "do it for them" actions, round 3). A fact written before round 3 has no such
+ * trace and reads as the dealer.
+ */
+export interface SetupDoneBy {
+  by: 'dealer' | 'mdg';
+  /** The admin's name when `by` is `mdg`. Null for the dealer, and for the logins (the audit log has who typed them). */
+  name: string | null;
+  /** Only for a sign-in the team marked: the reason they gave ("helped by phone"). Admin-only. */
+  reason: string | null;
+}
+
+/**
+ * Who did each of the dealer's steps, for the milestone rows. A step not done yet is
+ * null. `signIn` with `by: 'mdg'` is a STAMP, not a real sign-in: the owner may never
+ * have opened the app.
+ */
+export interface SetupDoneByMap {
+  signIn: SetupDoneBy | null;
+  billing: SetupDoneBy | null;
+  /** `mdg` when ANY needed login that is saved was typed by the team. Null while none is saved. */
+  logins: SetupDoneBy | null;
+}
+
+/** A portal the team said this outlet does not need, so the logins step does not ask for it. */
+export interface SetupPortalNotNeeded {
+  portal: PortalId;
+  /** Why, in the admin's words. Admin-only. */
+  reason: string;
+  byName: string | null;
+  /** ISO. */
+  at: string;
+}
+
+/** The welcome WhatsApp, as the admin sees it. `state` is null before anything was tried. */
+export interface SetupWelcomeAdminView {
+  state: SetupWelcomeState | null;
+  /** ISO: when that state was recorded. */
+  at: string | null;
 }
 
 export interface SetupPaymentAdminView extends SetupPaymentDealerView {
@@ -348,10 +380,16 @@ export interface OutletSetupAdmin {
   /** When the current stage opened. */
   stageSince: string;
   milestones: SetupMilestones;
-  servicesChosen: SetupServiceId[];
+  /** Who did sign-in, billing and logins: the dealer, or the team for them. */
+  doneBy: SetupDoneByMap;
   billing: SetupBilling | null;
   payment: SetupPaymentAdminView;
+  /** Both portals minus the ones in `portalsNotNeeded`. */
   loginsNeeded: PortalId[];
+  /** Portals an admin marked "not needed for this outlet" (undoable until the services start). */
+  portalsNotNeeded: SetupPortalNotNeeded[];
+  /** The "your account is ready" WhatsApp: whether it went, failed, or was sent by hand. */
+  welcome: SetupWelcomeAdminView;
   approvedByName: string | null;
   lost: { at: string; byName: string; reason: string } | null;
   /** Newest first. */
@@ -460,15 +498,13 @@ export interface ApproveRegistrationResult {
    * The owner must change it at first sign-in. Null when they chose their own.
    */
   tempPassword: string | null;
-  welcome:
-    | { sent: true }
-    | {
-        sent: false;
-        /** Why not, in plain words ("template not approved yet"). */
-        reason: string;
-        /** The same words, for a person to send by hand. */
-        text: string;
-        /** A wa.me link that opens WhatsApp with `text` ready to send. */
-        waLink: string;
-      };
+  welcome: SetupWelcomeOutcome;
+}
+
+/** What "Send welcome on WhatsApp" returns: the fresh setup beside what the try came to. */
+export interface SendSetupWelcomeResult {
+  setup: OutletSetupAdmin;
+  /** The language the message was written in. */
+  messageLang: SetupMessageLang;
+  welcome: SetupWelcomeOutcome;
 }

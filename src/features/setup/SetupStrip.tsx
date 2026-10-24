@@ -29,7 +29,6 @@ const STATE_WORDS: Record<SetupStripState, MessageKey> = {
 
 /** The card a strip step opens. */
 const STEP_CARD = {
-  services: 'services',
   billing: 'billing',
   payment: 'payment',
   logins: 'logins',
@@ -65,7 +64,7 @@ function Dot({ state, index }: { state: SetupStripState; index: number }) {
 
 /**
  * The strip at the top of the owner's MDG chat while an outlet is being set up:
- * five steps — services, bill address, payment, logins, start — each done,
+ * four steps — bill address, payment, logins, start — each done,
  * current, waiting or not needed, and one line saying what is happening now.
  *
  * Tapping the CURRENT step that the dealer does themselves opens that card in a
@@ -107,11 +106,14 @@ export function SetupStrip({
 
   if (disabled || hidden || !stripVisible(view)) return null;
   const caption = stripCaptionKey(view);
+  // A server from before the services step went (it sent five) is drawn as four:
+  // a step this app has no words for is skipped, not drawn as a blank.
+  const steps = view.strip.filter(({ step }) => step in STRIP_LABEL_KEYS);
 
   return (
     <div data-setup-strip className="shrink-0 border-b border-wa-divider bg-wa-bar px-2 pb-1.5 pt-1.5">
-      <ol aria-label={t('setup.stripLabel')} className="grid grid-cols-5 gap-1">
-        {view.strip.map(({ step, state }, i) => {
+      <ol aria-label={t('setup.stripLabel')} className="grid grid-cols-4 gap-1">
+        {steps.map(({ step, state }, i) => {
           const tappable = state === 'current' && DEALER_STEPS.includes(step);
           const inner = (
             <>

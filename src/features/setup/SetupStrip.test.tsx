@@ -24,7 +24,7 @@ const PORTALS: PortalLoginsView = {
 const SETUP_VIDEO = {
   id: 'setup_steps',
   title: { hi: 'आपका सेटअप, कदम-दर-कदम', en: 'Your setup, step by step' },
-  summary: { hi: 'पाँच कदम', en: 'The five steps' },
+  summary: { hi: 'चार कदम', en: 'The four steps' },
   durationMs: 93_500,
   service: null,
   available: true,
@@ -62,43 +62,63 @@ const step = (name: string): HTMLElement => {
 const states = () =>
   [...document.querySelectorAll('[data-step]')].map((e) => e.getAttribute('data-state'));
 
-const atBilling = makeSetupView({
-  stage: 'billing',
-  strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
-  services: {
-    options: makeSetupView().services.options,
-    chosen: ['dsr-report'],
-    locked: false,
-  },
+const atBilling = makeSetupView();
+const atPayment = makeSetupView({
+  stage: 'payment',
+  strip: makeStrip(['done', 'current', 'todo', 'todo']),
 });
 
 describe('the setup strip', () => {
-  it('shows five steps, each with its state, and one line on what is happening now', async () => {
+  it('shows four steps, each with its state, and one line on what is happening now', async () => {
     serve(makeSetupView());
     renderWithProviders(<SetupStrip />);
-    await screen.findByText('Choose your services');
+    await screen.findByText('Fill in the name and address for your bill');
     const labels = [...document.querySelectorAll('[data-step]')].map((e) => e.textContent);
     expect(labels).toEqual([
-      expect.stringContaining('Services'),
       expect.stringContaining('Bill address'),
       expect.stringContaining('Payment'),
       expect.stringContaining('Logins'),
       expect.stringContaining('Start'),
     ]);
-    expect(states()).toEqual(['current', 'todo', 'todo', 'todo', 'todo']);
+    expect(states()).toEqual(['current', 'todo', 'todo', 'todo']);
     expect(screen.getByRole('list', { name: 'Getting your services started' })).toBeInTheDocument();
+  });
+
+  it('draws a server that still sends the services step as the four it knows — no blank step', async () => {
+    // The old server's strip had a fifth step first, and its view a `services` block.
+    const old = {
+      ...makeSetupView({ stage: 'billing' }),
+      strip: [
+        { step: 'services', state: 'done' },
+        { step: 'billing', state: 'current' },
+        { step: 'payment', state: 'todo' },
+        { step: 'logins', state: 'todo' },
+        { step: 'start', state: 'todo' },
+      ],
+      services: { options: [], chosen: ['dsr-report'], locked: false },
+    } as unknown as OutletSetupView;
+    serve(old);
+    renderWithProviders(<SetupStrip />);
+    await screen.findByText('Fill in the name and address for your bill');
+    expect([...document.querySelectorAll('[data-step]')].map((e) => e.getAttribute('data-step'))).toEqual([
+      'billing',
+      'payment',
+      'logins',
+      'start',
+    ]);
+    expect(document.body.textContent).not.toMatch(/undefined/);
   });
 
   it('each step says its state to a screen reader', async () => {
     serve(
       makeSetupView({
         stage: 'payment',
-        strip: makeStrip(['done', 'done', 'current', 'skipped', 'todo']),
+        strip: makeStrip(['done', 'current', 'skipped', 'todo']),
       }),
     );
     renderWithProviders(<SetupStrip />);
     await screen.findByText(/getting your bill ready/);
-    expect(step('services')).toHaveTextContent('done');
+    expect(step('billing')).toHaveTextContent('done');
     expect(step('payment')).toHaveTextContent('now');
     expect(step('logins')).toHaveTextContent('not needed');
     expect(step('start')).toHaveTextContent('later');
@@ -108,8 +128,8 @@ describe('the setup strip', () => {
     useLangStore.setState({ lang: 'hi', explicit: false });
     serve(makeSetupView());
     renderWithProviders(<SetupStrip />);
-    await screen.findByText('अपनी सेवाएँ चुनिए');
-    for (const word of ['सेवाएँ', 'बिल का पता', 'भुगतान', 'लॉगिन', 'शुरू']) {
+    await screen.findByText('बिल का नाम और पता भरिए');
+    for (const word of ['बिल का पता', 'भुगतान', 'लॉगिन', 'शुरू']) {
       expect(screen.getByText(word)).toBeInTheDocument();
     }
   });
@@ -159,7 +179,7 @@ describe('the setup strip', () => {
     it('while the page asks it to step aside, and comes back after', async () => {
       serve(makeSetupView());
       const { container, rerender } = renderWithProviders(<SetupStrip />);
-      await screen.findByText('Choose your services');
+      await screen.findByText('Fill in the name and address for your bill');
       rerender(<SetupStrip hidden />);
       expect(container.querySelector('[data-setup-strip]')).toBeNull();
       rerender(<SetupStrip />);
@@ -181,7 +201,7 @@ describe('the setup strip', () => {
       renderWithProviders(<SetupStrip />);
       await screen.findByText('Fill in the name and address for your bill');
       expect(within(step('billing')).getByRole('button')).toBeInTheDocument();
-      for (const other of ['services', 'payment', 'logins', 'start']) {
+      for (const other of ['payment', 'logins', 'start']) {
         expect(within(step(other)).queryByRole('button')).toBeNull();
       }
     });
@@ -191,7 +211,7 @@ describe('the setup strip', () => {
         makeSetupView({
           stage: 'setup',
           waitingOn: 'mdg',
-          strip: makeStrip(['done', 'done', 'done', 'done', 'current']),
+          strip: makeStrip(['done', 'done', 'done', 'current']),
         }),
       );
       renderWithProviders(<SetupStrip />);
@@ -210,20 +230,11 @@ describe('the setup strip', () => {
       expect(sheet).toHaveAttribute('aria-modal', 'true');
     });
 
-    it('opens the services card at the services step, with the ticks', async () => {
-      serve(makeSetupView());
-      renderWithProviders(<SetupStrip />);
-      fireEvent.click(await within(await waitForStep('services')).findByRole('button'));
-      const sheet = await screen.findByRole('dialog', { name: 'Services' });
-      await within(sheet).findAllByRole('checkbox');
-      expect(within(sheet).getAllByRole('checkbox')).toHaveLength(6);
-    });
-
     it('at the payment step shows the bill, read-only', async () => {
       serve(
         makeSetupView({
           stage: 'payment',
-          strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
+          strip: makeStrip(['done', 'current', 'todo', 'todo']),
           payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         }),
       );
@@ -238,11 +249,11 @@ describe('the setup strip', () => {
       expect(within(sheet).queryByRole('link')).toBeNull();
     });
 
-    it('at the logins step shows the login box for the portals the services need', async () => {
+    it('at the logins step shows the login box for the portals the outlet is asked for', async () => {
       serve(
         makeSetupView({
           stage: 'logins',
-          strip: makeStrip(['done', 'done', 'done', 'current', 'todo']),
+          strip: makeStrip(['done', 'done', 'current', 'todo']),
           loginsNeeded: ['sdms'],
         }),
       );
@@ -280,19 +291,23 @@ describe('the setup strip', () => {
     it('closes by itself once that step is done: save it and the sheet goes, the strip moves on', async () => {
       serve(makeSetupView());
       renderWithProviders(<SetupStrip />);
-      fireEvent.click(await within(await waitForStep('services')).findByRole('button'));
-      const sheet = await screen.findByRole('dialog', { name: 'Services' });
-      fireEvent.click(await within(sheet).findByRole('checkbox', { name: /^TT Density/ }));
+      fireEvent.click(await within(await waitForStep('billing')).findByRole('button'));
+      const sheet = await screen.findByRole('dialog', { name: 'Bill address' });
+      fireEvent.change(await within(sheet).findByLabelText('Address (one line)'), {
+        target: { value: 'NH-52, Deogarh' },
+      });
+      fireEvent.change(within(sheet).getByLabelText('State'), { target: { value: '21' } });
       h.put.mockResolvedValue(
         makeSetupView({
-          ...atBilling,
-          services: { options: atBilling.services.options, chosen: ['tt-density'], locked: false },
+          ...atPayment,
+          billing: { name: 'Sai Petroleums', address: 'NH-52, Deogarh', stateCode: '21', gstin: null },
+          billingSavedBy: 'dealer',
         }),
       );
-      fireEvent.click(within(sheet).getByRole('button', { name: 'Save my services' }));
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(states()).toEqual(['done', 'current', 'todo', 'todo', 'todo']);
-      expect(screen.getByText('Fill in the name and address for your bill')).toBeInTheDocument();
+      expect(states()).toEqual(['done', 'current', 'todo', 'todo']);
+      expect(screen.getByText("MDG's team is getting your bill ready")).toBeInTheDocument();
     });
 
     it('a manager can open the step and sees it read-only', async () => {
@@ -309,13 +324,13 @@ describe('the setup strip', () => {
     let view = makeSetupView();
     serve(() => view);
     const { queryClient } = renderWithProviders(<SetupStrip />);
-    await screen.findByText('Choose your services');
-    view = atBilling;
+    await screen.findByText('Fill in the name and address for your bill');
+    view = atPayment;
     await act(async () => {
       await queryClient.invalidateQueries({ queryKey: ['outlet-setup', 'me'] });
     });
-    await screen.findByText('Fill in the name and address for your bill');
-    expect(states()).toEqual(['done', 'current', 'todo', 'todo', 'todo']);
+    await screen.findByText("MDG's team is getting your bill ready");
+    expect(states()).toEqual(['done', 'current', 'todo', 'todo']);
   });
 
   /** The strip is drawn once the view has loaded. */

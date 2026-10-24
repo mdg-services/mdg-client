@@ -33,7 +33,9 @@ afterEach(() => cleanup());
 
 const JAN = new Date(new Date().getFullYear(), 0, 15, 12).toISOString();
 
-function state(over: Partial<PortalLoginState> & Pick<PortalLoginState, 'portal'>): PortalLoginState {
+function state(
+  over: Partial<PortalLoginState> & Pick<PortalLoginState, 'portal'>,
+): PortalLoginState {
   return { needed: true, status: 'missing', ...over };
 }
 function view(portals: PortalLoginState[], canEdit = true): PortalLoginsView {
@@ -172,6 +174,36 @@ describe('MessageBubble — a login box MDG posted', () => {
       expect(within(row('iras')).getByLabelText('User ID')).toBeInTheDocument();
     });
 
+    it("says MDG's team typed it, in a small line, only where the view says so", async () => {
+      box(
+        view([
+          state({ portal: 'sdms', status: 'saved', savedAt: JAN, savedBy: 'mdg' }),
+          state({ portal: 'iras', status: 'saved', savedAt: JAN, savedBy: 'dealer' }),
+        ]),
+      );
+      await screen.findAllByText('Saved');
+      expect(within(row('sdms')).getByText("Filled in by MDG's team")).toBeInTheDocument();
+      // The same line in the same place, still there beside "Saved · 15 Jan" and Change.
+      expect(within(row('sdms')).getByText('Saved · 15 Jan')).toBeInTheDocument();
+      expect(within(row('sdms')).getByRole('button', { name: 'Change' })).toBeInTheDocument();
+      // A login the dealer typed, and one that is not saved, say nothing of the sort.
+      expect(within(row('iras')).queryByText(/Filled in by/)).toBeNull();
+    });
+
+    it('says it in Hindi', async () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      box(view([state({ portal: 'sdms', status: 'saved', savedAt: JAN, savedBy: 'mdg' })]), [
+        'sdms',
+      ]);
+      expect(await screen.findByText('MDG की टीम ने भरा')).toBeInTheDocument();
+    });
+
+    it('says nothing when the view carries no word on who typed it', async () => {
+      box(view([state({ portal: 'sdms', status: 'saved', savedAt: JAN })]), ['sdms']);
+      await screen.findByText('Saved · 15 Jan');
+      expect(screen.queryByText(/Filled in by/)).toBeNull();
+    });
+
     it('Change reopens an empty form, and Cancel goes back', async () => {
       box(SAVED);
       await screen.findByText('Saved');
@@ -195,10 +227,9 @@ describe('MessageBubble — a login box MDG posted', () => {
 
   describe('refused', () => {
     it('shows the amber chip and the form, ready for the new password', async () => {
-      box(
-        view([state({ portal: 'sdms', status: 'refused', savedAt: JAN, refusedAt: JAN })]),
-        ['sdms'],
-      );
+      box(view([state({ portal: 'sdms', status: 'refused', savedAt: JAN, refusedAt: JAN })]), [
+        'sdms',
+      ]);
       await screen.findByText('Old password not working');
       const sdms = row('sdms');
       expect(sdms.getAttribute('data-status')).toBe('refused');
@@ -207,6 +238,81 @@ describe('MessageBubble — a login box MDG posted', () => {
       expect(within(sdms).getByLabelText('Password')).toBeInTheDocument();
       expect(within(sdms).getByRole('button', { name: 'Save' })).toBeInTheDocument();
       expect(within(sdms).queryByRole('button', { name: 'Change' })).toBeNull();
+    });
+  });
+
+  describe('a portal the team marked "not needed"', () => {
+    // The box was posted at payment with both portals; later the team marked IRAS
+    // "not needed (no IRAS automation)". The server now says `needed: false` for it.
+    const IRAS_SKIPPED = view([
+      state({ portal: 'sdms' }),
+      state({ portal: 'iras', needed: false }),
+    ]);
+
+    it('keeps asking for SDMS, and stops asking for IRAS: a chip, no form, no Save', async () => {
+      box(IRAS_SKIPPED);
+      await screen.findByText('Not needed');
+      const sdms = row('sdms');
+      expect(within(sdms).getByText('Needed')).toBeInTheDocument();
+      expect(within(sdms).getByLabelText('User ID')).toBeInTheDocument();
+
+      const iras = row('iras');
+      expect(iras.hasAttribute('data-not-needed')).toBe(true);
+      expect(within(iras).getByText('IRAS login')).toBeInTheDocument();
+      expect(within(iras).getByText('Not needed')).toBeInTheDocument();
+      expect(within(iras).queryByText('Needed')).toBeNull();
+      expect(within(iras).queryByLabelText('User ID')).toBeNull();
+      expect(within(iras).queryByLabelText('Password')).toBeNull();
+      expect(within(iras).queryByRole('button', { name: 'Save' })).toBeNull();
+      expect(sdms.hasAttribute('data-not-needed')).toBe(false);
+    });
+
+    it('says it in Hindi', async () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      box(IRAS_SKIPPED);
+      await screen.findByText('ज़रूरत नहीं');
+      expect(within(row('iras')).queryByLabelText('यूज़र आईडी')).toBeNull();
+      expect(within(row('sdms')).getByLabelText('यूज़र आईडी')).toBeInTheDocument();
+    });
+
+    it('a manager is not told "the owner fills this" for a login nobody has to fill', async () => {
+      box(
+        view(
+          [state({ portal: 'sdms' }), state({ portal: 'iras', needed: false, status: 'refused' })],
+          false,
+        ),
+      );
+      await screen.findByText('Not needed');
+      expect(within(row('sdms')).getByText('The owner fills this')).toBeInTheDocument();
+      expect(within(row('iras')).queryByText('The owner fills this')).toBeNull();
+    });
+
+    it('a refused login that is no longer needed is not asked for again either', async () => {
+      box(view([state({ portal: 'iras', needed: false, status: 'refused', savedAt: JAN })]), [
+        'iras',
+      ]);
+      await screen.findByText('Not needed');
+      expect(screen.queryByText('Old password not working')).toBeNull();
+      expect(screen.queryByLabelText('Password')).toBeNull();
+    });
+
+    it('a login already saved still shows as saved, and can still be changed', async () => {
+      box(
+        view([
+          state({ portal: 'iras', needed: false, status: 'saved', savedAt: JAN, savedBy: 'mdg' }),
+        ]),
+        ['iras'],
+      );
+      await screen.findByText('Saved · 15 Jan');
+      expect(screen.queryByText('Not needed')).toBeNull();
+      expect(within(row('iras')).getByRole('button', { name: 'Change' })).toBeInTheDocument();
+    });
+
+    it('a view with no word on it (an older server) asks as before', async () => {
+      const old = { portal: 'sdms', status: 'missing' } as unknown as PortalLoginState;
+      box(view([old]), ['sdms']);
+      await screen.findByLabelText('User ID');
+      expect(screen.queryByText('Not needed')).toBeNull();
     });
   });
 
@@ -257,7 +363,9 @@ describe('MessageBubble — a login box MDG posted', () => {
       );
       fireEvent.click(within(r).getByRole('button', { name: 'Save' }));
 
-      await waitFor(() => expect(within(row('sdms')).getByText('Saved · 15 Jan')).toBeInTheDocument());
+      await waitFor(() =>
+        expect(within(row('sdms')).getByText('Saved · 15 Jan')).toBeInTheDocument(),
+      );
       // The user ID is trimmed, the password is sent as typed, to the right portal.
       expect(h.put).toHaveBeenCalledTimes(1);
       expect(h.put).toHaveBeenCalledWith('/v1/me/portal-logins/sdms', {
@@ -347,7 +455,9 @@ describe('MessageBubble — a login box MDG posted', () => {
         view([state({ portal: 'sdms', status: 'saved', savedAt: JAN, savedBy: 'dealer' })]),
       );
       fireEvent.click(within(r).getByRole('button', { name: 'Save' }));
-      await waitFor(() => expect(within(row('sdms')).getByText('Saved · 15 Jan')).toBeInTheDocument());
+      await waitFor(() =>
+        expect(within(row('sdms')).getByText('Saved · 15 Jan')).toBeInTheDocument(),
+      );
       expect(h.put).toHaveBeenCalledTimes(2);
     });
 

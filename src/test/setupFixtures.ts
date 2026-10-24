@@ -1,30 +1,25 @@
 import { gstinCheckChar } from '@dk/shared';
-import {
-  SETUP_SERVICE_OPTIONS,
-  type OutletSetupView,
-  type SetupStripState,
-  type SetupStripStep,
-} from '@dk/shared/types';
+import type { OutletSetupView, SetupStripState, SetupStripStep } from '@dk/shared/types';
 
-const STEPS: SetupStripStep[] = ['services', 'billing', 'payment', 'logins', 'start'];
+const STEPS: SetupStripStep[] = ['billing', 'payment', 'logins', 'start'];
 
-/** A strip from five states, in order: services, billing, payment, logins, start. */
+/** A strip from four states, in order: billing, payment, logins, start. */
 export function makeStrip(states: SetupStripState[]): OutletSetupView['strip'] {
   return STEPS.map((step, i) => ({ step, state: states[i] ?? 'todo' }));
 }
 
-/** An outlet at the services step: nothing chosen yet, the owner looking. */
+/** An outlet at the billing step: nothing saved yet, the owner looking. */
 export function makeSetupView(over: Partial<OutletSetupView> = {}): OutletSetupView {
   return {
     active: true,
-    stage: 'services',
+    stage: 'billing',
     waitingOn: 'dealer',
-    strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']),
-    services: { options: SETUP_SERVICE_OPTIONS, chosen: [], locked: false },
+    strip: makeStrip(['current', 'todo', 'todo', 'todo']),
     billing: null,
+    billingSavedBy: null,
     billingPrefill: { name: 'Sai Petroleums', stateCode: null, gstin: null },
     payment: { state: 'not_sent', amountPaise: null, dueOn: null, paidOn: null, paymentId: null },
-    loginsNeeded: [],
+    loginsNeeded: ['sdms', 'iras'],
     canEdit: true,
     ...over,
   };

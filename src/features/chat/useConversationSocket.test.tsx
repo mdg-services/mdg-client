@@ -521,6 +521,102 @@ describe('useConversationSocket', () => {
     expect(msgs(qc)[0]!.reactions ?? []).toHaveLength(0);
   });
 
+  describe('message:transcript', () => {
+    const note = (key: string) => ({
+      storageKey: key,
+      filename: `${key}.webm`,
+      contentType: 'audio/webm',
+      size: 4000,
+      kind: 'audio' as const,
+      durationMs: 8000,
+    });
+
+    it('puts the words on that voice note of that message, and touches nothing else', () => {
+      const voice = makeMessage({ id: 'v1', senderId: ME, body: '', attachments: [note('k1')] });
+      const two = makeMessage({
+        id: 'v2',
+        senderId: ME,
+        body: '',
+        attachments: [note('k2'), note('k3')],
+      });
+      const other = makeMessage({ id: 'm3', senderId: OTHER });
+      const { qc } = mount([voice, two, other]);
+      act(() =>
+        h.socket.server('message:transcript', {
+          conversationId: 'c1',
+          messageId: 'v2',
+          storageKey: 'k3',
+          transcript: 'tanki mein diesel kam hai',
+        }),
+      );
+      const byId = Object.fromEntries(msgs(qc).map((m) => [m.id, m]));
+      expect(byId.v2!.attachments.map((a) => a.transcript)).toEqual([
+        undefined,
+        'tanki mein diesel kam hai',
+      ]);
+      expect(byId.v1!.attachments[0]!.transcript).toBeUndefined();
+      expect(byId.m3).toBe(other);
+    });
+
+    it('is idempotent: the same event twice leaves the same words', () => {
+      const voice = makeMessage({ id: 'v1', senderId: ME, body: '', attachments: [note('k1')] });
+      const { qc } = mount([voice]);
+      const payload = {
+        conversationId: 'c1',
+        messageId: 'v1',
+        storageKey: 'k1',
+        transcript: 'ek do teen',
+      };
+      act(() => h.socket.server('message:transcript', payload));
+      act(() => h.socket.server('message:transcript', payload));
+      expect(msgs(qc)[0]!.attachments[0]!.transcript).toBe('ek do teen');
+      expect(msgs(qc)).toHaveLength(1);
+    });
+
+    it('ignores another conversation, an empty transcript and a message that is not loaded', () => {
+      const voice = makeMessage({ id: 'v1', senderId: ME, body: '', attachments: [note('k1')] });
+      const { qc } = mount([voice]);
+      act(() =>
+        h.socket.server('message:transcript', {
+          conversationId: 'c2',
+          messageId: 'v1',
+          storageKey: 'k1',
+          transcript: 'not for this thread',
+        }),
+      );
+      act(() =>
+        h.socket.server('message:transcript', {
+          conversationId: 'c1',
+          messageId: 'v1',
+          storageKey: 'k1',
+          transcript: '',
+        }),
+      );
+      act(() =>
+        h.socket.server('message:transcript', {
+          conversationId: 'c1',
+          messageId: 'gone',
+          storageKey: 'k1',
+          transcript: 'nobody has this message',
+        }),
+      );
+      expect(msgs(qc)[0]!.attachments[0]!.transcript).toBeUndefined();
+    });
+
+    it('does nothing, and does not fail, before the thread is loaded', () => {
+      const { qc } = mount([]);
+      act(() =>
+        h.socket.server('message:transcript', {
+          conversationId: 'c1',
+          messageId: 'v1',
+          storageKey: 'k1',
+          transcript: 'early',
+        }),
+      );
+      expect(msgs(qc)).toEqual([]);
+    });
+  });
+
   it('cleanup leaves the room and removes all handlers', () => {
     const { unmount } = mount([]);
     expect(h.socket.handlerCount('message:new')).toBe(1);
@@ -530,6 +626,7 @@ describe('useConversationSocket', () => {
     expect(h.socket.handlerCount('connect')).toBe(0);
     expect(h.socket.handlerCount('read')).toBe(0);
     expect(h.socket.handlerCount('message:reaction')).toBe(0);
+    expect(h.socket.handlerCount('message:transcript')).toBe(0);
   });
 
   it('no-ops when conversationId is undefined', () => {

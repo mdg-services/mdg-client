@@ -404,7 +404,7 @@ export type AiTurnOutcome = (typeof AI_TURN_OUTCOMES)[number];
  * they can act on and invites an argument about the threshold.
  */
 export const AI_HANDOFF_REASONS = [
-  /** The dealer sent a photo, a voice note or a file. The first line reads none of them. */
+  /** The dealer sent a file the first line does not read, or a voice note it could not make out (or is not listening to). */
   'attachment',
   /** A manager's group thread — several people are talking, so a machine should not. */
   'group_thread',

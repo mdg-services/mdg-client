@@ -1,55 +1,12 @@
 import type { Lang } from '@/store/lang';
 import { GST_STATES, cleanGstin, isGstin } from '@dk/shared';
-import type { SetupServiceId, SetupServiceOption } from '@dk/shared/types';
 
 /**
- * The small decisions behind the setup cards (services, billing, the bill), kept
+ * The small decisions behind the setup cards (billing, the bill), kept
  * apart from the drawing so they can be tested without a screen. The strip's own
  * live in `stripView.ts`: the strip is always on screen in the owner's chat, the
  * cards are only downloaded when there is one to draw.
  */
-
-// ── The services card ──────────────────────────────────────────────────────
-
-/** The ticked services that need `id` along with them, in card order. */
-export function dependentsOf(
-  options: readonly SetupServiceOption[],
-  ticked: readonly SetupServiceId[],
-  id: SetupServiceId,
-): SetupServiceId[] {
-  return options
-    .filter((o) => ticked.includes(o.id) && o.requires.includes(id))
-    .map((o) => o.id);
-}
-
-/**
- * The ticks after the owner taps `id`.
- *
- * Ticking a service ticks everything it needs too (the server would add them
- * anyway, and the card shows why). Unticking one that another ticked service
- * needs does nothing: the card disables that box and says what it is needed
- * with, so the tap should never reach here, but the rule lives here as well.
- */
-export function toggleService(
-  options: readonly SetupServiceOption[],
-  ticked: readonly SetupServiceId[],
-  id: SetupServiceId,
-): SetupServiceId[] {
-  const next = new Set(ticked);
-  if (next.has(id)) {
-    if (dependentsOf(options, ticked, id).length > 0) return [...ticked];
-    next.delete(id);
-  } else {
-    const add = (one: SetupServiceId): void => {
-      if (next.has(one)) return;
-      next.add(one);
-      for (const r of options.find((o) => o.id === one)?.requires ?? []) add(r);
-    };
-    add(id);
-  }
-  // Card order, not tap order: what is saved and shown reads the same every time.
-  return options.map((o) => o.id).filter((one) => next.has(one));
-}
 
 // ── The billing card ───────────────────────────────────────────────────────
 

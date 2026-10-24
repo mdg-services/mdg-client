@@ -3,6 +3,7 @@ import { ChevronDown, MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
+import { isRetiredSetupCard } from '@/features/setup/SetupCard';
 import type { ChatAskStates } from '@/hooks/api/useChatAskStates';
 import { renderKey } from '@/hooks/api/useMessages';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
@@ -215,7 +216,11 @@ export function MessageList({
   // newest-batch-first and realtime/optimistic messages are prepended, so sort
   // by timestamp for a stable chronological order regardless of insertion point.
   // A message that landed twice (a page refetched under a live one) is drawn once.
-  const ordered = React.useMemo(() => orderMessages(messages), [messages]);
+  // The retired "which services?" question is not drawn, so it is not a row.
+  const ordered = React.useMemo(
+    () => orderMessages(messages).filter((m) => !isRetiredSetupCard(m)),
+    [messages],
+  );
 
   // ── Older history ───────────────────────────────────────────────────────
   const requestOlder = React.useCallback(() => {

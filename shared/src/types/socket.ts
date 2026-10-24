@@ -10,6 +10,20 @@ export interface ServerToClientEvents {
     messageId: string;
     reactions: MessageReaction[];
   }) => void;
+  /**
+   * A voice note's transcript was saved (`Attachment.transcript`). The note was
+   * already on screen, and a repeated `message:new` is ignored as a duplicate, so
+   * this is how an open thread learns the words. Sent to the conversation's room
+   * only (the dealer and any admin who has the thread open), like a reaction; a
+   * thread that is not open reads the transcript with the message on its next load.
+   */
+  'message:transcript': (payload: {
+    conversationId: string;
+    messageId: string;
+    /** Which attachment of the message: the voice note's storage key. */
+    storageKey: string;
+    transcript: string;
+  }) => void;
   'conversation:updated': (payload: { conversation: Conversation }) => void;
   /**
    * A paper MDG needs from this dealer was asked for, nudged, or settled.

@@ -99,6 +99,12 @@ export const AUDIT_ACTIONS = [
   // Auth (ADR 0020 — user-level audit)
   'LOGOUT',
   'LOGIN_FAILED',
+  /** A dealer asked for a password-reset code (the row names the account and the channel, never the number, email or code). */
+  'PASSWORD_RESET_REQUESTED',
+  /** Five wrong tries killed a reset code. */
+  'PASSWORD_RESET_CODE_LOCKED',
+  /** A dealer chose a new password with a reset code; every device was signed out. */
+  'PASSWORD_RESET',
   // Admin management
   'ADMIN_CREATE',
   'ADMIN_UPDATE',

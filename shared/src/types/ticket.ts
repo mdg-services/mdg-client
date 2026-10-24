@@ -44,7 +44,7 @@ export const TICKET_TRIGGERS = [
   'not_in_records',
   /** The AI wrote an answer and could not prove every figure in it, so it did not send it. */
   'could_not_verify',
-  /** A voice note, a PDF or several files — nothing the AI reads. */
+  /** A PDF, several files, or a voice note the AI could not make out — nothing it can answer from. */
   'attachment',
   /** The message was blocked before the AI saw it (abuse, another outlet, passwords). */
   'blocked',

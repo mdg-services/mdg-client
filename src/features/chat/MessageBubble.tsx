@@ -2,7 +2,7 @@ import { Camera, Check, CheckCheck, Clock, FileText, Mic, Video, Zap } from 'luc
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
-import { SetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
+import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
@@ -361,6 +361,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   const longPress = useLongPress(() => onLongPress?.(message), {
     disabled: !onLongPress || pending,
   });
+
+  // The retired services question: nothing left to answer, so nothing is drawn.
+  // (After the hooks above, so the order they run in never changes.)
+  if (isRetiredSetupCard(message)) return null;
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
   const { images, voices, videos, docs } = splitAttachments(message.attachments);

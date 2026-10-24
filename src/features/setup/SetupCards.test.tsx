@@ -2,14 +2,16 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MessageBubble } from '@/features/chat/MessageBubble';
+import { MessageList } from '@/features/chat/MessageList';
 import { ApiError } from '@/lib/api';
 import { LONG_PRESS_MS } from '@/lib/useLongPress';
 import { useLangStore } from '@/store/lang';
 import { GSTIN_HARYANA, GSTIN_MAHARASHTRA, makeSetupView, makeStrip } from '@/test/setupFixtures';
 import { makeMessage, renderWithProviders, signIn } from '@/test/utils';
-import type { GuideVideoListItem, OutletSetupView, SetupBilling, SetupCardKind } from '@dk/shared/types';
+import { SETUP_CARDS, type OutletSetupView, type SetupBilling, type SetupCardKind } from '@dk/shared/types';
 
-import { ServicesCard } from './ServicesCard';
+import { isRetiredSetupCard, setupCardHasBody } from './SetupCard';
+import { SetupCardView } from './SetupCardView';
 
 // The server is a double; ApiError stays the real one, so a card tells a 409
 // from any other failure the way it does in the app.
@@ -47,19 +49,11 @@ function card(kind: SetupCardKind, view: OutletSetupView | Error, body = 'MDG sa
   return renderWithProviders(<MessageBubble message={message} mine={false} />);
 }
 
-/** How many times the OUTLET's setup was asked for (the card also asks the video library once). */
-const setupGets = (): number => h.get.mock.calls.filter((c) => c[0] === '/v1/me/setup').length;
-
 const box = (kind: string): HTMLElement => {
   const el = document.querySelector<HTMLElement>(`[data-setup-card="${kind}"]`);
   if (!el) throw new Error(`no ${kind} card`);
   return el;
 };
-
-// By the START of its name: a row brought along by another says "Needed with …"
-// in its own, and that must not be mistaken for the row it names.
-const checkbox = (label: string) =>
-  screen.getByRole('checkbox', { name: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) });
 
 describe('a setup card in a message', () => {
   it('asks for the outlet only when a card with a body is on screen', async () => {
@@ -73,8 +67,8 @@ describe('a setup card in a message', () => {
     }
     expect(h.get).not.toHaveBeenCalled();
 
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /Daily Sales Report/ });
+    card('billing', makeSetupView());
+    await screen.findByLabelText('Name on the bill');
     expect(h.get).toHaveBeenCalledWith('/v1/me/setup');
   });
 
@@ -96,11 +90,11 @@ describe('a setup card in a message', () => {
   });
 
   it('draws nothing for an outlet that is not in onboarding, or is already live', async () => {
-    card('services', makeSetupView({ active: false }));
+    card('billing', makeSetupView({ active: false }));
     await waitFor(() => expect(h.get).toHaveBeenCalled());
     await Promise.resolve();
     expect(document.querySelector('[data-setup-card]')).toBeNull();
-    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByLabelText('Name on the bill')).toBeNull();
   });
 
   it('says so, and offers a retry, when the outlet cannot be had', async () => {
@@ -121,15 +115,15 @@ describe('a setup card in a message', () => {
           senderId: 'system-user',
           senderRole: 'admin',
           system: true,
-          body: 'Choose your services.',
-          setupCard: { card: 'services' },
+          body: 'Fill in your bill details.',
+          setupCard: { card: 'billing' },
         })}
         mine={false}
         onLongPress={onLongPress}
       />,
     );
-    await screen.findByRole('checkbox', { name: /Daily Sales Report/ });
-    expect(box('services')).toHaveAttribute('data-no-swipe');
+    await screen.findByLabelText('Name on the bill');
+    expect(box('billing')).toHaveAttribute('data-no-swipe');
 
     const hold = async (el: Element) => {
       fireEvent.pointerDown(el, { pointerId: 1, clientX: 5, clientY: 5 });
@@ -138,310 +132,76 @@ describe('a setup card in a message', () => {
       });
       fireEvent.pointerUp(el, { pointerId: 1, clientX: 5, clientY: 5 });
     };
-    await hold(screen.getByRole('checkbox', { name: /Daily Sales Report/ }));
+    await hold(screen.getByLabelText('Name on the bill'));
     expect(onLongPress).not.toHaveBeenCalled();
     // The same hold on the words does select it: the card is what is different.
-    await hold(screen.getByText('Choose your services.'));
+    await hold(screen.getByText('Fill in your bill details.'));
     expect(onLongPress).toHaveBeenCalledTimes(1);
   });
 });
 
-describe('the services card', () => {
-  const LABELS = [
-    'Daily Sales Report',
-    'Credit & DOD Monitoring',
-    'Water ingress testing',
-    'TT Density',
-    'Load planner',
-    'RO supply status',
-  ];
-
-  it('lists every service the server offers, in its order, each with what it gives', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /Daily Sales Report/ });
-    const rows = [...document.querySelectorAll('[data-service]')];
-    expect(rows.map((r) => r.getAttribute('data-service'))).toEqual([
-      'dsr-report',
-      'credit-dod-monitoring',
-      'water-ingress-testing',
-      'tt-density',
-      'load-planner',
-      'ro-supply-status',
-    ]);
-    LABELS.forEach((label, i) => expect(rows[i]).toHaveTextContent(label));
-    expect(rows[0]).toHaveTextContent("the day's sales and the stock in the tanks");
-    expect(screen.getAllByRole('checkbox')).toHaveLength(6);
-    // Nothing ticked yet: Save waits, and says why.
-    expect(screen.getByRole('button', { name: 'Save my services' })).toBeDisabled();
-    expect(screen.getByText('Tick at least one service')).toBeInTheDocument();
-  });
-
-  it('draws in Hindi when the app is in Hindi', async () => {
-    useLangStore.setState({ lang: 'hi', explicit: false });
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /रोज़ की बिक्री रिपोर्ट/ });
-    expect(screen.getByText(/दिन की बिक्री और टंकी का स्टॉक/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'सेवाएँ सेव करें' })).toBeInTheDocument();
-  });
-
-  it('has no ▶ for a service with no video yet', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /Daily Sales Report/ });
-    expect(screen.queryByRole('button', { name: /Watch the video/ })).toBeNull();
-  });
-
-  describe('the ▶ on a service, from the video library', () => {
-    const item = (service: string | null, over: Partial<GuideVideoListItem> = {}): GuideVideoListItem => ({
-      id: service ? `svc_${service.replace(/-/g, '_')}` : 'other',
-      title: { hi: 'टीटी डेंसिटी', en: 'TT Density, shown' },
-      summary: { hi: 'सार', en: 'summary' },
-      durationMs: 50_000,
-      service,
-      available: true,
-      ...over,
+describe('the retired services card', () => {
+  const retired = () =>
+    makeMessage({
+      id: 'services-msg',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      senderName: 'MDG',
+      system: true,
+      body: 'Which services would you like?',
+      setupCard: { card: 'services' },
     });
 
-    it('has a ▶ only on a service that has a video, and it opens that video in the app’s player', async () => {
-      const tt = item('tt-density', { id: 'svc_tt_density' });
-      h.get.mockImplementation(async (path: string) =>
-        path === '/v1/me/guide-videos/svc_tt_density'
-          ? { id: 'svc_tt_density', title: tt.title, url: 'https://files.test/tt.mp4?sig=1', durationMs: 50_000, startSec: 0, chapters: [] }
-          : makeSetupView(),
-      );
-      renderWithProviders(<ServicesCard view={makeSetupView()} videos={{ 'tt-density': tt }} />);
-      const play = screen.getByRole('button', { name: 'Watch the video: TT Density' });
-      expect(screen.getAllByRole('button', { name: /Watch the video/ })).toHaveLength(1);
-      expect(screen.queryByTestId('guide-video-sheet')).toBeNull();
-
-      fireEvent.click(play);
-      const player = await screen.findByTestId('guide-video');
-      // Asked for when it opens, and shown from the first frame.
-      expect(h.get).toHaveBeenCalledWith('/v1/me/guide-videos/svc_tt_density', { start: undefined });
-      expect(player.getAttribute('src')).toBe('https://files.test/tt.mp4?sig=1#t=0.1');
-      expect(screen.getByTestId('guide-video-sheet')).toHaveAttribute('aria-label', 'TT Density, shown');
-      // Opening the video does not tick the row.
-      expect(checkbox('TT Density')).not.toBeChecked();
-
-      fireEvent.click(screen.getByRole('button', { name: 'Close video' }));
-      expect(screen.queryByTestId('guide-video-sheet')).toBeNull();
-      expect(checkbox('TT Density')).not.toBeChecked();
-    });
-
-    it('takes the ▶ from the library by itself: a service whose video is uploaded gets one, one that is not does not', async () => {
-      h.get.mockImplementation(async (path: string) =>
-        path === '/v1/me/guide-videos'
-          ? [item('tt-density'), item('dsr-report', { id: 'svc_dsr', available: false }), item(null)]
-          : makeSetupView(),
-      );
-      renderWithProviders(<ServicesCard view={makeSetupView()} />);
-      await screen.findByRole('button', { name: 'Watch the video: TT Density' });
-      expect(screen.getAllByRole('button', { name: /Watch the video/ })).toHaveLength(1);
-      expect(screen.queryByRole('button', { name: 'Watch the video: Daily Sales Report' })).toBeNull();
-    });
-
-    it('says so in the player when the video will not load, and the card is untouched', async () => {
-      const tt = item('tt-density', { id: 'svc_tt_density' });
-      h.get.mockImplementation(async (path: string) => {
-        if (path.startsWith('/v1/me/guide-videos/')) throw new ApiError(404, 'VIDEO_NOT_UPLOADED', 'gone');
-        return makeSetupView();
-      });
-      renderWithProviders(<ServicesCard view={makeSetupView()} videos={{ 'tt-density': tt }} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Watch the video: TT Density' }));
-      expect(await screen.findByText(/didn.t play/)).toBeInTheDocument();
-      fireEvent.click(screen.getByRole('button', { name: 'Close video' }));
-      expect(checkbox('Daily Sales Report')).toBeInTheDocument();
-    });
+  it('draws nothing: a message from before the step went has no question left to answer', async () => {
+    h.get.mockResolvedValue(makeSetupView());
+    const { container } = renderWithProviders(<MessageBubble message={retired()} mine={false} />);
+    await Promise.resolve();
+    // Not even an empty bubble: the toast layer is all the provider leaves in the DOM.
+    expect(container.textContent).toBe('');
+    expect(container.querySelector('.rounded-md')).toBeNull();
+    expect(screen.queryByText('Which services would you like?')).toBeNull();
+    expect(document.querySelector('[data-setup-card]')).toBeNull();
+    // …and it never asks the server for the outlet on its account.
+    expect(h.get).not.toHaveBeenCalled();
   });
 
-  it('ticking one that needs another ticks that too, and says why', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /Load planner/ });
-    fireEvent.click(checkbox('Load planner'));
-    expect(checkbox('Load planner')).toBeChecked();
-    expect(checkbox('Daily Sales Report')).toBeChecked();
-    // The note is on the row that was brought along, naming what needs it.
-    const dsr = document.querySelector('[data-service="dsr-report"]')!;
-    expect(dsr).toHaveTextContent('Needed with Load planner');
-    expect(document.querySelector('[data-service="load-planner"]')).not.toHaveTextContent('Needed with');
-    // …and it cannot be unticked while Load planner needs it.
-    expect(checkbox('Daily Sales Report')).toBeDisabled();
-    fireEvent.click(checkbox('Load planner'));
-    expect(checkbox('Load planner')).not.toBeChecked();
-    expect(checkbox('Daily Sales Report')).toBeChecked();
-    expect(checkbox('Daily Sales Report')).toBeEnabled();
-    expect(dsr).not.toHaveTextContent('Needed with');
-    fireEvent.click(checkbox('Daily Sales Report'));
-    expect(checkbox('Daily Sales Report')).not.toBeChecked();
-  });
-
-  it('says the same note in Hindi', async () => {
-    useLangStore.setState({ lang: 'hi', explicit: false });
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /टैंकर मंगाने की योजना/ });
-    fireEvent.click(screen.getByRole('checkbox', { name: /टैंकर मंगाने की योजना/ }));
-    expect(document.querySelector('[data-service="dsr-report"]')).toHaveTextContent(
-      'टैंकर मंगाने की योजना के साथ ज़रूरी',
+  it('is not a row in the thread either, and the messages around it are untouched', async () => {
+    const welcome = makeMessage({
+      id: 'welcome',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      system: true,
+      body: 'Welcome to Dealer Kavach!',
+    });
+    const after = makeMessage({
+      id: 'after',
+      senderId: 'system-user',
+      senderRole: 'admin',
+      system: true,
+      body: 'Thanks, we have it.',
+    });
+    renderWithProviders(
+      <MessageList messages={[welcome, retired(), after]} currentUserId="u1" conversationId="c1" />,
     );
+    expect(screen.getByText('Welcome to Dealer Kavach!')).toBeInTheDocument();
+    expect(screen.getByText('Thanks, we have it.')).toBeInTheDocument();
+    expect(screen.queryByText('Which services would you like?')).toBeNull();
   });
 
-  it('Save sends the ticks, then shows the chosen list with Change — and no second GET', async () => {
-    const { queryClient } = card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /Load planner/ });
-    fireEvent.click(checkbox('Load planner'));
-    fireEvent.click(checkbox('TT Density'));
-    h.put.mockResolvedValue(
-      makeSetupView({
-        stage: 'billing',
-        strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
-        services: {
-          options: makeSetupView().services.options,
-          chosen: ['dsr-report', 'tt-density', 'load-planner'],
-          locked: false,
-        },
-      }),
+  it('is a card kind that still parses, and has no body to draw', () => {
+    expect(SETUP_CARDS).toContain('services');
+    expect(setupCardHasBody('services')).toBe(false);
+    expect(isRetiredSetupCard(retired())).toBe(true);
+    expect(isRetiredSetupCard(makeMessage({ setupCard: { card: 'billing' } }))).toBe(false);
+    expect(isRetiredSetupCard(makeMessage())).toBe(false);
+  });
+
+  it('draws nothing when the strip sheet or a view is asked for it', () => {
+    const { container } = renderWithProviders(
+      <SetupCardView card="services" view={makeSetupView()} />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
-
-    await screen.findByText('Your services');
-    expect(h.put).toHaveBeenCalledTimes(1);
-    expect(h.put).toHaveBeenCalledWith('/v1/me/setup/services', {
-      serviceIds: ['dsr-report', 'tt-density', 'load-planner'],
-    });
-    const list = within(box('services')).getAllByRole('listitem').map((li) => li.textContent);
-    expect(list).toEqual(['Daily Sales Report', 'TT Density', 'Load planner']);
-    expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox')).toBeNull();
-    // The answer went straight into the cache: the outlet was asked for once, the card's
-    // other question (which services have a video) is the library's, not the outlet's.
-    expect(setupGets()).toBe(1);
-    expect(queryClient.getQueryData(['outlet-setup', 'me'])).toMatchObject({ stage: 'billing' });
-  });
-
-  it('asks the server again when its answer is not the whole view', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /TT Density/ });
-    fireEvent.click(checkbox('TT Density'));
-    h.put.mockResolvedValue({ ok: true });
-    h.get.mockResolvedValue(
-      makeSetupView({
-        services: { options: makeSetupView().services.options, chosen: ['tt-density'], locked: false },
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
-    await screen.findByText('Your services');
-    expect(setupGets()).toBe(2);
-    expect(within(box('services')).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
-      'TT Density',
-    ]);
-  });
-
-  describe('once chosen', () => {
-    const chosen = makeSetupView({
-      stage: 'billing',
-      strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
-      services: {
-        options: makeSetupView().services.options,
-        chosen: ['dsr-report', 'credit-dod-monitoring'],
-        locked: false,
-      },
-    });
-
-    it('Change reopens the ticks as they were saved, and Cancel goes back', async () => {
-      card('services', chosen);
-      await screen.findByText('Your services');
-      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-      expect(checkbox('Daily Sales Report')).toBeChecked();
-      expect(checkbox('Credit & DOD Monitoring')).toBeChecked();
-      expect(checkbox('TT Density')).not.toBeChecked();
-      fireEvent.click(checkbox('TT Density'));
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-      expect(screen.queryByRole('checkbox')).toBeNull();
-      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
-      expect(checkbox('TT Density')).not.toBeChecked();
-    });
-
-    it('is locked after the bill is sent: the list, a note, and no Change', async () => {
-      card(
-        'services',
-        makeSetupView({
-          ...chosen,
-          services: { ...chosen.services, locked: true },
-          payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
-        }),
-      );
-      await screen.findByText('Your services');
-      expect(screen.getByText(/write to us in this chat/)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
-      expect(screen.queryByRole('checkbox')).toBeNull();
-    });
-  });
-
-  it('a save refused because the bill was sent meanwhile says it is locked', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /TT Density/ });
-    fireEvent.click(checkbox('TT Density'));
-    h.put.mockRejectedValue(new ApiError(409, 'CONFLICT', 'locked'));
-    fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/write to us in this chat/);
-  });
-
-  it('any other failure says so and one tap tries again', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /TT Density/ });
-    fireEvent.click(checkbox('TT Density'));
-    h.put.mockRejectedValueOnce(new ApiError(0, 'NETWORK_ERROR', 'offline'));
-    fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save — try again");
-    h.put.mockResolvedValue(
-      makeSetupView({
-        services: { options: makeSetupView().services.options, chosen: ['tt-density'], locked: false },
-      }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Save my services' }));
-    await screen.findByText('Your services');
-    expect(h.put).toHaveBeenCalledTimes(2);
-  });
-
-  it('does not send twice while a save is in flight', async () => {
-    card('services', makeSetupView());
-    await screen.findByRole('checkbox', { name: /TT Density/ });
-    fireEvent.click(checkbox('TT Density'));
-    let release!: (v: OutletSetupView) => void;
-    h.put.mockReturnValue(new Promise<OutletSetupView>((res) => (release = res)));
-    const save = screen.getByRole('button', { name: 'Save my services' });
-    fireEvent.click(save);
-    await waitFor(() => expect(save).toBeDisabled());
-    expect(save).toHaveAttribute('aria-busy', 'true');
-    fireEvent.click(save);
-    expect(h.put).toHaveBeenCalledTimes(1);
-    release(
-      makeSetupView({
-        services: { options: makeSetupView().services.options, chosen: ['tt-density'], locked: false },
-      }),
-    );
-    await screen.findByText('Your services');
-  });
-
-  describe('a manager (cannot edit)', () => {
-    it('is told the owner fills it, with nothing to tick', async () => {
-      card('services', makeSetupView({ canEdit: false }));
-      await screen.findByText('The owner fills this');
-      expect(screen.queryByRole('checkbox')).toBeNull();
-      expect(screen.queryByRole('button')).toBeNull();
-    });
-
-    it('sees what the owner chose, without Change', async () => {
-      card(
-        'services',
-        makeSetupView({
-          canEdit: false,
-          services: { options: makeSetupView().services.options, chosen: ['tt-density'], locked: false },
-        }),
-      );
-      await screen.findByText('Your services');
-      expect(screen.getByText('TT Density')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
-    });
+    expect(container.textContent).toBe('');
+    expect(container.querySelector('[data-setup-card]')).toBeNull();
   });
 });
 
@@ -449,7 +209,7 @@ describe('the billing card', () => {
   const billingView = (over: Partial<OutletSetupView> = {}) =>
     makeSetupView({
       stage: 'billing',
-      strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
+      strip: makeStrip(['current', 'todo', 'todo', 'todo']),
       ...over,
     });
   const field = (label: string) => screen.getByLabelText(label);
@@ -623,6 +383,44 @@ describe('the billing card', () => {
       expect(screen.getByText('Bill details saved')).toBeInTheDocument();
     });
 
+    it("says MDG's team filled it in, in a small line, only when the view says so", async () => {
+      card('billing', billingView({ billing: SAVED, billingSavedBy: 'mdg' }));
+      await screen.findByText('Bill details saved');
+      expect(screen.getByText("Filled in by MDG's team")).toBeInTheDocument();
+      // It is a note, not a button: nothing new to press, and the owner can still change them.
+      expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
+    });
+
+    it('says it in Hindi', async () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      card('billing', billingView({ billing: SAVED, billingSavedBy: 'mdg' }));
+      expect(await screen.findByText('MDG की टीम ने भरा')).toBeInTheDocument();
+    });
+
+    it('says nothing of the sort for details the dealer saved, or a view from before the field', async () => {
+      const older = { ...billingView({ billing: SAVED }) } as Partial<OutletSetupView>;
+      delete older.billingSavedBy;
+      for (const view of [
+        billingView({ billing: SAVED, billingSavedBy: 'dealer' }),
+        billingView({ billing: SAVED, billingSavedBy: null }),
+        older as OutletSetupView,
+      ]) {
+        card('billing', view);
+        await screen.findByText('Bill details saved');
+        expect(screen.queryByText(/Filled in by/)).toBeNull();
+        cleanup();
+      }
+    });
+
+    it("the line goes once the owner opens the details to change them", async () => {
+      card('billing', billingView({ billing: SAVED, billingSavedBy: 'mdg' }));
+      await screen.findByText("Filled in by MDG's team");
+      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+      expect(screen.queryByText("Filled in by MDG's team")).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByText("Filled in by MDG's team")).toBeInTheDocument();
+    });
+
     it('a saved "no GST number" reopens with it ticked', async () => {
       card('billing', billingView({ billing: SAVED }));
       await screen.findByText('Bill details saved');
@@ -696,7 +494,7 @@ describe('the payment card', () => {
   const sent = makeSetupView({
     stage: 'payment',
     waitingOn: 'dealer',
-    strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
+    strip: makeStrip(['done', 'current', 'todo', 'todo']),
     payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
   });
 

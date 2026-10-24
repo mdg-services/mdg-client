@@ -106,15 +106,53 @@ export const messages = {
     hi: 'यह खाता अभी चालू नहीं है। MDG की टीम से संपर्क कीजिए।',
   },
   /* ── forgot password ─────────────────────────────────────────────────── */
+  // A code on WhatsApp or by email, then a new password. "Ask the team to call me"
+  // is what is left of the old way: the whole sheet while no code can be sent, a
+  // small link under every step otherwise.
   'auth.forgot': { en: 'Forgot your password?', hi: 'पासवर्ड भूल गए?' },
   'auth.forgotTitle': { en: 'Forgot your password?', hi: 'पासवर्ड भूल गए?' },
   'auth.forgotIntro': {
     en: 'Type your mobile number or email. The MDG team will call you on your registered number.',
     hi: 'अपना मोबाइल नंबर या ईमेल लिखिए। MDG की टीम आपके रजिस्टर्ड नंबर पर कॉल करेगी।',
   },
+  'auth.forgotIntroCode': {
+    en: 'Type your mobile number or email. We will send you a code to choose a new password.',
+    hi: 'अपना मोबाइल नंबर या ईमेल लिखिए। नया पासवर्ड बनाने के लिए हम आपको एक कोड भेजेंगे।',
+  },
   'auth.forgotSend': { en: 'Send', hi: 'भेजिए' },
+  'auth.forgotContinue': { en: 'Continue', hi: 'आगे बढ़िए' },
   'auth.forgotDone': { en: 'The MDG team will call you.', hi: 'MDG की टीम आपको कॉल करेगी।' },
   'auth.forgotOk': { en: 'OK', hi: 'ठीक है' },
+  'auth.resetWhere': { en: 'Where should we send the code?', hi: 'कोड कहाँ भेजें?' },
+  'auth.resetByWhatsapp': { en: 'On WhatsApp', hi: 'WhatsApp पर' },
+  'auth.resetByEmail': { en: 'By email', hi: 'ईमेल पर' },
+  // The same words whether or not the number or email is on an account.
+  'auth.resetSent': {
+    en: 'If this account exists, a code has been sent.',
+    hi: 'अगर यह खाता है तो कोड भेज दिया गया है।',
+  },
+  'auth.resetCode': { en: 'The 6-digit code', hi: '6 अंकों का कोड' },
+  'auth.resetCodeShort': { en: 'Enter all 6 digits', hi: 'कोड के सभी 6 अंक भरिए' },
+  'auth.resetCodeInvalid': {
+    en: 'That code is wrong or has expired.',
+    hi: 'कोड सही नहीं है या पुराना हो गया।',
+  },
+  'auth.resetSendAgain': { en: 'Send again', hi: 'फिर से भेजिए' },
+  'auth.resetSendAgainIn': { en: 'Send again in {n} s', hi: '{n} सेकंड में फिर से भेज सकेंगे' },
+  'auth.resetNoCode': {
+    en: 'No code? Ask the team to call you',
+    hi: 'कोड नहीं मिला? टीम से कॉल के लिए कहिए',
+  },
+  'auth.resetNewIntro': { en: 'Now choose your new password.', hi: 'अब अपना नया पासवर्ड चुनिए।' },
+  'auth.resetSave': { en: 'Save new password', hi: 'नया पासवर्ड सेव करें' },
+  'auth.resetDone': {
+    en: 'Your new password is set. Sign in now.',
+    hi: 'नया पासवर्ड बन गया। अब साइन इन कीजिए।',
+  },
+  'auth.resetExpired': {
+    en: 'This reset has expired. Please start again.',
+    hi: 'यह रीसेट पुराना हो गया है। कृपया फिर से शुरू कीजिए।',
+  },
   /* ── the screen after signing in with a temporary password ───────────── */
   'auth.forcedTitle': { en: 'Create a new password', hi: 'नया पासवर्ड बनाइए' },
   'auth.forcedIntro': {
@@ -980,6 +1018,10 @@ export const messages = {
     hi: 'फोटो नहीं खुली। दोबारा दबाइए',
   },
   'chat.voiceSpeed': { en: 'Speed {rate}', hi: 'रफ़्तार {rate}' },
+  // The words of a voice note, written down once MDG has listened to it.
+  'chat.transcript': { en: 'Transcript', hi: 'लिखा हुआ' },
+  'chat.transcriptMore': { en: 'Show more', hi: 'और दिखाइए' },
+  'chat.transcriptLess': { en: 'Show less', hi: 'कम दिखाइए' },
   'chat.voiceFailed': {
     en: "Couldn't play. Tap to try again",
     hi: 'चल नहीं सका। दोबारा दबाइए',
@@ -1012,6 +1054,8 @@ export const messages = {
   // outlet's record and never into the chat, and the box says so.
   'chat.portalTitle': { en: '{portal} login', hi: '{portal} लॉगिन' },
   'chat.portalNeeded': { en: 'Needed', hi: 'बाकी' },
+  // Shown instead of "Needed" when the team marked this login not needed for the outlet.
+  'chat.portalNotNeeded': { en: 'Not needed', hi: 'ज़रूरत नहीं' },
   'chat.portalSaved': { en: 'Saved', hi: 'मिल गया' },
   'chat.portalRefused': { en: 'Old password not working', hi: 'पुराना पासवर्ड नहीं चल रहा' },
   'chat.portalSavedOn': { en: 'Saved · {date}', hi: 'मिल गया · {date}' },
@@ -1094,7 +1138,6 @@ export const messages = {
 
   /* ── setting up a new outlet (onboarding): the strip and its cards ───── */
   'setup.stripLabel': { en: 'Getting your services started', hi: 'आपकी सेवाएँ शुरू करने के कदम' },
-  'setup.stepServices': { en: 'Services', hi: 'सेवाएँ' },
   'setup.stepBilling': { en: 'Bill address', hi: 'बिल का पता' },
   'setup.stepPayment': { en: 'Payment', hi: 'भुगतान' },
   'setup.stepLogins': { en: 'Logins', hi: 'लॉगिन' },
@@ -1104,11 +1147,10 @@ export const messages = {
   'setup.stateCurrent': { en: 'now', hi: 'अभी' },
   'setup.stateTodo': { en: 'later', hi: 'बाद में' },
   'setup.stateSkipped': { en: 'not needed', hi: 'ज़रूरत नहीं' },
-  // The one line under the strip: what is happening now. Nothing here says how
-  // to pay, or where: the Play Store does not allow it inside the app.
-  'setup.nowServices': { en: 'Choose your services', hi: 'अपनी सेवाएँ चुनिए' },
   // Under the strip, once the setup walkthrough video is uploaded.
   'setup.howItWorks': { en: 'How setup works — a short video', hi: 'सेटअप कैसे होता है — छोटा वीडियो' },
+  // The one line under the strip: what is happening now. Nothing here says how
+  // to pay, or where: the Play Store does not allow it inside the app.
   'setup.nowBilling': {
     en: 'Fill in the name and address for your bill',
     hi: 'बिल का नाम और पता भरिए',
@@ -1128,17 +1170,6 @@ export const messages = {
   'setup.ownerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },
   'setup.change': { en: 'Change', hi: 'बदलें' },
   'setup.saveFailed': { en: "Couldn't save — try again", hi: 'सेव नहीं हो सका — फिर कोशिश कीजिए' },
-  /* services card */
-  'setup.servicesChosen': { en: 'Your services', hi: 'आपकी चुनी हुई सेवाएँ' },
-  'setup.servicesSave': { en: 'Save my services', hi: 'सेवाएँ सेव करें' },
-  'setup.servicesPickOne': { en: 'Tick at least one service', hi: 'कम से कम एक सेवा चुनिए' },
-  'setup.servicesLocked': {
-    en: 'Your bill has been sent. To change your services, write to us in this chat.',
-    hi: 'आपका बिल भेज दिया गया है। सेवाएँ बदलनी हों तो इसी चैट में हमें लिखिए।',
-  },
-  // On the row that was ticked for you, naming the service that needs it.
-  'setup.requiredWith': { en: 'Needed with {name}', hi: '{name} के साथ ज़रूरी' },
-  'setup.playVideo': { en: 'Watch the video: {name}', hi: 'वीडियो देखिए: {name}' },
   /* billing card */
   'setup.billName': { en: 'Name on the bill', hi: 'बिल पर नाम' },
   'setup.billAddress': { en: 'Address (one line)', hi: 'पता (एक लाइन में)' },
@@ -1161,6 +1192,8 @@ export const messages = {
     en: 'State taken from the GST number',
     hi: 'राज्य GST नंबर से लिया गया है',
   },
+  // Beside a step MDG's team did for the dealer: only where the view says so.
+  'setup.filledByMdg': { en: "Filled in by MDG's team", hi: 'MDG की टीम ने भरा' },
   'setup.billSave': { en: 'Save', hi: 'सेव करें' },
   'setup.billSaved': { en: 'Bill details saved', hi: 'बिल की जानकारी सेव हो गई' },
   'setup.billLocked': {

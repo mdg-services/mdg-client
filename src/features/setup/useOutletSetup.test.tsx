@@ -21,9 +21,9 @@ function Probe() {
   return <div data-testid="stage">{q.data ? q.data.stage : q.isError ? 'error' : 'loading'}</div>;
 }
 
-const atBilling: OutletSetupView = makeSetupView({
-  stage: 'billing',
-  strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
+const atPayment: OutletSetupView = makeSetupView({
+  stage: 'payment',
+  strip: makeStrip(['done', 'current', 'todo', 'todo']),
 });
 
 beforeEach(() => {
@@ -37,7 +37,7 @@ afterEach(() => cleanup());
 describe('useOutletSetup', () => {
   it('asks for the outlet once, from the dealer route', async () => {
     renderWithProviders(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
     expect(h.get).toHaveBeenCalledTimes(1);
     expect(h.get).toHaveBeenCalledWith('/v1/me/setup');
   });
@@ -59,7 +59,7 @@ describe('useOutletSetup', () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     try {
       renderWithProviders(<Probe />);
-      await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+      await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
       expect(h.get).toHaveBeenCalledTimes(1);
 
       // Within the freshness window, coming back asks for nothing.
@@ -68,10 +68,10 @@ describe('useOutletSetup', () => {
       expect(h.get).toHaveBeenCalledTimes(1);
 
       // Long enough away that the answer is stale.
-      h.get.mockResolvedValue(atBilling);
+      h.get.mockResolvedValue(atPayment);
       vi.setSystemTime(Date.now() + 120_000);
       window.dispatchEvent(new Event('visibilitychange'));
-      await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
+      await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('payment'));
       expect(h.get).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
@@ -82,27 +82,27 @@ describe('useOutletSetup', () => {
 describe('useOutletSetupSocket', () => {
   it('asks again when the server says the outlet changed, and the card follows', async () => {
     renderWithProviders(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
-
-    h.get.mockResolvedValue(atBilling);
-    act(() => h.socket.server('outletSetup:changed', { dealerId: 'd1' }));
     await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
+
+    h.get.mockResolvedValue(atPayment);
+    act(() => h.socket.server('outletSetup:changed', { dealerId: 'd1' }));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('payment'));
     expect(h.get).toHaveBeenCalledTimes(2);
   });
 
   it('reads what changed from the server, never from the event', async () => {
     renderWithProviders(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
     act(() => h.socket.server('outletSetup:changed', { dealerId: 'd1', stage: 'live' }));
     await waitFor(() => expect(h.get).toHaveBeenCalledTimes(2));
-    expect(screen.getByTestId('stage')).toHaveTextContent('services');
+    expect(screen.getByTestId('stage')).toHaveTextContent('billing');
   });
 
   it('asks for the login box again with it: "logins in" moves the stage', async () => {
     const client = makeTestQueryClient();
     client.setQueryData(portalLoginsKey, { portals: [], canEdit: true });
     renderWithProviders(<Probe />, { queryClient: client });
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
     expect(client.getQueryState(portalLoginsKey)?.isInvalidated).toBe(false);
     act(() => h.socket.server('outletSetup:changed', { dealerId: 'd1' }));
     expect(client.getQueryState(portalLoginsKey)?.isInvalidated).toBe(true);
@@ -111,7 +111,7 @@ describe('useOutletSetupSocket', () => {
   it('asks again after the socket reconnects, but not on the first connect', async () => {
     h.socket = makeFakeSocket(false);
     renderWithProviders(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
     expect(h.get).toHaveBeenCalledTimes(1);
 
     act(() => h.socket.server('connect'));
@@ -124,7 +124,7 @@ describe('useOutletSetupSocket', () => {
 
   it('lets go of the socket when it goes away', async () => {
     const { unmount } = renderWithProviders(<Probe />);
-    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('services'));
+    await waitFor(() => expect(screen.getByTestId('stage')).toHaveTextContent('billing'));
     expect(h.socket.handlerCount('outletSetup:changed')).toBe(1);
     unmount();
     expect(h.socket.handlerCount('outletSetup:changed')).toBe(0);

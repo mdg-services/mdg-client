@@ -1,7 +1,8 @@
 /**
  * Validation for onboarding v2 (types/outletSetup.ts): what the owner saves on
- * the setup cards, and what an admin does at MDG's four points — approve, send
- * the bill, record the payment, start the services.
+ * the setup cards, what an admin does at MDG's four points — approve, send the
+ * bill, record the payment, start the services — and what an admin does FOR the
+ * dealer (mark them signed in, send the welcome again, mark logins not needed).
  */
 
 import { z } from 'zod';
@@ -11,23 +12,16 @@ import {
   SETUP_CALL_OUTCOMES,
   SETUP_MESSAGE_LANGS,
   SETUP_PAYMENT_MODES,
-  SETUP_SERVICE_IDS,
 } from '../types/outletSetup';
 
 import { dealerCodeSchema } from './dealer';
+import { portalIdSchema } from './portalLogin';
 
 const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
-/** The owner's ticks. The server adds whatever a choice requires; at least one. */
-export const chooseSetupServicesSchema = z
-  .object({
-    serviceIds: z.array(z.enum(SETUP_SERVICE_IDS)).min(1).max(SETUP_SERVICE_IDS.length),
-  })
-  .strict();
-export type ChooseSetupServicesInput = z.infer<typeof chooseSetupServicesSchema>;
-
 /**
- * The billing card. A GSTIN is optional and never blocks anything; when given
+ * The billing card. The owner's `PUT /me/setup/billing` and the admin's
+ * `PUT /dealers/:id/setup/billing` take this same body. A GSTIN is optional and never blocks anything; when given
  * it must be a real one (shape, state, check character) and the state is read
  * from it, so a mismatching `stateCode` is corrected rather than refused.
  */
@@ -147,3 +141,30 @@ export const setMonthlyPriceSchema = z
   .object({ monthlyPricePaise: z.number().int().min(100).max(10_000_000) })
   .strict();
 export type SetMonthlyPriceInput = z.infer<typeof setMonthlyPriceSchema>;
+
+/**
+ * "Mark signed in" (an admin, for a dealer who cannot or will not use the app yet).
+ * The reason is required and kept on the outlet ("helped by phone"); the audit row
+ * says how long it was, never what it said.
+ */
+export const markSignedInSchema = z.object({ reason: z.string().trim().min(3).max(300) }).strict();
+export type MarkSignedInInput = z.infer<typeof markSignedInSchema>;
+
+/**
+ * "Send welcome on WhatsApp" again. `messageLang` unset: the outlet's default
+ * language. `force` sends even though the welcome already went (sent, delivered or
+ * marked sent by hand).
+ */
+export const sendSetupWelcomeSchema = z
+  .object({
+    messageLang: z.enum(SETUP_MESSAGE_LANGS).optional(),
+    force: z.boolean().optional(),
+  })
+  .strict();
+export type SendSetupWelcomeInput = z.infer<typeof sendSetupWelcomeSchema>;
+
+/** "Not needed for this outlet": this portal login is not asked for. A reason is required. */
+export const portalNotNeededSchema = z
+  .object({ portal: portalIdSchema, reason: z.string().trim().min(3).max(300) })
+  .strict();
+export type PortalNotNeededInput = z.infer<typeof portalNotNeededSchema>;

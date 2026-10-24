@@ -79,6 +79,11 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
             {t('setup.billSaved')}
           </p>
           <SavedLines billing={saved} lang={lang} />
+          {/* Only where the server says MDG's team saved them (round 3): a dealer who saved
+              their own, and an outlet from before the field existed, see nothing. */}
+          {view.billingSavedBy === 'mdg' ? (
+            <Note className="mt-0.5">{t('setup.filledByMdg')}</Note>
+          ) : null}
           <div className="mt-0.5 flex items-center justify-between gap-2">
             {locked ? <Note>{t('setup.billLocked')}</Note> : <span />}
             {canChange ? (

@@ -34,6 +34,21 @@ const ZEROS = [
 const SEPARATORS = /[\s\-.()]/;
 
 /**
+ * Only the digits of `raw`, as plain 0-9 whatever script they were typed in (a
+ * Hindi keyboard types "९८७६५"); every other character is dropped. For a box that
+ * takes a run of digits and nothing else, such as the code in a message.
+ */
+export function digitsOf(raw: string): string {
+  let out = '';
+  for (const ch of raw) {
+    const cp = ch.codePointAt(0) ?? 0;
+    const zero = ZEROS.find((z) => cp >= z && cp <= z + 9);
+    if (zero !== undefined) out += String(cp - zero);
+  }
+  return out;
+}
+
+/**
  * The endpoint's own mobile rule (`mdg-landing/src/lib/mobile.ts`, copied):
  * the 10-digit mobile that `raw` names, or null when it names none. Hindi (and
  * other Indian) digits, spaces, dashes, dots, brackets, +91 / 91 and a leading
