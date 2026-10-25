@@ -317,6 +317,8 @@ export interface LeadRow {
   invite: LeadInvite | null;
   /** The newest note the team wrote, so the list says what was agreed without opening the lead. */
   lastNote: LeadNote | null;
+  /** The newest analysed call recording's one-line gist, so the list says how the last call went. */
+  lastCall: LeadLastCall | null;
   /** When to get in touch next. Null for closed and registered leads. */
   nextDueAt: string | null;
   dueReason: LeadDueReason | null;
@@ -421,6 +423,7 @@ export const LEAD_TIMELINE_KINDS = [
   'assistant',
   'opted_out',
   'activity',
+  'call_recording',
 ] as const;
 export type LeadTimelineKind = (typeof LEAD_TIMELINE_KINDS)[number];
 
@@ -440,6 +443,8 @@ export interface LeadDetail {
   visits: LeadVisit[];
   activity: LeadActivity[];
   timeline: LeadTimelineItem[];
+  /** Call recordings the team uploaded, newest first. */
+  recordings: LeadRecording[];
   /** The WhatsApp inbox chat to open, when they have one. */
   chatPerson: string | null;
   /** Plain-words "what to do next" for the top of the drawer. */
@@ -483,4 +488,115 @@ export interface LeadLookup {
 export interface LeadOwnerOption {
   id: string;
   name: string;
+}
+
+// ── Call recordings (25 Oct 2026) ───────────────────────────────────────────
+//
+// The team records its calls with leads. A recording is uploaded on the lead,
+// played back from the drawer before the next call, and analysed once: the
+// server writes the words down (speech to text) and a model turns them into a
+// summary short enough to take in at a glance — a one-line gist, a few key
+// points, a few next steps.
+
+/** The largest recording that can be uploaded: about an hour of phone audio. */
+export const LEAD_RECORDING_MAX_BYTES = 50 * 1024 * 1024;
+
+/**
+ * The audio types a recording may be. The server checks the bytes too, so a
+ * renamed file is refused rather than paid for.
+ */
+export const LEAD_RECORDING_TYPES = [
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/aac',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/ogg',
+  'audio/webm',
+] as const;
+
+/** `processing` while the call is being written down and summarised. */
+export const LEAD_RECORDING_STATUSES = ['processing', 'ready', 'failed'] as const;
+export type LeadRecordingStatus = (typeof LEAD_RECORDING_STATUSES)[number];
+
+/** Why a recording could not be analysed. The audio still plays. */
+export const LEAD_RECORDING_FAILURES = [
+  /** Not an audio file we can read, whatever its name says. */
+  'unsupported',
+  /** Bigger than the limit. */
+  'too_big',
+  /** Nobody could be heard speaking in it. */
+  'no_speech',
+  /** The speech-to-text service failed or timed out. */
+  'transcribe_failed',
+  /** The words came back but the summary did not. */
+  'summary_failed',
+  /** The server restarted in the middle; trying again will finish it. */
+  'interrupted',
+] as const;
+export type LeadRecordingFailure = (typeof LEAD_RECORDING_FAILURES)[number];
+
+/** How keen the lead sounded on the call. */
+export const LEAD_CALL_INTEREST = ['hot', 'warm', 'cold', 'unclear'] as const;
+export type LeadCallInterest = (typeof LEAD_CALL_INTEREST)[number];
+
+export const LEAD_CALL_INTEREST_LABELS: Record<LeadCallInterest, string> = {
+  hot: 'Hot',
+  warm: 'Warm',
+  cold: 'Cold',
+  unclear: 'Unclear',
+};
+
+/** What a model made of a call: short enough to read in seconds. */
+export interface LeadCallSummary {
+  /** One line, at most about 15 words. */
+  gist: string;
+  /** At most three, each at most about 10 words. */
+  keyPoints: string[];
+  /** At most three things to do next, each at most about 10 words. */
+  nextSteps: string[];
+  interest: LeadCallInterest;
+  /** The contact outcome the call sounds like, to pre-fill "Log this call". Null when it is not clear. */
+  suggestedOutcome: LeadContactOutcome | null;
+}
+
+/** One uploaded call recording. */
+export interface LeadRecording {
+  id: string;
+  filename: string;
+  contentType: string;
+  size: number;
+  /** Seconds, when the browser could tell. */
+  durationSec: number | null;
+  uploadedAt: string;
+  uploadedByName: string | null;
+  status: LeadRecordingStatus;
+  failure: LeadRecordingFailure | null;
+  summary: LeadCallSummary | null;
+  /** What was said, written down. Null until it has been. */
+  transcript: string | null;
+  analyzedAt: string | null;
+}
+
+/** The newest analysed call, for the list. */
+export interface LeadLastCall {
+  at: string;
+  gist: string;
+  interest: LeadCallInterest;
+}
+
+/** Where to PUT a recording before telling the server it is there. */
+export interface LeadRecordingUpload {
+  uploadUrl: string;
+  /** The storage key to send back with the recording's details. */
+  key: string;
+  /** Headers the PUT must carry (the content type the URL was signed for). */
+  headers: Record<string, string>;
+}
+
+/** A short-lived link to play one recording. */
+export interface LeadRecordingAudio {
+  url: string;
+  expiresAt: string;
 }

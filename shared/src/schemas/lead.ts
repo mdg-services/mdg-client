@@ -5,6 +5,7 @@
 import { z } from 'zod';
 
 import {
+  LEAD_RECORDING_MAX_BYTES,
   LEAD_ADMIN_CLOSE_REASONS,
   LEAD_CLOSING_OUTCOMES,
   LEAD_CONTACT_CHANNELS,
@@ -116,3 +117,26 @@ export const leadLookupQuerySchema = z.object({
   person: z.string().trim().min(1).max(260),
 });
 export type LeadLookupQuery = z.infer<typeof leadLookupQuerySchema>;
+
+/** Asking for a link to upload one call recording to. */
+export const presignLeadRecordingSchema = z
+  .object({
+    filename: z.string().trim().min(1).max(200),
+    contentType: z.string().trim().min(1).max(100),
+    size: z.number().int().min(1).max(LEAD_RECORDING_MAX_BYTES),
+  })
+  .strict();
+export type PresignLeadRecordingInput = z.infer<typeof presignLeadRecordingSchema>;
+
+/** Telling the server the recording is uploaded, so it can check it and analyse it. */
+export const addLeadRecordingSchema = z
+  .object({
+    key: z.string().trim().min(1).max(400),
+    filename: z.string().trim().min(1).max(200),
+    contentType: z.string().trim().min(1).max(100),
+    size: z.number().int().min(1).max(LEAD_RECORDING_MAX_BYTES),
+    /** What the browser measured, when it could. Four hours at most. */
+    durationSec: z.number().min(0).max(4 * 60 * 60).optional(),
+  })
+  .strict();
+export type AddLeadRecordingInput = z.infer<typeof addLeadRecordingSchema>;
