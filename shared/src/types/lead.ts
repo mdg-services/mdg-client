@@ -427,6 +427,15 @@ export const LEAD_TIMELINE_KINDS = [
 ] as const;
 export type LeadTimelineKind = (typeof LEAD_TIMELINE_KINDS)[number];
 
+/**
+ * Who did a thing on the timeline: the lead themselves, somebody on the team,
+ * or the system by itself (an invite going out, a delivery tick). The kind
+ * alone cannot say, because a call-back and a WhatsApp message each come from
+ * more than one of them.
+ */
+export const LEAD_TIMELINE_ACTORS = ['lead', 'team', 'system'] as const;
+export type LeadTimelineActor = (typeof LEAD_TIMELINE_ACTORS)[number];
+
 /** Everything we know happened with this person, from every source, newest first. Worded on the server. */
 export interface LeadTimelineItem {
   at: string;
@@ -436,6 +445,10 @@ export interface LeadTimelineItem {
   by: string | null;
   /** An admin page that shows more, when there is one this admin can open. */
   href: string | null;
+  /** Who acted: the lead, someone on the team, or the system by itself. Absent from a server before 26 Oct 2026. */
+  actor?: LeadTimelineActor;
+  /** True when it did not go through: an invite or a message WhatsApp could not send or deliver. Absent otherwise. */
+  failed?: boolean;
 }
 
 export interface LeadDetail {
