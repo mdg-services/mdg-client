@@ -69,6 +69,8 @@ export const ADMIN_ALERT_KINDS = [
   'held_message',
   /** A subscription payment is past its due date. */
   'payment_overdue',
+  /** An outlet's autopay stopped — the owner stopped it, their UPI app did, or the debits kept failing: call them. */
+  'autopay_stopped',
   // ── Leads (ADR 0024) ──
   /** Somebody started the full film and nobody has been in touch yet. */
   'lead_new',
@@ -265,6 +267,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   lead_cold: {
     label: 'Lead going cold',
     clearsWhen: 'Clears when somebody logs a contact or sets a new follow-up time.',
+    superAdminOnly: false,
+  },
+  autopay_stopped: {
+    label: 'Autopay stopped',
+    clearsWhen: 'Clears when the call is marked done, or autopay is set up again.',
     superAdminOnly: false,
   },
   server_restarted: {

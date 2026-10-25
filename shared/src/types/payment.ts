@@ -67,7 +67,8 @@ export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
 export const MANUAL_PAYMENT_MODES = ['upi', 'bank', 'cash', 'cheque', 'other'] as const;
 export type ManualPaymentMode = (typeof MANUAL_PAYMENT_MODES)[number];
 
-export const PAYMENT_CHANNELS = ['checkout', 'link', 'manual'] as const;
+/** `autopay`: taken by a Razorpay subscription (types/autopay.ts). */
+export const PAYMENT_CHANNELS = ['checkout', 'link', 'manual', 'autopay'] as const;
 export type PaymentChannel = (typeof PAYMENT_CHANNELS)[number];
 
 export const REFUND_STATUSES = ['pending', 'processed', 'failed'] as const;
@@ -192,6 +193,11 @@ export interface DealerPayment {
   invoice: GstDocumentSummary | null;
   /** One per refund that went through. */
   creditNotes: GstDocumentSummary[];
+  /**
+   * `YYYY-MM-DD`: the day autopay will take this bill, while it is due and
+   * autopay is on for it. Null for anything else (the bill then comes as a link).
+   */
+  autopayOn: string | null;
 }
 
 /** What an admin sees of a payment. */
@@ -201,6 +207,8 @@ export interface AdminPayment extends DealerPayment {
   createdByName: string;
   razorpayOrderId: string | null;
   razorpayLinkId: string | null;
+  /** The Razorpay subscription meant to take (or that took) this bill. */
+  razorpaySubscriptionId: string | null;
   linkUrl: string | null;
   paidVia: PaymentChannel | null;
   /** Razorpay's fee and the GST on it, in paise, once paid. */

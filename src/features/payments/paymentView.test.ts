@@ -8,8 +8,10 @@ import {
   STATUS_KEY,
   STATUS_TONE,
   canStartPayment,
+  dueNote,
   formatDateTimeIst,
   formatDay,
+  formatDayMonth,
   formatDueDate,
   hasReceipt,
   methodLabel,
@@ -88,6 +90,65 @@ describe('dates', () => {
 
   it('writes the month in Hindi for a Hindi reader', () => {
     expect(formatDueDate('hi', '2026-11-05')).toMatch(/^5 नव/);
+  });
+});
+
+describe('formatDayMonth', () => {
+  it('shows the calendar day and month with no year, whatever the time zone', () => {
+    expect(formatDayMonth('en', '2026-11-24')).toBe('24 Nov');
+    expect(formatDayMonth('en', '2026-10-28')).toBe('28 Oct');
+    expect(formatDayMonth('en', '2026-01-05')).toBe('5 Jan');
+  });
+
+  it('writes the month in Hindi for a Hindi reader', () => {
+    expect(formatDayMonth('hi', '2026-11-24')).toMatch(/^24 नव/);
+    expect(formatDayMonth('hi', '2026-10-28')).toMatch(/^28 अक्टू/);
+  });
+
+  it('hands back what it cannot read', () => {
+    expect(formatDayMonth('en', 'soon')).toBe('soon');
+  });
+});
+
+describe('dueNote', () => {
+  const en = (key: MessageKey, vars?: Record<string, string | number>) =>
+    translate('en', key, vars);
+  const hi = (key: MessageKey, vars?: Record<string, string | number>) =>
+    translate('hi', key, vars);
+
+  it('says when a due bill falls due, as it always has', () => {
+    expect(dueNote(en, 'en', makePayment())).toBe('Due by 5 Nov 2026');
+    expect(dueNote(hi, 'hi', makePayment())).toMatch(/^5 नव.* 2026 तक देना है$/);
+  });
+
+  it('says autopay will take a due bill, in place of the due date', () => {
+    const p = makePayment({ autopayOn: '2026-10-28' });
+    expect(dueNote(en, 'en', p)).toBe('Autopay will take this on 28 Oct');
+    expect(dueNote(hi, 'hi', p)).toMatch(/^ऑटोपे 28 अक्टू.* को काटेगा$/);
+  });
+
+  it('uses the autopay day even when the bill has no due date of its own', () => {
+    expect(dueNote(en, 'en', makePayment({ dueDate: null, autopayOn: '2026-10-28' }))).toBe(
+      'Autopay will take this on 28 Oct',
+    );
+  });
+
+  it('keeps the due wording when autopay is not on for the bill', () => {
+    expect(dueNote(en, 'en', makePayment({ autopayOn: null }))).toBe('Due by 5 Nov 2026');
+  });
+
+  // The server sets `autopayOn` while the bill is due. One already on its way is
+  // being confirmed whoever started it, and keeps the usual line.
+  it('applies to a due bill only', () => {
+    const processing = makePayment({ status: 'processing', autopayOn: '2026-10-28' });
+    expect(dueNote(en, 'en', processing)).toBe('Due by 5 Nov 2026');
+    for (const status of ['paid', 'cancelled', 'refunded', 'partially_refunded'] as const) {
+      expect(dueNote(en, 'en', makePayment({ status, autopayOn: '2026-10-28' }))).toBeNull();
+    }
+  });
+
+  it('says nothing for an open bill with no date at all', () => {
+    expect(dueNote(en, 'en', makePayment({ dueDate: null }))).toBeNull();
   });
 });
 

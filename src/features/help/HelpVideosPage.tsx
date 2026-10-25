@@ -3,6 +3,8 @@ import * as React from 'react';
 
 import { SubPageBar } from '@/components/SubPage';
 import { Button, Spinner } from '@/components/ui';
+import { useOwnerAutopay } from '@/features/autopay/api';
+import { AutopayHelpRow } from '@/features/autopay/AutopayHelpRow';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { useLang, useT } from '@/lib/i18n';
 import type { GuideVideoListItem } from '@dk/shared/types';
@@ -22,12 +24,18 @@ import { useGuideVideos } from './useGuideVideos';
  * bill" video to the app, and this screen adds no link of its own. Under the list
  * is the other way to get help: ask in the chat.
  *
+ * At the very top, for the owner and only while there is an autopay to show, is
+ * the Autopay row (ADR 0022 §13): where autopay is seen and stopped from inside
+ * the app. The videos never wait on it, and it never says how to turn it on.
+ *
  * The bar is on every state, including a failed load, so there is always a way out.
  */
 export function HelpVideosPage() {
   const t = useT();
   const lang = useLang();
   const q = useGuideVideos();
+  // After the videos' own query, so the list is the first thing asked for.
+  const autopay = useOwnerAutopay();
   const openChat = useOpenMyChat();
   const [playing, setPlaying] = React.useState<GuideVideoListItem | null>(null);
   const closePlayer = React.useCallback(() => setPlaying(null), []);
@@ -41,6 +49,9 @@ export function HelpVideosPage() {
     <>
       <SubPageBar title={t('help.title')} />
       <div className="flex flex-1 flex-col bg-wa-bar pb-6">
+        {/* The owner's autopay, when there is one. Above everything and
+            independent of it: the videos never wait on this row. */}
+        {autopay ? <AutopayHelpRow autopay={autopay} /> : null}
         {q.data ? (
           videos.length > 0 ? (
             <>

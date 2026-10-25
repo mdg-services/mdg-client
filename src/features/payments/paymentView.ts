@@ -1,4 +1,4 @@
-import type { MessageKey } from '@/lib/i18n';
+import type { MessageKey, TFunction } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { SETTLED_STATUSES } from '@dk/shared/types';
 import type { DealerPayment, PaymentStatus } from '@dk/shared/types';
@@ -90,6 +90,49 @@ export function formatDueDate(lang: Lang, ymd: string): string {
     year: 'numeric',
     timeZone: 'UTC',
   }).format(d);
+}
+
+/**
+ * `2026-11-24` → "24 Nov", with no year: for a day within the coming month
+ * (the next autopay, the last paid day), where a year is only noise on a
+ * phone-width line. Same calendar-day reading as `formatDueDate`.
+ */
+export function formatDayMonth(lang: Lang, ymd: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return ymd;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  if (Number.isNaN(d.getTime())) return ymd;
+  return new Intl.DateTimeFormat(locale(lang), {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(d);
+}
+
+/**
+ * The line that says when an open payment will be settled, or null when there
+ * is nothing to say.
+ *
+ * A DUE bill that autopay will take (`autopayOn`) reads "Autopay will take this
+ * on 28 Oct" instead of "Due by …": the dealer has nothing to do, and a due
+ * date beside it would read as a thing they must do. Only a `due` payment
+ * counts — the server sets `autopayOn` while the bill is due, and a payment
+ * already `processing` is on its way whoever started it. Everything else open
+ * keeps the usual due wording; a payment that is not open has no line.
+ */
+export function dueNote(
+  t: TFunction,
+  lang: Lang,
+  payment: Pick<DealerPayment, 'status' | 'dueDate' | 'autopayOn'>,
+): string | null {
+  if (payment.status === 'due' && payment.autopayOn) {
+    return t('payments.autopayWillTake', { date: formatDayMonth(lang, payment.autopayOn) });
+  }
+  const isOpen = payment.status === 'due' || payment.status === 'processing';
+  if (isOpen && payment.dueDate) {
+    return t('payments.dueBy', { date: formatDueDate(lang, payment.dueDate) });
+  }
+  return null;
 }
 
 /** A moment as an Indian date, "5 Nov 2026" — the day it happened in India. */

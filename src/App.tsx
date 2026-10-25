@@ -58,6 +58,10 @@ const SettingsTeamPage = lazyWithRetry(() =>
 const HelpVideosPage = lazyWithRetry(() =>
   import('@/features/help/HelpVideosPage').then((m) => ({ default: m.HelpVideosPage })),
 );
+// Settings → Autopay: shown and stopped, never started, in the app. Its own chunk.
+const AutopayPage = lazyWithRetry(() =>
+  import('@/features/autopay/AutopayPage').then((m) => ({ default: m.AutopayPage })),
+);
 // Seen once, by a member who signed in with a temporary password: its own chunk,
 // so nobody else downloads it.
 const ForcedPasswordChange = lazyWithRetry(() =>
@@ -183,6 +187,10 @@ export function App() {
             <Route path="/settings/account" element={<SettingsAccountPage />} />
             <Route path="/settings/team" element={<SettingsTeamPage />} />
             <Route path="/settings/help" element={<HelpVideosPage />} />
+            {/* Autopay: reached from the Help screen and the Payments page, never
+                from a Settings row. The owner can see it and stop it; nothing on it
+                starts one (features/payments/policy.ts). */}
+            <Route path="/settings/autopay" element={<AutopayPage />} />
             {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
                 and not a redirect: nothing about it needs to change address. */}
             <Route path="/profile" element={<SettingsPage />} />

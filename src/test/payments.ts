@@ -1,4 +1,10 @@
-import type { DealerPayment, GstDocumentSummary, PaymentCheckout } from '@dk/shared/types';
+import type {
+  DealerAutopay,
+  DealerAutopayStatus,
+  DealerPayment,
+  GstDocumentSummary,
+  PaymentCheckout,
+} from '@dk/shared/types';
 
 /** A payment as the dealer's API returns it: `due`, ₹4,999, nothing else filled in. */
 export function makePayment(overrides: Partial<DealerPayment> = {}): DealerPayment {
@@ -20,6 +26,7 @@ export function makePayment(overrides: Partial<DealerPayment> = {}): DealerPayme
     lastFailure: null,
     invoice: null,
     creditNotes: [],
+    autopayOn: null,
     ...overrides,
   };
 }
@@ -114,4 +121,30 @@ export function enterNativeShell(): void {
 /** Back in an ordinary browser. */
 export function leaveNativeShell(): void {
   delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+}
+
+/**
+ * The owner's autopay as `GET /payments/me/autopay` returns it: on, ₹3,540 a
+ * month (₹3,000 + 18% GST) for pump 15E, next taken on 24 Nov, paid till 24 Nov,
+ * outside the first month.
+ */
+export function makeAutopay(overrides: Partial<DealerAutopay> = {}): DealerAutopay {
+  return {
+    state: 'on',
+    outletCode: '15E',
+    amountPaise: 354000,
+    nextDebitOn: '2026-11-24',
+    paidThrough: '2026-11-24',
+    debitInProgress: false,
+    stoppedAt: null,
+    firstMonthRefundable: false,
+    ...overrides,
+  };
+}
+
+/** The same, wrapped the way the API answers (an autopay, or null for nothing to show). */
+export function makeAutopayStatus(
+  overrides: Partial<DealerAutopay> | null = {},
+): DealerAutopayStatus {
+  return { autopay: overrides === null ? null : makeAutopay(overrides) };
 }

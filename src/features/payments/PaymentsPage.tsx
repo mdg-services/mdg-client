@@ -2,6 +2,8 @@ import { AlertCircle, Wallet } from 'lucide-react';
 
 import { SubPage } from '@/components/SubPage';
 import { Button } from '@/components/ui';
+import { useOwnerAutopay } from '@/features/autopay/api';
+import { AutopayCard } from '@/features/autopay/AutopayCard';
 import { useT } from '@/lib/i18n';
 
 import { usePaymentsList } from './api';
@@ -39,6 +41,8 @@ function ListSkeleton() {
 export function PaymentsPage() {
   const t = useT();
   const query = usePaymentsList();
+  // After the bills' own query, so the list is the first thing asked for.
+  const autopay = useOwnerAutopay();
   const interactive = canPayHere();
 
   let body;
@@ -103,6 +107,9 @@ export function PaymentsPage() {
 
   return (
     <SubPage title={t('payments.title')} fallback="/chat" className="gap-6 pb-10">
+      {/* The owner's autopay, above the bills, when there is one. Its own query: a
+          slow or failed answer only leaves the card out, the list never waits. */}
+      {autopay ? <AutopayCard autopay={autopay} /> : null}
       {body}
     </SubPage>
   );

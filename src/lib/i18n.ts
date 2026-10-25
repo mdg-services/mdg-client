@@ -1396,6 +1396,147 @@ export const messages = {
     en: 'The payment was not completed. You can try again.',
     hi: 'भुगतान पूरा नहीं हुआ। आप फिर कोशिश कर सकते हैं।',
   },
+  // A due bill that autopay will take by itself, in place of "Due by …".
+  'payments.autopayWillTake': {
+    en: 'Autopay will take this on {date}',
+    hi: 'ऑटोपे {date} को काटेगा',
+  },
+
+  /* ── autopay (ADR 0022 §13) ──────────────────────────────────────────── */
+  // The monthly bill taken by itself. Inside the app autopay is only SHOWN and
+  // STOPPED: nothing here points at a way to turn it on (Google Play's Payments
+  // policy), and stopping it is one screen and one confirm — no second "are you
+  // sure", no required reason, no guilt (India's dark-patterns rules).
+  'autopay.title': { en: 'Autopay', hi: 'ऑटोपे' },
+  'autopay.pump': { en: 'Pump {code}', hi: 'पंप {code}' },
+
+  // The state in a word, on the chip.
+  'autopay.chip.settingUp': { en: 'Waiting', hi: 'इंतज़ार' },
+  'autopay.chip.on': { en: 'On', hi: 'चालू' },
+  'autopay.chip.failing': { en: 'Needs attention', hi: 'ध्यान दें' },
+  'autopay.chip.off': { en: 'Off', hi: 'बंद' },
+
+  // The line under "Autopay" on the Help row and the Payments card.
+  'autopay.sub.settingUp': {
+    en: 'Waiting for your approval',
+    hi: 'आपकी मंज़ूरी का इंतज़ार',
+  },
+  'autopay.sub.on': {
+    en: '{amount} a month · next {date}',
+    hi: '{amount} हर महीने · अगली {date}',
+  },
+  'autopay.sub.onNoDate': { en: '{amount} a month', hi: '{amount} हर महीने' },
+  'autopay.sub.failing': {
+    en: 'Last payment did not go through',
+    hi: 'पिछला भुगतान नहीं हुआ',
+  },
+  'autopay.sub.off': { en: 'Off · works till {date}', hi: 'बंद · {date} तक चलेगा' },
+  'autopay.sub.offNoDate': { en: 'Off', hi: 'बंद' },
+
+  // The body of the card on the Autopay screen.
+  'autopay.body.settingUp': {
+    en: 'Waiting for your approval. Nothing has been taken.',
+    hi: 'आपकी मंज़ूरी का इंतज़ार है। अभी कुछ नहीं कटा।',
+  },
+  'autopay.body.on': {
+    en: 'Taken from your UPI account every month. Next: {date}. Your UPI app warns you a day before. You can also stop it in your UPI app.',
+    hi: 'हर महीने आपके UPI खाते से कटेंगे। अगली तारीख: {date}। UPI ऐप एक दिन पहले बता देगा। आप इसे UPI ऐप में भी बंद कर सकते हैं।',
+  },
+  'autopay.body.onNoDate': {
+    en: 'Taken from your UPI account every month. Your UPI app warns you a day before. You can also stop it in your UPI app.',
+    hi: 'हर महीने आपके UPI खाते से कटेंगे। UPI ऐप एक दिन पहले बता देगा। आप इसे UPI ऐप में भी बंद कर सकते हैं।',
+  },
+  'autopay.body.failing': {
+    en: 'The last {amount} debit did not go through. Check the balance in your UPI account.',
+    hi: 'पिछले {amount} नहीं कट पाए। अपने UPI खाते की रकम जाँचिए।',
+  },
+
+  // The one button, and the dialog it opens.
+  'autopay.stop': { en: 'Stop autopay', hi: 'ऑटोपे बंद करें' },
+  'autopay.cancelSetup': { en: 'Cancel setup', hi: 'सेटअप रद्द करें' },
+  'autopay.dialog.title': { en: 'Stop autopay?', hi: 'ऑटोपे बंद करें?' },
+  'autopay.dialog.cancelSetupTitle': {
+    en: 'Cancel autopay setup?',
+    hi: 'ऑटोपे सेटअप रद्द करें?',
+  },
+  'autopay.dialog.inProgress': {
+    en: '{amount} is being taken right now. Stopping will not undo it.',
+    hi: 'अभी {amount} कट रहे हैं। बंद करने से यह वापस नहीं होगा।',
+  },
+  'autopay.dialog.body': {
+    en: 'No money will be taken automatically after this. Dealer Kavach keeps working till {date}. After that you get a bill each month.',
+    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच {date} तक चलता रहेगा। उसके बाद हर महीने का बिल आएगा।',
+  },
+  'autopay.dialog.bodyNoDate': {
+    en: 'No money will be taken automatically after this. Dealer Kavach keeps working till your paid month ends. After that you get a bill each month.',
+    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच आपका चुकाया महीना पूरा होने तक चलता रहेगा। उसके बाद हर महीने का बिल आएगा।',
+  },
+  'autopay.dialog.reasonLabel': { en: 'Why? (optional)', hi: 'क्यों? (ज़रूरी नहीं)' },
+  'autopay.reason.pay_myself': {
+    en: "I'll pay myself each month",
+    hi: 'हर महीने खुद भरूँगा',
+  },
+  'autopay.reason.too_expensive': { en: 'Price is too much', hi: 'दाम ज़्यादा है' },
+  'autopay.reason.not_useful': {
+    en: 'Not useful / something is wrong',
+    hi: 'काम का नहीं / कुछ गड़बड़ है',
+  },
+  'autopay.reason.closing': {
+    en: 'Closing or selling the pump',
+    hi: 'पंप बंद या बेच रहा हूँ',
+  },
+  'autopay.reason.other': { en: 'Something else', hi: 'कुछ और' },
+  'autopay.dialog.help': {
+    en: 'Something not right? Ask in chat.',
+    hi: 'कुछ ठीक नहीं? चैट में पूछिए।',
+  },
+  'autopay.dialog.helpRefund': {
+    en: 'Not happy with the first month? We refund it in full. Ask in chat.',
+    hi: 'पहला महीना पसंद नहीं आया? पूरा पैसा वापस होगा। चैट में पूछिए।',
+  },
+  'autopay.dialog.keep': { en: 'Keep autopay', hi: 'ऑटोपे चालू रखें' },
+  'autopay.dialog.keepSetup': { en: 'Keep setup', hi: 'सेटअप रखें' },
+  'autopay.dialog.saving': { en: 'Stopping…', hi: 'बंद हो रहा है…' },
+  'autopay.dialog.failed': {
+    en: 'Not stopped. Check your network and try again. Nothing has changed.',
+    hi: 'बंद नहीं हुआ। नेटवर्क जाँचिए और फिर कोशिश कीजिए। कुछ नहीं बदला।',
+  },
+
+  // After the server has answered, and only then.
+  'autopay.toast.stopped': {
+    en: 'Autopay stopped. No more money will be taken.',
+    hi: 'ऑटोपे बंद हो गया। अब पैसे नहीं कटेंगे।',
+  },
+  'autopay.toast.alreadyOff': { en: 'Autopay is already off.', hi: 'ऑटोपे पहले से बंद है।' },
+
+  // The screen once it is off.
+  'autopay.off.title': { en: 'Autopay is off', hi: 'ऑटोपे बंद है' },
+  'autopay.off.body': {
+    en: 'Dealer Kavach works till {date}. Nothing will be taken automatically.',
+    hi: 'डीलर कवच {date} तक चलेगा। पैसे अपने-आप नहीं कटेंगे।',
+  },
+  'autopay.off.bodyNoDate': {
+    en: 'Nothing will be taken automatically.',
+    hi: 'पैसे अपने-आप नहीं कटेंगे।',
+  },
+  'autopay.off.stopService': {
+    en: 'Want to stop Dealer Kavach itself? Tell us in chat.',
+    hi: 'डीलर कवच ही बंद करना है? चैट में बताइए।',
+  },
+
+  // The other screens.
+  'autopay.loadFailedTitle': {
+    en: "We couldn't load your autopay",
+    hi: 'आपका ऑटोपे लोड नहीं हुआ',
+  },
+  'autopay.noneTitle': {
+    en: 'Autopay is not on for this pump',
+    hi: 'इस पंप पर ऑटोपे चालू नहीं है',
+  },
+  'autopay.ownerOnlyTitle': {
+    en: 'Only the owner can change autopay',
+    hi: 'ऑटोपे सिर्फ़ मालिक बदल सकते हैं',
+  },
 
   // ── one person, several outlets ──────────────────────────────────────────
   // The dealer's own word is "pump"; the chip shows the pump's code (15E).

@@ -9,7 +9,7 @@ import { STATUS_KEY, STATUS_TONE, type StatusTone } from './paymentView';
 // Every pair is dark text on its own pale ground, checked to stay above 4.5:1:
 // the reader is outdoors, on a cheap screen, and the chip is the one word on the
 // card that says where the money stands.
-const TONE_CLASS: Record<StatusTone, string> = {
+export const TONE_CLASS: Record<StatusTone, string> = {
   warning: 'bg-warning-soft text-warning-strong',
   success: 'bg-success-soft text-emerald-800',
   info: 'bg-info-soft text-blue-800',

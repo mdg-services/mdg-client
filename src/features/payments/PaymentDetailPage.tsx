@@ -12,7 +12,7 @@ import { isNotConfigured } from './errors';
 import { GstDocuments } from './GstDocuments';
 import { PayButton } from './PayButton';
 import { PaymentStatusChip } from './PaymentStatusChip';
-import { formatDueDate, hasReceipt } from './paymentView';
+import { dueNote, hasReceipt } from './paymentView';
 import { canPayHere } from './policy';
 import { Receipt } from './Receipt';
 import { StateBlock } from './StateBlock';
@@ -74,6 +74,7 @@ export function PaymentDetailPage() {
     }
   } else {
     const isOpen = payment.status === 'due' || payment.status === 'processing';
+    const due = dueNote(t, lang, payment);
     body = (
       <>
         <Card>
@@ -90,11 +91,7 @@ export function PaymentDetailPage() {
                 {payment.note}
               </p>
             ) : null}
-            {isOpen && payment.dueDate ? (
-              <p className="text-base text-text-muted">
-                {t('payments.dueBy', { date: formatDueDate(lang, payment.dueDate) })}
-              </p>
-            ) : null}
+            {due ? <p className="text-base text-text-muted">{due}</p> : null}
             {payment.status === 'processing' ? (
               <p
                 role="status"
@@ -108,7 +105,8 @@ export function PaymentDetailPage() {
                 {t('payments.lastFailure', { reason: payment.lastFailure.reason })}
               </p>
             ) : null}
-            {canPayHere() && isOpen ? <PayButton payment={payment} /> : null}
+            {/* No Pay on a bill autopay is about to take: paying it too would be paying twice. */}
+            {canPayHere() && isOpen && !payment.autopayOn ? <PayButton payment={payment} /> : null}
           </CardContent>
         </Card>
         {hasReceipt(payment.status) ? (

@@ -8,12 +8,13 @@ import { useLangStore } from '@/store/lang';
 import {
   enterNativeShell,
   leaveNativeShell,
+  makeAutopayStatus,
   makeCheckout,
   makePaidPayment,
   makePayment,
 } from '@/test/payments';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
-import type { DealerPayment } from '@dk/shared/types';
+import type { DealerAutopayStatus, DealerPayment } from '@dk/shared/types';
 
 import type * as CheckoutModule from './checkout';
 import { CheckoutError, loadCheckoutScript, openCheckout } from './checkout';
@@ -33,8 +34,8 @@ function listReturns(...items: DealerPayment[]) {
   vi.mocked(api.get).mockResolvedValue({ items });
 }
 
-function renderPayments(lang: 'en' | 'hi' = 'en') {
-  signIn({ dealerId: 'd1' });
+function renderPayments(lang: 'en' | 'hi' = 'en', role: 'dealer-owner' | 'dealer-staff' = 'dealer-owner') {
+  signIn({ dealerId: 'd1', role });
   useLangStore.setState({ lang, explicit: true });
   return renderWithProviders(<PaymentsPage />, { route: '/payments' });
 }
@@ -366,5 +367,183 @@ describe('PaymentsPage — inside the Android app', () => {
     await screen.findByRole('region', { name: 'बाकी भुगतान' });
     expect(screen.queryByText(/चुकाएँ/)).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link')).toHaveLength(0);
+  });
+});
+
+const AUTOPAY_PATH = '/v1/payments/me/autopay';
+
+/** The server answers by address: the bills, and the owner's autopay (`'pending'` never answers). */
+function serveWithAutopay(
+  items: DealerPayment[],
+  autopay: DealerAutopayStatus | Error | 'pending' = makeAutopayStatus(),
+) {
+  vi.mocked(api.get).mockImplementation((async (path: string) => {
+    if (path === '/v1/payments/me') return { items };
+    if (path === AUTOPAY_PATH) {
+      if (autopay === 'pending') return new Promise(() => undefined);
+      if (autopay instanceof Error) throw autopay;
+      return autopay;
+    }
+    throw new Error(`unexpected GET ${path}`);
+  }) as typeof api.get);
+}
+
+describe('PaymentsPage — the autopay card', () => {
+  const card = () => screen.queryByRole('link', { name: /^Autopay/ });
+
+  it('sits at the top, above what is due, and says what autopay is doing', async () => {
+    serveWithAutopay([makePayment(), makePaidPayment()]);
+    renderPayments();
+
+    const autopay = await screen.findByRole('link', { name: /^Autopay/ });
+    expect(within(autopay).getByText('₹3,540')).toBeInTheDocument();
+    expect(within(autopay).getByText('On')).toBeInTheDocument();
+    expect(within(autopay).getByText('₹3,540 a month · next 24 Nov')).toBeInTheDocument();
+    const due = await screen.findByRole('region', { name: 'Due' });
+    expect(autopay.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH);
+  });
+
+  it('opens the Autopay screen', async () => {
+    serveWithAutopay([makePayment()]);
+    renderPayments();
+    expect(await screen.findByRole('link', { name: /^Autopay/ })).toHaveAttribute(
+      'href',
+      '/settings/autopay',
+    );
+  });
+
+  it.each([
+    [{ state: 'setting_up', nextDebitOn: null }, 'Waiting', 'Waiting for your approval'],
+    [{ state: 'on' }, 'On', '₹3,540 a month · next 24 Nov'],
+    [{ state: 'failing' }, 'Needs attention', 'Last payment did not go through'],
+    [{ state: 'off', nextDebitOn: null }, 'Off', 'Off · works till 24 Nov'],
+  ] as const)('wears the chip for %o', async (over, chip, line) => {
+    serveWithAutopay([makePayment()], makeAutopayStatus(over));
+    renderPayments();
+
+    const autopay = await screen.findByRole('link', { name: /^Autopay/ });
+    expect(within(autopay).getByText(chip)).toBeInTheDocument();
+    expect(within(autopay).getByText(line)).toBeInTheDocument();
+  });
+
+  it('wears the same chip colours as a payment status', async () => {
+    serveWithAutopay([makePayment()], makeAutopayStatus({ state: 'failing' }));
+    renderPayments();
+    const chip = await screen.findByText('Needs attention');
+    // The amber of "Due" on the bill below.
+    expect(chip.className).toContain('bg-warning-soft');
+    expect(chip.className).toContain('text-warning-strong');
+  });
+
+  it('is in Hindi', async () => {
+    serveWithAutopay([makePayment()]);
+    renderPayments('hi');
+
+    const autopay = await screen.findByRole('link', { name: /^ऑटोपे/ });
+    expect(within(autopay).getByText('चालू')).toBeInTheDocument();
+    expect(within(autopay).getByText(/^₹3,540 हर महीने · अगली 24 नव/)).toBeInTheDocument();
+  });
+
+  it('stays above the empty state too', async () => {
+    serveWithAutopay([]);
+    renderPayments();
+    expect(await screen.findByText('No payments yet')).toBeInTheDocument();
+    expect(card()).toBeInTheDocument();
+  });
+
+  it('is not there when there is no autopay to show', async () => {
+    serveWithAutopay([makePayment()], makeAutopayStatus(null));
+    renderPayments();
+    await screen.findByRole('region', { name: 'Due' });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH));
+    expect(card()).not.toBeInTheDocument();
+  });
+
+  it('is not there for a manager, who is not even asked about it', async () => {
+    serveWithAutopay([makePayment()]);
+    renderPayments('en', 'dealer-staff');
+    await screen.findByRole('region', { name: 'Due' });
+    expect(card()).not.toBeInTheDocument();
+    expect(api.get).not.toHaveBeenCalledWith(AUTOPAY_PATH);
+  });
+
+  it('is not there while it loads, and the bills do not wait on it', async () => {
+    serveWithAutopay([makePayment()], 'pending');
+    renderPayments();
+    const due = await screen.findByRole('region', { name: 'Due' });
+    expect(within(due).getByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
+    expect(card()).not.toBeInTheDocument();
+  });
+
+  it('is not there when it fails, and the bills still show', async () => {
+    serveWithAutopay([makePayment()], new ApiError(500, 'INTERNAL', 'boom'));
+    renderPayments();
+    await screen.findByRole('region', { name: 'Due' });
+    await waitFor(() => expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH));
+    expect(card()).not.toBeInTheDocument();
+    expect(screen.queryByText("We couldn't load your autopay")).not.toBeInTheDocument();
+  });
+
+  it('is there inside the Android app too, where it is only shown and stopped', async () => {
+    enterNativeShell();
+    serveWithAutopay([makePayment(), makePaidPayment()]);
+    renderPayments();
+
+    expect(await screen.findByRole('link', { name: /^Autopay/ })).toBeInTheDocument();
+    // Still no Pay button anywhere on the page.
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('PaymentsPage — a due bill that autopay will take', () => {
+  it('reads "Autopay will take this on …" in place of the due date', async () => {
+    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
+    expect(within(due).queryByText(/Due by/)).not.toBeInTheDocument();
+  });
+
+  it('says it in Hindi', async () => {
+    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    renderPayments('hi');
+
+    const due = (await screen.findByRole('region', { name: 'बाकी भुगतान' })) as HTMLElement;
+    expect(within(due).getByText(/^ऑटोपे 28 अक्टू.* को काटेगा$/)).toBeInTheDocument();
+    expect(within(due).queryByText(/तक देना है/)).not.toBeInTheDocument();
+  });
+
+  it('changes only the bill autopay is on for', async () => {
+    listReturns(
+      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2026-10-28' }),
+      makePayment({ id: 'b', title: 'Without', autopayOn: null, dueDate: '2026-12-01' }),
+    );
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getAllByText('Autopay will take this on 28 Oct')).toHaveLength(1);
+    expect(within(due).getByText('Due by 1 Dec 2026')).toBeInTheDocument();
+  });
+
+  it('offers no Pay button in a browser, so the bill is not paid twice', async () => {
+    listReturns(
+      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2026-10-28' }),
+      makePayment({ id: 'b', title: 'Without', autopayOn: null, dueDate: '2026-12-01' }),
+    );
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getAllByRole('button', { name: /Pay/ })).toHaveLength(1);
+  });
+
+  it('reads the same inside the Android app', async () => {
+    enterNativeShell();
+    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
   });
 });

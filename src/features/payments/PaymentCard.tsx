@@ -8,7 +8,7 @@ import type { DealerPayment } from '@dk/shared/types';
 
 import { PayButton } from './PayButton';
 import { PaymentStatusChip } from './PaymentStatusChip';
-import { formatDay, formatDueDate, hasReceipt, methodLabel } from './paymentView';
+import { dueNote, formatDay, hasReceipt, methodLabel } from './paymentView';
 
 /**
  * One payment on the list.
@@ -35,6 +35,7 @@ export function PaymentCard({
   const lang = useLang();
   const isOpen = payment.status === 'due' || payment.status === 'processing';
   const method = methodLabel(t, payment.method);
+  const due = dueNote(t, lang, payment);
   // Where this card may lead: anywhere in a browser, and to the receipt of a paid
   // payment in the app. A due or processing row in the app leads nowhere.
   const opensPage = interactive || hasReceipt(payment.status);
@@ -51,9 +52,7 @@ export function PaymentCard({
         <PaymentStatusChip status={payment.status} />
       </div>
       <div className="mt-1 flex flex-col gap-0.5 text-base text-text-muted">
-        {isOpen && payment.dueDate ? (
-          <p>{t('payments.dueBy', { date: formatDueDate(lang, payment.dueDate) })}</p>
-        ) : null}
+        {due ? <p>{due}</p> : null}
         {payment.status === 'processing' ? <p>{t('payments.confirmingNote')}</p> : null}
         {hasReceipt(payment.status) && payment.paidAt ? (
           <p>
@@ -85,7 +84,10 @@ export function PaymentCard({
       ) : (
         <div className="p-4">{summary}</div>
       )}
-      {interactive && isOpen ? <PayButton payment={payment} className="px-4 pb-4" /> : null}
+      {/* No Pay on a bill autopay is about to take: paying it too would be paying twice. */}
+      {interactive && isOpen && !payment.autopayOn ? (
+        <PayButton payment={payment} className="px-4 pb-4" />
+      ) : null}
     </Card>
   );
 }

@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,15 +10,17 @@ import { useLangStore } from '@/store/lang';
 import {
   enterNativeShell,
   leaveNativeShell,
+  makeAutopayStatus,
   makeCreditNote,
   makeInvoice,
   makePaidPayment,
   makePayment,
 } from '@/test/payments';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
-import type { DealerPayment } from '@dk/shared/types';
+import type { DealerAutopayStatus, DealerPayment } from '@dk/shared/types';
 
 import { CHECKOUT_SCRIPT_URL, resetCheckoutScript } from './checkout';
+import { formatDayMonth } from './paymentView';
 
 /**
  * THE POLICY TEST (ADR 0022 §1).
@@ -43,6 +45,13 @@ import { CHECKOUT_SCRIPT_URL, resetCheckoutScript } from './checkout';
  * buttons and the links allowed on a page are written out in full, a row that is
  * still due or processing is never one of them, and everything else on the page
  * is held to the same rules as before.
+ *
+ * AUTOPAY IS SHOWN AND STOPPED, NEVER STARTED (ADR 0022 §13). Two more things
+ * may be pressed or opened in the app, and the tests below hold them to the same
+ * standard: the Autopay card on the Payments list, a link to `/settings/autopay`;
+ * and that screen, whose one button ends an autopay (its dialog has chips, a help
+ * line and the stop, and nothing else). Neither may offer to turn autopay on,
+ * link anywhere else, or say how.
  */
 
 // The shell's own side effects (sockets, push) are not what this file is about.
@@ -76,8 +85,15 @@ const MARKER = {
 } as const;
 const DOWNLOAD_LINK = { url: 'https://s3.test/gst/invoice?sig=abc', filename: 'MDG-26-27-00001.pdf' };
 
-function serve(items: DealerPayment[]) {
+const AUTOPAY_PATH = '/v1/payments/me/autopay';
+
+/** The server's answers by address. With no `autopay`, that address is not served (nothing to show). */
+function serve(items: DealerPayment[], autopay?: DealerAutopayStatus) {
   vi.mocked(api.get).mockImplementation((async (path: string) => {
+    if (path === AUTOPAY_PATH) {
+      if (!autopay) throw new Error(`unexpected GET ${path}`);
+      return autopay;
+    }
     if (path === '/v1/payments/me') return { items };
     if (path.includes('/documents/')) return DOWNLOAD_LINK;
     const id = path.split('/').pop();
@@ -138,7 +154,8 @@ function allowedButtons(lang: 'en' | 'hi', downloads: string[], toast = false): 
  * pointer towards one. `downloads` are the numbers of the documents on the page,
  * whose Download buttons are the only buttons allowed beside Back. `receipts` are
  * the addresses of the PAID payments the page may link to — the receipt of money
- * already paid — and the only links it may have.
+ * already paid — and the only links it may have, plus `autopayLinks`: the
+ * Autopay card's link to the screen that can stop it.
  */
 function expectNoPayPath(
   container: HTMLElement,
@@ -146,13 +163,16 @@ function expectNoPayPath(
   downloads: string[],
   toast = false,
   receipts: string[] = [],
+  autopayLinks: string[] = [],
 ) {
+  const links = [...receipts, ...autopayLinks];
   // No form to submit and no frame. The only links are the receipts listed, each
-  // to a payment that was made; no element other than a link has an address.
+  // to a payment that was made, and the Autopay card's; no element other than a
+  // link has an address.
   expect(container.querySelectorAll('form, iframe, [href]:not(a), a:not([href])')).toHaveLength(0);
   expect(
     Array.from(container.querySelectorAll('a')).map((a) => a.getAttribute('href')).sort(),
-  ).toEqual([...receipts].sort());
+  ).toEqual([...links].sort());
   // The only things to press are the bar's Back arrow and, on a page with a GST
   // document, that document's Download (and a toast's Dismiss while one shows).
   expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(
@@ -163,7 +183,7 @@ function expectNoPayPath(
   // (The receipt links above are the one pay-shaped address allowed, so they are
   // taken out before looking; any other address of that shape still fails.)
   const attributes = everyAttribute(document.documentElement)
-    .filter((attr) => !receipts.some((href) => attr === `a@href=${href}`))
+    .filter((attr) => !links.some((href) => attr === `a@href=${href}`))
     .join('\n');
   expect(attributes).not.toMatch(/razorpay/i);
   expect(attributes).not.toMatch(/\/pay(ments)?\/[^\s"]*/i);
@@ -235,6 +255,166 @@ describe('the payments list, rendered as the Android app does', () => {
       expect(api.post).not.toHaveBeenCalled();
     },
   );
+});
+
+type AutopayState = 'setting_up' | 'on' | 'failing' | 'off';
+const AUTOPAY_STATES: AutopayState[] = ['setting_up', 'on', 'failing', 'off'];
+const EACH_STATE_AND_LANG = AUTOPAY_STATES.flatMap((state) =>
+  (['en', 'hi'] as const).map((lang) => [state, lang] as const),
+);
+
+/** What proves the Autopay screen has drawn: the pump on its card, or the Off block. */
+function autopayMarker(lang: 'en' | 'hi', state: AutopayState): string {
+  return state === 'off'
+    ? translate(lang, 'autopay.off.title')
+    : translate(lang, 'autopay.pump', { code: '15E' });
+}
+
+describe('the payments list with autopay, rendered as the Android app does', () => {
+  it.each(EACH_STATE_AND_LANG)(
+    'shows the Autopay card (%s, %s) and still offers no way to pay',
+    async (state, lang) => {
+      const user = userEvent.setup();
+      enterNativeShell();
+      serve([DUE, PAID, INVOICED], makeAutopayStatus({ state }));
+      const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+      const { container } = await openRoute('/payments', MARKER['/payments'], lang);
+      // The card has drawn: a link to the screen that can stop it.
+      const card = await screen.findByRole('link', {
+        name: new RegExp(`^${translate(lang, 'autopay.title')}`),
+      });
+      expect(card).toHaveAttribute('href', '/settings/autopay');
+
+      expectNoPayPath(
+        container,
+        lang,
+        [],
+        false,
+        ['/payments/p2', '/payments/p3'],
+        ['/settings/autopay'],
+      );
+      expect(open).not.toHaveBeenCalled();
+      // The due bill is still plain text, not a link, and nothing is a Pay button.
+      expect(screen.getByText(DUE.title)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Pay|चुकाएँ/ })).not.toBeInTheDocument();
+
+      // The card leads to the Autopay screen, and only there.
+      await user.click(card);
+      await screen.findByText(autopayMarker(lang, state), undefined, { timeout: 10_000 });
+      expect(api.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['en', 'hi'] as const)(
+    'says a due bill is taken by autopay, in words that do not point at paying (%s)',
+    async (lang) => {
+      enterNativeShell();
+      serve([makePayment({ autopayOn: '2026-10-28' }), PAID], makeAutopayStatus());
+
+      const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026', lang);
+      await screen.findByText(translate(lang, 'payments.autopayWillTake', { date: formatDayMonth(lang, '2026-10-28') }));
+
+      expectNoPayPath(container, lang, [], false, ['/payments/p2'], ['/settings/autopay']);
+    },
+  );
+});
+
+// What each state of the Autopay screen has to press, by name: the bar's Back,
+// the one button that ends it, and the chat where the screen has a line for it.
+function autopayButtons(lang: 'en' | 'hi', state: AutopayState): string[] {
+  const tr = (key: Parameters<typeof translate>[1]) => translate(lang, key);
+  const back = tr('common.back');
+  switch (state) {
+    case 'setting_up':
+      return [back, tr('autopay.cancelSetup')];
+    case 'on':
+      return [back, tr('autopay.stop')];
+    case 'failing':
+      return [back, tr('autopay.stop'), `${tr('help.askInChat')}${tr('help.askInChatDesc')}`];
+    case 'off':
+      return [back, tr('autopay.off.stopService')];
+  }
+}
+
+/** The Autopay screen, as the Android app draws it: shown and stopped, never started. */
+function expectAutopayScreenIsShowAndStopOnly(
+  container: HTMLElement,
+  lang: 'en' | 'hi',
+  buttons: string[],
+) {
+  // No link and no address anywhere: nothing on the screen leads off it.
+  expect(document.querySelectorAll('a, form, iframe, [href], [src]')).toHaveLength(0);
+  expect(
+    screen.getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent),
+  ).toEqual(buttons);
+  // Nothing names Razorpay or an address of a payment.
+  const attributes = everyAttribute(document.documentElement).join('\n');
+  expect(attributes).not.toMatch(/razorpay/i);
+  expect(attributes).not.toMatch(/\/pay(ments)?\/[^\s"]*/i);
+  expect(document.querySelector('script[src*="razorpay" i]')).toBeNull();
+  // The same words as every other page, and nothing about turning autopay on.
+  const words = (container.textContent ?? '').toLowerCase();
+  expect(words).not.toMatch(
+    /razorpay|website|web site|browser|payment link|pay (online|here|at|on|via|using|through)|chrome|वेबसाइट|ब्राउज़र|लिंक/,
+  );
+  expect(words).not.toMatch(
+    /turn (it )?on|switch (it )?on|set (it )?up|start autopay|activate|enable|approve|चालू करें|चालू कीजिए|शुरू करें/,
+  );
+  expect(api.post).not.toHaveBeenCalled();
+  expect((window as { Razorpay?: unknown }).Razorpay).toBeUndefined();
+  void lang;
+}
+
+describe('the Autopay screen, rendered as the Android app does', () => {
+  it.each(EACH_STATE_AND_LANG)('only shows and stops (%s, %s)', async (state, lang) => {
+    enterNativeShell();
+    serve([DUE, PAID, INVOICED], makeAutopayStatus({ state }));
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const { container } = await openRoute('/settings/autopay', autopayMarker(lang, state), lang);
+
+    expectAutopayScreenIsShowAndStopOnly(container, lang, autopayButtons(lang, state));
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it.each(['setting_up', 'on', 'failing'] as const)(
+    'has a stop dialog that offers reasons, a help line and the stop — and nothing to turn it on (%s)',
+    async (state) => {
+      const user = userEvent.setup();
+      enterNativeShell();
+      serve([DUE, PAID], makeAutopayStatus({ state, firstMonthRefundable: true }));
+
+      const { container } = await openRoute('/settings/autopay', autopayMarker('en', state));
+      await user.click(
+        screen.getByRole('button', { name: translate('en', state === 'setting_up' ? 'autopay.cancelSetup' : 'autopay.stop') }),
+      );
+      const dialog = await screen.findByRole('alertdialog');
+
+      // Five reasons, the help line, the stop and the keep: and nothing else.
+      expect(within(dialog).getAllByRole('button')).toHaveLength(8);
+      expect(document.querySelectorAll('a, form, iframe, [href], [src]')).toHaveLength(0);
+      const words = (container.textContent ?? '').toLowerCase();
+      expect(words).not.toMatch(
+        /razorpay|website|web site|browser|payment link|pay (online|here|at|on|via|using|through)|chrome|turn (it )?on|switch (it )?on|set (it )?up|activate|enable/,
+      );
+      expect(api.post).not.toHaveBeenCalled();
+    },
+  );
+
+  it('shows a manager nothing: no amount, no button, no address', async () => {
+    enterNativeShell();
+    serve([DUE, PAID], makeAutopayStatus());
+    signIn({ dealerId: 'd1', role: 'dealer-staff' });
+    useLangStore.setState({ lang: 'en', explicit: true });
+    const { container } = renderWithProviders(<App />, { route: '/settings/autopay' });
+    await screen.findByText('Only the owner can change autopay', undefined, { timeout: 10_000 });
+
+    expect(api.get).not.toHaveBeenCalledWith(AUTOPAY_PATH);
+    expect(container.textContent ?? '').not.toMatch(/₹/);
+    expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual(['Back']);
+    expect(document.querySelectorAll('a, form, iframe, [href], [src]')).toHaveLength(0);
+  });
 });
 
 describe('a GST document downloaded inside the Android app', () => {

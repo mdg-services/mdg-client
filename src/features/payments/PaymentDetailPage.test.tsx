@@ -182,6 +182,37 @@ describe('PaymentDetailPage — a payment that is due', () => {
   });
 });
 
+describe('PaymentDetailPage — a due payment that autopay will take', () => {
+  it('reads "Autopay will take this on …" in place of the due date', async () => {
+    renderDetail(makePayment({ autopayOn: '2026-10-28' }));
+
+    expect(await screen.findByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
+    expect(screen.queryByText(/Due by/)).not.toBeInTheDocument();
+  });
+
+  it('says it in Hindi', async () => {
+    renderDetail(makePayment({ autopayOn: '2026-10-28' }), 'hi');
+
+    expect(await screen.findByText(/^ऑटोपे 28 अक्टू.* को काटेगा$/)).toBeInTheDocument();
+    expect(screen.queryByText(/तक देना है/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the usual due date when autopay is not on for it', async () => {
+    renderDetail(makePayment({ autopayOn: null }));
+
+    expect(await screen.findByText('Due by 5 Nov 2026')).toBeInTheDocument();
+    expect(screen.queryByText(/Autopay will take/)).not.toBeInTheDocument();
+  });
+
+  it('says it inside the Android app too, with the page still read-only', async () => {
+    enterNativeShell();
+    renderDetail(makePayment({ autopayOn: '2026-10-28' }));
+
+    expect(await screen.findByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('PaymentDetailPage — inside the Android app', () => {
   beforeEach(() => enterNativeShell());
 

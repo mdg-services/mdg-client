@@ -33,6 +33,7 @@
  * Nothing in these types carries payment instructions to the app.
  */
 
+import type { PaymentChannel } from './payment';
 import type { PortalId } from './portalLogin';
 
 // ── Stages ─────────────────────────────────────────────────────────────────
@@ -294,8 +295,8 @@ export interface SetupPaymentAdminView extends SetupPaymentDealerView {
   /** The payment's own number (`MDG-2026-00012`) and its Razorpay link, when one was made. */
   paymentNumber: string | null;
   linkUrl: string | null;
-  /** How it was paid: Razorpay pop-up, Razorpay link, or recorded by hand. */
-  paidVia: 'checkout' | 'link' | 'manual' | null;
+  /** How it was paid: Razorpay pop-up, Razorpay link, recorded by hand, or taken by autopay. */
+  paidVia: PaymentChannel | null;
 }
 
 // ── Reminders and calls (plan §4) ──────────────────────────────────────────
