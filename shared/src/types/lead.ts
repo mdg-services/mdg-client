@@ -248,6 +248,39 @@ export interface LeadSign {
   kind: LeadSignKind;
 }
 
+/** How the WhatsApp film invite fared, as Meta reported it. */
+export const LEAD_INVITE_DELIVERIES = ['sent', 'delivered', 'read', 'failed'] as const;
+export type LeadInviteDelivery = (typeof LEAD_INVITE_DELIVERIES)[number];
+
+/** Why an invite did not arrive: WhatsApp held it back (a promotion limit), or the number is not on WhatsApp. */
+export const LEAD_INVITE_FAILURES = ['held_back', 'not_on_whatsapp', 'other'] as const;
+export type LeadInviteFailure = (typeof LEAD_INVITE_FAILURES)[number];
+
+/** The newest WhatsApp film invite we sent them. */
+export interface LeadInvite {
+  /** When it went. */
+  at: string;
+  delivery: LeadInviteDelivery;
+  /** Set only when `delivery` is `failed`. */
+  failure: LeadInviteFailure | null;
+}
+
+/** The latest time they did each thing (ISO), or null when they never have. */
+export interface LeadSigns {
+  replied: string | null;
+  callMe: string | null;
+  callback: string | null;
+  assistant: string | null;
+  registered: string | null;
+}
+
+/** The newest note somebody at MDG wrote on the lead: with a contact, a follow-up, a close, or on its own. */
+export interface LeadNote {
+  text: string;
+  byName: string | null;
+  at: string;
+}
+
 /** One row of the Leads list. */
 export interface LeadRow {
   id: string;
@@ -278,6 +311,12 @@ export interface LeadRow {
   lastContact: LeadContactSummary | null;
   /** The latest thing they did. */
   lastSign: LeadSign | null;
+  /** Every kind of thing they did, with when it last happened — the list shows more than the newest. */
+  signs: LeadSigns;
+  /** The newest WhatsApp film invite and how it fared. Null for a lead that never got one. */
+  invite: LeadInvite | null;
+  /** The newest note the team wrote, so the list says what was agreed without opening the lead. */
+  lastNote: LeadNote | null;
   /** When to get in touch next. Null for closed and registered leads. */
   nextDueAt: string | null;
   dueReason: LeadDueReason | null;
