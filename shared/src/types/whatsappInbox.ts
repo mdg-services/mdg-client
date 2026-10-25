@@ -8,6 +8,17 @@
  * built to behave like the WhatsApp app does: one chat per person, newest
  * first, unread counts, ticks, and a box to type into.
  *
+ * ONE INBOX PER NUMBER (`WhatsAppLine`). We run two numbers with two jobs —
+ * MDG Services for marketing, Dealer's Kavach for the dealers who use the
+ * product — and a message from the wrong one is the mistake this page exists
+ * to make impossible. So each number is its own inbox, as two phones would
+ * be: its own chat list, unread counts, pins and windows. A message always
+ * leaves from the inbox it was typed in, and every send names that inbox
+ * (`line`): the server refuses one that does not, and never picks a number by
+ * itself. A person who wrote to both numbers has two chats, one in each.
+ * What the team knows about the PERSON — the name, the note, the lead stage —
+ * is shared by both.
+ *
  * Two ways a typed message can go, and Meta decides which is allowed:
  *
  * - `text` — an ordinary message, exactly as typed. Only while the person's
@@ -20,6 +31,69 @@
  *
  * The server picks; the admin is told which before pressing send.
  */
+
+// ─────────────────────────────────────────────────────────────────────────
+// Our numbers — one inbox each
+// ─────────────────────────────────────────────────────────────────────────
+
+/** Our WhatsApp numbers, by the job each does. Goes in URLs (`?line=`) and in every inbox request. */
+export const WHATSAPP_LINES = ['marketing', 'clients'] as const;
+export type WhatsAppLine = (typeof WHATSAPP_LINES)[number];
+
+/** The inbox to open when nothing else says which. */
+export const WHATSAPP_DEFAULT_LINE: WhatsAppLine = 'marketing';
+
+export interface WhatsAppLineInfo {
+  line: WhatsAppLine;
+  /** Meta's id for the number. A send goes to this id's `/messages`. */
+  numberId: string;
+  /** The number as a person reads it. */
+  phone: string;
+  /** The name WhatsApp shows the person, exactly as Meta approved it. */
+  name: string;
+  /** The job, in one word: what the team calls this inbox. */
+  purpose: string;
+  /** What it is for, in one short sentence. */
+  use: string;
+}
+
+/**
+ * The two numbers. Both are on the same WhatsApp Business account, so the
+ * templates below can go from either. Change an id only when Meta's changes.
+ */
+export const WHATSAPP_LINE_INFO: Readonly<Record<WhatsAppLine, WhatsAppLineInfo>> = {
+  marketing: {
+    line: 'marketing',
+    numberId: '1359075327291270',
+    phone: '+91 94702 93412',
+    name: 'MDG Services',
+    purpose: 'Marketing',
+    use: 'Promotions, films and new leads.',
+  },
+  clients: {
+    line: 'clients',
+    numberId: '1407795215740559',
+    phone: '+91 94702 93427',
+    name: "Dealer's Kavach",
+    purpose: 'Clients',
+    use: 'Product messages to dealers who use Dealer Kavach.',
+  },
+};
+
+export const isWhatsAppLine = (v: unknown): v is WhatsAppLine =>
+  typeof v === 'string' && (WHATSAPP_LINES as readonly string[]).includes(v);
+
+/** The inbox a number belongs to; null for an id that is not one of ours. */
+export function lineOfNumber(numberId: string | null | undefined): WhatsAppLine | null {
+  if (!numberId) return null;
+  return WHATSAPP_LINES.find((l) => WHATSAPP_LINE_INFO[l].numberId === numberId) ?? null;
+}
+
+/** "Dealer's Kavach · Clients" — the inbox's name wherever there is room for only one line. */
+export function lineLabel(line: WhatsAppLine): string {
+  const info = WHATSAPP_LINE_INFO[line];
+  return `${info.name} · ${info.purpose}`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────
 // The template a message goes in when the window is closed
@@ -149,13 +223,15 @@ export interface WhatsAppChatLast {
   delivery: WhatsAppDelivery | null;
 }
 
-/** One person's chat, as the list shows it. */
+/** One person's chat with one of our numbers, as the list shows it. */
 export interface WhatsAppChatSummary {
   /**
    * Names the person: their number as WhatsApp writes it (`918340711366`), or
    * `user:<id>` when Meta withheld the number. Goes in URLs encoded.
    */
   person: string;
+  /** The inbox — our number — this chat is on. */
+  line: WhatsAppLine;
   phone: string | null;
   /**
    * What to call them, best first: the name saved in the inbox, the name we
@@ -167,18 +243,24 @@ export interface WhatsAppChatSummary {
   profileName: string | null;
   /** Where we know them from, in a few words ("Assistant lead"), when we do. */
   source: string | null;
+  /** Shared by both inboxes: it is about the person. */
   stage: WhatsAppStage | null;
+  /** In this inbox only. */
   pinned: boolean;
-  /** Messages from them nobody has read. A recorded stop and a reaction are not counted. */
+  /** Messages from them to this number nobody has read. A recorded stop and a reaction are not counted. */
   unread: number;
-  /** Marked unread by hand ("come back to this"). Cleared when the chat is read. */
+  /** Marked unread by hand ("come back to this"), in this inbox only. Cleared when the chat is read. */
   markedUnread: boolean;
   last: WhatsAppChatLast;
   lastInboundAt: string | null;
   lastOutboundAt: string | null;
   /** They wrote last and nobody has answered. */
   needsReply: boolean;
-  /** When an ordinary reply stops being possible. Null: the window is closed (or never opened). */
+  /**
+   * When an ordinary reply from THIS number stops being possible. Null: the
+   * window is closed (or never opened). A window belongs to a person and a
+   * number together: writing to one number opens nothing on the other.
+   */
   windowClosesAt: string | null;
   /** On the stop list. */
   optedOut: boolean;
@@ -194,8 +276,14 @@ export interface WhatsAppChatList {
   nextCursor: string | null;
 }
 
-/** How the next message to this person would go, decided by the server. */
+/**
+ * How the next message to this person would go, decided by the server. It
+ * always goes from the chat's own inbox: the route says HOW, never which
+ * number — that was settled by which inbox the chat is in.
+ */
 export interface WhatsAppReplyRoute {
+  /** The chat's inbox, which the message goes from. */
+  line: WhatsAppLine;
   /** Our number it goes from (Meta's id for it). */
   phoneNumberId: string;
   /** That number as a person reads it: "+91 94702 93412 · MDG Services". */
@@ -207,15 +295,41 @@ export interface WhatsAppReplyRoute {
   blocked: string | null;
 }
 
+/** A person's chat on one of our numbers, in brief. */
+export interface WhatsAppChatOnLine {
+  line: WhatsAppLine;
+  /** Messages from them to that number nobody has read. */
+  unread: number;
+  /** They wrote to that number last and nobody has answered there. */
+  needsReply: boolean;
+  /** They wrote to that number in the last 24 hours: an ordinary message can go from there now. */
+  windowOpen: boolean;
+  /** The newest message either way on that number. */
+  lastAt: string;
+}
+
+/** Every inbox this person has a chat in, newest first (`GET /chats/:person/lines`). */
+export interface WhatsAppChatLines {
+  lines: WhatsAppChatOnLine[];
+}
+
 export interface WhatsAppChatDetail {
   chat: WhatsAppChatSummary;
-  /** A private note about this person, for the team. */
+  /** The inbox this detail is for (`chat.line`). */
+  line: WhatsAppLine;
+  /** A private note about this person, for the team. Shared by both inboxes. */
   note: string | null;
   reply: WhatsAppReplyRoute;
   /** Every name we hold for this number and where it came from. */
   knownAs: Array<{ name: string; source: string }>;
-  /** When the first message either way was. */
+  /** When the first message either way was, on this number. */
   firstAt: string | null;
+  /**
+   * The same person's chats in our OTHER inboxes, newest first; empty when
+   * they have none. The page shows it so an answer that belongs on the other
+   * number is given there, not here.
+   */
+  elsewhere: WhatsAppChatOnLine[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -298,6 +412,13 @@ export interface WhatsAppMessagePage {
 // ─────────────────────────────────────────────────────────────────────────
 
 export interface WhatsAppSendInput {
+  /**
+   * The inbox the message was typed in, which is the number it leaves from.
+   * Required: a send without it is refused (`WHATSAPP_LINE_REQUIRED`) rather
+   * than guessed — an old tab must not send from a number its screen never
+   * showed.
+   */
+  line: WhatsAppLine;
   text: string;
   /**
    * Made by the composer, one per message (a UUID). Sending the same id twice
@@ -316,6 +437,8 @@ export interface WhatsAppSendInput {
 
 /** Start a chat with somebody who is not in the inbox yet. */
 export interface WhatsAppNewChatInput {
+  /** As `WhatsAppSendInput.line`: the inbox it is started from, and the number it leaves from. */
+  line: WhatsAppLine;
   /** An Indian mobile number in any shape a person types one. */
   phone: string;
   name?: string | null;
@@ -330,7 +453,12 @@ export interface WhatsAppSendResult {
   message: WhatsAppChatMessage;
 }
 
-/** What a person at MDG can change about a chat. Every field optional; null clears. */
+/**
+ * What a person at MDG can change about a chat. Every field optional; null
+ * clears. Sent with the chat's inbox (`?line=`): `pinned` and `markedUnread`
+ * belong to that inbox alone; `name`, `stage` and `note` are about the person
+ * and show in both.
+ */
 export interface WhatsAppChatPatch {
   name?: string | null;
   stage?: WhatsAppStage | null;
@@ -339,11 +467,21 @@ export interface WhatsAppChatPatch {
   note?: string | null;
 }
 
-/** The two numbers the nav badge and the page title carry. */
+/** Marking a chat read, up to the newest message the reader's screen showed. */
+export interface WhatsAppReadInput {
+  /** The inbox the chat was read in. Only that number's messages are marked. */
+  line: WhatsAppLine;
+  upTo: string;
+}
+
+/** The counts the nav badge, the page title and the inbox switch carry. */
 export interface WhatsAppInboxSummary {
-  /** Chats with something unread, or marked unread. */
+  /** Chats with something unread, or marked unread — both inboxes together. */
   unreadChats: number;
+  /** Both inboxes together. */
   needsReply: number;
+  /** The same two counts for each inbox on its own. */
+  lines: Record<WhatsAppLine, { unreadChats: number; needsReply: number }>;
 }
 
 /** A saved answer, typed with `/shortcut` in the composer. */
@@ -388,8 +526,13 @@ export interface WhatsAppInboxConfig {
     maxLength: number;
   } | null;
   textMaxLength: number;
-  /** The numbers we send from. */
-  numbers: Array<{ id: string; label: string; isDefault: boolean }>;
+  /**
+   * The inboxes this server can send from. An admin page only lets a message
+   * go from an inbox listed here: a server from before the two inboxes sends
+   * no list — and would pick the number itself — so against one the page
+   * refuses to send rather than show a number it cannot promise.
+   */
+  lines: WhatsAppLine[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -404,6 +547,8 @@ export interface WhatsAppChangedEvent {
 /** Somebody wrote to us. For the toast, the sound and the desktop notification. */
 export interface WhatsAppIncomingEvent {
   person: string;
+  /** The inbox — our number — they wrote to. Null for a number that is not one of our inboxes. */
+  line: WhatsAppLine | null;
   /** What to call them (`WhatsAppChatSummary.name`), else null: show the number. */
   name: string | null;
   phone: string | null;
