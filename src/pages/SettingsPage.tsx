@@ -1,10 +1,13 @@
 import {
   ArrowLeftRight,
+  Bell,
+  FileText,
   Globe,
   GraduationCap,
   KeyRound,
   LogOut,
   ReceiptText,
+  ShieldCheck,
   Users,
   UsersRound,
   Wrench,
@@ -18,11 +21,15 @@ import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, EmptyState } from '@/components/ui';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
+import { requestPushPermission } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
+import { PRIVACY_URL, TERMS_URL, openWebPage } from '@/lib/legalLinks';
+import { isNativeShell, openNativeAppSettings } from '@/lib/nativeBridge';
 import { useDialog } from '@/lib/useDialog';
 import { useGoBack } from '@/lib/useGoBack';
 import { useAuthStore } from '@/store/auth';
+import { usePushStore } from '@/store/push';
 import { dealerCodeLabel } from '@dk/shared';
 
 import { roleLabel } from './settings/RoleBadge';
@@ -61,6 +68,9 @@ export function SettingsPage() {
   const outlets = useOutlets();
   const [outletsOpen, setOutletsOpen] = React.useState(false);
   const closeOutlets = React.useCallback(() => setOutletsOpen(false), []);
+  // ── notifications ── only the phone's own app has anything to switch
+  const pushState = usePushStore((s) => s.pushState);
+  const showNotifications = isNativeShell() && pushState !== 'unavailable';
 
   const bar = <AppBar title={t('settings.title')} onBack={goBack} />;
 
@@ -81,6 +91,16 @@ export function SettingsPage() {
   // The phone number when there is one, else the email — the line WhatsApp keeps
   // under a member's name.
   const contact = user.phone || user.email;
+
+  // Granted or refused, the only door left is the phone's Settings. Never asked,
+  // the phone itself can still be made to ask — and an `unknown` state (an older
+  // shell that never said) reads the same, because asking again is harmless.
+  const notificationsOn = pushState === 'on';
+  const notificationsOff = pushState === 'off';
+  const onNotifications = () => {
+    if (notificationsOn || notificationsOff) openNativeAppSettings();
+    else requestPushPermission();
+  };
 
   const onLogout = () => {
     logout();
@@ -131,6 +151,20 @@ export function SettingsPage() {
             subtitle={LANGUAGE_NAMES[lang]}
             onClick={() => setLanguageOpen(true)}
           />
+          {showNotifications ? (
+            <Row
+              icon={Bell}
+              title={t('settings.notifications')}
+              subtitle={
+                notificationsOn
+                  ? t('settings.notificationsOn')
+                  : notificationsOff
+                    ? t('settings.notificationsOff')
+                    : t('settings.notificationsAsk')
+              }
+              onClick={onNotifications}
+            />
+          ) : null}
           {isOwner ? (
             <Row
               icon={UsersRound}
@@ -173,6 +207,16 @@ export function SettingsPage() {
             title={t('settings.help')}
             subtitle={t('settings.helpDesc')}
             onClick={() => navigate('/settings/help')}
+          />
+          <Row
+            icon={ShieldCheck}
+            title={t('legal.privacyPolicy')}
+            onClick={() => openWebPage(PRIVACY_URL)}
+          />
+          <Row
+            icon={FileText}
+            title={t('legal.termsOfService')}
+            onClick={() => openWebPage(TERMS_URL)}
           />
           <Row
             icon={LogOut}

@@ -15,6 +15,13 @@ import { resolveFileType } from './uploadAttachment';
  *   - the environment lacks createImageBitmap / <canvas>
  *   - decode/encode throws, or the result is empty or bigger than the original
  *
+ * ONE EXCEPTION TO "KEEP THE ORIGINAL WHEN IT IS NOT WORTH IT": an iPhone's
+ * HEIC/HEIF photo. It is small, so the size floor would leave it alone, and it
+ * is smaller than the JPEG it becomes, so the "no saving" rule would too — and
+ * then MDG's team, an Android phone and this app's own preview would receive a
+ * file almost nothing can open. HEIC is always converted to JPEG when the phone
+ * can decode it; when it cannot, the original is kept, as for any other failure.
+ *
  * Uses a normal <canvas> (not OffscreenCanvas, which is missing on Android 8/9
  * System WebView). createImageBitmap IS available there and decodes off the main
  * layout path.
@@ -27,6 +34,11 @@ const MAX_EDGE = 1600;
 /** JPEG quality for the re-encode. */
 const JPEG_QUALITY = 0.7;
 
+/** An iPhone's own photo format, by its type or, when the type is empty, its name. */
+function isHeic(file: File, type: string): boolean {
+  return /^image\/hei[cf]$/.test(type.split(';')[0]!.trim()) || /\.hei[cf]$/i.test(file.name);
+}
+
 export async function compressImage(
   file: File,
   opts?: { contentType?: string },
@@ -38,7 +50,8 @@ export async function compressImage(
     if (resolved.kind !== 'image') return null;
     // Animated GIFs would be flattened to one frame — leave them alone.
     if (type.includes('gif')) return null;
-    if (file.size < MIN_COMPRESS_BYTES) return null;
+    const heic = isHeic(file, type);
+    if (file.size < MIN_COMPRESS_BYTES && !heic) return null;
     if (typeof createImageBitmap === 'undefined' || typeof document === 'undefined') {
       return null;
     }
@@ -73,7 +86,8 @@ export async function compressImage(
     canvas.height = 0;
 
     if (!blob || blob.size === 0) return null; // never upload an empty blob
-    if (blob.size >= file.size) return null; // no real saving — keep the original
+    // No real saving — keep the original. Never for HEIC: the JPEG is the point.
+    if (blob.size >= file.size && !heic) return null;
 
     const base = file.name.replace(/\.[^.]+$/, '') || 'photo';
     return new File([blob], `${base}.jpg`, {

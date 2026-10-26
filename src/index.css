@@ -143,11 +143,17 @@
     font-size: 16px;
   }
   /* Themed selection highlight for the re-enabled message text (translucent,
-     no explicit color so text stays legible on brand bubbles in both themes). */
+     no explicit color so text stays legible on brand bubbles in both themes).
+     The rgba line is --color-online (#0f766e) at the same strength, written out:
+     iOS 15.1-16.1 do not know color-mix() and DROP that whole declaration, which
+     left selected text with no tint at all. A phone that does know it reads the
+     second line and overrides the first. */
   ::selection {
+    background: rgba(15, 118, 110, 0.32);
     background: color-mix(in srgb, var(--color-online) 32%, transparent);
   }
   ::-moz-selection {
+    background: rgba(15, 118, 110, 0.32);
     background: color-mix(in srgb, var(--color-online) 32%, transparent);
   }
 
@@ -208,6 +214,9 @@
 @keyframes flash-highlight {
   0%,
   35% {
+    /* The rgba line is --color-online at 22%, for iOS 15.1-16.1, which drop
+       color-mix() and would play the jump-to-message pulse with no colour. */
+    background-color: rgba(15, 118, 110, 0.22);
     background-color: color-mix(in srgb, var(--color-online) 22%, transparent);
   }
   100% {

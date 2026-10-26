@@ -365,9 +365,9 @@ describe('a swipe-reply to a request', () => {
     mount();
     await screen.findByRole('button', { name: 'Send photo' });
     const row = document.querySelector('[data-mid="ask-msg"]')!;
-    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
-    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 40, clientY: 0 });
+    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
+    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
 
     expect(await screen.findByLabelText(/Replying to/i)).toBeInTheDocument();
     await waitFor(() => expect(document.activeElement?.tagName).toBe('TEXTAREA'));

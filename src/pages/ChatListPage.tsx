@@ -16,6 +16,7 @@ import {
 } from '@/features/chat/conversationLabel';
 import { OutletChip } from '@/features/outlets/OutletChip';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
+import { PushNotice } from '@/features/push/PushNotice';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -197,6 +198,9 @@ function ChatList() {
     <>
       {bar}
       <div className="flex flex-1 flex-col bg-wa-bar">
+        {/* Nothing here unless the phone has never been asked about
+            notifications, or has said no — and then one quiet line, not a wall. */}
+        <PushNotice />
         <FilterChips
           active={activeChip}
           showGroups={showGroups}

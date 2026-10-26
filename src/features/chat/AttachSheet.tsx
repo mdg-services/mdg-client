@@ -2,6 +2,7 @@ import { Camera, FileText, Image as ImageIcon } from 'lucide-react';
 import * as React from 'react';
 
 import { useT, type MessageKey } from '@/lib/i18n';
+import { detectPlatform } from '@/lib/nativeBridge';
 import { useBackToClose } from '@/lib/useBackToClose';
 
 export type AttachChoice = 'document' | 'camera' | 'gallery';
@@ -35,6 +36,8 @@ export function AttachSheet({
   onChoose: (choice: AttachChoice) => void;
 }) {
   const t = useT();
+  // An iPhone has no "gallery" — what it has is called Photos.
+  const ios = detectPlatform() === 'ios';
   // The phone's Back button closes the card, not the chat behind it.
   useBackToClose(onClose);
 
@@ -65,7 +68,9 @@ export function AttachSheet({
               >
                 <Icon width={26} strokeWidth={1.75} />
               </span>
-              <span className="text-[13px] text-wa-chip-text">{t(labelKey)}</span>
+              <span className="text-[13px] text-wa-chip-text">
+                {t(choice === 'gallery' && ios ? 'composer.attachPhotos' : labelKey)}
+              </span>
             </button>
           ))}
         </div>

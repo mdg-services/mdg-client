@@ -118,3 +118,74 @@ useAuthStore.subscribe((state, prev) => {
   disconnectSocket();
   getSocket();
 });
+
+/**
+ * ── Waking the connection after the phone has had the app asleep ───────────────
+ *
+ * An iPhone freezes a backgrounded app within seconds, and the socket with it.
+ * The server drops it a little later and nothing on the phone notices: it comes
+ * back to the front looking connected (or in the middle of a back-off wait that
+ * can run to thirty seconds), and MDG's replies do not arrive until the next
+ * thing — a reload, a tap — happens to refetch. The chat screen is the one place
+ * where "MDG's reply isn't showing" is the whole complaint.
+ *
+ * So the moment the app returns, look at the socket once:
+ *  - not connected: reconnect NOW, rather than wait out the back-off;
+ *  - connected, but the app was away for more than HIDDEN_RESUME_MS: do not
+ *    trust it — a socket that was frozen can be dead without knowing — replace it.
+ *
+ * Replacing it is just `disconnect()` then `connect()` on the same socket, so
+ * every handler already bound to it stays bound, and the hooks' own `connect`
+ * handlers do what they always do on a connection: rejoin their rooms and refetch.
+ * (`connect()` ALONE does nothing while socket.io is in a back-off wait — it
+ * only opens a connection that is not already being retried — so a socket that
+ * is down is restarted the same way.)
+ *
+ * "Away" is read from three places, because no single one is reliable: the
+ * page's own visibility, the phone saying the app went to the background
+ * (`native-app-state`, from the shell), and the network coming back.
+ */
+export const HIDDEN_RESUME_MS = 20_000;
+/** A burst of "we are back" signals (visible, pageshow, app-state) acts once. */
+const RESUME_COOLDOWN_MS = 1500;
+
+let hiddenAt: number | null = null;
+let lastNudge: { target: TypedSocket; at: number } | null = null;
+
+function markAway(): void {
+  if (hiddenAt === null) hiddenAt = Date.now();
+}
+
+function nudgeAfterResume(): void {
+  const awayMs = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+  hiddenAt = null;
+  const live = socket;
+  if (!live) return;
+  const stale = !live.connected || awayMs > HIDDEN_RESUME_MS;
+  if (!stale) return;
+  const now = Date.now();
+  if (lastNudge && lastNudge.target === live && now - lastNudge.at < RESUME_COOLDOWN_MS) return;
+  lastNudge = { target: live, at: now };
+  live.disconnect();
+  live.connect();
+}
+
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') markAway();
+    else nudgeAfterResume();
+  });
+  // A page restored from the back-forward cache, and the network returning: the
+  // same check, but never while the page is still hidden — the visibility
+  // change that follows will do it.
+  const onReturn = () => {
+    if (document.visibilityState !== 'hidden') nudgeAfterResume();
+  };
+  window.addEventListener('pageshow', onReturn);
+  window.addEventListener('online', onReturn);
+  // The shell's own word, which does not wait for the web view to notice.
+  window.addEventListener('native-app-state', (e) => {
+    if (e.detail === 'background') markAway();
+    else if (e.detail === 'active') nudgeAfterResume();
+  });
+}

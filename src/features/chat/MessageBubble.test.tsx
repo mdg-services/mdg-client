@@ -1087,6 +1087,113 @@ describe('MessageBubble — voice notes', () => {
     expect(container.querySelector('[data-no-swipe] > div[aria-hidden]')).toBeTruthy();
   });
 
+  /**
+   * A NOTE THIS PHONE CANNOT PLAY IS NOT A STALE LINK. An older iPhone has no
+   * player for the WebM an Android phone records. "Tap to try again" fetched a
+   * fresh link, failed the same way, and offered to do it again — forever, on 2G.
+   */
+  describe('a recording this phone has no player for', () => {
+    const PHONE_CANNOT = "This phone can't play this voice note.";
+    let canPlay: string;
+
+    beforeEach(() => {
+      canPlay = '';
+      vi.spyOn(HTMLMediaElement.prototype, 'canPlayType').mockImplementation(() => canPlay);
+    });
+
+    const real = (key = 'u1') =>
+      makeMessage({
+        id: 'm-real',
+        conversationId: 'c1',
+        senderId: 'x',
+        senderName: 'MDG',
+        body: undefined,
+        attachments: [note(key)],
+      });
+
+    it('says so, in words, the moment the player errors — and does not fetch a fresh link', () => {
+      const { container } = render(<MessageBubble message={real()} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      expect(screen.getByText(PHONE_CANNOT)).toBeInTheDocument();
+      expect(screen.queryByText("Couldn't play. Tap to try again")).toBeNull();
+      expect(h.fresh).not.toHaveBeenCalled();
+    });
+
+    it('does not loop: tapping play again changes nothing and asks for no link', () => {
+      const play = vi.mocked(HTMLMediaElement.prototype.play);
+      const { container } = render(<MessageBubble message={real()} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      play.mockClear();
+      fireEvent.click(screen.getByRole('button', { name: 'Play voice message' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Play voice message' }));
+      expect(h.fresh).not.toHaveBeenCalled();
+      expect(play).not.toHaveBeenCalled();
+      expect(screen.getByText(PHONE_CANNOT)).toBeInTheDocument();
+    });
+
+    it('also reads a refused play() that way', async () => {
+      vi.mocked(HTMLMediaElement.prototype.play).mockRejectedValue(
+        new DOMException('not supported', 'NotSupportedError'),
+      );
+      render(<MessageBubble message={real()} mine={false} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Play voice message' }));
+      expect(await screen.findByText(PHONE_CANNOT)).toBeInTheDocument();
+      expect(h.fresh).not.toHaveBeenCalled();
+    });
+
+    it('leaves the transcript under the bubble, which is all the dealer can use', () => {
+      const msg = makeMessage({
+        id: 'm-real',
+        conversationId: 'c1',
+        senderId: 'x',
+        body: undefined,
+        attachments: [note('u2', { transcript: 'tanki mein diesel kam hai' })],
+      });
+      const { container } = render(<MessageBubble message={msg} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      expect(screen.getByText(PHONE_CANNOT)).toBeInTheDocument();
+      expect(screen.getByText('tanki mein diesel kam hai')).toBeInTheDocument();
+    });
+
+    it('says it in Hindi', () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      const { container } = render(<MessageBubble message={real()} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      expect(screen.getByText('यह फ़ोन यह वॉइस मैसेज नहीं चला सकता।')).toBeInTheDocument();
+    });
+
+    // The ordinary stale link is unchanged: one fresh link, then the old words.
+    it('a phone that CAN play it still gets one fresh link, and then the old "try again"', async () => {
+      canPlay = 'maybe';
+      h.fresh.mockResolvedValue('https://files.test/fresh.webm');
+      const { container } = render(<MessageBubble message={real()} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      await waitFor(() => expect(h.fresh).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(container.querySelector('audio')).toHaveAttribute('src', 'https://files.test/fresh.webm'),
+      );
+
+      fireEvent.error(container.querySelector('audio')!);
+      expect(await screen.findByText("Couldn't play. Tap to try again")).toBeInTheDocument();
+      expect(screen.queryByText(PHONE_CANNOT)).toBeNull();
+      expect(h.fresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('never calls a note unplayable that merely has no type on it', () => {
+      const msg = makeMessage({
+        id: 'm-real',
+        conversationId: 'c1',
+        senderId: 'x',
+        body: undefined,
+        attachments: [note('u3', { contentType: '' })],
+      });
+      h.fresh.mockResolvedValue('https://files.test/fresh.webm');
+      const { container } = render(<MessageBubble message={msg} mine={false} />);
+      fireEvent.error(container.querySelector('audio')!);
+      expect(screen.queryByText(PHONE_CANNOT)).toBeNull();
+    });
+  });
+
   it('a note just recorded plays from the phone\'s own copy straight away', () => {
     const { container } = render(
       <MessageBubble
@@ -1627,6 +1734,31 @@ describe('MessageBubble — a request MDG posted', () => {
       fireEvent.click(gallery);
       expect(onAnswer).toHaveBeenCalledTimes(1);
       expect(onAnswer).toHaveBeenCalledWith(message, 'gallery');
+    });
+
+    // An iPhone has no gallery; what it has is called Photos. Same door, same action.
+    it('on an iPhone the same button says "Choose from Photos"', () => {
+      (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = 'ios';
+      try {
+        const onAnswer = vi.fn();
+        const { message } = ask('open', { onAnswer });
+        expect(screen.queryByRole('button', { name: 'Choose from gallery' })).toBeNull();
+        fireEvent.click(screen.getByRole('button', { name: 'Choose from Photos' }));
+        expect(onAnswer).toHaveBeenCalledWith(message, 'gallery');
+      } finally {
+        delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
+      }
+    });
+
+    it('says it in Hindi on an iPhone', () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = 'ios';
+      try {
+        ask('open');
+        expect(screen.getByRole('button', { name: 'फ़ोटो से चुनें' })).toBeInTheDocument();
+      } finally {
+        delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
+      }
     });
 
     it('shows MDG\'s reason, verbatim, above the button when it sent an answer back', () => {

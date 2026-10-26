@@ -3,14 +3,16 @@ import * as React from 'react';
 import { errorName } from './errors';
 import { micDiagnostics } from './micDiagnostics';
 import { addCrumb, reportIssue } from './monitoring';
+import { detectPlatform, type NativePlatform } from './nativeBridge';
 import { WAVEFORM_BARS, downsamplePeaks } from './waveform';
 
 /**
  * Microphone recording via the MediaRecorder API, wrapped for chat voice notes.
  *
- * Works in Chrome/Android WebView (audio/webm;codecs=opus) and modern Safari
- * (audio/mp4). `supported` is false where MediaRecorder or getUserMedia is
- * missing so callers can hide the mic button gracefully.
+ * Works in Chrome/Android WebView (audio/webm;codecs=opus) and Safari / the
+ * iPhone's WebView (audio/mp4, first choice there — see `voiceMimeCandidates`).
+ * `supported` is false where MediaRecorder or getUserMedia is missing so
+ * callers can hide the mic button gracefully.
  *
  * ONE RECORDING IS ONE "TAKE", AND A TAKE OWNS ITS OWN RESOURCES
  * --------------------------------------------------------------
@@ -77,6 +79,21 @@ const MIME_CANDIDATES = [
   'audio/ogg;codecs=opus',
 ];
 
+/**
+ * What to try, best first, on this phone.
+ *
+ * AN IPHONE PUTS AAC IN MP4 FIRST. Recent iOS can record WebM, and would pick it
+ * from the common list, but an older iPhone cannot PLAY WebM — and a voice note
+ * is only worth sending if the person at the other end can hear it. MP4 with
+ * AAC plays on every phone MDG's dealers and team hold, so it leads there.
+ * Android's order is unchanged: WebM/Opus is smaller, and every Android plays it.
+ */
+export function voiceMimeCandidates(platform: NativePlatform): string[] {
+  return platform === 'ios'
+    ? ['audio/mp4;codecs=mp4a.40.2', 'audio/mp4', ...MIME_CANDIDATES]
+    : MIME_CANDIDATES;
+}
+
 /** Length of the rolling live-level buffer the composer animates. */
 const LEVEL_BUFFER = 48;
 /** Throttle for the whole-clip peak capture (ms between samples). */
@@ -84,7 +101,7 @@ const CAPTURE_INTERVAL_MS = 90;
 
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === 'undefined') return undefined;
-  for (const m of MIME_CANDIDATES) {
+  for (const m of voiceMimeCandidates(detectPlatform())) {
     if (MediaRecorder.isTypeSupported?.(m)) return m;
   }
   // Some browsers record fine with the default codec even if isTypeSupported

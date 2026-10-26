@@ -98,10 +98,25 @@ describe('HelpVideosPage — the list', () => {
 
     expect(await screen.findByText('How the app works')).toBeInTheDocument();
     expect(screen.getByText('Add your manager')).toBeInTheDocument();
-    expect(api.get).toHaveBeenCalledWith('/v1/me/guide-videos');
+    // It says which phone is asking, so an iPhone is not shown Android-only steps.
+    expect(api.get).toHaveBeenCalledWith('/v1/me/guide-videos', { platform: 'web' });
     expect(screen.getByText('1:35')).toBeInTheDocument();
     expect(screen.getByText('1:00')).toBeInTheDocument();
     expect(screen.getAllByText('Chat, reports and settings')).toHaveLength(2);
+  });
+
+  // Some videos walk through screens that exist only on Android. The server
+  // drops those for an iPhone, but only if the request says which phone it is.
+  it.each(['ios', 'android'] as const)('says it is %s when the shell does', async (platform) => {
+    (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = platform;
+    try {
+      serve([video()]);
+      renderPage();
+      expect(await screen.findByText('How the app works')).toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledWith('/v1/me/guide-videos', { platform });
+    } finally {
+      delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
+    }
   });
 
   it('is headed Help videos with a back arrow, and says it in Hindi when the app is in Hindi', async () => {

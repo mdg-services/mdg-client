@@ -188,3 +188,53 @@ describe('useLongPress', () => {
     expect(clickSpy).toHaveBeenCalledTimes(1);
   });
 });
+
+// The tick under the finger: Android's web view has `navigator.vibrate`, an
+// iPhone's does not — there the shell is asked for a tap from the phone's own
+// haptic engine.
+describe('useLongPress — the tick', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => {
+    vi.useRealTimers();
+    delete (navigator as unknown as { vibrate?: unknown }).vibrate;
+    delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  });
+
+  function pressAndHold() {
+    const cb = vi.fn();
+    render(<Target onLongPress={cb} />);
+    down(screen.getByTestId('t'));
+    vi.advanceTimersByTime(LONG_PRESS_MS);
+    return cb;
+  }
+
+  it('vibrates where the web view can', () => {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    const postMessage = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    pressAndHold();
+    expect(vibrate).toHaveBeenCalledWith(10);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+
+  it('asks the shell for a tap where it cannot (an iPhone)', () => {
+    const postMessage = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    const cb = pressAndHold();
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(postMessage.mock.calls.map(([m]) => JSON.parse(m as string))).toEqual([
+      { type: 'haptic', style: 'light' },
+    ]);
+  });
+
+  it('does not tick for a press that was let go of', () => {
+    const postMessage = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    render(<Target onLongPress={vi.fn()} />);
+    down(screen.getByTestId('t'));
+    firePointer(screen.getByTestId('t'), 'pointerup');
+    vi.advanceTimersByTime(LONG_PRESS_MS * 2);
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+});

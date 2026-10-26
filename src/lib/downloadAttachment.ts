@@ -3,11 +3,20 @@ import * as React from 'react';
 import { useToast } from '@/components/ui';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
-import { isNativeShell, requestNativeDownload } from '@/lib/nativeBridge';
+import {
+  detectPlatform,
+  isNativeShell,
+  requestNativeDownload,
+  type NativeDownloadMode,
+} from '@/lib/nativeBridge';
 import type { Attachment } from '@dk/shared/types';
 
-/** How the download was ultimately delivered to the user. */
-export type DownloadMode = 'gallery' | 'browser';
+/**
+ * How the download was ultimately delivered to the user: saved to the photo
+ * library, handed to the browser, or (an iPhone, anything that is not a picture)
+ * shown in the share sheet.
+ */
+export type DownloadMode = NativeDownloadMode;
 
 /**
  * The message an attachment was found on.
@@ -183,6 +192,10 @@ export async function downloadAttachment(
  * The download action with its user feedback: a sticky "Saving…" toast while
  * the presign + bridge round-trip runs, then saved-to-gallery / started-in-
  * browser / failed. Returns a stable callback (safe as a memoized-child prop).
+ *
+ * An iPhone has no gallery, it has Photos, so it is told that. And a file shown
+ * in the share sheet gets no toast at all: the sheet on screen is the answer,
+ * and a line saying "started in your browser" beneath it would be a lie.
  */
 export function useAttachmentDownload(): (
   attachment: Attachment,
@@ -196,8 +209,13 @@ export function useAttachmentDownload(): (
       try {
         const mode = await downloadAttachment(attachment, source);
         toast.dismiss(savingId);
-        if (mode === 'gallery') toast.success(t('chat.savedToGallery'));
-        else toast.info(t('chat.downloadingInBrowser'));
+        if (mode === 'gallery') {
+          toast.success(
+            t(detectPlatform() === 'ios' ? 'chat.savedToPhotos' : 'chat.savedToGallery'),
+          );
+        } else if (mode !== 'share') {
+          toast.info(t('chat.downloadingInBrowser'));
+        }
       } catch {
         toast.dismiss(savingId);
         toast.error(t('chat.downloadFailed'));

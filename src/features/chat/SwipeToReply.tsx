@@ -2,6 +2,7 @@ import { Reply } from 'lucide-react';
 import * as React from 'react';
 
 import { cn } from '@/lib/cn';
+import { haptic } from '@/lib/nativeBridge';
 import type { Message } from '@dk/shared/types';
 
 /** Rightward travel (px) at which releasing triggers a reply. */
@@ -12,6 +13,14 @@ export const SWIPE_MAX_PX = 72;
 export const SWIPE_ENGAGE_PX = 12;
 /** Horizontal:vertical dominance required to engage (leaves pan-y scrolling alone). */
 export const SWIPE_ENGAGE_RATIO = 1.8;
+/**
+ * A touch that starts this close (px) to the left edge of the screen is never a
+ * reply. The phone's own back gesture lives there — the iPhone's swipe in from
+ * the edge, and Android's gesture navigation — and it needs the same rightward
+ * drag this row listens for. Without the gap, going back from a chat also fired
+ * a reply on whichever message sat under the thumb.
+ */
+export const SWIPE_EDGE_GUARD_PX = 24;
 /**
  * A touch held this long (ms) WITHOUT engaging horizontally is long-press
  * territory (the 450ms action-sheet timer on the bubble): the swipe disarms so
@@ -66,7 +75,7 @@ interface DragState {
  * pan-y` (vertical scrolling stays native); once the gesture reads as
  * horizontal the content translates via a rAF-batched transform on a ref — no
  * per-move React state. Releasing past the trigger fires `onReply` + a
- * vibration; anything inside `[data-no-swipe]` (voice-note seek row), a second
+ * haptic tick; anything inside `[data-no-swipe]` (voice-note seek row), a second
  * touch, or `disabled` (a message still being sent, or the thread being in
  * selection mode) opts out.
  */
@@ -121,7 +130,7 @@ export const SwipeToReply = React.memo(function SwipeToReply({
       if (d.raf) cancelAnimationFrame(d.raf);
       settleBack();
       if (fire && d.engaged && swipeTriggered(d.offset)) {
-        navigator.vibrate?.(10);
+        haptic();
         onReply?.(message);
       }
     },
@@ -131,6 +140,8 @@ export const SwipeToReply = React.memo(function SwipeToReply({
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (disabled || !onReply) return;
     if (e.pointerType === 'mouse') return; // touch/pen gesture only
+    // The edge belongs to the phone's back swipe (see SWIPE_EDGE_GUARD_PX).
+    if (e.clientX < SWIPE_EDGE_GUARD_PX) return;
     if (dragRef.current) {
       // Second finger — abort the whole gesture.
       endDrag(false);

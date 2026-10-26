@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import * as React from 'react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate, type NavigateFunction } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ToastProvider } from '@/components/ui';
@@ -1114,9 +1114,9 @@ describe('ChatPage — sending', () => {
   /** The swipe a finger makes on a row. */
   function swipeReply(id: string) {
     const row = document.querySelector(`[data-mid="${id}"]`)!;
-    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
-    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 40, clientY: 0 });
+    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
+    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
   }
 });
 
@@ -1382,9 +1382,9 @@ describe('ChatPage — answering one of MDG\'s requests', () => {
   /** The swipe a finger makes on a row. */
   function swipeReplyTo(id: string) {
     const row = document.querySelector(`[data-mid="${id}"]`)!;
-    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
-    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+    fireEvent.pointerDown(row, { pointerType: 'touch', pointerId: 1, clientX: 40, clientY: 0 });
+    fireEvent.pointerMove(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
+    fireEvent.pointerUp(row, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
   }
 
   it('a swipe-reply with a photo answers the request too', async () => {
@@ -1766,5 +1766,70 @@ describe('ChatPage — the setup strip', () => {
     expect(screen.queryByText('Which services would you like?')).toBeNull();
     expect(document.querySelectorAll('[data-setup-card]')).toHaveLength(1);
     expect(screen.queryByRole('checkbox', { name: /Daily Sales Report/ })).toBeNull();
+  });
+});
+
+describe('ChatPage — telling the phone which chat is open', () => {
+  let postMessage: ReturnType<typeof vi.fn>;
+  const posted = () => postMessage.mock.calls.map(([raw]) => JSON.parse(raw as string));
+
+  beforeEach(() => {
+    postMessage = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+  });
+  afterEach(() => {
+    delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+  });
+
+  it('says so when a conversation is shown, so the phone clears its notifications', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(posted()).toEqual([{ type: 'chat:open', conversationId: 'c1' }]);
+  });
+
+  it('says so again when the dealer leaves it, so notifications may show', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    fireEvent.click(screen.getByRole('button', { name: 'Chat info' }));
+    expect(await screen.findByText('INFO PAGE')).toBeInTheDocument();
+    expect(posted().map((m) => m.type)).toEqual(['chat:open', 'chat:close']);
+  });
+
+  it('closes when the page goes away altogether', async () => {
+    const view = mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    view.unmount();
+    expect(posted().at(-1)).toEqual({ type: 'chat:close' });
+  });
+
+  it('closes the first chat and opens the second when the id changes', async () => {
+    let navigate!: NavigateFunction;
+    function Probe() {
+      navigate = useNavigate();
+      return null;
+    }
+    h.api.get.mockImplementation(() => Promise.resolve([]));
+    renderWithProviders(
+      <>
+        <Probe />
+        <Harness />
+      </>,
+      { route: '/chat/c1' },
+    );
+    act(() => navigate('/chat/c2'));
+    // Let the queries of both screens answer before the page is torn down.
+    await act(async () => {});
+    expect(posted()).toEqual([
+      { type: 'chat:open', conversationId: 'c1' },
+      { type: 'chat:close' },
+      { type: 'chat:open', conversationId: 'c2' },
+    ]);
+  });
+
+  it('is silent in a plain browser', async () => {
+    delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(postMessage).not.toHaveBeenCalled();
   });
 });

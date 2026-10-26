@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react';
 import * as React from 'react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { LONG_PRESS_MS } from '@/lib/useLongPress';
 import { makeMessage } from '@/test/utils';
@@ -8,6 +8,7 @@ import { makeMessage } from '@/test/utils';
 
 import {
   SwipeToReply,
+  SWIPE_EDGE_GUARD_PX,
   SWIPE_ENGAGE_PX,
   SWIPE_HOLD_DISARM_MS,
   SWIPE_MAX_PX,
@@ -95,10 +96,11 @@ describe('SwipeToReply — the row', () => {
       child,
     );
 
-  const swipeRight = (target: Element, type = 'touch', dx = 90) => {
-    fireEvent.pointerDown(target, { pointerType: type, pointerId: 1, clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(target, { pointerType: type, pointerId: 1, clientX: dx, clientY: 2 });
-    fireEvent.pointerUp(target, { pointerType: type, pointerId: 1, clientX: dx, clientY: 2 });
+  // Starts a little in from the edge: the edge itself is the phone's back swipe.
+  const swipeRight = (target: Element, type = 'touch', dx = 90, startX = 40) => {
+    fireEvent.pointerDown(target, { pointerType: type, pointerId: 1, clientX: startX, clientY: 0 });
+    fireEvent.pointerMove(target, { pointerType: type, pointerId: 1, clientX: startX + dx, clientY: 2 });
+    fireEvent.pointerUp(target, { pointerType: type, pointerId: 1, clientX: startX + dx, clientY: 2 });
   };
 
   it('keeps the caller\'s classes AND the `relative` the reply icon is placed by', () => {
@@ -127,6 +129,33 @@ describe('SwipeToReply — the row', () => {
     expect(onReply).toHaveBeenCalledWith(message);
   });
 
+  describe('the tick when the reply fires', () => {
+    afterEach(() => {
+      delete (navigator as unknown as { vibrate?: unknown }).vibrate;
+      delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+    });
+
+    it('vibrates where the web view can', () => {
+      const vibrate = vi.fn(() => true);
+      Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+      const { container } = render(row({ onReply: vi.fn() }));
+      swipeRight(container.firstElementChild!);
+      expect(vibrate).toHaveBeenCalledWith(10);
+    });
+
+    it('asks the shell for a tap on an iPhone, and only when the reply really fires', () => {
+      const postMessage = vi.fn();
+      (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+      const { container } = render(row({ onReply: vi.fn() }));
+      swipeRight(container.firstElementChild!, 'touch', 30); // too short: no reply, no tick
+      expect(postMessage).not.toHaveBeenCalled();
+      swipeRight(container.firstElementChild!);
+      expect(postMessage.mock.calls.map(([m]) => JSON.parse(m as string))).toEqual([
+        { type: 'haptic', style: 'light' },
+      ]);
+    });
+  });
+
   it('does not reply to a short swipe, a mouse, or a disabled row', () => {
     const onReply = vi.fn();
     const short = render(row({ onReply }));
@@ -138,6 +167,19 @@ describe('SwipeToReply — the row', () => {
     const off = render(row({ onReply, disabled: true }));
     swipeRight(off.container.firstElementChild!);
     expect(onReply).not.toHaveBeenCalled();
+  });
+
+  // The phone's back swipe starts at the edge and drags right, just like this
+  // gesture. The edge is the phone's; the row only answers a touch that starts
+  // clear of it.
+  it('ignores a swipe that starts at the left screen edge, where the phone\'s back swipe lives', () => {
+    const onReply = vi.fn();
+    const { container } = render(row({ onReply }));
+    swipeRight(container.firstElementChild!, 'touch', 90, 0);
+    swipeRight(container.firstElementChild!, 'touch', 90, SWIPE_EDGE_GUARD_PX - 1);
+    expect(onReply).not.toHaveBeenCalled();
+    swipeRight(container.firstElementChild!, 'touch', 90, SWIPE_EDGE_GUARD_PX);
+    expect(onReply).toHaveBeenCalledWith(message);
   });
 
   it('stays out of the way of anything marked data-no-swipe (the voice scrubber)', () => {

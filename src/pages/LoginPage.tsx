@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 
 import { BrandMark } from '@/components/BrandMark';
+import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ForgotPasswordSheet } from '@/features/auth/ForgotPasswordSheet';
 import { parseIdentifier } from '@/features/auth/identifier';
@@ -256,6 +257,10 @@ export function LoginPage() {
           >
             {t('auth.register')}
           </Button>
+          {/* Reachable before anyone has signed in: the privacy policy must be
+              readable from inside the app, and a dealer weighing whether to
+              register is who wants it. */}
+          <PrivacyLink className="-mt-1 flex min-h-11 items-center rounded-lg px-3 text-xs text-text-subtle underline underline-offset-4" />
         </div>
       </div>
       {forgotOpen ? (

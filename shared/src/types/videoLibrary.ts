@@ -16,6 +16,10 @@ export interface GuideVideoText {
   en: string;
 }
 
+/** The phones a video can be limited to. */
+export const GUIDE_VIDEO_PLATFORMS = ['android', 'ios'] as const;
+export type GuideVideoPlatform = (typeof GUIDE_VIDEO_PLATFORMS)[number];
+
 /** Who a video is for. `admin` videos play only in the admin's "How this works". */
 export const GUIDE_VIDEO_AUDIENCES = ['owner', 'manager', 'both', 'admin'] as const;
 export type GuideVideoAudience = (typeof GUIDE_VIDEO_AUDIENCES)[number];
@@ -57,6 +61,13 @@ export interface GuideVideoLibraryFile {
   filename?: string;
   /** Length in ms when known. Absent = measured from the finished chat copy when the catalog is built. */
   durationMs?: number;
+  /**
+   * Which kinds of phone this video may be listed on. Absent = every phone.
+   * The install video says "Play Store", which the iPhone app must not show
+   * (App Review guideline 2.3.10), so it is `['android']`. A request that names
+   * no platform, or the web, is not filtered (`GET /me/guide-videos?platform=`).
+   */
+  platforms?: GuideVideoPlatform[];
   /**
    * Offered only where it is true. A video about a register a pump keeps only
    * on one service is no use to a pump that is not on it; the login video

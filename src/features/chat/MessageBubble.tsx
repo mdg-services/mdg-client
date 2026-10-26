@@ -6,6 +6,7 @@ import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setu
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
+import { detectPlatform } from '@/lib/nativeBridge';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
 import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
@@ -268,7 +269,9 @@ function AskFooter({
         onClick={() => onAnswer?.(message, message.ask?.acceptsFile ? 'files' : 'gallery')}
         className="flex h-11 w-full items-center justify-center rounded-lg border border-wa-divider bg-wa-chip px-3 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active"
       >
-        {message.ask?.acceptsFile ? t('chat.askChooseFile') : t('chat.askChooseGallery')}
+        {message.ask?.acceptsFile
+          ? t('chat.askChooseFile')
+          : t(detectPlatform() === 'ios' ? 'chat.askChoosePhotos' : 'chat.askChooseGallery')}
       </button>
     </div>
   );

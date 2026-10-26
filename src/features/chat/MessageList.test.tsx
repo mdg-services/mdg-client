@@ -865,9 +865,10 @@ describe('MessageList — selecting messages', () => {
 
 describe('MessageList — swipe to reply', () => {
   function swipe(target: HTMLElement) {
-    fireEvent.pointerDown(target, { pointerType: 'touch', pointerId: 1, clientX: 0, clientY: 0 });
-    fireEvent.pointerMove(target, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
-    fireEvent.pointerUp(target, { pointerType: 'touch', pointerId: 1, clientX: 90, clientY: 2 });
+    // From a little in from the edge: the edge is the phone's own back swipe.
+    fireEvent.pointerDown(target, { pointerType: 'touch', pointerId: 1, clientX: 40, clientY: 0 });
+    fireEvent.pointerMove(target, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
+    fireEvent.pointerUp(target, { pointerType: 'touch', pointerId: 1, clientX: 130, clientY: 2 });
   }
 
   it('works on a report MDG shared (a system message) like on any other', () => {

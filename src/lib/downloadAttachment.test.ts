@@ -1,11 +1,15 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useLangStore } from '@/store/lang';
+import { renderHookWithProviders } from '@/test/utils';
 import type { Attachment } from '@dk/shared/types';
 
 import {
   deliverDownload,
   downloadAttachment,
   fetchFreshDownloadUrl,
+  useAttachmentDownload,
   type AttachmentSource,
 } from './downloadAttachment';
 
@@ -303,5 +307,138 @@ describe('deliverDownload — sameTab', () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(open).not.toHaveBeenCalled();
     expect(click).not.toHaveBeenCalled();
+  });
+});
+
+/** A shell that takes the job and answers with this mode. */
+function shellAnswers(mode: 'gallery' | 'browser' | 'share', extra: Record<string, unknown> = {}) {
+  (window as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+    postMessage: vi.fn((raw: string) => {
+      const msg = JSON.parse(raw) as { id: string };
+      queueMicrotask(() => {
+        window.dispatchEvent(
+          new CustomEvent('native-media-download-started', { detail: { id: msg.id } }),
+        );
+        window.dispatchEvent(
+          new CustomEvent('native-media-download', {
+            detail: { id: msg.id, ok: true, mode, ...extra },
+          }),
+        );
+      });
+    }),
+  };
+}
+
+const invoice: Attachment = {
+  storageKey: 'chat/c1/uuid-invoice.pdf',
+  filename: 'invoice.pdf',
+  contentType: 'application/pdf',
+  size: 90_000,
+  kind: 'file',
+  url: 'https://s3.test/stale?sig=old',
+};
+
+// On an iPhone the shell shows anything that is not a picture in the share sheet.
+describe('a file shown in the share sheet', () => {
+  it('comes back as "share", with no browser opened', async () => {
+    api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
+    shellAnswers('share');
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    const mode = await downloadAttachment(invoice, source);
+
+    expect(mode).toBe('share');
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('asks for the file by its own type, so the sheet knows what it holds', async () => {
+    api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
+    shellAnswers('share');
+    await downloadAttachment(invoice, source);
+    const raw = vi.mocked(
+      (window as unknown as { ReactNativeWebView: { postMessage: (m: string) => void } })
+        .ReactNativeWebView.postMessage,
+    ).mock.calls[0]![0];
+    expect(JSON.parse(raw)).toMatchObject({
+      type: 'media:download',
+      filename: 'invoice.pdf',
+      contentType: 'application/pdf',
+      kind: 'file',
+    });
+  });
+});
+
+describe('useAttachmentDownload — what the dealer is told', () => {
+  beforeEach(() => {
+    useLangStore.setState({ lang: 'en', explicit: true });
+    api.get.mockResolvedValue({ url: 'https://s3.test/fresh?sig=new' });
+    vi.spyOn(window, 'open').mockReturnValue(null);
+  });
+  afterEach(() => {
+    delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
+  });
+
+  async function download(item: Attachment) {
+    const { result } = renderHookWithProviders(() => useAttachmentDownload());
+    await act(async () => {
+      await result.current(item, source);
+    });
+  }
+
+  it('Android: "Saved to your gallery"', async () => {
+    (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = 'android';
+    shellAnswers('gallery');
+    await download(attachment);
+    expect(screen.getByText('Saved to your gallery')).toBeInTheDocument();
+  });
+
+  it('iPhone: "Saved to Photos" — it has no gallery', async () => {
+    (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = 'ios';
+    shellAnswers('gallery');
+    await download(attachment);
+    expect(screen.getByText('Saved to Photos')).toBeInTheDocument();
+    expect(screen.queryByText('Saved to your gallery')).toBeNull();
+  });
+
+  it('iPhone, in Hindi', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = 'ios';
+    shellAnswers('gallery');
+    await download(attachment);
+    expect(screen.getByText('फ़ोटो में सेव हो गया')).toBeInTheDocument();
+  });
+
+  it('a browser download still says it started in the browser', async () => {
+    shellAnswers('browser');
+    await download(invoice);
+    expect(screen.getByText('Download started in your browser')).toBeInTheDocument();
+  });
+
+  // The share sheet on screen IS the answer. "Started in your browser" beneath it
+  // would be untrue, and "Saving…" must not be left hanging either.
+  it('a share sheet gets no toast at all, and "Saving…" is gone', async () => {
+    shellAnswers('share');
+    await download(invoice);
+    expect(screen.queryByText('Download started in your browser')).toBeNull();
+    expect(screen.queryByText(/Saved to/)).toBeNull();
+    expect(screen.queryByText('Saving…')).toBeNull();
+    expect(screen.queryByText(/Couldn't download/)).toBeNull();
+  });
+
+  it('a failure still says so', async () => {
+    (window as { ReactNativeWebView?: unknown }).ReactNativeWebView = {
+      postMessage: vi.fn((raw: string) => {
+        const msg = JSON.parse(raw) as { id: string };
+        queueMicrotask(() =>
+          window.dispatchEvent(
+            new CustomEvent('native-media-download', {
+              detail: { id: msg.id, ok: false, error: 'denied' },
+            }),
+          ),
+        );
+      }),
+    };
+    await download(invoice);
+    expect(screen.getByText(/Couldn't download/)).toBeInTheDocument();
   });
 });

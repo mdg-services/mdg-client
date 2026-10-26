@@ -15,9 +15,11 @@ import * as React from 'react';
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import { imageAccept } from '@/lib/imageAccept';
 import { micDiagnostics } from '@/lib/micDiagnostics';
 import { addCrumb, reportIssue } from '@/lib/monitoring';
 import {
+  detectPlatform,
   isNativeShell,
   openNativeAppSettings,
   requestNativeMicPermission,
@@ -127,13 +129,6 @@ export interface ComposerProps {
 /** What the Document choice offers. Photos have their own two doors. */
 const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.txt';
 
-/**
- * What "Choose file" on a request offers: a picture or a PDF, the two things MDG
- * can file against a request. (No Word or Excel here — they cannot be, and a
- * picker that offers them is a way to send a file nobody can use.)
- */
-const ASK_FILE_ACCEPT = 'image/*,application/pdf';
-
 /** The server's ceiling on attachments in one message. */
 const MAX_ATTACHMENTS = 10;
 
@@ -158,8 +153,16 @@ const TAP_MS = 350;
  * in the press-and-hold overlay indefinitely — no timer, no waveform, no way to
  * send, cancel or even type. Generous enough for a human to read and accept the
  * prompt; after it we always return the composer to a usable state.
+ *
+ * LONGER ON AN IPHONE. Its microphone alert is a system sheet that need not blur
+ * the page, so the "the app is in the background" signal that pauses this clock
+ * on Android never comes — and the clock would run out on a dealer who is still
+ * reading the alert, aborting a grant that is seconds away.
  */
 const START_TIMEOUT_MS = 12_000;
+const START_TIMEOUT_IOS_MS = 30_000;
+const startTimeoutMs = () =>
+  detectPlatform() === 'ios' ? START_TIMEOUT_IOS_MS : START_TIMEOUT_MS;
 
 /** One in-flight press-and-hold gesture on the mic. */
 interface Gesture {
@@ -910,7 +913,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
         startTimerRef.current = null;
         // Someone else owns the mic now; their attempt carries its own clock.
         if (session !== recorder.currentSession()) return;
-        // getUserMedia never settled, in the foreground, for 12 seconds. It did
+        // getUserMedia never settled, in the foreground, for the whole timeout. It did
         // not reject — it simply never answered, which no error name explains.
         // Nothing else in the app can see this, so it is reported here.
         void micDiagnostics().then((diag) => {
@@ -924,13 +927,13 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
             },
             extra: {
               ...(diag as unknown as Record<string, unknown>),
-              timeoutMs: START_TIMEOUT_MS,
+              timeoutMs: startTimeoutMs(),
             },
           });
         });
         resetRecording(); // cancels the recorder → the pending start is void
         tellMicFailed({ cause: 'error', name: 'Timeout' });
-      }, START_TIMEOUT_MS),
+      }, startTimeoutMs()),
     };
   };
 
@@ -1055,6 +1058,45 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
     // If the mic hasn't finished starting, beginRecorder resolves the action.
     if (!recStartedRef.current) return;
     finishGesture(g);
+  };
+
+  /**
+   * The phone took the touch away (`pointercancel`).
+   *
+   * ONCE THE MIC IS RECORDING, this is the dealer's own cancel and always was:
+   * the gesture ends armed to discard.
+   *
+   * BEFORE IT IS, it is the first-ever press on an iPhone. The system opens its
+   * microphone alert over the page, UIKit cancels the touch underneath it, and
+   * `getUserMedia` is still waiting on the dealer's answer. Arming a cancel
+   * there threw away the recording that starts the moment they tap Allow, so the
+   * first voice note of every iPhone was silently lost. Nobody slid to cancel
+   * (`cancelArmed` is still false), so the press is read as a release, exactly
+   * like a pointer lost to an OS dialog in the window handler below: the gesture
+   * is dropped, and `beginRecorder` promotes the recording to the hands-free bar
+   * once the mic opens.
+   */
+  const onMicPointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const g = gestureRef.current;
+    if (
+      g &&
+      g.active &&
+      e.pointerId === g.pointerId &&
+      !recStartedRef.current &&
+      !g.cancelArmed
+    ) {
+      try {
+        micBtnRef.current?.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      g.active = false;
+      g.released = true;
+      g.releasedAt = Date.now();
+      gestureRef.current = null;
+      return;
+    }
+    endGesture(true, e.pointerId);
   };
 
   /**
@@ -1296,7 +1338,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
       <input
         ref={galleryRef}
         type="file"
-        accept="image/*"
+        accept={imageAccept()}
         multiple
         className="hidden"
         onChange={(e) => handlePickFiles(e.target.files)}
@@ -1306,18 +1348,22 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
       <input
         ref={cameraRef}
         type="file"
-        accept="image/*"
+        accept={imageAccept()}
         capture="environment"
         className="hidden"
         onChange={(e) => handlePickFiles(e.target.files, { fromCamera: true, via: cameraRef })}
       />
       {/* "Choose file" on a request. One file: MDG files one picture or PDF per
           answer, so a picker that took ten would promise pages that never get
-          read. A picture goes to the preview like any other; a PDF to a chip. */}
+          read. A picture goes to the preview like any other; a PDF to a chip.
+          A picture or a PDF are the two things MDG can file against a request —
+          no Word or Excel, which a picker should not offer if nobody can use
+          them. `imageAccept(true)` writes the list (and keeps an iPhone from
+          handing back HEIC). */}
       <input
         ref={askFileRef}
         type="file"
-        accept={ASK_FILE_ACCEPT}
+        accept={imageAccept(true)}
         className="hidden"
         onChange={(e) => handlePickFiles(e.target.files, { via: askFileRef })}
       />
@@ -1328,7 +1374,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
       <input
         ref={askGalleryRef}
         type="file"
-        accept="image/*"
+        accept={imageAccept()}
         className="hidden"
         onChange={(e) => handlePickFiles(e.target.files, { via: askGalleryRef })}
       />
@@ -1469,7 +1515,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
               onPointerDown={onMicPointerDown}
               onPointerMove={onMicPointerMove}
               onPointerUp={(e) => endGesture(false, e.pointerId)}
-              onPointerCancel={(e) => endGesture(true, e.pointerId)}
+              onPointerCancel={onMicPointerCancel}
               onClick={onMicClick}
               onContextMenu={(e) => e.preventDefault()}
               disabled={disabled}

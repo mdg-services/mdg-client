@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
+import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input } from '@/components/ui';
 import { PasswordInput } from '@/features/auth/PasswordInput';
 import {
@@ -399,7 +400,12 @@ export function RegisterPage() {
               </CardContent>
             </Card>
 
-            <p className="mt-4 text-center text-xs text-text-subtle">{t('register.privacy')}</p>
+            <p className="mt-4 text-center text-xs text-text-subtle">
+              {t('register.privacy')}{' '}
+              {/* Where the dealer is deciding what to hand over: the policy that
+                  says what is done with it, one tap away. */}
+              <PrivacyLink className="font-medium underline underline-offset-2" />
+            </p>
           </>
         )}
       </div>

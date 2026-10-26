@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useVoiceRecorder } from './useVoiceRecorder';
+import { useVoiceRecorder, voiceMimeCandidates } from './useVoiceRecorder';
 
 /**
  * The recorder hook, which until now had no tests at all.
@@ -51,14 +51,19 @@ class FakeStream {
 const recorders: FakeRecorder[] = [];
 
 class FakeRecorder {
-  static isTypeSupported() {
-    return true;
+  /** What this phone can record; a test narrows it to model an older phone. */
+  static supports: (type: string) => boolean = () => true;
+  static isTypeSupported(type: string) {
+    return FakeRecorder.supports(type);
   }
   state: 'inactive' | 'recording' = 'inactive';
   mimeType = 'audio/webm';
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
-  constructor(public stream: FakeStream) {
+  constructor(
+    public stream: FakeStream,
+    public options?: { mimeType?: string },
+  ) {
     recorders.push(this);
   }
   start() {
@@ -109,6 +114,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  FakeRecorder.supports = () => true;
+  delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
 });
 
 describe('useVoiceRecorder — one attempt cannot damage another', () => {
@@ -288,5 +295,58 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
 
     unmount();
     expect(stream!.stopped).toBe(true);
+  });
+});
+
+/**
+ * WHAT A VOICE NOTE IS RECORDED AS decides who can hear it. Recent iOS can record
+ * WebM; an older iPhone cannot PLAY it. AAC in MP4 plays on every phone MDG's
+ * dealers and team hold, so an iPhone puts it first. Android is unchanged.
+ */
+describe('useVoiceRecorder — what to record as', () => {
+  const asked = async (platform: 'ios' | 'android') => {
+    (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__ = platform;
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      settleNext();
+      await p;
+    });
+    return recorders.at(-1)!.options?.mimeType;
+  };
+
+  it('an iPhone tries AAC in MP4 before anything else, then plain MP4, then the common list', () => {
+    const list = voiceMimeCandidates('ios');
+    expect(list.slice(0, 2)).toEqual(['audio/mp4;codecs=mp4a.40.2', 'audio/mp4']);
+    expect(list.slice(2)).toEqual(voiceMimeCandidates('android'));
+  });
+
+  it('Android keeps the order it has always had: WebM/Opus first', () => {
+    expect(voiceMimeCandidates('android')).toEqual([
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/aac',
+      'audio/ogg;codecs=opus',
+    ]);
+    expect(voiceMimeCandidates('web')).toEqual(voiceMimeCandidates('android'));
+  });
+
+  it('an iPhone that can record both picks MP4, not WebM', async () => {
+    expect(await asked('ios')).toBe('audio/mp4;codecs=mp4a.40.2');
+  });
+
+  it('an iPhone that cannot name the codec falls back to plain MP4', async () => {
+    FakeRecorder.supports = (t) => t === 'audio/mp4' || t.startsWith('audio/webm');
+    expect(await asked('ios')).toBe('audio/mp4');
+  });
+
+  it('an Android phone that can record both still picks WebM/Opus', async () => {
+    expect(await asked('android')).toBe('audio/webm;codecs=opus');
+  });
+
+  it('an iPhone that can only record WebM still records', async () => {
+    FakeRecorder.supports = (t) => t.startsWith('audio/webm');
+    expect(await asked('ios')).toBe('audio/webm;codecs=opus');
   });
 });

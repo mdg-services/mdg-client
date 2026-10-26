@@ -4,6 +4,7 @@ import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLangStore } from '@/store/lang';
+import { usePushStore } from '@/store/push';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type { Conversation } from '@dk/shared/types';
 
@@ -451,5 +452,65 @@ describe('ChatListPage — an old-style link', () => {
     renderList('/chat?c=../settings');
     expect(screen.queryByText('settings-page')).not.toBeInTheDocument();
     expect(screen.getByText('Dealer Kavach')).toBeInTheDocument();
+  });
+});
+
+describe('ChatListPage — the notifications reminder', () => {
+  let postMessage: ReturnType<typeof vi.fn>;
+  const posted = () => postMessage.mock.calls.map(([raw]) => JSON.parse(raw as string));
+
+  beforeEach(() => {
+    postMessage = vi.fn();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+  });
+  afterEach(() => {
+    delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
+    usePushStore.setState({ pushState: 'unknown' });
+  });
+
+  it('shows nothing until the phone has said where it stands', () => {
+    h.result = loaded([support()]);
+    renderList();
+    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
+    expect(screen.queryByText('Notifications are off')).not.toBeInTheDocument();
+  });
+
+  it('a phone that was never asked gets the card above the chats, and the button asks the phone', () => {
+    h.result = loaded([support()]);
+    usePushStore.setState({ pushState: 'ask' });
+    renderList();
+    const card = screen.getByRole('region', { name: 'Turn on notifications' });
+    expect(within(card).getByText("Get MDG's replies and your daily report on this phone.")).toBeInTheDocument();
+    // Above the filter chips and the list, not among them.
+    const allChip = screen.getByRole('button', { name: 'All' });
+    expect(card.compareDocumentPosition(allChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    fireEvent.click(within(card).getByRole('button', { name: 'Turn on' }));
+    expect(posted()).toEqual([{ type: 'push:register' }]);
+  });
+
+  it('"Not now" puts the card away and leaves the chats where they were', () => {
+    h.result = loaded([support()]);
+    usePushStore.setState({ pushState: 'ask' });
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
+    expect(screen.getByText('Support')).toBeInTheDocument();
+  });
+
+  it('a phone that said no gets the slim notice, which opens the phone\'s Settings', () => {
+    h.result = loaded([support()]);
+    usePushStore.setState({ pushState: 'off' });
+    renderList();
+    expect(screen.getByText('Notifications are off')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+    expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
+  });
+
+  it('is not drawn on the empty screen', () => {
+    h.result = loaded([]);
+    usePushStore.setState({ pushState: 'ask' });
+    renderList();
+    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
   });
 });

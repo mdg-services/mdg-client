@@ -873,3 +873,30 @@ describe('LoginPage', () => {
     });
   });
 });
+
+describe('LoginPage — the privacy policy', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetStores();
+  });
+
+  // Apple will not take an app whose policy cannot be read from inside it, and
+  // a dealer weighing whether to register is who wants it — before any sign-in.
+  it('is one tap from the sign-in screen, opened in the phone\'s browser', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const user = userEvent.setup();
+    renderLogin();
+
+    const link = screen.getByRole('link', { name: 'Privacy policy' });
+    expect(link).toHaveAttribute('href', 'https://mdgservices.in/privacy');
+    await user.click(link);
+    expect(open).toHaveBeenCalledWith('https://mdgservices.in/privacy', '_blank', 'noopener');
+    // The app stays where it is.
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('says it in Hindi', () => {
+    renderLogin('hi');
+    expect(screen.getByRole('link', { name: 'प्राइवेसी पॉलिसी' })).toBeInTheDocument();
+  });
+});

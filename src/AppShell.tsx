@@ -43,7 +43,7 @@ export function AppShell() {
   // fall back to the list itself.
   useMyConversations();
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
-  usePushBridge(); // register push token + handle deep links from native
+  usePushBridge(); // learn where notifications stand, register the push token, handle deep links from native
   // Called for its side effect. It publishes `--vvh` / `--kb` on <html>, which is
   // what keeps the composer above the keyboard; nothing in this frame reads the
   // returned flag now that there is no bottom bar to slide out of its way.

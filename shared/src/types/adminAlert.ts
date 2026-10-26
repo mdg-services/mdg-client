@@ -84,6 +84,8 @@ export const ADMIN_ALERT_KINDS = [
   'server_restarted',
   /** One of the server's start-up steps failed. */
   'boot_step_failed',
+  /** Apple or Google is refusing our notification key, so every phone of that kind gets nothing. */
+  'push_failing',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -289,6 +291,13 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   boot_step_failed: {
     label: 'Server start-up',
     clearsWhen: 'Clears when the step succeeds on a later start.',
+    superAdminOnly: true,
+  },
+  // Super-admin only: the fix is a key renewed in the Expo account, which only
+  // the owner's side can do, and it is server health, not an outlet's problem.
+  push_failing: {
+    label: 'Notifications failing',
+    clearsWhen: 'Clears after a day with no failed deliveries.',
     superAdminOnly: true,
   },
 };

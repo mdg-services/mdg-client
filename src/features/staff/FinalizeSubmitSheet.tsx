@@ -9,6 +9,7 @@ import {
 import { type FlushResult } from '@/hooks/api/useStaffDraftSync';
 import { type ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
+import { imageAccept } from '@/lib/imageAccept';
 import { queryClient } from '@/lib/queryClient';
 import { fmtPoints, istDate } from '@/lib/staff';
 import { uploadStaffHardcopy } from '@/lib/uploadStaffHardcopy';
@@ -204,7 +205,7 @@ export function FinalizeSubmitSheet({
               <input
                 ref={cameraRef}
                 type="file"
-                accept="image/*"
+                accept={imageAccept()}
                 capture="environment"
                 className="hidden"
                 onChange={onPick}
@@ -212,7 +213,7 @@ export function FinalizeSubmitSheet({
               <input
                 ref={galleryRef}
                 type="file"
-                accept="image/*"
+                accept={imageAccept()}
                 className="hidden"
                 onChange={onPick}
               />

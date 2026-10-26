@@ -19,8 +19,36 @@ declare global {
     __EXPO_PUSH_TOKEN__?: string;
     /** Set by the SPA once it consumes a deep link so native knows. */
     __handledDeepLink?: boolean;
+    /**
+     * Which phone the shell is running on, defined by the shell before any page
+     * script runs. The user-agent cannot say: an iPad reports itself as a Mac.
+     */
+    __DK_NATIVE_PLATFORM__?: 'ios' | 'android';
+  }
+  interface WindowEventMap {
+    /** The shell's answer to `push:status`, or its own news that the state changed. */
+    'native-push-status': CustomEvent<NativePushStatusDetail>;
+    /** The phone put the app in the background or brought it back. */
+    'native-app-state': CustomEvent<NativeAppState>;
   }
 }
+
+/** Where the phone's notification permission stands. */
+export type NativePushStatus = 'granted' | 'denied' | 'undetermined' | 'unavailable';
+
+/** What the shell reports about notification permission (`native-push-status`). */
+export interface NativePushStatusDetail {
+  /**
+   * `unavailable` is Expo Go, or a binary with no notifications module: there
+   * is nothing to turn on, so nothing should be offered.
+   */
+  status: NativePushStatus;
+  /** False once the phone will never show the prompt again (iOS after one refusal). */
+  canAskAgain: boolean;
+}
+
+/** What the phone is doing with the app (`native-app-state`). */
+export type NativeAppState = 'active' | 'background';
 
 /**
  * Send a structured message to the native shell. No-op in a normal browser.
@@ -76,6 +104,72 @@ export function requestNativePushToken(): void {
   postToNative({ type: 'push:register' });
 }
 
+/**
+ * Ask the shell where notification permission stands, WITHOUT ever showing the
+ * phone's prompt. That is what lets the app explain itself first and ask in its
+ * own words, instead of the phone asking cold on the first screen.
+ *
+ * Resolves `null` when nothing answers within `timeoutMs`: a plain browser, or
+ * a shell from before this message existed (it ignores what it does not know).
+ * The caller reads `null` as "an old shell" and carries on the old way.
+ */
+export function requestNativePushStatus(
+  timeoutMs = 1500,
+): Promise<NativePushStatusDetail | null> {
+  if (!isNativeShell() || typeof window === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const timer: { id?: ReturnType<typeof window.setTimeout> } = {};
+    const onStatus = (e: Event) => {
+      const detail = (e as CustomEvent<NativePushStatusDetail>).detail;
+      if (!detail || typeof detail.status !== 'string') return;
+      finish(detail);
+    };
+    const finish = (result: NativePushStatusDetail | null) => {
+      if (timer.id !== undefined) window.clearTimeout(timer.id);
+      window.removeEventListener('native-push-status', onStatus);
+      resolve(result);
+    };
+    // Listening first, THEN asking: a shell that answers in the same tick must
+    // not find nobody there.
+    window.addEventListener('native-push-status', onStatus);
+    postToNative({ type: 'push:status' });
+    timer.id = window.setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
+/**
+ * Tell the shell which conversation is on screen. It clears that chat's
+ * notifications from the phone's tray and keeps new ones for it from popping up
+ * over the chat the dealer is already reading. Ignored by an older shell.
+ */
+export function postChatOpen(conversationId: string): void {
+  if (!isNativeShell() || !conversationId) return;
+  postToNative({ type: 'chat:open', conversationId });
+}
+
+/** The conversation left the screen: notifications for it may show again. */
+export function postChatClose(): void {
+  if (!isNativeShell()) return;
+  postToNative({ type: 'chat:close' });
+}
+
+/** How hard the tap feels. `selection` is the light tick of a picker. */
+export type HapticStyle = 'light' | 'medium' | 'selection';
+
+/**
+ * A small tick under the finger, for a long-press that took or a swipe that
+ * fired. Android's WebView has `navigator.vibrate`; an iPhone's does not, so
+ * inside the shell the tick is asked of the phone's own haptic engine instead.
+ * A plain desktop browser gets neither, and nothing happens.
+ */
+export function haptic(style: HapticStyle = 'light'): void {
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    navigator.vibrate(10);
+    return;
+  }
+  if (isNativeShell()) postToNative({ type: 'haptic', style });
+}
+
 /** Why the shell could not hand over a push token. */
 export interface NativePushBlocked {
   /**
@@ -85,6 +179,11 @@ export interface NativePushBlocked {
   reason?: string;
   /** The underlying error text, when there was one. */
   detail?: string;
+  /**
+   * With reason `permission`: whether the phone would still show its prompt.
+   * False means only the phone's Settings can turn notifications on.
+   */
+  canAskAgain?: boolean;
 }
 
 /** What the shell's OS permission prompt came back with. */
@@ -184,11 +283,17 @@ export function openNativeAppSettings(): void {
   postToNative({ type: 'permission:openSettings' });
 }
 
+/**
+ * How the shell delivered a download: 'gallery' = saved via the media library
+ * (Photos on an iPhone); 'browser' = handed to Chrome or Safari; 'share' = shown
+ * in the iPhone's share sheet, where the dealer picks Files, WhatsApp, Mail.
+ */
+export type NativeDownloadMode = 'gallery' | 'browser' | 'share';
+
 /** What the shell did with a requested media download. */
 export interface NativeDownloadResult {
   ok: boolean;
-  /** 'gallery' = saved via the media library; 'browser' = handed to Chrome. */
-  mode?: 'gallery' | 'browser';
+  mode?: NativeDownloadMode;
   error?: string;
   /**
    * True when the shell never ACKNOWLEDGED the request — an old binary without
@@ -242,7 +347,7 @@ const onDownloadResult = (e: Event) => {
     e as CustomEvent<{
       id?: string;
       ok?: boolean;
-      mode?: 'gallery' | 'browser';
+      mode?: NativeDownloadMode;
       error?: string;
     }>
   ).detail;
@@ -330,12 +435,22 @@ export function requestNativeDownload(
 }
 
 /**
- * Best-effort platform detection from the user-agent. Defaults to 'web'.
+ * Which phone this is. Defaults to 'web'.
+ *
+ * The shell says so itself (`__DK_NATIVE_PLATFORM__`), because the user-agent
+ * cannot be trusted for it: an iPad asks for desktop sites and reports a Mac.
+ * Without that word, anything inside the shell that is not Android is an
+ * iPhone or iPad; outside it, the user-agent is all there is.
  */
 export function detectPlatform(): NativePlatform {
+  if (typeof window !== 'undefined') {
+    const said = window.__DK_NATIVE_PLATFORM__;
+    if (said === 'ios' || said === 'android') return said;
+  }
   if (typeof navigator === 'undefined') return 'web';
   const ua = navigator.userAgent || '';
   if (/android/i.test(ua)) return 'android';
+  if (isNativeShell()) return 'ios';
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
   return 'web';
 }

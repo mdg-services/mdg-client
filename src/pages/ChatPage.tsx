@@ -34,6 +34,7 @@ import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { copyText } from '@/lib/clipboard';
 import { useAttachmentDownload } from '@/lib/downloadAttachment';
 import { useT } from '@/lib/i18n';
+import { postChatClose, postChatOpen } from '@/lib/nativeBridge';
 import type { OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useGoBack } from '@/lib/useGoBack';
@@ -118,6 +119,17 @@ export function ChatPage() {
     setSearching(false);
     setSearchText('');
     setJump(null);
+  }, [conversationId]);
+
+  // Tell the phone which chat is on screen. It clears that chat's notifications
+  // from the tray (the dealer is reading them) and keeps new ones for it from
+  // popping up over the very thread they are in. The cleanup runs before the
+  // next effect, so moving from one thread to another closes the first and
+  // opens the second. Nothing happens outside the app.
+  React.useEffect(() => {
+    if (!conversationId) return;
+    postChatOpen(conversationId);
+    return () => postChatClose();
   }, [conversationId]);
 
   const handleOpenReactions = React.useCallback((message: Message) => {

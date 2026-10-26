@@ -354,3 +354,29 @@ describe('RegisterPage', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
   });
 });
+
+describe('RegisterPage — the privacy policy', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetStores();
+  });
+
+  it('sits beside "We will never share your details" and opens the policy', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const user = userEvent.setup();
+    renderAt('/register');
+
+    const note = screen.getByText(/We will never share your details\./);
+    const link = within(note).getByRole('link', { name: 'Privacy policy' });
+    expect(link).toHaveAttribute('href', 'https://mdgservices.in/privacy');
+    await user.click(link);
+    expect(open).toHaveBeenCalledWith('https://mdgservices.in/privacy', '_blank', 'noopener');
+    // Reading it does not tick the box or send the form.
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
+  });
+
+  it('says it in Hindi', () => {
+    renderAt('/register', 'hi');
+    expect(screen.getByRole('link', { name: 'प्राइवेसी पॉलिसी' })).toBeInTheDocument();
+  });
+});

@@ -480,6 +480,8 @@ export const messages = {
     en: 'Saved to your gallery',
     hi: 'आपकी गैलरी में सेव हो गया',
   },
+  // The same words on an iPhone, which has no "gallery" — it has Photos.
+  'chat.savedToPhotos': { en: 'Saved to Photos', hi: 'फ़ोटो में सेव हो गया' },
   'chat.downloadingInBrowser': {
     en: 'Download started in your browser',
     hi: 'ब्राउज़र में डाउनलोड शुरू हो गया',
@@ -922,6 +924,22 @@ export const messages = {
   'chatlist.noMatch': { en: 'No chats found', hi: 'कोई चैट नहीं मिली' },
   'chatlist.settings': { en: 'Settings', hi: 'सेटिंग' },
 
+  // The one quiet reminder about notifications, at the top of the chat list. The
+  // card is shown before the phone asks, so the dealer knows what yes gets them.
+  'push.askTitle': { en: 'Turn on notifications', hi: 'नोटिफ़िकेशन चालू कीजिए' },
+  'push.askDesc': {
+    en: "Get MDG's replies and your daily report on this phone.",
+    hi: 'MDG के जवाब और रोज़ की रिपोर्ट इसी फ़ोन पर पाइए।',
+  },
+  'push.askTurnOn': { en: 'Turn on', hi: 'चालू करें' },
+  'push.askNotNow': { en: 'Not now', hi: 'अभी नहीं' },
+  'push.offTitle': { en: 'Notifications are off', hi: 'नोटिफ़िकेशन बंद हैं' },
+  'push.offDesc': {
+    en: "Turn them on in your phone's Settings to get MDG's replies.",
+    hi: 'MDG के जवाब पाने के लिए फ़ोन की सेटिंग में इन्हें चालू कीजिए।',
+  },
+  'push.openSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
+
   // Settings and what hangs off it.
   'settings.title': { en: 'Settings', hi: 'सेटिंग' },
   'settings.profileTitle': { en: 'Profile', hi: 'प्रोफ़ाइल' },
@@ -965,6 +983,18 @@ export const messages = {
   },
   'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
   'settings.teamDesc': { en: 'Add or pause your manager', hi: 'मैनेजर जोड़ें या रोकें' },
+  // Notifications: what the phone has been told, on one line. Only inside the app.
+  'settings.notifications': { en: 'Notifications', hi: 'नोटिफ़िकेशन' },
+  'settings.notificationsOn': { en: 'On', hi: 'चालू' },
+  'settings.notificationsOff': {
+    en: 'Off — tap to turn on in Settings',
+    hi: 'बंद — सेटिंग में चालू करने के लिए दबाइए',
+  },
+  'settings.notificationsAsk': { en: 'Not turned on yet', hi: 'अभी चालू नहीं हैं' },
+  // The two pages on the website. They open in the phone's browser; Apple wants
+  // the privacy policy reachable from inside the app, before sign-in too.
+  'legal.privacyPolicy': { en: 'Privacy policy', hi: 'प्राइवेसी पॉलिसी' },
+  'legal.termsOfService': { en: 'Terms of service', hi: 'सेवा की शर्तें' },
   'settings.help': { en: 'Help videos', hi: 'मदद के वीडियो' },
   'settings.helpDesc': {
     en: 'Learn the app with short videos',
@@ -1062,6 +1092,12 @@ export const messages = {
     en: "Couldn't play. Tap to try again",
     hi: 'चल नहीं सका। दोबारा दबाइए',
   },
+  // Not a bad link: this phone has no way to play that kind of recording. Trying
+  // again cannot help, so the line does not offer it.
+  'chat.voiceUnplayable': {
+    en: "This phone can't play this voice note.",
+    hi: 'यह फ़ोन यह वॉइस मैसेज नहीं चला सकता।',
+  },
 
   // A request MDG posted in the chat (ADR 0019). The message itself says what is
   // wanted and for which day, in the dealer's language, so these are only the
@@ -1073,6 +1109,7 @@ export const messages = {
   'chat.askSendPhoto': { en: 'Send photo', hi: 'फ़ोटो भेजें' },
   'chat.askChooseFile': { en: 'Choose file', hi: 'फ़ाइल चुनें' },
   'chat.askChooseGallery': { en: 'Choose from gallery', hi: 'गैलरी से चुनें' },
+  'chat.askChoosePhotos': { en: 'Choose from Photos', hi: 'फ़ोटो से चुनें' },
   'chat.askSent': { en: 'Sent — MDG is checking', hi: 'भेज दिया — MDG टीम देख रही है' },
   'chat.askReceived': { en: 'Received', hi: 'मिल गया' },
   'chat.askSentBack': { en: 'MDG sent it back', hi: 'MDG ने वापस भेजा है' },
@@ -1163,6 +1200,7 @@ export const messages = {
   'composer.attachDocument': { en: 'Document', hi: 'दस्तावेज़' },
   'composer.attachCamera': { en: 'Camera', hi: 'कैमरा' },
   'composer.attachGallery': { en: 'Gallery', hi: 'गैलरी' },
+  'composer.attachPhotos': { en: 'Photos', hi: 'फ़ोटो' },
   'composer.maxFiles': {
     en: 'You can send up to {n} files at once',
     hi: 'एक बार में {n} फाइल तक भेज सकते हैं',

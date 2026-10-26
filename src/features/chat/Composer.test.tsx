@@ -342,6 +342,205 @@ describe('Composer voice recording — a mic that never opens', () => {
   });
 });
 
+/**
+ * THE FIRST VOICE NOTE ON EVERY IPHONE WAS LOST. The first press opens the
+ * system's microphone alert over the page; UIKit cancels the touch underneath
+ * it, so the button gets `pointercancel` while `getUserMedia` is still waiting
+ * for the dealer to tap Allow. That used to arm a cancel, so the recording that
+ * began a moment later was thrown away — nothing was sent and nothing said why.
+ */
+describe('Composer voice recording — the system microphone alert (an iPhone)', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.start.mockReset();
+    recorder.cancel.mockReset();
+    recorder.stop.mockReset();
+    recorder.currentSession.mockClear();
+    recorder.session = 0;
+    recorder.status = 'idle';
+    recorder.supported = true;
+    cancelBumpsSession();
+    bridge.isNativeShell.mockReturnValue(true);
+    bridge.detectPlatform.mockReturnValue('ios');
+  });
+  afterEach(() => {
+    bridge.detectPlatform.mockReturnValue('android');
+  });
+
+  function pressMic() {
+    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    return mic;
+  }
+
+  /** A start() that stays closed until the test taps "Allow". */
+  function micOpensOnAllow() {
+    const allow: { open: () => void } = { open: () => {} };
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      const session = recorder.session;
+      return new Promise((resolve) => {
+        allow.open = () => resolve({ ok: true, session });
+      });
+    });
+    return allow;
+  }
+
+  it('keeps the note: a touch lost to the alert hands over to the hands-free bar once Allow is tapped', async () => {
+    const allow = micOpensOnAllow();
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+
+    // The alert appears and the phone cancels the finger. Nobody slid to cancel.
+    await act(async () => {
+      fireEvent.pointerCancel(mic, { pointerId: 1 });
+    });
+    // They tap Allow; the mic opens.
+    await act(async () => {
+      allow.open();
+    });
+
+    expect(await screen.findByRole('button', { name: 'Send voice message' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel recording' })).toBeInTheDocument();
+    expect(recorder.cancel).not.toHaveBeenCalled();
+    expect(recorder.stop).not.toHaveBeenCalled();
+    // And nothing was said about a blocked microphone.
+    expect(screen.queryByText("Can't access the microphone")).not.toBeInTheDocument();
+  });
+
+  it('still clears the screen if the dealer taps "Don\'t allow"', async () => {
+    let refuse: () => void = () => {};
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      return new Promise((resolve) => {
+        refuse = () => resolve({ ok: false, cause: 'error', name: 'NotAllowedError' });
+      });
+    });
+    bridge.requestNativeMicPermission.mockReset().mockResolvedValue({
+      granted: false,
+      permanentlyDenied: true,
+    });
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    await act(async () => {
+      fireEvent.pointerCancel(mic, { pointerId: 1 });
+    });
+    await act(async () => {
+      refuse();
+    });
+    await waitFor(() => expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Send voice message' })).not.toBeInTheDocument();
+  });
+
+  it('a dealer who slid to cancel and then lost the touch still cancels', async () => {
+    const allow = micOpensOnAllow();
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    await act(async () => {
+      fireEvent.pointerMove(mic, { pointerId: 1, clientX: -120, clientY: 0 });
+    });
+    await act(async () => {
+      fireEvent.pointerCancel(mic, { pointerId: 1 });
+    });
+    await act(async () => {
+      allow.open();
+    });
+
+    expect(recorder.cancel).toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Send voice message' })).not.toBeInTheDocument();
+  });
+
+  it('once the mic is recording, losing the touch is still a cancel — as it always was', async () => {
+    startSucceeds();
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    const mic = pressMic();
+    await act(async () => {}); // the mic opens
+    await act(async () => {
+      fireEvent.pointerCancel(mic, { pointerId: 1 });
+    });
+
+    expect(recorder.cancel).toHaveBeenCalled();
+    expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send voice message' })).not.toBeInTheDocument();
+  });
+
+  it('waits 30 s for a mic that has not opened (the alert may be being read), not 12', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      return new Promise(() => {});
+    });
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    pressMic();
+
+    await act(async () => {
+      vi.advanceTimersByTime(12_000);
+    });
+    expect(screen.getByText('Slide to cancel')).toBeInTheDocument();
+    expect(recorder.cancel).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(18_000);
+    });
+    await waitFor(() => expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument());
+    expect(await screen.findByText("The microphone didn't open")).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+});
+
+describe('Composer — what the pickers accept, by phone', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.supported = true;
+  });
+  afterEach(() => {
+    bridge.detectPlatform.mockReturnValue('android');
+  });
+
+  const accepts = (container: HTMLElement) =>
+    Array.from(container.querySelectorAll<HTMLInputElement>('input[type="file"]')).map((i) => ({
+      accept: i.accept,
+      capture: i.getAttribute('capture'),
+    }));
+
+  // `image/*` is what makes an iPhone hand back HEIC, which almost nothing else opens.
+  it('an iPhone names the formats it should convert to, on every photo picker', () => {
+    bridge.detectPlatform.mockReturnValue('ios');
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    const photos = 'image/jpeg,image/png,image/webp';
+    expect(accepts(container)).toEqual([
+      { accept: '.pdf,.doc,.docx,.xls,.xlsx,.txt', capture: null }, // Document
+      { accept: photos, capture: null }, // gallery
+      { accept: photos, capture: 'environment' }, // camera, still the rear one
+      { accept: `${photos},application/pdf`, capture: null }, // "Choose file" on a request
+      { accept: photos, capture: null }, // "Choose from gallery" on a request
+    ]);
+  });
+
+  it('an Android phone is unchanged', () => {
+    bridge.detectPlatform.mockReturnValue('android');
+    const { container } = renderWithProviders(<Composer onSend={vi.fn()} />);
+    expect(accepts(container)).toEqual([
+      { accept: '.pdf,.doc,.docx,.xls,.xlsx,.txt', capture: null },
+      { accept: 'image/*', capture: null },
+      { accept: 'image/*', capture: 'environment' },
+      { accept: 'image/*,application/pdf', capture: null },
+      { accept: 'image/*', capture: null },
+    ]);
+  });
+
+  it('an iPhone says Photos where Android says Gallery', () => {
+    bridge.detectPlatform.mockReturnValue('ios');
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Attach' }));
+    const card = screen.getByRole('dialog', { name: 'Attach' });
+    expect(within(card).getByRole('button', { name: 'Photos' })).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Gallery' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Composer reply strip', () => {
   beforeEach(() => {
     useLangStore.setState({ lang: 'en', explicit: false });

@@ -254,6 +254,9 @@ export function VoiceMessage({
   const [rate, setRate] = React.useState<number>(chosenRate);
   const [played, setPlayed] = React.useState(() => playedKeys.has(noteKey));
   const [failed, setFailed] = React.useState(false);
+  // This phone has no player for the kind of recording the note is. Not a stale
+  // link, and no link can fix it, so it is kept apart from `failed`.
+  const [unplayable, setUnplayable] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   // Set when the dealer pressed play before there was a link: play as soon as
   // the link we asked for arrives.
@@ -275,8 +278,29 @@ export function VoiceMessage({
   React.useEffect(() => {
     setSrc(attachment.url);
     setFailed(false);
+    setUnplayable(false);
     refreshed.current = false;
   }, [attachment.url]);
+
+  /**
+   * Whether the phone's own player says it can never play this kind of
+   * recording. An older iPhone cannot play WebM, which is what an Android phone
+   * records; asking again for a fresh link, which is all "Tap to try again" can
+   * do, would loop on 2G for nothing. Only read AFTER something failed: the
+   * player reports `''` for a type it does not know, and a note that is fine
+   * must never be called unplayable on a guess.
+   */
+  const phoneCannotPlay = React.useCallback((): boolean => {
+    const el = audioRef.current;
+    const type = attachment.contentType;
+    return !!el && !!type && el.canPlayType(type) === '';
+  }, [attachment.contentType]);
+
+  /** `play()` was refused: say which of the two things it was. */
+  const playFailed = React.useCallback(() => {
+    if (phoneCannotPlay()) setUnplayable(true);
+    else setFailed(true);
+  }, [phoneCannotPlay]);
 
   // Strip the OS "cast / AirPlay" route from this hidden <audio> so a private
   // voice note can't surface a Now-Playing tile or be sent to a nearby device.
@@ -302,8 +326,8 @@ export function VoiceMessage({
   React.useEffect(() => {
     if (!src || !playWhenReady.current) return;
     playWhenReady.current = false;
-    void audioRef.current?.play().catch(() => setFailed(true));
-  }, [src]);
+    void audioRef.current?.play().catch(playFailed);
+  }, [src, playFailed]);
 
   /** One fresh link through the message; after that the dealer asks again. */
   const askForLink = React.useCallback(async (): Promise<boolean> => {
@@ -328,6 +352,8 @@ export function VoiceMessage({
       el.pause();
       return;
     }
+    // Nothing a fresh link can change: leave the message where it is.
+    if (unplayable) return;
     if (!src || failed) {
       playWhenReady.current = true;
       refreshed.current = true;
@@ -336,7 +362,7 @@ export function VoiceMessage({
       });
       return;
     }
-    void el.play().catch(() => setFailed(true));
+    void el.play().catch(playFailed);
   };
 
   const cycleRate = () => {
@@ -360,7 +386,7 @@ export function VoiceMessage({
     setCurrentMs(fraction * totalMs);
     if (phase === 'end' && wasPlayingBeforeScrub.current) {
       wasPlayingBeforeScrub.current = false;
-      void el.play().catch(() => setFailed(true));
+      void el.play().catch(playFailed);
     }
   };
 
@@ -424,12 +450,15 @@ export function VoiceMessage({
           <span
             className={cn(
               'text-[11px] tabular-nums',
-              failed ? 'text-danger' : 'text-wa-meta',
+              failed || unplayable ? 'text-danger' : 'text-wa-meta',
+              unplayable && 'leading-tight',
             )}
           >
-            {failed
-              ? t('chat.voiceFailed')
-              : formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
+            {unplayable
+              ? t('chat.voiceUnplayable')
+              : failed
+                ? t('chat.voiceFailed')
+                : formatDuration(playing || currentMs > 0 ? currentMs : totalMs)}
           </span>
         </div>
         {mine ? sideSlot : null}
@@ -454,6 +483,12 @@ export function VoiceMessage({
             if (playingElement === e.currentTarget) playingElement = null;
           }}
           onError={() => {
+            // A kind of recording this phone cannot play is not a stale link:
+            // say so at once instead of fetching links that cannot help.
+            if (phoneCannotPlay()) {
+              setUnplayable(true);
+              return;
+            }
             // A stale link: ask once for a fresh one, then say so in words.
             if (!refreshed.current && source) {
               refreshed.current = true;

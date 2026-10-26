@@ -1,5 +1,7 @@
 import * as React from 'react';
 
+import { haptic } from './nativeBridge';
+
 /** Hold this long (ms) to trigger a long-press. */
 export const LONG_PRESS_MS = 450;
 /** Finger drift (px) beyond which the press is treated as a scroll/swipe. */
@@ -23,7 +25,7 @@ export interface LongPressHandlers {
  * Pointer-timer long-press (the WebView kills `contextmenu` app-wide via
  * touchGuards, so this is the ONLY long-press path): pointerdown starts a
  * 450ms timer; moving >10px, lifting, a second touch, or pointercancel aborts
- * it. On fire it vibrates and arms a one-shot capture listener that swallows
+ * it. On fire it ticks (`haptic`) and arms a one-shot capture listener that swallows
  * the trailing synthetic click (same ghost-click idiom as the Composer mic),
  * so a long-press never also "taps" whatever is under the finger.
  *
@@ -94,7 +96,7 @@ export function useLongPress(
         timerRef.current = null;
         const pointerId = startRef.current?.pointerId ?? e.pointerId;
         startRef.current = null;
-        navigator.vibrate?.(10);
+        haptic();
         // Swallow the ghost click the ended pointer sequence will emit, so the
         // element under the finger (image, link, play button) isn't activated.
         // Armed until the pointer lifts (+ grace) — consuming it disarms.

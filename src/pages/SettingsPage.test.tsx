@@ -6,6 +6,7 @@ import type * as ApiModule from '@/lib/api';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
+import { usePushStore, type PushState } from '@/store/push';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 
 vi.mock('@/lib/api', async (orig) => {
@@ -55,6 +56,8 @@ beforeEach(() => {
 
 afterEach(() => {
   resetStores();
+  usePushStore.setState({ pushState: 'unknown' });
+  delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
 });
 
 describe('SettingsPage — what is on it', () => {
@@ -334,5 +337,136 @@ describe('SettingsPage — log out', () => {
     act(() => window.history.back());
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(logout).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsPage — the legal pages', () => {
+  beforeEach(() => signIn({ role: 'dealer-owner' }));
+
+  it('has a Privacy policy row and a Terms of service row, above Log out', () => {
+    renderSettings();
+    const text = rows();
+    const privacy = text.findIndex((t) => t.startsWith('Privacy policy'));
+    const terms = text.findIndex((t) => t.startsWith('Terms of service'));
+    expect(privacy).toBeGreaterThan(text.findIndex((t) => t.startsWith('Help videos')));
+    expect(terms).toBe(privacy + 1);
+    expect(text.at(-1)).toBe('Log out');
+  });
+
+  // The website pages open in the phone's own browser (the shell hands an https
+  // link to Safari or Chrome), and never replace the app's own screen.
+  it.each([
+    ['Privacy policy', 'https://mdgservices.in/privacy'],
+    ['Terms of service', 'https://mdgservices.in/terms'],
+  ])('%s opens %s in a new window, cut off from the app', (title, url) => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    renderSettings();
+    fireEvent.click(screen.getByText(title).closest('button')!);
+    expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener');
+    expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('says both in Hindi', () => {
+    renderSettings();
+    cleanup();
+    signIn({ role: 'dealer-owner' });
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    renderWithProviders(
+      <Routes>
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>,
+      { route: '/settings', withRouter: true },
+    );
+    expect(screen.getByText('प्राइवेसी पॉलिसी')).toBeInTheDocument();
+    expect(screen.getByText('सेवा की शर्तें')).toBeInTheDocument();
+  });
+});
+
+describe('SettingsPage — the Notifications row', () => {
+  let postMessage: ReturnType<typeof vi.fn>;
+  const posted = () => postMessage.mock.calls.map(([raw]) => JSON.parse(raw as string));
+
+  beforeEach(() => {
+    signIn({ role: 'dealer-owner' });
+    postMessage = vi.fn();
+  });
+
+  function renderInApp(state: PushState) {
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    usePushStore.setState({ pushState: state });
+    return renderSettings();
+  }
+
+  // A browser has no phone to switch anything on.
+  it('is not there outside the app', () => {
+    usePushStore.setState({ pushState: 'ask' });
+    renderSettings();
+    expect(screen.queryByText('Notifications')).not.toBeInTheDocument();
+  });
+
+  it('is not there where there is nothing to turn on (Expo Go, a build with no notifications)', () => {
+    renderInApp('unavailable');
+    expect(screen.queryByText('Notifications')).not.toBeInTheDocument();
+  });
+
+  it('sits with the other settings, after Language and before the team', () => {
+    renderInApp('on');
+    const text = rows();
+    const at = (title: string) => text.findIndex((t) => t.startsWith(title));
+    expect(at('Notifications')).toBeGreaterThan(at('Language'));
+    expect(at('Notifications')).toBeLessThan(at('Your team'));
+  });
+
+  it.each([
+    ['on', 'On'],
+    ['off', 'Off — tap to turn on in Settings'],
+    ['ask', 'Not turned on yet'],
+    // An older shell that never said: asking again is harmless, so it reads as "not yet".
+    ['unknown', 'Not turned on yet'],
+  ] as const)('while %s it says "%s"', (state, line) => {
+    renderInApp(state);
+    const row = screen.getByText('Notifications').closest('button')!;
+    expect(within(row).getByText(line)).toBeInTheDocument();
+  });
+
+  it('never asked: a tap lets the phone show its prompt', () => {
+    renderInApp('ask');
+    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    expect(posted()).toEqual([{ type: 'push:register' }]);
+  });
+
+  it('refused: a tap opens the phone\'s Settings — asking again cannot work', () => {
+    renderInApp('off');
+    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
+  });
+
+  it('on: a tap opens the phone\'s Settings, so it can be changed', () => {
+    renderInApp('on');
+    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
+  });
+
+  it('follows the phone: the line changes the moment the answer arrives', () => {
+    renderInApp('ask');
+    act(() => usePushStore.setState({ pushState: 'on' }));
+    const row = screen.getByText('Notifications').closest('button')!;
+    expect(within(row).getByText('On')).toBeInTheDocument();
+  });
+
+  it('says it in Hindi', () => {
+    renderInApp('off');
+    cleanup();
+    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    signIn({ role: 'dealer-owner' });
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    renderWithProviders(
+      <Routes>
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>,
+      { route: '/settings', withRouter: true },
+    );
+    expect(screen.getByText('नोटिफ़िकेशन')).toBeInTheDocument();
+    expect(screen.getByText('बंद — सेटिंग में चालू करने के लिए दबाइए')).toBeInTheDocument();
   });
 });
