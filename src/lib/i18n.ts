@@ -926,7 +926,43 @@ export const messages = {
   'settings.title': { en: 'Settings', hi: 'सेटिंग' },
   'settings.profileTitle': { en: 'Profile', hi: 'प्रोफ़ाइल' },
   'settings.account': { en: 'Account', hi: 'खाता' },
-  'settings.accountDesc': { en: 'Change your password', hi: 'अपना पासवर्ड बदलें' },
+  'settings.accountDesc': {
+    en: 'Change your password, or delete your account',
+    hi: 'पासवर्ड बदलें या अपना खाता हटाएँ',
+  },
+  // ── Settings → Account → Delete my account (Apple's rule for apps people sign up from) ──
+  'account.delete': { en: 'Delete my account', hi: 'मेरा खाता हटाएँ' },
+  'account.deleteDesc': {
+    en: 'Your login stops working straight away. After {days} days your name, email and phone are wiped.',
+    hi: 'आपका लॉगिन तुरंत बंद हो जाएगा। {days} दिन बाद आपका नाम, ईमेल और फ़ोन मिटा दिया जाएगा।',
+  },
+  'account.deleteTitle': { en: 'Delete your account?', hi: 'अपना खाता हटाएँ?' },
+  'account.deleteNow': {
+    en: 'You are signed out, and your login stops working at once.',
+    hi: 'आप साइन आउट हो जाएँगे और आपका लॉगिन तुरंत बंद हो जाएगा।',
+  },
+  'account.deleteAllOutlets': {
+    en: 'This removes you from every pump you sign in to.',
+    hi: 'आप उन सभी पंपों से हट जाएँगे जिनमें आप साइन इन करते हैं।',
+  },
+  'account.deleteWipe': {
+    en: 'Your name, email and phone are wiped after {days} days.',
+    hi: '{days} दिन बाद आपका नाम, ईमेल और फ़ोन मिटा दिया जाएगा।',
+  },
+  'account.deleteRecordsStay': {
+    en: "Your outlet's reports and records stay with the outlet.",
+    hi: 'आउटलेट की रिपोर्ट और रिकॉर्ड आउटलेट के पास ही रहेंगे।',
+  },
+  'account.deleteUndo': {
+    en: 'Changed your mind? Call or WhatsApp the MDG team within {days} days.',
+    hi: 'मन बदल गया? {days} दिन के अंदर MDG टीम को कॉल या WhatsApp कीजिए।',
+  },
+  'account.deleteConfirm': { en: 'Delete account', hi: 'खाता हटाएँ' },
+  'account.deleted': { en: 'Your account is deleted.', hi: 'आपका खाता हटा दिया गया है।' },
+  'account.deleteFailed': {
+    en: 'Could not delete your account. Check your network and try again.',
+    hi: 'खाता नहीं हट सका। नेटवर्क जाँचिए और फिर कोशिश कीजिए।',
+  },
   'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
   'settings.teamDesc': { en: 'Add or pause your manager', hi: 'मैनेजर जोड़ें या रोकें' },
   'settings.help': { en: 'Help videos', hi: 'मदद के वीडियो' },

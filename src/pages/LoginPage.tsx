@@ -14,7 +14,12 @@ import { PasswordInput } from '@/features/auth/PasswordInput';
 import { ApiError, apiFetch } from '@/lib/api';
 import { useT, type MessageKey } from '@/lib/i18n';
 import { postToNative } from '@/lib/nativeBridge';
-import { PASSWORD_CHANGE_REQUIRED, SESSION_EXPIRED_KEY, useAuthStore } from '@/store/auth';
+import {
+  ACCOUNT_DELETED_KEY,
+  PASSWORD_CHANGE_REQUIRED,
+  SESSION_EXPIRED_KEY,
+  useAuthStore,
+} from '@/store/auth';
 import type { AuthLoginResponse } from '@dk/shared/types';
 
 type FormValues = { identifier: string; password: string };
@@ -39,20 +44,39 @@ function loginErrorKey(err: unknown): MessageKey {
   return 'common.networkError';
 }
 
+/**
+ * A one-shot note left for this screen in session storage. Read while drawing,
+ * cleared only once the screen is on display (`useEffect`): this page is loaded
+ * on demand, and a first drawing that is thrown away while it loads used to
+ * take the note with it, so the screen that finally showed had none.
+ */
+function hasNote(key: string): boolean {
+  try {
+    return sessionStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function clearNote(key: string): void {
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Storage off: there was no note to clear.
+  }
+}
+
 export function LoginPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const t = useT();
-  // Read once and cleared, so a later deliberate logout does not inherit it.
-  const [expired] = React.useState(() => {
-    try {
-      const was = sessionStorage.getItem(SESSION_EXPIRED_KEY) === '1';
-      if (was) sessionStorage.removeItem(SESSION_EXPIRED_KEY);
-      return was;
-    } catch {
-      return false;
-    }
-  });
+  // Read once and cleared, so a later deliberate logout does not inherit them.
+  const [expired] = React.useState(() => hasNote(SESSION_EXPIRED_KEY));
+  const [deleted] = React.useState(() => hasNote(ACCOUNT_DELETED_KEY));
+  React.useEffect(() => {
+    clearNote(SESSION_EXPIRED_KEY);
+    clearNote(ACCOUNT_DELETED_KEY);
+  }, []);
   const login = useAuthStore((s) => s.login);
   const token = useAuthStore((s) => s.token);
   const [forgotOpen, setForgotOpen] = React.useState(false);
@@ -140,7 +164,12 @@ export function LoginPage() {
           </h1>
           <p className="text-sm text-text-muted">{t('auth.subtitle')}</p>
         </div>
-        {expired ? (
+        {deleted ? (
+          // Straight after Settings → Account → Delete my account.
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-sm text-info">
+            {t('account.deleted')}
+          </p>
+        ) : expired ? (
           // Why they are looking at this screen at all. A dealer session lasts
           // a year and refreshes itself, so this is now almost always the
           // single-active-session rule: somebody signed in on another phone.
