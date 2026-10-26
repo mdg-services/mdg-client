@@ -145,6 +145,9 @@ export function getAuthToken(): string | null {
 /** Where an involuntary logout leaves its note for the login screen. */
 export const SESSION_EXPIRED_KEY = 'mdg.client.sessionExpired';
 
+/** Where "Delete my account" leaves its note for the login screen. One-shot, like the one above. */
+export const ACCOUNT_DELETED_KEY = 'mdg.client.accountDeleted';
+
 /**
  * Sign the dealer out because the server said the token is no longer good.
  *

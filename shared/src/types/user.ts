@@ -1,6 +1,12 @@
 export type UserRole = 'admin' | 'dealer-owner' | 'dealer-staff';
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 
+/**
+ * Days between "Delete my account" and the wipe of the person's name, email,
+ * phone and photo. Until then a super-admin's restore undoes it.
+ */
+export const ACCOUNT_WIPE_AFTER_DAYS = 30;
+
 export interface User {
   id: string;
   /** Empty string for a dealer user who registered without one: they sign in with their mobile. */
@@ -27,6 +33,14 @@ export interface User {
    * are retained and it's reversible via restore. Null/absent for live users.
    */
   archivedAt?: string | null;
+  /**
+   * Set (ISO timestamp) when the person deleted their own account from the app.
+   * The login is off from that moment; the name, email, phone and photo are wiped
+   * `ACCOUNT_WIPE_AFTER_DAYS` later unless a super-admin restores the account first.
+   */
+  deletionRequestedAt?: string | null;
+  /** Set (ISO timestamp) once those personal details have been wiped. */
+  personalDataWipedAt?: string | null;
   lastLoginAt?: string;
   /**
    * Signed in with a temporary password (one the team set): the app asks for a

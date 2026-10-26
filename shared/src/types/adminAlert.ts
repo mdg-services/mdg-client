@@ -78,6 +78,8 @@ export const ADMIN_ALERT_KINDS = [
   'lead_due',
   /** A lead's follow-up is a working day late. */
   'lead_cold',
+  /** A dealer deleted their own account from the app; their details are wiped in 30 days unless it is undone. */
+  'account_deletion',
   /** The server stopped without shutting down, or was off for a long time. */
   'server_restarted',
   /** One of the server's start-up steps failed. */
@@ -273,6 +275,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Autopay stopped',
     clearsWhen: 'Clears when the call is marked done, or autopay is set up again.',
     superAdminOnly: false,
+  },
+  account_deletion: {
+    label: 'Account deleted',
+    clearsWhen: 'Clears when the details are wiped, or a super-admin restores the account.',
+    superAdminOnly: true,
   },
   server_restarted: {
     label: 'Server',

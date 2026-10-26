@@ -1,10 +1,11 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as ApiModule from '@/lib/api';
 import { ApiError, api } from '@/lib/api';
+import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type { User } from '@dk/shared/types';
@@ -28,6 +29,7 @@ function renderAt(route: string) {
     <Routes>
       <Route path="/settings" element={<div>settings-page</div>} />
       <Route path="/chat" element={<div>chat-list</div>} />
+      <Route path="/login" element={<div>login-page</div>} />
       <Route path="/settings/profile" element={<SettingsProfilePage />} />
       <Route path="/settings/account" element={<SettingsAccountPage />} />
       <Route path="/settings/team" element={<SettingsTeamPage />} />
@@ -155,6 +157,53 @@ describe('Settings → account (change password)', () => {
     renderAt('/settings/account');
     await fill('wrong', 'new-secret-1', 'new-secret-1');
     expect(await screen.findByText('That current password is not right.')).toBeInTheDocument();
+  });
+});
+
+describe('Settings → account (delete my account)', () => {
+  beforeEach(() => signIn({ id: 'u1', role: 'dealer-owner' }));
+
+  async function openConfirm() {
+    const user = userEvent.setup();
+    renderAt('/settings/account');
+    await user.click(screen.getByRole('button', { name: 'Delete my account' }));
+    return user;
+  }
+
+  it('asks first, says what happens, and Cancel sends nothing', async () => {
+    const user = await openConfirm();
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('Delete your account?');
+    expect(dialog).toHaveTextContent('your login stops working at once');
+    expect(dialog).toHaveTextContent('wiped after 30 days');
+    expect(dialog).toHaveTextContent("Your outlet's reports and records stay with the outlet.");
+    expect(dialog).toHaveTextContent('within 30 days');
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(api.post).not.toHaveBeenCalled();
+  });
+
+  it('deletes, signs out and lands on the sign-in screen', async () => {
+    vi.mocked(api.post).mockResolvedValue({ wipeOn: '2026-11-25T00:00:00.000Z' } as never);
+    const user = await openConfirm();
+    await user.click(screen.getByRole('button', { name: 'Delete account' }));
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith('/v1/me/delete-account', { confirm: true }),
+    );
+    expect(await screen.findByText('login-page')).toBeInTheDocument();
+    expect(useAuthStore.getState().user).toBeNull();
+    // The note the sign-in screen shows once.
+    expect(sessionStorage.getItem('mdg.client.accountDeleted')).toBe('1');
+  });
+
+  it('stays signed in and says so when the server could not do it', async () => {
+    vi.mocked(api.post).mockRejectedValue(new ApiError(500, 'INTERNAL', 'no'));
+    const user = await openConfirm();
+    await user.click(screen.getByRole('button', { name: 'Delete account' }));
+    expect(
+      await screen.findByText('Could not delete your account. Check your network and try again.'),
+    ).toBeInTheDocument();
+    expect(useAuthStore.getState().user).not.toBeNull();
   });
 });
 
