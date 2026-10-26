@@ -191,7 +191,19 @@ describe('the dialog', () => {
 
   it('does not invent a day when the server has none', () => {
     const a = makeAutopay({ paidThrough: null });
-    expect(dialogBody(en, 'en', a)).toContain('till your paid month ends');
+    expect(dialogBody(en, 'en', a)).not.toContain('paid month');
+  });
+
+  // A first-month setup: nothing is paid, so the service is not "running on a paid month".
+  it('says nothing has been taken and the first bill is still to be paid when no month is paid', () => {
+    const a = makeAutopay({ state: 'setting_up', paidThrough: null });
+    expect(dialogBody(en, 'en', a)).toBe(
+      'No money will be taken automatically after this. Nothing has been taken so far. Your first bill is still to be paid.',
+    );
+    expect(dialogBody(hi, 'hi', a)).toBe(
+      'इसके बाद पैसे अपने-आप नहीं कटेंगे। अभी तक कुछ नहीं कटा है। आपका पहला बिल अभी चुकाना बाकी है।',
+    );
+    expect(dialogBody(en, 'en', a)).not.toMatch(/keeps working/);
   });
 
   it('opens with the in-flight warning only while a debit is being taken', () => {

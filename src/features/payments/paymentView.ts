@@ -109,6 +109,17 @@ export function formatDayMonth(lang: Lang, ymd: string): string {
   }).format(d);
 }
 
+/** Today's calendar day in India, `YYYY-MM-DD`, whatever time zone the phone is set to. */
+export function todayIst(now: number = Date.now()): string {
+  // The "en-CA" locale writes a date as year-month-day.
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'Asia/Kolkata',
+  }).format(new Date(now));
+}
+
 /**
  * The line that says when an open payment will be settled, or null when there
  * is nothing to say.
@@ -117,15 +128,24 @@ export function formatDayMonth(lang: Lang, ymd: string): string {
  * on 28 Oct" instead of "Due by …": the dealer has nothing to do, and a due
  * date beside it would read as a thing they must do. Only a `due` payment
  * counts — the server sets `autopayOn` while the bill is due, and a payment
- * already `processing` is on its way whoever started it. Everything else open
- * keeps the usual due wording; a payment that is not open has no line.
+ * already `processing` is on its way whoever started it.
+ *
+ * If that day has already gone and the bill is still due, the debit did not
+ * go through and autopay is trying again: a past date after "will take this on"
+ * would be a promise already broken, so the line says it is trying again. (The
+ * Pay button stays away either way: the server decides when a link is sent.)
+ *
+ * Everything else open keeps the usual due wording; a payment that is not open
+ * has no line. `now` is for tests.
  */
 export function dueNote(
   t: TFunction,
   lang: Lang,
   payment: Pick<DealerPayment, 'status' | 'dueDate' | 'autopayOn'>,
+  now: number = Date.now(),
 ): string | null {
   if (payment.status === 'due' && payment.autopayOn) {
+    if (payment.autopayOn < todayIst(now)) return t('payments.autopayRetrying');
     return t('payments.autopayWillTake', { date: formatDayMonth(lang, payment.autopayOn) });
   }
   const isOpen = payment.status === 'due' || payment.status === 'processing';

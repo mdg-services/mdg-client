@@ -462,11 +462,11 @@ describe('AutopayPage — the stop dialog', () => {
       expect(await within(dialog).findByRole('button', { name: 'बंद हो रहा है…' })).toBeDisabled();
     });
 
+    // The server itself said Razorpay did not answer and nothing was touched.
     it.each([
-      ['Razorpay cannot be reached (503)', new ApiError(503, 'RAZORPAY_UNREACHABLE', 'down')],
-      ['the phone has no network', new ApiError(0, 'NETWORK_ERROR', 'Failed to fetch')],
-      ['the server errors', new ApiError(500, 'INTERNAL', 'boom')],
-    ])('when %s: the dialog stays open with a red line, and nothing changed', async (_name, err) => {
+      ['RAZORPAY_UNREACHABLE', new ApiError(503, 'RAZORPAY_UNREACHABLE', 'down')],
+      ['AUTOPAY_NOT_STOPPED', new ApiError(503, 'AUTOPAY_NOT_STOPPED', 'down')],
+    ])('when the server says %s: the dialog stays open and says nothing has changed', async (_name, err) => {
       const user = userEvent.setup();
       serve(makeAutopayStatus());
       vi.mocked(api.post).mockRejectedValue(err);
@@ -477,7 +477,7 @@ describe('AutopayPage — the stop dialog', () => {
 
       const line = await within(dialog).findByRole('alert');
       expect(line).toHaveTextContent(
-        'Not stopped. Check your network and try again. Nothing has changed.',
+        'Not stopped. The payment service did not answer. Nothing has changed. Please try again in a minute.',
       );
       expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       expect(screen.queryByText('Autopay stopped. No more money will be taken.')).not.toBeInTheDocument();
@@ -486,6 +486,75 @@ describe('AutopayPage — the stop dialog', () => {
       // Free to try again, or to keep it.
       expect(within(dialog).getByRole('button', { name: 'Stop autopay' })).toBeEnabled();
       expect(within(dialog).getByRole('button', { name: 'Keep autopay' })).toBeEnabled();
+    });
+
+    // The server answered with a refusal of its own: it touched nothing, and says why.
+    it.each([
+      [
+        'payments are switched off',
+        new ApiError(503, 'PAYMENTS_NOT_CONFIGURED', 'off'),
+        'Not stopped. Online payment is switched off right now. Nothing has changed. Please try again later.',
+      ],
+      [
+        'the payment service refused',
+        new ApiError(502, 'PAYMENT_PROVIDER_ERROR', 'BAD_REQUEST_ERROR: x'),
+        'Not stopped. The payment service refused it. Nothing has changed. Please try again in a minute.',
+      ],
+      [
+        'too many tries',
+        new ApiError(429, 'RATE_LIMITED', 'slow down'),
+        'Not stopped. Nothing has changed. Please try again in a minute.',
+      ],
+    ])('when %s: it says not stopped and nothing has changed', async (_name, err, words) => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus());
+      vi.mocked(api.post).mockRejectedValue(err);
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      const line = await within(dialog).findByRole('alert');
+      expect(line).toHaveTextContent(words);
+      expect(line).not.toHaveTextContent('could not confirm');
+      expect(within(dialog).getByRole('button', { name: 'Stop autopay' })).toBeEnabled();
+    });
+
+    // The reply never came, or was not understood: the stop may have landed. The
+    // dialog must not promise "nothing has changed", and the page must look again.
+    it.each([
+      ['the phone has no network', new ApiError(0, 'NETWORK_ERROR', 'Failed to fetch')],
+      ['the request timed out', new ApiError(0, 'TIMEOUT', 'Request timed out')],
+      ['the server errors', new ApiError(500, 'INTERNAL', 'boom')],
+    ])('when %s: it says it could not confirm, never "nothing has changed"', async (_name, err) => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus());
+      vi.mocked(api.post).mockRejectedValue(err);
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      const line = await within(dialog).findByRole('alert');
+      expect(line).toHaveTextContent('We could not confirm. Autopay may already be stopped.');
+      expect(line).not.toHaveTextContent('Nothing has changed');
+      expect(within(dialog).getByRole('button', { name: 'Stop autopay' })).toBeEnabled();
+      expect(within(dialog).getByRole('button', { name: 'Keep autopay' })).toBeEnabled();
+    });
+
+    it('reads the status again after a lost reply, and shows Off when the stop had landed', async () => {
+      const user = userEvent.setup();
+      // On the first read, off on the second: the stop went through, its reply did not.
+      serve(makeAutopayStatus(), stoppedOff());
+      vi.mocked(api.post).mockRejectedValue(new ApiError(0, 'TIMEOUT', 'Request timed out'));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      expect(await screen.findByText('Autopay is off')).toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(api.get).toHaveBeenCalledTimes(2);
     });
 
     it('says the failure in Hindi', async () => {
@@ -498,7 +567,21 @@ describe('AutopayPage — the stop dialog', () => {
       const dialog = await screen.findByRole('alertdialog');
       await user.click(within(dialog).getByRole('button', { name: 'ऑटोपे बंद करें' }));
       expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-        'बंद नहीं हुआ। नेटवर्क जाँचिए और फिर कोशिश कीजिए। कुछ नहीं बदला।',
+        'बंद नहीं हुआ। पेमेंट सर्विस से जवाब नहीं आया। कुछ नहीं बदला। कृपया एक मिनट बाद फिर कोशिश करें।',
+      );
+    });
+
+    it('says it could not confirm, in Hindi, after a timeout', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus());
+      vi.mocked(api.post).mockRejectedValue(new ApiError(0, 'TIMEOUT', 'Request timed out'));
+      renderPage({ lang: 'hi' });
+
+      await user.click(await screen.findByRole('button', { name: 'ऑटोपे बंद करें' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(within(dialog).getByRole('button', { name: 'ऑटोपे बंद करें' }));
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        'जवाब नहीं मिल पाया। हो सकता है ऑटोपे बंद हो गया हो।',
       );
     });
 

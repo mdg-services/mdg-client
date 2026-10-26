@@ -8,7 +8,7 @@ import type { DealerPayment } from '@dk/shared/types';
 
 import { usePaymentCache, useRefreshPayment, useStartCheckout, useVerifyPayment } from './api';
 import { CheckoutError, loadCheckoutScript, openCheckout } from './checkout';
-import { paymentErrorKey } from './errors';
+import { failureReasonKey, paymentErrorKey } from './errors';
 import { hasReceipt } from './paymentView';
 
 /**
@@ -160,11 +160,14 @@ export function usePay(paymentId: string) {
         return finish(await waitForServer(row));
       }
       cache.invalidateAll();
-      if (err.failed && err.lastFailure) {
+      // Razorpay's own words are English and for developers: only our phrase for
+      // what they mean is shown, and none at all when we cannot place them.
+      const reasonKey = err.failed ? failureReasonKey(err.lastFailure) : null;
+      if (reasonKey) {
         setPhase({
           name: 'failed',
           key: 'payments.err.failedWith',
-          vars: { reason: err.lastFailure },
+          vars: { reason: t(reasonKey) },
         });
       } else if (err.failed) {
         setPhase({ name: 'failed', key: 'payments.err.failed' });
@@ -172,7 +175,7 @@ export function usePay(paymentId: string) {
         setPhase({ name: 'failed', key: 'payments.err.notCompleted' });
       }
     },
-    [cache, finish, paymentId, refreshPayment, setPhase, waitForServer],
+    [cache, finish, paymentId, refreshPayment, setPhase, t, waitForServer],
   );
 
   const pay = React.useCallback(async () => {

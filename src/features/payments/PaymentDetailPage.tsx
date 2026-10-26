@@ -8,7 +8,7 @@ import { useLang, useT } from '@/lib/i18n';
 import { formatPaise } from '@dk/shared';
 
 import { usePayment } from './api';
-import { isNotConfigured } from './errors';
+import { failureReasonKey, isNotConfigured, isTryAgainSoon } from './errors';
 import { GstDocuments } from './GstDocuments';
 import { PayButton } from './PayButton';
 import { PaymentStatusChip } from './PaymentStatusChip';
@@ -48,6 +48,11 @@ export function PaymentDetailPage() {
           icon={<Wallet width={28} strokeWidth={1.5} />}
           title={t('payments.notConfiguredTitle')}
           description={t('payments.notConfiguredDesc')}
+          action={
+            <Button variant="secondary" size="lg" onClick={() => void query.refetch()}>
+              {t('common.retry')}
+            </Button>
+          }
         />
       );
     } else if (query.error instanceof ApiError && query.error.status === 404) {
@@ -63,7 +68,7 @@ export function PaymentDetailPage() {
         <StateBlock
           icon={<AlertCircle width={28} strokeWidth={1.5} />}
           title={t('payments.errorTitle')}
-          description={t('common.helpDesc')}
+          description={t(isTryAgainSoon(query.error) ? 'payments.err.provider' : 'common.helpDesc')}
           action={
             <Button variant="secondary" size="lg" onClick={() => void query.refetch()}>
               {t('common.retry')}
@@ -75,6 +80,10 @@ export function PaymentDetailPage() {
   } else {
     const isOpen = payment.status === 'due' || payment.status === 'processing';
     const due = dueNote(t, lang, payment);
+    const reasonKey = failureReasonKey(payment.lastFailure?.reason);
+    const lastFailureText = reasonKey
+      ? t('payments.lastFailure', { reason: t(reasonKey) })
+      : t('payments.lastFailureGeneric');
     body = (
       <>
         <Card>
@@ -100,9 +109,12 @@ export function PaymentDetailPage() {
                 {t('payments.confirmingNote')}
               </p>
             ) : null}
-            {payment.status === 'due' && payment.lastFailure ? (
+            {/* Only where paying is allowed: a failed try is about paying, and the
+                Android app says nothing of it. Razorpay's own text is never shown,
+                only our phrase for what it means. */}
+            {canPayHere() && payment.status === 'due' && payment.lastFailure ? (
               <p className="rounded-lg bg-surface-2 p-3 text-base text-text">
-                {t('payments.lastFailure', { reason: payment.lastFailure.reason })}
+                {lastFailureText}
               </p>
             ) : null}
             {/* No Pay on a bill autopay is about to take: paying it too would be paying twice. */}

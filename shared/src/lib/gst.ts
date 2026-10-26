@@ -51,8 +51,12 @@ export const GST_STATES: Record<string, string> = {
   '22': 'Chhattisgarh',
   '23': 'Madhya Pradesh',
   '24': 'Gujarat',
+  // Daman and Diu before its 2020 merger into 26: GSTINs issued then still carry it.
+  '25': 'Daman and Diu',
   '26': 'Dadra and Nagar Haveli and Daman and Diu',
   '27': 'Maharashtra',
+  // Andhra Pradesh before the 2014 split (37 since): older GSTINs still carry it.
+  '28': 'Andhra Pradesh (old)',
   '29': 'Karnataka',
   '30': 'Goa',
   '31': 'Lakshadweep',
@@ -63,6 +67,8 @@ export const GST_STATES: Record<string, string> = {
   '36': 'Telangana',
   '37': 'Andhra Pradesh',
   '38': 'Ladakh',
+  '97': 'Other Territory',
+  '99': 'Centre Jurisdiction',
 };
 
 const GSTIN_SHAPE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;

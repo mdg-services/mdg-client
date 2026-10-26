@@ -290,7 +290,8 @@ describe('usePay — when it does not go through', () => {
     expect(server.verify).not.toHaveBeenCalled();
   });
 
-  it('passes on Razorpay’s own reason when a try failed before the pop-up was closed', async () => {
+  // Razorpay's text is English; the dealer gets our phrase for what it means.
+  it('puts Razorpay’s reason into the dealer’s own words, never as Razorpay wrote it', async () => {
     vi.mocked(openCheckout).mockRejectedValue(
       new CheckoutError('dismissed', 'closed', {
         failed: true,
@@ -305,8 +306,24 @@ describe('usePay — when it does not go through', () => {
     expect(result.current.phase).toEqual({
       name: 'failed',
       key: 'payments.err.failedWith',
-      vars: { reason: 'Your card was declined by the bank' },
+      vars: { reason: 'the bank did not accept it' },
     });
+    expect(JSON.stringify(result.current.phase)).not.toContain('declined by the bank');
+  });
+
+  it('shows nothing of a reason it cannot place', async () => {
+    vi.mocked(openCheckout).mockRejectedValue(
+      new CheckoutError('dismissed', 'closed', {
+        failed: true,
+        lastFailure: 'BAD_REQUEST_ERROR: odd thing',
+      }),
+    );
+    server.refresh.mockImplementation(answers(makePayment({ id: 'p1', status: 'due' })));
+    const { result } = setup();
+
+    await tapPay(result);
+
+    expect(result.current.phase).toEqual({ name: 'failed', key: 'payments.err.failed' });
   });
 
   it('says a try failed even when Razorpay gave no reason', async () => {
@@ -352,6 +369,19 @@ describe('usePay — when it does not go through', () => {
 
     expect(result.current.phase).toEqual({ name: 'failed', key: 'payments.err.notConfigured' });
   });
+
+  // A 503 that is not "keys are off" is a busy server, and passes.
+  it.each(['RAZORPAY_UNREACHABLE', 'PAYMENT_PROVIDER_ERROR', 'HTTP_503'])(
+    'says to try again in a minute on a 503 %s, not that payments are off',
+    async (code) => {
+      server.checkout.mockImplementation(fails(503, code));
+      const { result } = setup();
+
+      await tapPay(result);
+
+      expect(result.current.phase).toEqual({ name: 'failed', key: 'payments.err.provider' });
+    },
+  );
 
   it('says the window did not load when Razorpay’s script cannot be fetched', async () => {
     vi.mocked(loadCheckoutScript).mockRejectedValue(new CheckoutError('script', 'offline'));

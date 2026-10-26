@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Attachment } from '@dk/shared/types';
 
 import {
+  deliverDownload,
   downloadAttachment,
   fetchFreshDownloadUrl,
   type AttachmentSource,
@@ -239,5 +240,68 @@ describe('downloadAttachment', () => {
       }),
     };
     await expect(downloadAttachment(attachment, source)).rejects.toThrow('denied');
+  });
+});
+
+// A file whose link was fetched AFTER the tap (a GST invoice): a new tab opened
+// from there is blocked by Safari without a word, so the page itself is taken to
+// the link, which saves the file (attachment disposition) and leaves the page.
+describe('deliverDownload — sameTab', () => {
+  const file = {
+    url: 'https://s3.test/gst/invoice?sig=abc',
+    filename: 'MDG-26-27-00001.pdf',
+    contentType: 'application/pdf',
+    kind: 'file' as const,
+  };
+
+  it('in a browser, clicks a link to the file in this tab and opens no window', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const clicked: Array<{ href: string; target: string; download: string }> = [];
+    const click = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(function (this: HTMLAnchorElement) {
+        clicked.push({ href: this.href, target: this.target, download: this.download });
+      });
+
+    const mode = await deliverDownload(file, { sameTab: true });
+
+    expect(mode).toBe('browser');
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(clicked[0]).toEqual({ href: file.url, target: '', download: file.filename });
+    expect(open).not.toHaveBeenCalled();
+    // The hidden link does not stay on the page.
+    expect(document.querySelector('a[download]')).toBeNull();
+  });
+
+  it('without the option, a browser still opens a new tab as before', async () => {
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    await deliverDownload(file);
+
+    expect(open).toHaveBeenCalledWith(file.url, '_blank', 'noopener');
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('inside the app it still uses the app’s downloader, never the link', async () => {
+    const postMessage = vi.fn((raw: string) => {
+      const msg = JSON.parse(raw) as { type: string; id: string };
+      expect(msg.type).toBe('media:download');
+      window.dispatchEvent(
+        new CustomEvent('native-media-download-started', { detail: { id: msg.id } }),
+      );
+      window.dispatchEvent(
+        new CustomEvent('native-media-download', { detail: { id: msg.id, ok: true, mode: 'browser' } }),
+      );
+    });
+    (window as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    await deliverDownload(file, { sameTab: true });
+
+    expect(postMessage).toHaveBeenCalledTimes(1);
+    expect(open).not.toHaveBeenCalled();
+    expect(click).not.toHaveBeenCalled();
   });
 });

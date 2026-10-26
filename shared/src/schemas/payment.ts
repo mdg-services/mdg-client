@@ -160,3 +160,20 @@ export const sendSetupBillRequestSchema = z
   })
   .strict();
 export type SendSetupBillRequest = z.infer<typeof sendSetupBillRequestSchema>;
+
+/**
+ * A refund made by hand (`POST /admin/payments/:id/manual-refund`, super-admin):
+ * money that came outside Razorpay, given back outside it — by bank, UPI, cash or
+ * cheque. Recording it reduces what the payment counts as paid and issues the
+ * credit note. At most what is still unrefunded; the day is the day it went back.
+ */
+export const recordManualRefundSchema = z
+  .object({
+    amountPaise: paise,
+    refundedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    mode: z.enum(MANUAL_PAYMENT_MODES),
+    reference: optionalText(120),
+    reason: z.string().trim().min(3).max(300),
+  })
+  .strict();
+export type RecordManualRefundInput = z.infer<typeof recordManualRefundSchema>;

@@ -28,8 +28,46 @@ export class ApiError extends Error {
 
 /** Abort a stalled GET after this long so react-query can retry instead of the
  * UI hanging for minutes on a 2G link. Mutations are deliberately NOT timed out
- * (a write may have already landed server-side). */
+ * (a write may have already landed server-side) — except the few payment writes
+ * listed below, which the server answers the same way when asked twice. */
 const GET_TIMEOUT_MS = 20_000;
+
+/**
+ * The payment writes that are safe to cut off, and how long they get. Without
+ * a limit, a stalled request on a weak forecourt link left "Opening payment…",
+ * "Confirming your payment…" or "Stopping…" on the screen, with every button
+ * off, until the browser gave up — minutes later.
+ *
+ * Only these are listed because only these are safe to abandon: the server
+ * answers each one the same way if it is asked again (checkout hands back the
+ * order of the same payment, verify and refresh re-read Razorpay, and stopping
+ * autopay of one that is already off answers 200). A timed-out one therefore
+ * throws the same retryable `TIMEOUT` a stalled GET does, and the screens
+ * read the truth again rather than trust either answer. Every other write
+ * stays untimed, for the reason given above.
+ */
+const PAYMENT_ACTION_TIMEOUT_MS = 30_000;
+const PAYMENT_ACTION_PATH =
+  /^\/v1\/payments\/me\/(?:autopay\/stop|[^/]+\/(?:checkout|verify|refresh))\/?$/;
+
+/**
+ * The invoice link is the one read that is allowed to be slow. When the PDF is
+ * not stored yet the server draws it, and waits up to 45 seconds for the
+ * invoice printer before it answers "busy". A 20 second limit cut the dealer
+ * off first and told them to check their network; 60 seconds lets the server's
+ * own answer arrive.
+ */
+const GST_DOCUMENT_TIMEOUT_MS = 60_000;
+const GST_DOCUMENT_PATH = /^\/v1\/payments\/me\/[^/]+\/documents\/[^/]+\/?$/;
+
+/** How long this request may take before it is cut off, or undefined for never. */
+function timeoutFor(method: string, path: string): number | undefined {
+  if (method === 'GET') {
+    return GST_DOCUMENT_PATH.test(path) ? GST_DOCUMENT_TIMEOUT_MS : GET_TIMEOUT_MS;
+  }
+  if (method === 'POST' && PAYMENT_ACTION_PATH.test(path)) return PAYMENT_ACTION_TIMEOUT_MS;
+  return undefined;
+}
 
 export type QueryValue = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValue>;
@@ -88,18 +126,20 @@ export async function apiFetch<T>(
     if (token) headers.Authorization = `Bearer ${token}`;
   }
 
-  // Bound GET reads with a timeout. We use a manual AbortController (not
-  // AbortSignal.timeout/any, which are unavailable on older Android System
-  // WebView) and forward any caller-supplied signal into it.
+  // Bound GET reads (and the payment writes above) with a timeout. We use a
+  // manual AbortController (not AbortSignal.timeout/any, which are unavailable
+  // on older Android System WebView) and forward any caller-supplied signal
+  // into it.
   let fetchSignal = signal;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let timedOut = false;
-  if (method === 'GET') {
+  const timeoutMs = timeoutFor(method, path);
+  if (timeoutMs !== undefined) {
     const controller = new AbortController();
     timeoutId = setTimeout(() => {
       timedOut = true;
       controller.abort();
-    }, GET_TIMEOUT_MS);
+    }, timeoutMs);
     if (signal) {
       if (signal.aborted) controller.abort();
       else signal.addEventListener('abort', () => controller.abort(), { once: true });

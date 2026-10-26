@@ -1259,6 +1259,33 @@ export const messages = {
     en: 'Your last try did not go through: {reason}',
     hi: 'आपकी पिछली कोशिश नहीं हो पाई: {reason}',
   },
+  // The last try failed and we could not tell why: no reason is made up.
+  'payments.lastFailureGeneric': {
+    en: 'Your last try did not go through.',
+    hi: 'आपकी पिछली कोशिश नहीं हो पाई।',
+  },
+  // Razorpay's reasons are English and meant for developers. Only these short
+  // phrases of ours are ever shown, chosen by what the reason says.
+  'payments.failReason.declined': {
+    en: 'the bank did not accept it',
+    hi: 'बैंक ने इसे स्वीकार नहीं किया',
+  },
+  'payments.failReason.insufficient': {
+    en: 'there was not enough balance',
+    hi: 'खाते में पूरे पैसे नहीं थे',
+  },
+  'payments.failReason.expired': {
+    en: 'the payment request ran out of time',
+    hi: 'भुगतान का समय निकल गया',
+  },
+  'payments.failReason.cancelled': {
+    en: 'the payment was cancelled',
+    hi: 'भुगतान रद्द हो गया',
+  },
+  'payments.failReason.auth': {
+    en: 'the bank could not confirm it was you',
+    hi: 'बैंक आपकी पहचान पक्की नहीं कर पाया',
+  },
   'payments.emptyTitle': { en: 'No payments yet', hi: 'अभी कोई भुगतान नहीं' },
   'payments.emptyDesc': {
     en: 'When MDG raises a payment for your pump, it will show here.',
@@ -1350,6 +1377,11 @@ export const messages = {
     en: 'Your download is starting',
     hi: 'आपका डाउनलोड शुरू हो रहा है',
   },
+  // The invoice printer is busy or could not finish: it passes, so say when to try.
+  'payments.invoice.busy': {
+    en: 'Your invoice is being prepared. Please try again in a minute.',
+    hi: 'आपका इनवॉइस तैयार हो रहा है। कृपया एक मिनट बाद फिर कोशिश करें।',
+  },
   'payments.invoice.downloadFailed': {
     en: "Couldn't download this. Please check your network and try again.",
     hi: 'यह डाउनलोड नहीं हो पाया। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
@@ -1400,6 +1432,12 @@ export const messages = {
   'payments.autopayWillTake': {
     en: 'Autopay will take this on {date}',
     hi: 'ऑटोपे {date} को काटेगा',
+  },
+  // The day autopay was to take the bill has passed and the bill is still due:
+  // the debit did not go through and autopay is trying again.
+  'payments.autopayRetrying': {
+    en: 'Autopay could not take this yet. It is trying again.',
+    hi: 'ऑटोपे अभी इसे नहीं काट पाया। वह फिर कोशिश कर रहा है।',
   },
 
   /* ── autopay (ADR 0022 §13) ──────────────────────────────────────────── */
@@ -1467,9 +1505,10 @@ export const messages = {
     en: 'No money will be taken automatically after this. Dealer Kavach keeps working till {date}. After that you get a bill each month.',
     hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच {date} तक चलता रहेगा। उसके बाद हर महीने का बिल आएगा।',
   },
+  // No month is paid yet (the first bill is still open): do not say the service is running on a paid month.
   'autopay.dialog.bodyNoDate': {
-    en: 'No money will be taken automatically after this. Dealer Kavach keeps working till your paid month ends. After that you get a bill each month.',
-    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच आपका चुकाया महीना पूरा होने तक चलता रहेगा। उसके बाद हर महीने का बिल आएगा।',
+    en: 'No money will be taken automatically after this. Nothing has been taken so far. Your first bill is still to be paid.',
+    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। अभी तक कुछ नहीं कटा है। आपका पहला बिल अभी चुकाना बाकी है।',
   },
   'autopay.dialog.reasonLabel': { en: 'Why? (optional)', hi: 'क्यों? (ज़रूरी नहीं)' },
   'autopay.reason.pay_myself': {
@@ -1497,9 +1536,30 @@ export const messages = {
   'autopay.dialog.keep': { en: 'Keep autopay', hi: 'ऑटोपे चालू रखें' },
   'autopay.dialog.keepSetup': { en: 'Keep setup', hi: 'सेटअप रखें' },
   'autopay.dialog.saving': { en: 'Stopping…', hi: 'बंद हो रहा है…' },
+  // Only said when the server itself answered "Razorpay did not answer, nothing changed".
   'autopay.dialog.failed': {
-    en: 'Not stopped. Check your network and try again. Nothing has changed.',
-    hi: 'बंद नहीं हुआ। नेटवर्क जाँचिए और फिर कोशिश कीजिए। कुछ नहीं बदला।',
+    en: 'Not stopped. The payment service did not answer. Nothing has changed. Please try again in a minute.',
+    hi: 'बंद नहीं हुआ। पेमेंट सर्विस से जवाब नहीं आया। कुछ नहीं बदला। कृपया एक मिनट बाद फिर कोशिश करें।',
+  },
+  // The server said online payments are switched off: it touched nothing.
+  'autopay.dialog.notConfigured': {
+    en: 'Not stopped. Online payment is switched off right now. Nothing has changed. Please try again later.',
+    hi: 'बंद नहीं हुआ। ऑनलाइन भुगतान अभी बंद है। कुछ नहीं बदला। कृपया बाद में फिर कोशिश करें।',
+  },
+  // The payment service answered, and refused: the server touched nothing.
+  'autopay.dialog.refused': {
+    en: 'Not stopped. The payment service refused it. Nothing has changed. Please try again in a minute.',
+    hi: 'बंद नहीं हुआ। पेमेंट सर्विस ने मना कर दिया। कुछ नहीं बदला। कृपया एक मिनट बाद फिर कोशिश करें।',
+  },
+  // Any other refusal the server itself gave (too many tries, a bad request): it touched nothing.
+  'autopay.dialog.notStopped': {
+    en: 'Not stopped. Nothing has changed. Please try again in a minute.',
+    hi: 'बंद नहीं हुआ। कुछ नहीं बदला। कृपया एक मिनट बाद फिर कोशिश करें।',
+  },
+  // The answer never came (a slow link, a timeout): it may or may not have stopped.
+  'autopay.dialog.unconfirmed': {
+    en: 'We could not confirm. Autopay may already be stopped. The screen will show how it stands now.',
+    hi: 'जवाब नहीं मिल पाया। हो सकता है ऑटोपे बंद हो गया हो। स्क्रीन पर अभी की हालत दिखेगी।',
   },
 
   // After the server has answered, and only then.
@@ -1525,6 +1585,12 @@ export const messages = {
   },
 
   // The other screens.
+  // The Help row and the Payments card when the status would not load: they still
+  // lead to the Autopay screen, which has its own Try again.
+  'autopay.sub.unknown': {
+    en: 'Could not load just now. Tap to open.',
+    hi: 'अभी लोड नहीं हुआ। खोलने के लिए छुएँ।',
+  },
   'autopay.loadFailedTitle': {
     en: "We couldn't load your autopay",
     hi: 'आपका ऑटोपे लोड नहीं हुआ',

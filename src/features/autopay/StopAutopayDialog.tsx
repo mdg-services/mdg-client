@@ -5,7 +5,7 @@ import { Button, useToast } from '@/components/ui';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
-import { useLang, useT } from '@/lib/i18n';
+import { useLang, useT, type MessageKey } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
 import type { AutopayStopReason, DealerAutopay } from '@dk/shared/types';
 
@@ -19,6 +19,7 @@ import {
   inProgressLine,
   keepLabelKey,
   stopBody,
+  stopFailureKey,
   stopLabelKey,
   toggleReason,
   wasAlreadyOff,
@@ -39,7 +40,9 @@ import {
  *
  * Nothing is shown as done before the server says so. While the request is out
  * both buttons are off and Back/Escape/backdrop do nothing; on a failure the
- * dialog stays open with a red line and the button works again; on success the
+ * dialog stays open with a red line and the button works again (the line says
+ * "nothing has changed" only when the server said so, and the screen behind reads
+ * the truth again — see `useStopAutopay`); on success the
  * toast and the flip to the Off screen follow `onDone`.
  *
  * The buttons are stacked and full width: side by side, the Hindi labels do not
@@ -62,7 +65,7 @@ export function StopAutopayDialog({
   const openChat = useOpenMyChat();
   const stop = useStopAutopay();
   const [reason, setReason] = React.useState<AutopayStopReason | null>(null);
-  const [failed, setFailed] = React.useState(false);
+  const [failed, setFailed] = React.useState<MessageKey | null>(null);
   const saving = stop.isPending;
 
   // Once the request is out there is nothing to take back, so leaving the dialog
@@ -73,7 +76,7 @@ export function StopAutopayDialog({
   const panelRef = useDialog(keep);
 
   const onStop = async () => {
-    setFailed(false);
+    setFailed(null);
     const sentAt = Date.now();
     try {
       const result = await stop.mutateAsync(stopBody(reason));
@@ -88,7 +91,7 @@ export function StopAutopayDialog({
         onDone();
         return;
       }
-      setFailed(true);
+      setFailed(stopFailureKey(err));
     }
   };
 
@@ -171,7 +174,7 @@ export function StopAutopayDialog({
         <div className="sticky bottom-0 -mx-5 -mb-5 mt-3 bg-wa-bar px-5 pb-5 pt-2">
           {failed ? (
             <p role="alert" className="mb-2 text-[15px] font-medium text-danger">
-              {t('autopay.dialog.failed')}
+              {t(failed)}
             </p>
           ) : null}
           <div className="flex flex-col gap-2">

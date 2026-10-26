@@ -1,4 +1,5 @@
 import { formatDayMonth, type StatusTone } from '@/features/payments/paymentView';
+import { ApiError } from '@/lib/api';
 import type { MessageKey, TFunction } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { formatPaise } from '@dk/shared';
@@ -178,4 +179,28 @@ export function wasAlreadyOff(autopay: DealerAutopay | null, sentAtMs: number): 
   const stoppedAtMs = Date.parse(autopay.stoppedAt);
   if (Number.isNaN(stoppedAtMs)) return false;
   return stoppedAtMs < sentAtMs - ALREADY_OFF_MARGIN_MS;
+}
+
+/**
+ * What the stop dialog says when the stop did not come back as done, by the
+ * server's own code.
+ *
+ * "Nothing has changed" is said whenever the server itself answered with a
+ * refusal, because it touched nothing: payments switched off
+ * (`PAYMENTS_NOT_CONFIGURED`), Razorpay did not answer (`RAZORPAY_UNREACHABLE`,
+ * `AUTOPAY_NOT_STOPPED`), Razorpay refused (`PAYMENT_PROVIDER_ERROR`), or any
+ * other 4xx. Only a reply we never got — a dropped connection, a timeout, or a
+ * server error with no code we know — says "we could not confirm": the stop may
+ * have landed and only the reply been lost, so the screen reads the truth again.
+ */
+export function stopFailureKey(err: unknown): MessageKey {
+  if (err instanceof ApiError) {
+    if (err.code === 'PAYMENTS_NOT_CONFIGURED') return 'autopay.dialog.notConfigured';
+    if (err.code === 'RAZORPAY_UNREACHABLE' || err.code === 'AUTOPAY_NOT_STOPPED') {
+      return 'autopay.dialog.failed';
+    }
+    if (err.code === 'PAYMENT_PROVIDER_ERROR') return 'autopay.dialog.refused';
+    if (err.status >= 400 && err.status < 500) return 'autopay.dialog.notStopped';
+  }
+  return 'autopay.dialog.unconfirmed';
 }

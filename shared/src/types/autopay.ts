@@ -141,6 +141,12 @@ export interface AdminAutopay {
   approvedAt: string | null;
   createdAt: string;
   createdByName: string;
+  /**
+   * The outlet's first bill, when autopay was set up to take it: the owner's
+   * approval takes the first month and pays it. Null for an autopay that starts
+   * after a paid month.
+   */
+  firstBillId: string | null;
   endedAt: string | null;
   endedBy: AutopayEndedBy | null;
   endedByName: string | null;
@@ -162,6 +168,36 @@ export interface AdminAutopayOverview {
   /** What a new autopay would take each month (the current monthly price), GST included. */
   monthlyPricePaise: number;
   paidThrough: string | null;
+  /** The outlet's first bill and whether its first-month money-back can be given now. Null before it is sent. */
+  firstMonth: AutopayFirstMonth | null;
+}
+
+/**
+ * The first month, for the money-back promise: refunded in full on request while
+ * that month runs, once. The money-back stops autopay first, then refunds the
+ * first bill, which issues its credit note.
+ */
+export interface AutopayFirstMonth {
+  paymentId: string;
+  /** Our bill number, e.g. `MDG-2026-00012`. */
+  number: string;
+  amountPaise: number;
+  /** Paid, refunded, still due… the bill's own status. */
+  status: 'due' | 'processing' | 'paid' | 'cancelled' | 'partially_refunded' | 'refunded';
+  /** `YYYY-MM-DD`, once paid. */
+  paidOn: string | null;
+  /** `YYYY-MM-DD`: the last day of the first month, once paid. */
+  refundableUntil: string | null;
+  canMoneyBack: boolean;
+  /** Why the money-back cannot be given now, in plain words; null when it can. */
+  moneyBackReason: string | null;
+  /**
+   * The first month came by hand (bank, UPI, cash, cheque): the money-back then
+   * records the refund given back by hand — how and on which day — instead of
+   * asking Razorpay. What came is `paidPaise` (less than the bill when tax was deducted).
+   */
+  paidByHand: boolean;
+  paidPaise: number;
 }
 
 /** What "Set up autopay" answers: the autopay, and the words for a person to send on WhatsApp. */

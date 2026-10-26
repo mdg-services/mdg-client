@@ -99,19 +99,53 @@ export interface DownloadableFile {
   kind?: 'image' | 'file' | 'audio';
 }
 
+/** How a download is handed over, beyond what the file itself says. */
+export interface DeliverOptions {
+  /**
+   * In a plain browser, take THIS tab to the file instead of opening a new one.
+   *
+   * For a file whose link was fetched just now, after the tap: a new tab opened
+   * from there is not tied to the tap any more, and Safari — on an iPhone and on
+   * a Mac — blocks it without a word. Taking the page itself to a link that
+   * carries an attachment disposition is not a pop-up, is never blocked, and
+   * leaves the page where it is: the browser saves the file and stays put.
+   * The inside of the Android app is not affected: it has its own downloader.
+   */
+  sameTab?: boolean;
+}
+
+/** Take the page to a file link without a new window: a hidden link, clicked. */
+function navigateToFile(file: DownloadableFile): void {
+  const link = document.createElement('a');
+  link.href = file.url;
+  link.rel = 'noopener';
+  link.download = file.filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  try {
+    link.click();
+  } finally {
+    link.remove();
+  }
+}
+
 /**
  * Hand a ready signed URL to the user. In the native shell, images go through
  * the 'media:download' bridge (gallery save when the module exists; the shell
  * falls back to the browser otherwise); an old shell that never answers gets
  * the window.open fallback — its nav gate hands the URL to Chrome, which
  * downloads it thanks to the attachment disposition. A plain browser just
- * navigates (no CORS involved). Throws when every path failed.
+ * navigates (no CORS involved): in a new tab, or in this one with `sameTab`.
+ * Throws when every path failed.
  *
  * Split out of `downloadAttachment` so a file that does not come from a chat
  * message — a GST invoice from the payments screens — travels the same road:
  * one place knows how the app, an old app and a browser each take a download.
  */
-export async function deliverDownload(file: DownloadableFile): Promise<DownloadMode> {
+export async function deliverDownload(
+  file: DownloadableFile,
+  options: DeliverOptions = {},
+): Promise<DownloadMode> {
   if (isNativeShell()) {
     const result = await requestNativeDownload({
       id: `dl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -123,6 +157,9 @@ export async function deliverDownload(file: DownloadableFile): Promise<DownloadM
     if (result.ok) return result.mode ?? 'browser';
     if (!result.timedOut) throw new Error(result.error || 'Download failed');
     // Old shell without the handler — fall through to the browser path.
+  } else if (options.sameTab) {
+    navigateToFile(file);
+    return 'browser';
   }
   window.open(file.url, '_blank', 'noopener');
   return 'browser';

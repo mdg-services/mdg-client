@@ -88,8 +88,40 @@ describe('PaymentsPage — states', () => {
 
     expect(await screen.findByText('Payments are not switched on yet')).toBeInTheDocument();
     expect(screen.queryByText("We couldn't show your payments just now")).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    // Keys may be switched on at any moment: a way to look again is always there.
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
+
+  it('looks again from the "not switched on yet" screen, and shows the bills once they are on', async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.get).mockRejectedValueOnce(
+      new ApiError(503, 'PAYMENTS_NOT_CONFIGURED', 'Payments are not configured'),
+    );
+    renderPayments();
+    expect(await screen.findByText('Payments are not switched on yet')).toBeInTheDocument();
+
+    listReturns(makePayment());
+    await user.click(screen.getByRole('button', { name: 'Try again' }));
+
+    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
+  });
+
+  // A proxy answering during a restart, or a busy Razorpay, is a 503 too. It is
+  // not "switched off": it passes, and the screen says so.
+  it.each(['HTTP_503', 'RAZORPAY_UNREACHABLE', 'SERVICE_UNAVAILABLE'])(
+    'does not call a 503 %s "not switched on", and says to try again in a minute',
+    async (code) => {
+      vi.mocked(api.get).mockRejectedValue(new ApiError(503, code, 'Service Unavailable'));
+      renderPayments();
+
+      expect(await screen.findByText("We couldn't show your payments just now")).toBeInTheDocument();
+      expect(screen.queryByText('Payments are not switched on yet')).not.toBeInTheDocument();
+      expect(
+        screen.getByText('The payment service did not answer. Please try again in a minute.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    },
+  );
 
   it('shows an empty state when the pump has no payments at all', async () => {
     listReturns();
@@ -476,13 +508,31 @@ describe('PaymentsPage — the autopay card', () => {
     expect(card()).not.toBeInTheDocument();
   });
 
-  it('is not there when it fails, and the bills still show', async () => {
+  // Not silently gone: the card stays, says it could not load, and opens the
+  // Autopay screen, which has its own Try again.
+  it('is still there when it fails, saying so, and the bills still show', async () => {
     serveWithAutopay([makePayment()], new ApiError(500, 'INTERNAL', 'boom'));
     renderPayments();
     await screen.findByRole('region', { name: 'Due' });
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH));
-    expect(card()).not.toBeInTheDocument();
+    const autopay = await screen.findByRole('link', { name: /^Autopay/ });
+    expect(within(autopay).getByText('Could not load just now. Tap to open.')).toBeInTheDocument();
+    expect(autopay).toHaveAttribute('href', '/settings/autopay');
+    expect(within(autopay).queryByText(/₹/)).not.toBeInTheDocument();
     expect(screen.queryByText("We couldn't load your autopay")).not.toBeInTheDocument();
+  });
+
+  it('says the same in Hindi when it fails', async () => {
+    serveWithAutopay([makePayment()], new ApiError(0, 'TIMEOUT', 'Request timed out'));
+    renderPayments('hi');
+    const autopay = await screen.findByRole('link', { name: /^ऑटोपे/ });
+    expect(within(autopay).getByText('अभी लोड नहीं हुआ। खोलने के लिए छुएँ।')).toBeInTheDocument();
+  });
+
+  it('is not drawn for a manager when nothing was asked', async () => {
+    serveWithAutopay([makePayment()], new ApiError(500, 'INTERNAL', 'boom'));
+    renderPayments('en', 'dealer-staff');
+    await screen.findByRole('region', { name: 'Due' });
+    expect(card()).not.toBeInTheDocument();
   });
 
   it('is there inside the Android app too, where it is only shown and stopped', async () => {
@@ -497,8 +547,21 @@ describe('PaymentsPage — the autopay card', () => {
 });
 
 describe('PaymentsPage — a due bill that autopay will take', () => {
+  // The debit day has gone and the bill is still due: autopay is trying again.
+  it('says autopay is trying again once its day has passed, with no Pay button', async () => {
+    listReturns(makePayment({ autopayOn: '2020-10-28' }));
+    renderPayments();
+
+    const due = await screen.findByRole('region', { name: 'Due' });
+    expect(
+      within(due).getByText('Autopay could not take this yet. It is trying again.'),
+    ).toBeInTheDocument();
+    expect(within(due).queryByText(/Autopay will take this/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+
   it('reads "Autopay will take this on …" in place of the due date', async () => {
-    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments();
 
     const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
@@ -507,7 +570,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
   });
 
   it('says it in Hindi', async () => {
-    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments('hi');
 
     const due = (await screen.findByRole('region', { name: 'बाकी भुगतान' })) as HTMLElement;
@@ -517,7 +580,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
 
   it('changes only the bill autopay is on for', async () => {
     listReturns(
-      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2026-10-28' }),
+      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2036-10-28' }),
       makePayment({ id: 'b', title: 'Without', autopayOn: null, dueDate: '2026-12-01' }),
     );
     renderPayments();
@@ -529,7 +592,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
 
   it('offers no Pay button in a browser, so the bill is not paid twice', async () => {
     listReturns(
-      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2026-10-28' }),
+      makePayment({ id: 'a', title: 'With autopay', autopayOn: '2036-10-28' }),
       makePayment({ id: 'b', title: 'Without', autopayOn: null, dueDate: '2026-12-01' }),
     );
     renderPayments();
@@ -540,7 +603,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
 
   it('reads the same inside the Android app', async () => {
     enterNativeShell();
-    listReturns(makePayment({ autopayOn: '2026-10-28' }));
+    listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments();
 
     const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;

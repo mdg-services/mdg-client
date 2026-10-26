@@ -59,8 +59,11 @@ export const GST_STATE_HI: Readonly<Record<string, string>> = {
   '22': 'छत्तीसगढ़',
   '23': 'मध्य प्रदेश',
   '24': 'गुजरात',
+  // 25 and 28 are old codes (before the 2020 merger, before the 2014 split) that older GSTINs still carry.
+  '25': 'दमन और दीव',
   '26': 'दादरा और नगर हवेली और दमन और दीव',
   '27': 'महाराष्ट्र',
+  '28': 'आंध्र प्रदेश (पुराना)',
   '29': 'कर्नाटक',
   '30': 'गोवा',
   '31': 'लक्षद्वीप',
@@ -71,6 +74,8 @@ export const GST_STATE_HI: Readonly<Record<string, string>> = {
   '36': 'तेलंगाना',
   '37': 'आंध्र प्रदेश',
   '38': 'लद्दाख',
+  '97': 'अन्य क्षेत्र',
+  '99': 'केंद्र अधिकार क्षेत्र',
 };
 
 /** "हरियाणा (Haryana)" on the Hindi screen, "Haryana" on the English one. */

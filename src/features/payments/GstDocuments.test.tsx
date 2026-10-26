@@ -71,6 +71,17 @@ function renderDetail(payment: DealerPayment, lang: 'en' | 'hi' = 'en', link?: L
   );
 }
 
+/** Record the links the page clicks (jsdom cannot follow one) instead of following them. */
+function followLinks() {
+  const followed: Array<{ href: string; target: string }> = [];
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+    this: HTMLAnchorElement,
+  ) {
+    followed.push({ href: this.href, target: this.target });
+  });
+  return followed;
+}
+
 const documentCalls = () =>
   vi.mocked(api.get).mock.calls.filter(([path]) => String(path).includes('/documents/'));
 
@@ -283,9 +294,12 @@ describe('PaymentDetailPage — the GST invoice', () => {
 });
 
 describe('PaymentDetailPage — downloading', () => {
-  it('asks the server for the invoice’s link, hands it to the download helper, and opens it in a browser', async () => {
+  // The link is fetched AFTER the tap. A tab opened from there is blocked by Safari
+  // without a word, so a browser is taken to the link in this tab instead.
+  it('asks the server for the invoice’s link, hands it to the download helper, and goes to it in this tab', async () => {
     const user = userEvent.setup();
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const followed = followLinks();
     renderDetail(makePaidPayment({ invoice: makeInvoice() }));
 
     await user.click(
@@ -294,13 +308,17 @@ describe('PaymentDetailPage — downloading', () => {
 
     await waitFor(() => expect(deliverDownload).toHaveBeenCalledTimes(1));
     expect(api.get).toHaveBeenCalledWith('/v1/payments/me/p2/documents/g1');
-    expect(deliverDownload).toHaveBeenCalledWith({
-      url: LINK.url,
-      filename: LINK.filename,
-      contentType: 'application/pdf',
-      kind: 'file',
-    });
-    expect(open).toHaveBeenCalledWith(LINK.url, '_blank', 'noopener');
+    expect(deliverDownload).toHaveBeenCalledWith(
+      {
+        url: LINK.url,
+        filename: LINK.filename,
+        contentType: 'application/pdf',
+        kind: 'file',
+      },
+      { sameTab: true },
+    );
+    expect(followed).toEqual([{ href: LINK.url, target: '' }]);
+    expect(open).not.toHaveBeenCalled();
     expect(await screen.findByText('Your download is starting')).toBeInTheDocument();
     // Nothing was posted: a download is a read.
     expect(api.post).not.toHaveBeenCalled();
@@ -308,7 +326,7 @@ describe('PaymentDetailPage — downloading', () => {
 
   it('downloads a credit note by its own id', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'open').mockReturnValue(null);
+    followLinks();
     renderDetail(makePaidPayment({ invoice: makeInvoice(), creditNotes: [makeCreditNote()] }));
 
     await user.click(
@@ -321,7 +339,7 @@ describe('PaymentDetailPage — downloading', () => {
 
   it('keeps the other buttons still, and fetches once, while one download is on its way', async () => {
     const user = userEvent.setup();
-    vi.spyOn(window, 'open').mockReturnValue(null);
+    followLinks();
     let release!: (link: GstDocumentDownload) => void;
     const slow = new Promise<GstDocumentDownload>((resolve) => {
       release = resolve;
@@ -355,6 +373,7 @@ describe('PaymentDetailPage — downloading', () => {
   it('says it could not download, and does not open anything, when the server refuses', async () => {
     const user = userEvent.setup();
     const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    const followed = followLinks();
     renderDetail(
       makePaidPayment({ invoice: makeInvoice() }),
       'en',
@@ -371,8 +390,51 @@ describe('PaymentDetailPage — downloading', () => {
     ).toBeInTheDocument();
     expect(deliverDownload).not.toHaveBeenCalled();
     expect(open).not.toHaveBeenCalled();
+    expect(followed).toHaveLength(0);
     // And it can be tried again.
     expect(button).toBeEnabled();
+  });
+
+  // A busy invoice printer passes by itself: say when to try, not "check your network".
+  it.each(['INVOICE_PDF_BUSY', 'INVOICE_PDF_FAILED'])(
+    'says to try again in a minute when the server answers 503 %s',
+    async (code) => {
+      const user = userEvent.setup();
+      followLinks();
+      renderDetail(
+        makePaidPayment({ invoice: makeInvoice() }),
+        'en',
+        new ApiError(503, code, 'The invoice is being prepared for someone else right now.'),
+      );
+
+      const button = await screen.findByRole('button', {
+        name: 'Download GST invoice MDG/26-27/00001',
+      });
+      await user.click(button);
+
+      expect(
+        await screen.findByText('Your invoice is being prepared. Please try again in a minute.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/check your network/)).not.toBeInTheDocument();
+      expect(deliverDownload).not.toHaveBeenCalled();
+      expect(button).toBeEnabled();
+    },
+  );
+
+  it('says the same in Hindi', async () => {
+    const user = userEvent.setup();
+    followLinks();
+    renderDetail(
+      makePaidPayment({ invoice: makeInvoice() }),
+      'hi',
+      new ApiError(503, 'INVOICE_PDF_BUSY', 'busy'),
+    );
+
+    await user.click(await screen.findByRole('button', { name: /डाउनलोड करें/ }));
+
+    expect(
+      await screen.findByText('आपका इनवॉइस तैयार हो रहा है। कृपया एक मिनट बाद फिर कोशिश करें।'),
+    ).toBeInTheDocument();
   });
 
   it('says it could not download when the app could not save the file', async () => {

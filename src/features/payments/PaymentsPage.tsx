@@ -7,7 +7,7 @@ import { AutopayCard } from '@/features/autopay/AutopayCard';
 import { useT } from '@/lib/i18n';
 
 import { usePaymentsList } from './api';
-import { isNotConfigured } from './errors';
+import { isNotConfigured, isTryAgainSoon } from './errors';
 import { PaymentCard } from './PaymentCard';
 import { splitPayments } from './paymentView';
 import { canPayHere } from './policy';
@@ -42,7 +42,7 @@ export function PaymentsPage() {
   const t = useT();
   const query = usePaymentsList();
   // After the bills' own query, so the list is the first thing asked for.
-  const autopay = useOwnerAutopay();
+  const { autopay, failed: autopayFailed } = useOwnerAutopay();
   const interactive = canPayHere();
 
   let body;
@@ -54,6 +54,11 @@ export function PaymentsPage() {
         icon={<Wallet width={28} strokeWidth={1.5} />}
         title={t('payments.notConfiguredTitle')}
         description={t('payments.notConfiguredDesc')}
+        action={
+          <Button variant="secondary" size="lg" onClick={() => void query.refetch()}>
+            {t('common.retry')}
+          </Button>
+        }
       />
     );
   } else if (query.isError || !query.data) {
@@ -61,7 +66,7 @@ export function PaymentsPage() {
       <StateBlock
         icon={<AlertCircle width={28} strokeWidth={1.5} />}
         title={t('payments.errorTitle')}
-        description={t('common.helpDesc')}
+        description={t(isTryAgainSoon(query.error) ? 'payments.err.provider' : 'common.helpDesc')}
         action={
           <Button variant="secondary" size="lg" onClick={() => void query.refetch()}>
             {t('common.retry')}
@@ -107,9 +112,10 @@ export function PaymentsPage() {
 
   return (
     <SubPage title={t('payments.title')} fallback="/chat" className="gap-6 pb-10">
-      {/* The owner's autopay, above the bills, when there is one. Its own query: a
-          slow or failed answer only leaves the card out, the list never waits. */}
-      {autopay ? <AutopayCard autopay={autopay} /> : null}
+      {/* The owner's autopay, above the bills, when there is one. Its own query: the
+          list never waits on it, and a failed answer still leaves a card that opens
+          the Autopay screen, which has its own Try again. */}
+      {autopay || autopayFailed ? <AutopayCard autopay={autopay} /> : null}
       {body}
     </SubPage>
   );

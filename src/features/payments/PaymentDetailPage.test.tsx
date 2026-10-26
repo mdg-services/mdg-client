@@ -138,22 +138,51 @@ describe('PaymentDetailPage — a payment that is due', () => {
     expect(screen.queryByRole('heading', { name: 'Receipt' })).not.toBeInTheDocument();
   });
 
+  // Razorpay's text is English and for developers. The dealer gets our phrase for
+  // what it means — never Razorpay's own words.
   it('says in plain words what went wrong with the last try', async () => {
     renderDetail(
       makePayment({
         lastFailure: {
-          reason: 'Payment was cancelled by the customer',
+          reason: 'Payment processing cancelled by user',
           at: '2026-10-21T05:00:00.000Z',
         },
       }),
     );
 
     expect(
-      await screen.findByText(
-        'Your last try did not go through: Payment was cancelled by the customer',
-      ),
+      await screen.findByText('Your last try did not go through: the payment was cancelled'),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/processing cancelled by user/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Pay ₹4,999' })).toBeInTheDocument();
+  });
+
+  it('says it in Hindi, with no English from Razorpay inside it', async () => {
+    renderDetail(
+      makePayment({
+        lastFailure: {
+          reason: 'Your payment has failed due to insufficient funds',
+          at: '2026-10-21T05:00:00.000Z',
+        },
+      }),
+      'hi',
+    );
+
+    expect(
+      await screen.findByText('आपकी पिछली कोशिश नहीं हो पाई: खाते में पूरे पैसे नहीं थे'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/insufficient/)).not.toBeInTheDocument();
+  });
+
+  it('shows only a plain "did not go through" when the reason is one we cannot place', async () => {
+    renderDetail(
+      makePayment({
+        lastFailure: { reason: 'BAD_REQUEST_ERROR: odd thing', at: '2026-10-21T05:00:00.000Z' },
+      }),
+    );
+
+    expect(await screen.findByText('Your last try did not go through.')).toBeInTheDocument();
+    expect(screen.queryByText(/BAD_REQUEST_ERROR/)).not.toBeInTheDocument();
   });
 
   it('opens the pop-up from here too', async () => {
@@ -184,14 +213,14 @@ describe('PaymentDetailPage — a payment that is due', () => {
 
 describe('PaymentDetailPage — a due payment that autopay will take', () => {
   it('reads "Autopay will take this on …" in place of the due date', async () => {
-    renderDetail(makePayment({ autopayOn: '2026-10-28' }));
+    renderDetail(makePayment({ autopayOn: '2036-10-28' }));
 
     expect(await screen.findByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
     expect(screen.queryByText(/Due by/)).not.toBeInTheDocument();
   });
 
   it('says it in Hindi', async () => {
-    renderDetail(makePayment({ autopayOn: '2026-10-28' }), 'hi');
+    renderDetail(makePayment({ autopayOn: '2036-10-28' }), 'hi');
 
     expect(await screen.findByText(/^ऑटोपे 28 अक्टू.* को काटेगा$/)).toBeInTheDocument();
     expect(screen.queryByText(/तक देना है/)).not.toBeInTheDocument();
@@ -206,10 +235,32 @@ describe('PaymentDetailPage — a due payment that autopay will take', () => {
 
   it('says it inside the Android app too, with the page still read-only', async () => {
     enterNativeShell();
-    renderDetail(makePayment({ autopayOn: '2026-10-28' }));
+    renderDetail(makePayment({ autopayOn: '2036-10-28' }));
 
     expect(await screen.findByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('PaymentDetailPage — autopay that did not go through', () => {
+  // The debit day came and went and the bill is still due. A past date after
+  // "will take this on" would be a promise already broken.
+  it('says autopay is trying again, not a date that has passed, and shows no Pay button', async () => {
+    renderDetail(makePayment({ autopayOn: '2020-10-28' }));
+
+    expect(
+      await screen.findByText('Autopay could not take this yet. It is trying again.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Autopay will take this/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+
+  it('says it in Hindi', async () => {
+    renderDetail(makePayment({ autopayOn: '2020-10-28' }), 'hi');
+
+    expect(
+      await screen.findByText('ऑटोपे अभी इसे नहीं काट पाया। वह फिर कोशिश कर रहा है।'),
+    ).toBeInTheDocument();
   });
 });
 
@@ -231,6 +282,9 @@ describe('PaymentDetailPage — inside the Android app', () => {
     ]);
     expect(screen.queryAllByRole('link')).toHaveLength(0);
     expect(loadCheckoutScript).not.toHaveBeenCalled();
+    // A failed try is about paying, and the app says nothing of it — nor shows Razorpay's text.
+    expect(screen.queryByText(/did not go through/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/UPI request expired/)).not.toBeInTheDocument();
   });
 
   it('still shows the receipt of what was paid', async () => {
@@ -258,7 +312,19 @@ describe('PaymentDetailPage — when it cannot be shown', () => {
     renderDetail(null);
 
     expect(await screen.findByText('Payments are not switched on yet')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+  });
+
+  it('does not call a plain 503 "not switched on": it says to try again in a minute', async () => {
+    vi.mocked(api.get).mockRejectedValue(new ApiError(503, 'HTTP_503', 'Service Unavailable'));
+    renderDetail(null);
+
+    expect(await screen.findByText("We couldn't show your payments just now")).toBeInTheDocument();
+    expect(screen.queryByText('Payments are not switched on yet')).not.toBeInTheDocument();
+    expect(
+      screen.getByText('The payment service did not answer. Please try again in a minute.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
   it('says it could not load, and offers to try again, on any other failure', async () => {

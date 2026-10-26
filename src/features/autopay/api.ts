@@ -45,17 +45,28 @@ export function useAutopayStatus() {
 }
 
 /**
- * The autopay to SHOW on the Help screen and the Payments page: the owner's
- * autopay once the server has answered with one, and null in every other case —
- * loading, failed, none, or a manager. Those two pages draw their row only when
- * this is non-null, so a slow or failed answer simply leaves it out.
+ * What the Help screen and the Payments page draw for autopay: the owner's
+ * autopay once the server has answered with one, or `failed` when the answer
+ * did not come — the request errored, or is paused because the phone is offline.
+ *
+ * Both pages draw a row only when there is an `autopay` or the read `failed`. A
+ * `failed` read still draws it, leading to the Autopay screen, which has its own
+ * Try again: a row that quietly vanished when the link was slow left the owner
+ * with no way to find the stop button. While the request is still loading
+ * nothing is drawn, so the videos and the bills never wait on it. For a manager,
+ * and for an owner with no autopay, nothing is drawn either.
  *
  * Called by the PAGE, after its own content's query, rather than by the row: a
  * child's request goes out before its parent's, and on a slow link the bills and
  * the videos are what the page is for.
  */
-export function useOwnerAutopay(): DealerAutopay | null {
-  return useAutopayStatus().data?.autopay ?? null;
+export function useOwnerAutopay(): { autopay: DealerAutopay | null; failed: boolean } {
+  const query = useAutopayStatus();
+  // `isLoading` alone is false for an error and for a request paused offline.
+  const failed =
+    !query.data &&
+    (query.isError || (query.status === 'pending' && query.fetchStatus === 'paused'));
+  return { autopay: query.data?.autopay ?? null, failed };
 }
 
 /** 404 `NO_AUTOPAY`: there is nothing to stop — it is already gone. */
@@ -71,8 +82,9 @@ export function isNoAutopay(err: unknown): boolean {
  *
  * On success the answer goes straight into the cache, so every screen showing
  * autopay flips together, and the bills are read again: a due bill's "Autopay
- * will take this" line is gone now. On `NO_AUTOPAY` the status is read again so
- * the screen shows what is true.
+ * will take this" line is gone now. After ANY failure the status is read again
+ * so the screen shows what is true: a stop that timed out, or whose reply was
+ * lost, may well have landed, and "On" on the page would then be a lie.
  */
 export function useStopAutopay() {
   const qc = useQueryClient();
@@ -86,8 +98,8 @@ export function useStopAutopay() {
         predicate: (q) => q.queryKey[1] !== 'autopay',
       });
     },
-    onError: (err) => {
-      if (isNoAutopay(err)) void qc.invalidateQueries({ queryKey: autopayQueryKey });
+    onError: () => {
+      void qc.invalidateQueries({ queryKey: autopayQueryKey });
     },
   });
 }

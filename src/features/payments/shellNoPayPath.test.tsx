@@ -87,12 +87,15 @@ const DOWNLOAD_LINK = { url: 'https://s3.test/gst/invoice?sig=abc', filename: 'M
 
 const AUTOPAY_PATH = '/v1/payments/me/autopay';
 
-/** The server's answers by address. With no `autopay`, that address is not served (nothing to show). */
-function serve(items: DealerPayment[], autopay?: DealerAutopayStatus) {
+/**
+ * The server's answers by address. With no `autopay`, the owner has none (nothing
+ * to show); an `Error` is a status request that failed (a row still shows).
+ */
+function serve(items: DealerPayment[], autopay?: DealerAutopayStatus | Error) {
   vi.mocked(api.get).mockImplementation((async (path: string) => {
     if (path === AUTOPAY_PATH) {
-      if (!autopay) throw new Error(`unexpected GET ${path}`);
-      return autopay;
+      if (autopay instanceof Error) throw autopay;
+      return autopay ?? makeAutopayStatus(null);
     }
     if (path === '/v1/payments/me') return { items };
     if (path.includes('/documents/')) return DOWNLOAD_LINK;
@@ -310,10 +313,25 @@ describe('the payments list with autopay, rendered as the Android app does', () 
     'says a due bill is taken by autopay, in words that do not point at paying (%s)',
     async (lang) => {
       enterNativeShell();
-      serve([makePayment({ autopayOn: '2026-10-28' }), PAID], makeAutopayStatus());
+      serve([makePayment({ autopayOn: '2036-10-28' }), PAID], makeAutopayStatus());
 
       const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026', lang);
-      await screen.findByText(translate(lang, 'payments.autopayWillTake', { date: formatDayMonth(lang, '2026-10-28') }));
+      await screen.findByText(translate(lang, 'payments.autopayWillTake', { date: formatDayMonth(lang, '2036-10-28') }));
+
+      expectNoPayPath(container, lang, [], false, ['/payments/p2'], ['/settings/autopay']);
+    },
+  );
+
+  // The Autopay card must not vanish when its status would not load, or the owner
+  // cannot find the stop button. It is still only a link to the Autopay screen.
+  it.each(['en', 'hi'] as const)(
+    'keeps the Autopay card when its status would not load, and it points nowhere new (%s)',
+    async (lang) => {
+      enterNativeShell();
+      serve([DUE, PAID], new Error('boom'));
+
+      const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026', lang);
+      await screen.findByText(translate(lang, 'autopay.sub.unknown'));
 
       expectNoPayPath(container, lang, [], false, ['/payments/p2'], ['/settings/autopay']);
     },

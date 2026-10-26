@@ -91,6 +91,7 @@ export interface PaymentAttempt {
 }
 
 export interface PaymentRefund {
+  /** Empty for a refund made by hand (`manual`). */
   razorpayRefundId: string;
   amountPaise: number;
   status: RefundStatus;
@@ -98,6 +99,12 @@ export interface PaymentRefund {
   byName: string;
   createdAt: string;
   processedAt: string | null;
+  /**
+   * Money given back OUTSIDE Razorpay and recorded by an admin — the only way to
+   * refund money that came by hand (bank, UPI, cash, cheque). Its credit note is
+   * issued like any other refund's. Null for a Razorpay refund.
+   */
+  manual: { mode: ManualPaymentMode; reference: string | null; refundedOn: string } | null;
 }
 
 /**

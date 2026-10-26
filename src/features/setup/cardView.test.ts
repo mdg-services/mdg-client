@@ -51,7 +51,9 @@ describe('states', () => {
   it('Hindi shows both names, English one', () => {
     expect(stateLabel('06', 'hi')).toBe('हरियाणा (Haryana)');
     expect(stateLabel('06', 'en')).toBe('Haryana');
-    expect(stateLabel('99', 'en')).toBe('99');
+    // A code the table does not know is shown as it is.
+    expect(stateLabel('00', 'en')).toBe('00');
+    expect(stateLabel('99', 'hi')).toBe('केंद्र अधिकार क्षेत्र (Centre Jurisdiction)');
   });
 
   it('lists every state the GST list has, alphabetical in English', () => {

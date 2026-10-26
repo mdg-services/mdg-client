@@ -318,13 +318,35 @@ describe('HelpVideosPage — the autopay row', () => {
     expect(screen.getByText('Ask in chat')).toBeInTheDocument();
   });
 
-  it('is not there when it fails, and the videos still show', async () => {
+  // A row that vanished when the link was slow left the owner with no way to find
+  // the stop button. It stays, leads to the Autopay screen (which has its own
+  // Try again), and the videos still show.
+  it('is still there when it fails, saying so, and the videos still show', async () => {
     serve([video()], undefined, new ApiError(500, 'INTERNAL', 'boom'));
     renderPage();
     expect(await screen.findByText('How the app works')).toBeInTheDocument();
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH));
-    expect(row()).not.toBeInTheDocument();
+    const autopay = await screen.findByRole('button', { name: /^Autopay/ });
+    expect(within(autopay).getByText('Could not load just now. Tap to open.')).toBeInTheDocument();
     expect(screen.queryByText("We couldn't load your autopay")).not.toBeInTheDocument();
+    // No amount or date is made up.
+    expect(within(autopay).queryByText(/₹/)).not.toBeInTheDocument();
+
+    fireEvent.click(autopay);
+    expect(await screen.findByText('went:autopay')).toBeInTheDocument();
+  });
+
+  it('says the same in Hindi when it fails', async () => {
+    serve([video()], undefined, new ApiError(0, 'TIMEOUT', 'Request timed out'));
+    renderPage('hi');
+    const autopay = await screen.findByRole('button', { name: /^ऑटोपे/ });
+    expect(within(autopay).getByText('अभी लोड नहीं हुआ। खोलने के लिए छुएँ।')).toBeInTheDocument();
+  });
+
+  it('is not drawn for a manager even though nothing was asked', async () => {
+    serve([video()], undefined, new ApiError(500, 'INTERNAL', 'boom'));
+    renderPage('en', 'dealer-staff');
+    await screen.findByText('How the app works');
+    expect(row()).not.toBeInTheDocument();
   });
 
   it('is there beside a failed video list too, so the owner can still reach it', async () => {

@@ -6,6 +6,7 @@
 import { z } from 'zod';
 
 import { AUTOPAY_STOP_REASONS } from '../types/autopay';
+import { MANUAL_PAYMENT_MODES } from '../types/payment';
 
 /** The owner stopping autopay in the app. The reason is optional and never blocks the stop. */
 export const stopAutopayDealerSchema = z
@@ -31,3 +32,26 @@ export const autopayFollowUpSchema = z
   })
   .strict();
 export type AutopayFollowUpInput = z.infer<typeof autopayFollowUpSchema>;
+
+/**
+ * The first-month money-back (super-admin): autopay is stopped and the first bill
+ * refunded in full. The note says who asked and why; it goes on the refund.
+ */
+export const autopayMoneyBackSchema = z
+  .object({
+    note: z.string().trim().min(3).max(300),
+    /** Only for a first month that came by hand: how and when the money went back. */
+    manual: z
+      .object({
+        mode: z.enum(MANUAL_PAYMENT_MODES),
+        refundedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        reference: z
+          .union([z.string().trim().max(120), z.literal('')])
+          .optional()
+          .transform((v) => (v ? v : undefined)),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+export type AutopayMoneyBackInput = z.infer<typeof autopayMoneyBackSchema>;

@@ -11,12 +11,14 @@ import { autopaySubtitle } from './autopayView';
  * chat" under the list, with the state of autopay on the second line.
  *
  * The page hands it the owner's autopay (`useOwnerAutopay`) and draws it only
- * when there is one: while it loads, if it fails, when there is none and for a
- * manager the row is simply absent, and the videos below never wait on it. It
- * opens the Autopay screen, which can stop it; the row itself leads nowhere else
- * and says nothing about turning it on.
+ * when there is one, or when the read failed (`autopay` null): then the row is
+ * still there, saying it could not load, and leads to the Autopay screen, which
+ * has its own Try again. While it loads, when there is none and for a manager the
+ * row is absent, and the videos below never wait on it. It opens the Autopay
+ * screen, which can stop it; the row itself leads nowhere else and says nothing
+ * about turning it on.
  */
-export function AutopayHelpRow({ autopay }: { autopay: DealerAutopay }) {
+export function AutopayHelpRow({ autopay }: { autopay: DealerAutopay | null }) {
   const t = useT();
   const lang = useLang();
   const navigate = useNavigate();
@@ -36,7 +38,7 @@ export function AutopayHelpRow({ autopay }: { autopay: DealerAutopay }) {
             <span className="block truncate text-[16px] text-wa-bar-text">{t('autopay.title')}</span>
             {/* Wraps to a second line: an amount and a day do not fit one at 320px in Hindi. */}
             <span className="block text-[14px] leading-snug text-wa-meta">
-              {autopaySubtitle(t, lang, autopay)}
+              {autopay ? autopaySubtitle(t, lang, autopay) : t('autopay.sub.unknown')}
             </span>
           </span>
         </button>

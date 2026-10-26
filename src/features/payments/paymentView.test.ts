@@ -16,6 +16,7 @@ import {
   hasReceipt,
   methodLabel,
   splitPayments,
+  todayIst,
 } from './paymentView';
 
 describe('splitPayments', () => {
@@ -96,13 +97,13 @@ describe('dates', () => {
 describe('formatDayMonth', () => {
   it('shows the calendar day and month with no year, whatever the time zone', () => {
     expect(formatDayMonth('en', '2026-11-24')).toBe('24 Nov');
-    expect(formatDayMonth('en', '2026-10-28')).toBe('28 Oct');
+    expect(formatDayMonth('en', '2036-10-28')).toBe('28 Oct');
     expect(formatDayMonth('en', '2026-01-05')).toBe('5 Jan');
   });
 
   it('writes the month in Hindi for a Hindi reader', () => {
     expect(formatDayMonth('hi', '2026-11-24')).toMatch(/^24 नव/);
-    expect(formatDayMonth('hi', '2026-10-28')).toMatch(/^28 अक्टू/);
+    expect(formatDayMonth('hi', '2036-10-28')).toMatch(/^28 अक्टू/);
   });
 
   it('hands back what it cannot read', () => {
@@ -122,13 +123,13 @@ describe('dueNote', () => {
   });
 
   it('says autopay will take a due bill, in place of the due date', () => {
-    const p = makePayment({ autopayOn: '2026-10-28' });
+    const p = makePayment({ autopayOn: '2036-10-28' });
     expect(dueNote(en, 'en', p)).toBe('Autopay will take this on 28 Oct');
     expect(dueNote(hi, 'hi', p)).toMatch(/^ऑटोपे 28 अक्टू.* को काटेगा$/);
   });
 
   it('uses the autopay day even when the bill has no due date of its own', () => {
-    expect(dueNote(en, 'en', makePayment({ dueDate: null, autopayOn: '2026-10-28' }))).toBe(
+    expect(dueNote(en, 'en', makePayment({ dueDate: null, autopayOn: '2036-10-28' }))).toBe(
       'Autopay will take this on 28 Oct',
     );
   });
@@ -140,15 +141,40 @@ describe('dueNote', () => {
   // The server sets `autopayOn` while the bill is due. One already on its way is
   // being confirmed whoever started it, and keeps the usual line.
   it('applies to a due bill only', () => {
-    const processing = makePayment({ status: 'processing', autopayOn: '2026-10-28' });
+    const processing = makePayment({ status: 'processing', autopayOn: '2036-10-28' });
     expect(dueNote(en, 'en', processing)).toBe('Due by 5 Nov 2026');
     for (const status of ['paid', 'cancelled', 'refunded', 'partially_refunded'] as const) {
-      expect(dueNote(en, 'en', makePayment({ status, autopayOn: '2026-10-28' }))).toBeNull();
+      expect(dueNote(en, 'en', makePayment({ status, autopayOn: '2036-10-28' }))).toBeNull();
     }
   });
 
   it('says nothing for an open bill with no date at all', () => {
     expect(dueNote(en, 'en', makePayment({ dueDate: null }))).toBeNull();
+  });
+
+  // The debit day came and went and the bill is still due: the debit failed and
+  // autopay is trying again. A date in the past after "will take this on" is a
+  // promise already broken.
+  describe('when the autopay day has already passed', () => {
+    const p = makePayment({ autopayOn: '2026-10-28' });
+    // 29 Oct 2026, 09:00 in India
+    const after = Date.parse('2026-10-29T03:30:00.000Z');
+
+    it('says autopay is trying again, in English and in Hindi, with no date', () => {
+      expect(dueNote(en, 'en', p, after)).toBe('Autopay could not take this yet. It is trying again.');
+      expect(dueNote(hi, 'hi', p, after)).toBe('ऑटोपे अभी इसे नहीं काट पाया। वह फिर कोशिश कर रहा है।');
+      expect(dueNote(en, 'en', p, after)).not.toMatch(/28 Oct|will take/);
+    });
+
+    it('still says "will take" on the day itself, up to the last minute of it in India', () => {
+      expect(dueNote(en, 'en', p, Date.parse('2026-10-28T18:29:00.000Z'))).toBe(
+        'Autopay will take this on 28 Oct',
+      );
+      // 00:01 on the 29th in India is 18:31 UTC on the 28th.
+      expect(dueNote(en, 'en', p, Date.parse('2026-10-28T18:31:00.000Z'))).toBe(
+        'Autopay could not take this yet. It is trying again.',
+      );
+    });
   });
 });
 
@@ -226,5 +252,12 @@ describe('the catalogue', () => {
       expect(messages[key].en, `${key} (en)`).not.toMatch(steering);
       expect(messages[key].hi, `${key} (hi)`).not.toMatch(steering);
     }
+  });
+});
+
+describe('todayIst', () => {
+  it('is the calendar day in India, whatever the phone clock says', () => {
+    expect(todayIst(Date.parse('2026-10-28T18:29:00.000Z'))).toBe('2026-10-28');
+    expect(todayIst(Date.parse('2026-10-28T18:31:00.000Z'))).toBe('2026-10-29');
   });
 });
