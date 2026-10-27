@@ -5,7 +5,12 @@ import { Spinner } from '@/components/ui';
 import { usePortalLogins, useSavePortalLogin } from '@/hooks/api/usePortalLogins';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
-import { PORTAL_NAMES, type PortalId, type PortalLoginState } from '@dk/shared/types';
+import {
+  PORTAL_NAMES,
+  isCompanyPortal,
+  type PortalId,
+  type PortalLoginState,
+} from '@dk/shared/types';
 
 import { portalSavedDate, portalSaveErrorKey } from './portalLoginView';
 
@@ -261,7 +266,9 @@ function PortalRow({
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
           <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
-          {t('chat.portalTitle', { portal: name })}
+          {/* A company portal is named by its company alone ("BPCL portal"): never by
+              what MDG does on it. SDMS and IRAS keep "{name} login". */}
+          {isCompanyPortal(portal) ? name : t('chat.portalTitle', { portal: name })}
         </p>
         {/* Read out when it changes: a save that goes through turns "Needed" into
             "Saved", and that is the answer to the button the owner just pressed. */}
@@ -329,7 +336,10 @@ function PortalRow({
 
 /**
  * The login box inside an MDG message (`message.portalLogin`): one block per
- * portal asked for, each showing the live state of that login. It is the only
+ * portal asked for, in the order the message lists them (SDMS and IRAS for an
+ * Indian Oil outlet, the one company portal for BPCL or HPCL), each showing the
+ * live state of that login. Nothing in a block is about what a portal is used
+ * for, so the same block serves them all. It is the only
  * thing in the chat that asks the query for the view, so a chat with no box in
  * it never makes the call.
  */
@@ -339,9 +349,15 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
   const failed = q.isError && !view;
   const { refetch } = q;
   const retry = React.useCallback(() => void refetch(), [refetch]);
+  // An outlet that needs a BPCL or HPCL login is a BPCL or HPCL pump: a box posted
+  // while it was still down as Indian Oil (the company changed afterwards) no longer
+  // shows its SDMS and IRAS rows, so such an owner never sees those portals.
+  const companyPump = !!view?.portals.some((p) => isCompanyPortal(p.portal) && p.needed);
+  const shown = companyPump ? portals.filter(isCompanyPortal) : portals;
+  if (shown.length === 0) return null;
   return (
     <div data-portal-login className="mt-1 flex flex-col gap-1.5">
-      {portals.map((portal) => (
+      {shown.map((portal) => (
         <PortalRow
           key={portal}
           portal={portal}

@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import type { SaveSetupCompanyInput } from '@dk/shared/schemas';
 import type { OutletSetupView, SetupBilling } from '@dk/shared/types';
 
 /**
@@ -44,8 +46,9 @@ export function invalidateOutletSetup(qc: QueryClient): void {
 /**
  * Whether a route's answer is the whole fresh view (so it can go straight into the cache).
  *
- * Nothing here reads `services` or `billingSavedBy`: a server from before round 3 still
- * sends the first and lacks the second, and both must pass.
+ * Nothing here reads `services`, `billingSavedBy`, `company` or `companySavedBy`: a server
+ * from before round 3 still sends the first and lacks the second, one from before the
+ * company step lacks the last two, and all of them must pass.
  */
 function isSetupView(data: unknown): data is OutletSetupView {
   if (!data || typeof data !== 'object') return false;
@@ -74,6 +77,26 @@ export function useSaveSetupBilling() {
     retry: false,
     mutationFn: (billing: SetupBilling) => api.put<unknown>('/v1/me/setup/billing', billing),
     onSuccess: (data) => takeAnswer(qc, data),
+    onError: () => invalidateOutletSetup(qc),
+  });
+}
+
+/**
+ * Save the oil company the pump is with. Never retried.
+ *
+ * The company decides which portal logins are asked, so the login box is asked
+ * again with the setup view: a company changed from Indian Oil to BPCL swaps
+ * the SDMS and IRAS rows for the BPCL one.
+ */
+export function useSaveSetupCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: (input: SaveSetupCompanyInput) => api.put<unknown>('/v1/me/setup/company', input),
+    onSuccess: (data) => {
+      invalidatePortalLogins(qc);
+      return takeAnswer(qc, data);
+    },
     onError: () => invalidateOutletSetup(qc),
   });
 }

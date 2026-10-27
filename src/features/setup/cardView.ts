@@ -1,12 +1,29 @@
 import type { Lang } from '@/store/lang';
 import { GST_STATES, cleanGstin, isGstin } from '@dk/shared';
+import { OIL_COMPANY_NAMES, type OilCompanyId, type SetupStage } from '@dk/shared/types';
 
 /**
- * The small decisions behind the setup cards (billing, the bill), kept
+ * The small decisions behind the setup cards (company, billing, the bill), kept
  * apart from the drawing so they can be tested without a screen. The strip's own
  * live in `stripView.ts`: the strip is always on screen in the owner's chat, the
  * cards are only downloaded when there is one to draw.
  */
+
+// ── The company card ───────────────────────────────────────────────────────
+
+/** "Indian Oil (IOCL)" / "इंडियन ऑयल (IOCL)": the company as the dealer reads it. */
+export function companyLabel(company: OilCompanyId, lang: Lang): string {
+  const n = OIL_COMPANY_NAMES[company];
+  return `${n[lang]} (${n.short})`;
+}
+
+/**
+ * Whether the company can still be changed: until the services start. From `watch`
+ * on (and for an outlet that is live or lost) the server refuses with 409.
+ */
+export function companyChangeable(stage: SetupStage): boolean {
+  return stage !== 'watch' && stage !== 'live' && stage !== 'lost';
+}
 
 // ── The billing card ───────────────────────────────────────────────────────
 

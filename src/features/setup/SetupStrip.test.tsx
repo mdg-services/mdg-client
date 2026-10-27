@@ -31,13 +31,17 @@ const SETUP_VIDEO = {
 };
 
 /** The server: the setup view, the portal logins the login box asks for, and the video list. */
-function serve(view: OutletSetupView | Error | (() => OutletSetupView), videos: unknown[] = []) {
+function serve(
+  view: OutletSetupView | Error | (() => OutletSetupView),
+  videos: unknown[] = [],
+  portals: PortalLoginsView = PORTALS,
+) {
   h.get.mockImplementation((path: string) => {
     if (path === '/v1/me/setup') {
       if (view instanceof Error) return Promise.reject(view);
       return Promise.resolve(typeof view === 'function' ? view() : view);
     }
-    if (path === '/v1/me/portal-logins') return Promise.resolve(PORTALS);
+    if (path === '/v1/me/portal-logins') return Promise.resolve(portals);
     if (path === '/v1/me/guide-videos') return Promise.resolve(videos);
     if (path === '/v1/me/guide-videos/setup_steps') {
       return Promise.resolve({ ...SETUP_VIDEO, url: 'https://example.test/setup.mp4', startSec: 0, chapters: [] });
@@ -65,26 +69,55 @@ const states = () =>
 const atBilling = makeSetupView();
 const atPayment = makeSetupView({
   stage: 'payment',
-  strip: makeStrip(['done', 'current', 'todo', 'todo']),
+  strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
 });
 
 describe('the setup strip', () => {
-  it('shows four steps, each with its state, and one line on what is happening now', async () => {
+  it('shows five steps, each with its state, and one line on what is happening now', async () => {
     serve(makeSetupView());
     renderWithProviders(<SetupStrip />);
     await screen.findByText('Fill in the name and address for your bill');
     const labels = [...document.querySelectorAll('[data-step]')].map((e) => e.textContent);
     expect(labels).toEqual([
+      expect.stringContaining('Company'),
       expect.stringContaining('Bill address'),
       expect.stringContaining('Payment'),
       expect.stringContaining('Logins'),
       expect.stringContaining('Start'),
     ]);
-    expect(states()).toEqual(['current', 'todo', 'todo', 'todo']);
+    expect(states()).toEqual(['done', 'current', 'todo', 'todo', 'todo']);
     expect(screen.getByRole('list', { name: 'Getting your services started' })).toBeInTheDocument();
   });
 
-  it('draws a server that still sends the services step as the four it knows — no blank step', async () => {
+  it('fits five steps on a 360px phone: one equal column each, labels that wrap instead of spilling', async () => {
+    serve(makeSetupView());
+    renderWithProviders(<SetupStrip />);
+    await screen.findByText('Fill in the name and address for your bill');
+    const list = screen.getByRole('list', { name: 'Getting your services started' });
+    expect(list.className).toContain('grid-cols-5');
+    for (const li of list.querySelectorAll('li')) {
+      // `min-w-0` lets a column shrink below its label, `break-words` lets the label wrap.
+      expect(li.className).toContain('min-w-0');
+      expect(li.querySelector('span.break-words')).not.toBeNull();
+    }
+  });
+
+  it('asks for the company first: at that stage the Company step is the current one, with its own line', async () => {
+    serve(
+      makeSetupView({
+        stage: 'company',
+        company: null,
+        companySavedBy: null,
+        strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']),
+      }),
+    );
+    renderWithProviders(<SetupStrip />);
+    await screen.findByText('Tell us which company your pump is with');
+    expect(states()).toEqual(['current', 'todo', 'todo', 'todo', 'todo']);
+    expect(within(step('company')).getByRole('button')).toBeInTheDocument();
+  });
+
+  it('draws a server that still sends the services step without it — no blank step', async () => {
     // The old server's strip had a fifth step first, and its view a `services` block.
     const old = {
       ...makeSetupView({ stage: 'billing' }),
@@ -107,17 +140,22 @@ describe('the setup strip', () => {
       'start',
     ]);
     expect(document.body.textContent).not.toMatch(/undefined/);
+    // Four steps are drawn in four equal columns, not left-aligned in five.
+    expect(screen.getByRole('list', { name: 'Getting your services started' }).className).toContain(
+      'grid-cols-4',
+    );
   });
 
   it('each step says its state to a screen reader', async () => {
     serve(
       makeSetupView({
         stage: 'payment',
-        strip: makeStrip(['done', 'current', 'skipped', 'todo']),
+        strip: makeStrip(['done', 'done', 'current', 'skipped', 'todo']),
       }),
     );
     renderWithProviders(<SetupStrip />);
     await screen.findByText(/getting your bill ready/);
+    expect(step('company')).toHaveTextContent('done');
     expect(step('billing')).toHaveTextContent('done');
     expect(step('payment')).toHaveTextContent('now');
     expect(step('logins')).toHaveTextContent('not needed');
@@ -129,13 +167,14 @@ describe('the setup strip', () => {
     serve(makeSetupView());
     renderWithProviders(<SetupStrip />);
     await screen.findByText('बिल का नाम और पता भरिए');
-    for (const word of ['बिल का पता', 'भुगतान', 'लॉगिन', 'शुरू']) {
+    for (const word of ['कंपनी', 'बिल का पता', 'भुगतान', 'लॉगिन', 'शुरू']) {
       expect(screen.getByText(word)).toBeInTheDocument();
     }
   });
 
   it('says whose move it is at each stage, and never about paying', async () => {
     const cases: Array<[Partial<OutletSetupView>, string]> = [
+      [{ stage: 'company' }, 'Tell us which company your pump is with'],
       [{ stage: 'billing' }, 'Fill in the name and address for your bill'],
       [{ stage: 'payment', waitingOn: 'mdg' }, "MDG's team is getting your bill ready"],
       [
@@ -201,7 +240,7 @@ describe('the setup strip', () => {
       renderWithProviders(<SetupStrip />);
       await screen.findByText('Fill in the name and address for your bill');
       expect(within(step('billing')).getByRole('button')).toBeInTheDocument();
-      for (const other of ['payment', 'logins', 'start']) {
+      for (const other of ['company', 'payment', 'logins', 'start']) {
         expect(within(step(other)).queryByRole('button')).toBeNull();
       }
     });
@@ -211,7 +250,7 @@ describe('the setup strip', () => {
         makeSetupView({
           stage: 'setup',
           waitingOn: 'mdg',
-          strip: makeStrip(['done', 'done', 'done', 'current']),
+          strip: makeStrip(['done', 'done', 'done', 'done', 'current']),
         }),
       );
       renderWithProviders(<SetupStrip />);
@@ -230,11 +269,34 @@ describe('the setup strip', () => {
       expect(sheet).toHaveAttribute('aria-modal', 'true');
     });
 
+    it('at the company step opens the three choices; choosing one closes the sheet and the strip moves on', async () => {
+      serve(
+        makeSetupView({
+          stage: 'company',
+          company: null,
+          companySavedBy: null,
+          strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']),
+        }),
+      );
+      renderWithProviders(<SetupStrip />);
+      fireEvent.click(await within(await waitForStep('company')).findByRole('button'));
+      const sheet = await screen.findByRole('dialog', { name: 'Company' });
+      expect(
+        await within(sheet).findByText('Which company is your petrol pump with?'),
+      ).toBeInTheDocument();
+      h.put.mockResolvedValue(makeSetupView({ company: 'bpcl', companySavedBy: 'dealer' }));
+      fireEvent.click(within(sheet).getByRole('button', { name: /Bharat Petroleum/ }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(h.put).toHaveBeenCalledWith('/v1/me/setup/company', { company: 'bpcl' });
+      expect(states()).toEqual(['done', 'current', 'todo', 'todo', 'todo']);
+      expect(screen.getByText('Fill in the name and address for your bill')).toBeInTheDocument();
+    });
+
     it('at the payment step shows the bill, read-only', async () => {
       serve(
         makeSetupView({
           stage: 'payment',
-          strip: makeStrip(['done', 'current', 'todo', 'todo']),
+          strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
           payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
         }),
       );
@@ -253,7 +315,7 @@ describe('the setup strip', () => {
       serve(
         makeSetupView({
           stage: 'logins',
-          strip: makeStrip(['done', 'done', 'current', 'todo']),
+          strip: makeStrip(['done', 'done', 'done', 'current', 'todo']),
           loginsNeeded: ['sdms'],
         }),
       );
@@ -262,6 +324,27 @@ describe('the setup strip', () => {
       const sheet = await screen.findByRole('dialog', { name: 'Logins' });
       expect(await within(sheet).findByLabelText('User ID')).toBeInTheDocument();
       expect(within(sheet).getByText('SDMS login')).toBeInTheDocument();
+    });
+
+    it('at the logins step for a BPCL outlet shows one box, "BPCL portal", and nothing about SDMS or IRAS', async () => {
+      serve(
+        makeSetupView({
+          stage: 'logins',
+          company: 'bpcl',
+          strip: makeStrip(['done', 'done', 'done', 'current', 'todo']),
+          loginsNeeded: ['bpcl'],
+        }),
+        [],
+        { portals: [{ portal: 'bpcl', needed: true, status: 'missing' }], canEdit: true },
+      );
+      renderWithProviders(<SetupStrip />);
+      fireEvent.click(await within(await waitForStep('logins')).findByRole('button'));
+      const sheet = await screen.findByRole('dialog', { name: 'Logins' });
+      expect(await within(sheet).findByLabelText('User ID')).toBeInTheDocument();
+      expect(within(sheet).getByLabelText('Password')).toBeInTheDocument();
+      expect(within(sheet).getByText('BPCL portal')).toBeInTheDocument();
+      expect(sheet.querySelectorAll('[data-portal]')).toHaveLength(1);
+      expect(sheet.textContent).not.toMatch(/SDMS|IRAS/i);
     });
 
     it('Escape and the ✕ close it', async () => {
@@ -306,7 +389,7 @@ describe('the setup strip', () => {
       );
       fireEvent.click(within(sheet).getByRole('button', { name: 'Save' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-      expect(states()).toEqual(['done', 'current', 'todo', 'todo']);
+      expect(states()).toEqual(['done', 'done', 'current', 'todo', 'todo']);
       expect(screen.getByText("MDG's team is getting your bill ready")).toBeInTheDocument();
     });
 
@@ -330,7 +413,7 @@ describe('the setup strip', () => {
       await queryClient.invalidateQueries({ queryKey: ['outlet-setup', 'me'] });
     });
     await screen.findByText("MDG's team is getting your bill ready");
-    expect(states()).toEqual(['done', 'current', 'todo', 'todo']);
+    expect(states()).toEqual(['done', 'done', 'current', 'todo', 'todo']);
   });
 
   /** The strip is drawn once the view has loaded. */
@@ -349,6 +432,16 @@ describe('the "how setup works" video under the strip', () => {
     await waitFor(() =>
       expect(h.get).toHaveBeenCalledWith('/v1/me/guide-videos/setup_steps', expect.anything()),
     );
+  });
+
+  it('is not offered to a BPCL or HPCL pump: it narrates the Indian Oil logins', async () => {
+    for (const company of ['bpcl', 'hpcl'] as const) {
+      serve({ ...atBilling, company, loginsNeeded: [company] }, [SETUP_VIDEO]);
+      renderWithProviders(<SetupStrip />);
+      await screen.findByText('Fill in the name and address for your bill');
+      expect(screen.queryByRole('button', { name: /How setup works/ })).toBeNull();
+      cleanup();
+    }
   });
 
   it('is not there before the video is uploaded — never a dead link', async () => {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MessageBubble } from '@/features/chat/MessageBubble';
 import { MessageList } from '@/features/chat/MessageList';
+import { portalLoginsKey } from '@/hooks/api/usePortalLogins';
 import { ApiError } from '@/lib/api';
 import { LONG_PRESS_MS } from '@/lib/useLongPress';
 import { useLangStore } from '@/store/lang';
@@ -69,6 +70,14 @@ describe('a setup card in a message', () => {
 
     card('billing', makeSetupView());
     await screen.findByLabelText('Name on the bill');
+    expect(h.get).toHaveBeenCalledWith('/v1/me/setup');
+  });
+
+  it('draws the company card too: it is a card with a body', async () => {
+    expect(SETUP_CARDS).toContain('company');
+    expect(setupCardHasBody('company')).toBe(true);
+    card('company', makeSetupView({ stage: 'company', company: null, companySavedBy: null }));
+    expect(await screen.findByText('Which company is your petrol pump with?')).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith('/v1/me/setup');
   });
 
@@ -209,7 +218,7 @@ describe('the billing card', () => {
   const billingView = (over: Partial<OutletSetupView> = {}) =>
     makeSetupView({
       stage: 'billing',
-      strip: makeStrip(['current', 'todo', 'todo', 'todo']),
+      strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
       ...over,
     });
   const field = (label: string) => screen.getByLabelText(label);
@@ -243,6 +252,29 @@ describe('the billing card', () => {
       }),
     );
     expect(field('State')).toHaveValue('21');
+  });
+
+  it('points to the company card instead of a form while the company is not chosen', async () => {
+    card(
+      'billing',
+      billingView({ stage: 'company', strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']) }),
+    );
+    expect(
+      await screen.findByText('First tell us which company your pump is with, in the company card in this chat.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Name on the bill')).not.toBeInTheDocument();
+  });
+
+  it('says the company comes first when the server refuses the save for it (409 COMPANY_FIRST)', async () => {
+    await open();
+    fireEvent.change(field('Address (one line)'), { target: { value: 'NH-52, Deogarh' } });
+    fireEvent.change(field('State'), { target: { value: '21' } });
+    h.put.mockRejectedValue(new ApiError(409, 'COMPANY_FIRST', 'Choose the company of the petrol pump first.'));
+    save();
+    expect(
+      await screen.findByText('First tell us which company your pump is with, in the company card in this chat.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Payment has been received/)).not.toBeInTheDocument();
   });
 
   it('lists the states in Hindi on the Hindi screen', async () => {
@@ -490,11 +522,240 @@ describe('the billing card', () => {
   });
 });
 
+describe('the company card', () => {
+  const companyView = (over: Partial<OutletSetupView> = {}) =>
+    makeSetupView({
+      stage: 'company',
+      strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']),
+      company: null,
+      companySavedBy: null,
+      ...over,
+    });
+  /** The same outlet once the company is in: the billing step is open. */
+  const chosen = (company: 'iocl' | 'bpcl' | 'hpcl', over: Partial<OutletSetupView> = {}) =>
+    makeSetupView({ company, companySavedBy: 'dealer', ...over });
+  const choice = (name: RegExp) => screen.getByRole('button', { name });
+  const QUESTION = 'Which company is your petrol pump with?';
+
+  it('asks which company the pump is with, with three large choices and no Save button', async () => {
+    card('company', companyView());
+    await screen.findByText(QUESTION);
+    expect(screen.getByRole('group', { name: QUESTION })).toBeInTheDocument();
+    const buttons = within(box('company')).getAllByRole('button');
+    expect(buttons.map((b) => b.getAttribute('data-company'))).toEqual(['iocl', 'bpcl', 'hpcl']);
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      'Indian OilIOCL',
+      'Bharat PetroleumBPCL',
+      'Hindustan PetroleumHPCL',
+    ]);
+    // Big enough for a thumb, and nothing chosen yet.
+    for (const b of buttons) {
+      expect(b.className).toContain('min-h-14');
+      expect(b).toHaveAttribute('aria-pressed', 'false');
+    }
+    expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull();
+  });
+
+  it('asks in Hindi, with the companies in Hindi', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: false });
+    card('company', companyView());
+    await screen.findByText('आपका पेट्रोल पंप किस कंपनी का है?');
+    for (const name of ['इंडियन ऑयल', 'भारत पेट्रोलियम', 'हिंदुस्तान पेट्रोलियम']) {
+      expect(screen.getByText(name)).toBeInTheDocument();
+    }
+    // The short names are what is on every pump's board, in either language.
+    for (const short of ['IOCL', 'BPCL', 'HPCL']) expect(screen.getByText(short)).toBeInTheDocument();
+  });
+
+  it('a tap saves that company, and the card then shows it with a tick and Change', async () => {
+    card('company', companyView());
+    await screen.findByText(QUESTION);
+    h.put.mockResolvedValue(chosen('bpcl'));
+    fireEvent.click(choice(/Bharat Petroleum/));
+    expect(await screen.findByText('Bharat Petroleum (BPCL)')).toBeInTheDocument();
+    expect(h.put).toHaveBeenCalledTimes(1);
+    expect(h.put).toHaveBeenCalledWith('/v1/me/setup/company', { company: 'bpcl' });
+    expect(box('company').querySelector('.lucide-check')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
+    // The three choices are gone, and so is the question.
+    expect(screen.queryByText(QUESTION)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Hindustan Petroleum/ })).toBeNull();
+  });
+
+  it.each([
+    ['iocl', /Indian Oil/, 'Indian Oil (IOCL)'],
+    ['hpcl', /Hindustan Petroleum/, 'Hindustan Petroleum (HPCL)'],
+  ] as const)('saves %s', async (company, name, shown) => {
+    card('company', companyView());
+    await screen.findByText(QUESTION);
+    h.put.mockResolvedValue(chosen(company));
+    fireEvent.click(choice(name));
+    expect(await screen.findByText(shown)).toBeInTheDocument();
+    expect(h.put).toHaveBeenCalledWith('/v1/me/setup/company', { company });
+  });
+
+  it('shows the saved choice in Hindi on the Hindi screen', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: false });
+    card('company', chosen('hpcl'));
+    expect(await screen.findByText('हिंदुस्तान पेट्रोलियम (HPCL)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'बदलें' })).toBeInTheDocument();
+  });
+
+  it('while saving, the choices are off and the tapped one shows a spinner', async () => {
+    card('company', companyView());
+    await screen.findByText(QUESTION);
+    let done: (v: OutletSetupView) => void = () => undefined;
+    h.put.mockReturnValue(new Promise<OutletSetupView>((r) => (done = r)));
+    fireEvent.click(choice(/Bharat Petroleum/));
+    await waitFor(() => expect(choice(/Bharat Petroleum/)).toHaveAttribute('aria-busy', 'true'));
+    for (const b of within(box('company')).getAllByRole('button')) expect(b).toBeDisabled();
+    // A second tap on another choice while the first is in flight sends nothing.
+    fireEvent.click(choice(/Indian Oil/));
+    expect(h.put).toHaveBeenCalledTimes(1);
+    await act(async () => done(chosen('bpcl')));
+    await screen.findByText('Bharat Petroleum (BPCL)');
+  });
+
+  it('asks for the portal logins again after a save: the company decides which are asked', async () => {
+    const { queryClient } = card('company', companyView());
+    queryClient.setQueryData(portalLoginsKey, { portals: [], canEdit: true });
+    await screen.findByText(QUESTION);
+    expect(queryClient.getQueryState(portalLoginsKey)?.isInvalidated).toBe(false);
+    h.put.mockResolvedValue(chosen('bpcl'));
+    fireEvent.click(choice(/Bharat Petroleum/));
+    await screen.findByText('Bharat Petroleum (BPCL)');
+    await waitFor(() => expect(queryClient.getQueryState(portalLoginsKey)?.isInvalidated).toBe(true));
+  });
+
+  describe('once chosen', () => {
+    it('Change reopens the choice with the current company marked; Cancel goes back', async () => {
+      card('company', chosen('iocl'));
+      await screen.findByText('Indian Oil (IOCL)');
+      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+      await screen.findByText(QUESTION);
+      expect(choice(/Indian Oil/)).toHaveAttribute('aria-pressed', 'true');
+      expect(choice(/Bharat Petroleum/)).toHaveAttribute('aria-pressed', 'false');
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      expect(screen.getByText('Indian Oil (IOCL)')).toBeInTheDocument();
+      expect(screen.queryByText(QUESTION)).toBeNull();
+      expect(h.put).not.toHaveBeenCalled();
+    });
+
+    it('a different company saved from there replaces the first', async () => {
+      card('company', chosen('iocl'));
+      await screen.findByText('Indian Oil (IOCL)');
+      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+      h.put.mockResolvedValue(chosen('hpcl'));
+      fireEvent.click(choice(/Hindustan Petroleum/));
+      expect(await screen.findByText('Hindustan Petroleum (HPCL)')).toBeInTheDocument();
+      expect(h.put).toHaveBeenCalledWith('/v1/me/setup/company', { company: 'hpcl' });
+      expect(screen.queryByText('Indian Oil (IOCL)')).toBeNull();
+    });
+
+    it('tapping the company it already is saves nothing and closes the choice', async () => {
+      card('company', chosen('bpcl'));
+      await screen.findByText('Bharat Petroleum (BPCL)');
+      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+      fireEvent.click(choice(/Bharat Petroleum/));
+      expect(screen.queryByText(QUESTION)).toBeNull();
+      expect(screen.getByText('Bharat Petroleum (BPCL)')).toBeInTheDocument();
+      expect(h.put).not.toHaveBeenCalled();
+    });
+
+    it("says MDG's team chose it, in a small line, only when the view says so", async () => {
+      card('company', chosen('bpcl', { companySavedBy: 'mdg' }));
+      await screen.findByText('Bharat Petroleum (BPCL)');
+      expect(screen.getByText("Filled in by MDG's team")).toBeInTheDocument();
+      // A note, not a button: the owner can still change it.
+      expect(screen.getByRole('button', { name: 'Change' })).toBeInTheDocument();
+    });
+
+    it("the line is in Hindi on the Hindi screen, and goes once the owner opens the choice", async () => {
+      useLangStore.setState({ lang: 'hi', explicit: false });
+      card('company', chosen('bpcl', { companySavedBy: 'mdg' }));
+      expect(await screen.findByText('MDG की टीम ने भरा')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'बदलें' }));
+      expect(screen.queryByText('MDG की टीम ने भरा')).toBeNull();
+    });
+
+    it('says nothing of the sort for a company the dealer chose, or a view from before the field', async () => {
+      const older = { ...chosen('iocl') } as Partial<OutletSetupView>;
+      delete older.companySavedBy;
+      for (const view of [chosen('iocl'), chosen('iocl', { companySavedBy: null }), older as OutletSetupView]) {
+        card('company', view);
+        await screen.findByText('Indian Oil (IOCL)');
+        expect(screen.queryByText(/Filled in by/)).toBeNull();
+        cleanup();
+      }
+    });
+
+    it('can be changed any time until the services start', async () => {
+      for (const stage of ['company', 'billing', 'payment', 'logins', 'setup'] as const) {
+        card('company', chosen('iocl', { stage }));
+        await screen.findByText('Indian Oil (IOCL)');
+        expect(screen.getByRole('button', { name: 'Change' }), stage).toBeInTheDocument();
+        cleanup();
+      }
+    });
+
+    it('is closed once the services have started: no Change, and a note', async () => {
+      for (const stage of ['watch', 'live', 'lost'] as const) {
+        card('company', chosen('iocl', { stage }));
+        await screen.findByText('Indian Oil (IOCL)');
+        expect(screen.queryByRole('button', { name: 'Change' }), stage).toBeNull();
+        expect(screen.getByText(/cannot be changed here any more/)).toBeInTheDocument();
+        cleanup();
+      }
+    });
+  });
+
+  describe('a save that did not go through', () => {
+    it('says so and leaves the three choices to try again', async () => {
+      card('company', companyView());
+      await screen.findByText(QUESTION);
+      h.put.mockRejectedValue(new ApiError(0, 'NETWORK_ERROR', 'offline'));
+      fireEvent.click(choice(/Bharat Petroleum/));
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save — try again");
+      expect(within(box('company')).getAllByRole('button')).toHaveLength(3);
+      h.put.mockResolvedValue(chosen('bpcl'));
+      fireEvent.click(choice(/Bharat Petroleum/));
+      expect(await screen.findByText('Bharat Petroleum (BPCL)')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('a change refused because the services started meanwhile says it is closed', async () => {
+      card('company', chosen('iocl'));
+      await screen.findByText('Indian Oil (IOCL)');
+      fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+      h.put.mockRejectedValue(new ApiError(409, 'SETUP_OVER', 'started'));
+      fireEvent.click(choice(/Bharat Petroleum/));
+      expect(await screen.findByRole('alert')).toHaveTextContent(/cannot be changed here any more/);
+    });
+  });
+
+  describe('a manager (cannot edit)', () => {
+    it('is told the owner fills it, with no choices', async () => {
+      card('company', companyView({ canEdit: false }));
+      await screen.findByText('The owner fills this');
+      expect(screen.queryByText(QUESTION)).toBeNull();
+      expect(screen.queryByRole('button')).toBeNull();
+    });
+
+    it('sees what the owner chose, without Change', async () => {
+      card('company', chosen('hpcl', { canEdit: false }));
+      await screen.findByText('Hindustan Petroleum (HPCL)');
+      expect(screen.queryByRole('button')).toBeNull();
+      expect(h.put).not.toHaveBeenCalled();
+    });
+  });
+});
+
 describe('the payment card', () => {
   const sent = makeSetupView({
     stage: 'payment',
     waitingOn: 'dealer',
-    strip: makeStrip(['done', 'current', 'todo', 'todo']),
+    strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
     payment: { state: 'sent', amountPaise: 354000, dueOn: '2026-11-02', paidOn: null, paymentId: null },
   });
 

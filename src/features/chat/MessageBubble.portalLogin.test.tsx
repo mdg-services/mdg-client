@@ -6,6 +6,7 @@ import { useLangStore } from '@/store/lang';
 import { makeMessage, renderWithProviders, signIn } from '@/test/utils';
 import {
   PORTAL_LOGIN_SAME_AS_REFUSED,
+  type PortalId,
   type PortalLoginState,
   type PortalLoginsView,
 } from '@dk/shared/types';
@@ -46,7 +47,7 @@ const MISSING = view([state({ portal: 'sdms' }), state({ portal: 'iras' })]);
 
 function box(
   v: PortalLoginsView | Error,
-  portals: Array<'sdms' | 'iras'> = ['sdms', 'iras'],
+  portals: PortalId[] = ['sdms', 'iras'],
   body = 'To run your services we need your SDMS and IRAS login.',
 ) {
   if (v instanceof Error) h.get.mockRejectedValue(v);
@@ -63,7 +64,7 @@ function box(
   return renderWithProviders(<MessageBubble message={message} mine={false} />);
 }
 
-function row(portal: 'sdms' | 'iras'): HTMLElement {
+function row(portal: PortalId): HTMLElement {
   const el = document.querySelector<HTMLElement>(`[data-portal="${portal}"]`);
   if (!el) throw new Error(`no ${portal} row`);
   return el;
@@ -487,5 +488,139 @@ describe('MessageBubble — a login box MDG posted', () => {
       // The one and only write is the login route.
       expect(h.put.mock.calls.map((c) => c[0])).toEqual(['/v1/me/portal-logins/sdms']);
     });
+  });
+});
+
+describe('MessageBubble — a login box for a BPCL or HPCL outlet', () => {
+  // The message's own words are the team's; the box must add none about SDMS or IRAS.
+  const WORDS = 'Please add your login.';
+  const BPCL_MISSING = view([state({ portal: 'bpcl' })]);
+  const BPCL_SAVED = view([
+    state({ portal: 'bpcl', status: 'saved', savedAt: JAN, savedBy: 'dealer' }),
+  ]);
+
+  it.each([
+    ['bpcl', 'BPCL portal'],
+    ['hpcl', 'HPCL portal'],
+  ] as const)('%s: one block, named "%s", with a user ID and a password and nothing else', async (portal, title) => {
+    const { container } = box(view([state({ portal })]), [portal], WORDS);
+    await screen.findByText('Needed');
+    expect(container.querySelectorAll('[data-portal]')).toHaveLength(1);
+    const r = row(portal);
+    // The name alone: no "login" tacked on, and not a word on what the portal is for.
+    expect(within(r).getByText(title)).toBeInTheDocument();
+    expect(within(r).queryByText(`${title} login`)).toBeNull();
+    expect(within(r).getByLabelText('User ID')).toBeInTheDocument();
+    expect(within(r).getByLabelText('Password')).toBeInTheDocument();
+    expect(within(r).getByRole('button', { name: 'Save' })).toBeInTheDocument();
+    expect(within(r).getByText('Kept safe — never shown in the chat')).toBeInTheDocument();
+  });
+
+  it('drops the SDMS and IRAS rows of a box posted before the pump was changed to BPCL', async () => {
+    // The owner first tapped Indian Oil and got the SDMS + IRAS box, then switched to BPCL.
+    const switched = view([
+      state({ portal: 'sdms', needed: false, status: 'saved', savedAt: JAN, savedBy: 'dealer' }),
+      state({ portal: 'iras', needed: false }),
+      state({ portal: 'bpcl' }),
+    ]);
+    const old = box(switched, ['sdms', 'iras'], WORDS);
+    await waitFor(() => expect(h.get).toHaveBeenCalled());
+    await waitFor(() => expect(old.container.querySelector('[data-portal-login]')).toBeNull());
+    expect(old.container.textContent).not.toMatch(/SDMS|IRAS/i);
+    cleanup();
+    // A box that names both (or the new BPCL box) shows only the BPCL row.
+    const both = box(switched, ['sdms', 'iras', 'bpcl'], WORDS);
+    await screen.findByText('Needed');
+    await waitFor(() => expect(both.container.querySelectorAll('[data-portal]')).toHaveLength(1));
+    expect(both.container.textContent).not.toMatch(/SDMS|IRAS/i);
+  });
+
+  it('never mentions SDMS or IRAS, and has no video or link to one', async () => {
+    const { container } = box(BPCL_MISSING, ['bpcl'], WORDS);
+    await screen.findByText('Needed');
+    expect(container.textContent).not.toMatch(/SDMS|IRAS/i);
+    expect(container.querySelector('video, a, iframe')).toBeNull();
+    // The buttons are the eye and Save: no "watch how" button beside them.
+    expect(screen.getAllByRole('button').map((b) => b.textContent || b.getAttribute('aria-label'))).toEqual([
+      'Show password',
+      'Save',
+    ]);
+  });
+
+  it('never mentions SDMS or IRAS once saved, in Hindi, or for a manager', async () => {
+    for (const lang of ['en', 'hi'] as const) {
+      useLangStore.setState({ lang, explicit: false });
+      for (const v of [BPCL_SAVED, BPCL_MISSING, { ...BPCL_MISSING, canEdit: false }]) {
+        const { container } = box(v, ['bpcl'], WORDS);
+        await screen.findByText(/BPCL portal/);
+        expect(container.textContent).not.toMatch(/SDMS|IRAS/i);
+        cleanup();
+      }
+    }
+  });
+
+  it('draws in Hindi: the portal name stays as it is, the rest is in Hindi', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: false });
+    box(BPCL_MISSING, ['bpcl'], WORDS);
+    await screen.findByText('बाकी');
+    const r = row('bpcl');
+    expect(within(r).getByText('BPCL portal')).toBeInTheDocument();
+    expect(within(r).getByLabelText('यूज़र आईडी')).toBeInTheDocument();
+    expect(within(r).getByLabelText('पासवर्ड')).toBeInTheDocument();
+    expect(within(r).getByRole('button', { name: 'सेव करें' })).toBeInTheDocument();
+  });
+
+  it('sends the pair to the BPCL route, then shows Saved and Change', async () => {
+    box(BPCL_MISSING, ['bpcl'], WORDS);
+    await screen.findByText('Needed');
+    const r = row('bpcl');
+    fireEvent.change(within(r).getByLabelText('User ID'), { target: { value: `  ${USER}  ` } });
+    fireEvent.change(within(r).getByLabelText('Password'), { target: { value: SECRET } });
+    h.put.mockResolvedValue(BPCL_SAVED);
+    fireEvent.click(within(r).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(within(row('bpcl')).getByText('Saved · 15 Jan')).toBeInTheDocument());
+    expect(h.put).toHaveBeenCalledTimes(1);
+    expect(h.put).toHaveBeenCalledWith('/v1/me/portal-logins/bpcl', { username: USER, password: SECRET });
+    expect(within(row('bpcl')).getByRole('button', { name: 'Change' })).toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain(SECRET);
+  });
+
+  it('sends HPCL to the HPCL route', async () => {
+    box(view([state({ portal: 'hpcl' })]), ['hpcl'], WORDS);
+    await screen.findByText('Needed');
+    const r = row('hpcl');
+    fireEvent.change(within(r).getByLabelText('User ID'), { target: { value: USER } });
+    fireEvent.change(within(r).getByLabelText('Password'), { target: { value: SECRET } });
+    h.put.mockResolvedValue(view([state({ portal: 'hpcl', status: 'saved', savedAt: JAN })]));
+    fireEvent.click(within(r).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(row('hpcl').getAttribute('data-status')).toBe('saved'));
+    expect(h.put).toHaveBeenCalledWith('/v1/me/portal-logins/hpcl', { username: USER, password: SECRET });
+  });
+
+  it('says the owner fills it for a manager, and shows what was saved without Change', async () => {
+    box({ ...BPCL_MISSING, canEdit: false }, ['bpcl'], WORDS);
+    await screen.findByText('The owner fills this');
+    expect(screen.queryByLabelText('User ID')).toBeNull();
+    cleanup();
+    box({ ...BPCL_SAVED, canEdit: false }, ['bpcl'], WORDS);
+    await screen.findByText('Saved · 15 Jan');
+    expect(screen.queryByRole('button', { name: 'Change' })).toBeNull();
+  });
+
+  it("keeps the order of the message's portals, whatever the portals are", async () => {
+    // A company portal the outlet does not need (it is Indian Oil) is drawn like any other row.
+    const { container } = box(
+      view([state({ portal: 'sdms' }), state({ portal: 'hpcl', needed: false, status: 'saved', savedAt: JAN, savedBy: 'mdg' }), state({ portal: 'iras' })]),
+      ['hpcl', 'iras', 'sdms'],
+    );
+    await screen.findAllByText('Needed');
+    expect([...container.querySelectorAll('[data-portal]')].map((e) => e.getAttribute('data-portal'))).toEqual([
+      'hpcl',
+      'iras',
+      'sdms',
+    ]);
+    // SDMS and IRAS keep their "login" wording; the company portal does not.
+    expect(within(row('sdms')).getByText('SDMS login')).toBeInTheDocument();
+    expect(within(row('hpcl')).getByText('HPCL portal')).toBeInTheDocument();
   });
 });

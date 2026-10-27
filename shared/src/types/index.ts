@@ -10,6 +10,7 @@ export * from './user';
 export * from './conversation';
 export * from './chatAsk';
 export * from './portalLogin';
+export * from './oilCompany';
 export * from './outletSetup';
 export * from './videoLibrary';
 export * from './setupBilling';

@@ -7,7 +7,19 @@ import { z } from 'zod';
  * a login one side accepts the other never refuses.
  */
 
-export const portalIdSchema = z.enum(['sdms', 'iras']);
+export const portalIdSchema = z.enum(['sdms', 'iras', 'bpcl', 'hpcl']);
+
+/** A company portal (BPCL, HPCL): the admin's own save / read-back routes take only these. */
+export const companyPortalIdSchema = z.enum(['bpcl', 'hpcl']);
+
+/** `PUT /dealers/:id/company-portal-credentials/:portal` — an admin types a BPCL or HPCL login for the outlet. */
+export const saveCompanyPortalLoginSchema = z
+  .object({
+    username: z.string().trim().min(1).max(200),
+    password: z.string().min(1).max(500),
+  })
+  .strict();
+export type SaveCompanyPortalLoginInput = z.infer<typeof saveCompanyPortalLoginSchema>;
 
 /** `PUT /me/portal-logins/:portal` — an owner fills the box. */
 export const savePortalLoginSchema = z

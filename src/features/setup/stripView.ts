@@ -10,6 +10,7 @@ import type { OutletSetupView, SetupStage, SetupStripStep } from '@dk/shared/typ
 // ── The strip ──────────────────────────────────────────────────────────────
 
 export const STRIP_LABEL_KEYS: Record<SetupStripStep, MessageKey> = {
+  company: 'setup.stepCompany',
   billing: 'setup.stepBilling',
   payment: 'setup.stepPayment',
   logins: 'setup.stepLogins',
@@ -17,7 +18,7 @@ export const STRIP_LABEL_KEYS: Record<SetupStripStep, MessageKey> = {
 };
 
 /** The steps the dealer does themselves: the only ones a tap opens. `start` is MDG's. */
-export const DEALER_STEPS: readonly SetupStripStep[] = ['billing', 'payment', 'logins'];
+export const DEALER_STEPS: readonly SetupStripStep[] = ['company', 'billing', 'payment', 'logins'];
 
 /** Whether the strip is drawn at all: only while an outlet is on its way to live. */
 export function stripVisible(view: OutletSetupView | undefined): view is OutletSetupView {
@@ -36,6 +37,8 @@ export function currentStep(view: OutletSetupView): SetupStripStep | null {
 export function stripCaptionKey(view: OutletSetupView): MessageKey | null {
   const stage: SetupStage = view.stage;
   switch (stage) {
+    case 'company':
+      return 'setup.nowCompany';
     case 'billing':
       return 'setup.nowBilling';
     case 'payment':

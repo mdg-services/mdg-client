@@ -3,10 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { translate } from '@/lib/i18n';
 import { GSTIN_HARYANA, GSTIN_MAHARASHTRA } from '@/test/setupFixtures';
 import { GST_STATES } from '@dk/shared';
+import { OIL_COMPANIES, SETUP_STAGES } from '@dk/shared/types';
 
 import {
   GST_STATE_HI,
   checkGstin,
+  companyChangeable,
+  companyLabel,
   formatDay,
   formatRupees,
   isPastDue,
@@ -14,6 +17,26 @@ import {
   stateLabel,
   stateOptions,
 } from './cardView';
+
+describe('the company', () => {
+  it('is named in the reader\'s language, with the name on every pump\'s board beside it', () => {
+    expect(companyLabel('iocl', 'en')).toBe('Indian Oil (IOCL)');
+    expect(companyLabel('bpcl', 'en')).toBe('Bharat Petroleum (BPCL)');
+    expect(companyLabel('hpcl', 'en')).toBe('Hindustan Petroleum (HPCL)');
+    expect(companyLabel('iocl', 'hi')).toBe('इंडियन ऑयल (IOCL)');
+    expect(companyLabel('bpcl', 'hi')).toBe('भारत पेट्रोलियम (BPCL)');
+    expect(companyLabel('hpcl', 'hi')).toBe('हिंदुस्तान पेट्रोलियम (HPCL)');
+    expect(OIL_COMPANIES.map((c) => companyLabel(c, 'en'))).toHaveLength(3);
+  });
+
+  it('can be changed until the services start, and not after', () => {
+    const open = SETUP_STAGES.filter((s) => companyChangeable(s));
+    expect(open).toEqual(['sign_in', 'company', 'billing', 'payment', 'logins', 'setup']);
+    for (const stage of ['watch', 'live', 'lost'] as const) {
+      expect(companyChangeable(stage), stage).toBe(false);
+    }
+  });
+});
 
 describe('checkGstin', () => {
   it('nothing typed is fine: a GSTIN is optional', () => {

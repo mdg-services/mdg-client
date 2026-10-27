@@ -29,6 +29,7 @@ const STATE_WORDS: Record<SetupStripState, MessageKey> = {
 
 /** The card a strip step opens. */
 const STEP_CARD = {
+  company: 'company',
   billing: 'billing',
   payment: 'payment',
   logins: 'logins',
@@ -64,7 +65,7 @@ function Dot({ state, index }: { state: SetupStripState; index: number }) {
 
 /**
  * The strip at the top of the owner's MDG chat while an outlet is being set up:
- * four steps — bill address, payment, logins, start — each done,
+ * five steps — company, bill address, payment, logins, start — each done,
  * current, waiting or not needed, and one line saying what is happening now.
  *
  * Tapping the CURRENT step that the dealer does themselves opens that card in a
@@ -93,8 +94,13 @@ export function SetupStrip({
   const [open, setOpen] = React.useState<SetupStripStep | null>(null);
   // "How setup works": the dealer's own walkthrough of these steps, once it is in
   // the library (uploaded) — never a dead link before then.
+  // Not for a BPCL or HPCL pump: the walkthrough narrates Indian Oil's SDMS and IRAS
+  // logins, which such an owner is never shown.
   const videos = useGuideVideos();
-  const setupVideo = videos.data?.find((v) => v.id === SETUP_VIDEO_ID && v.available) ?? null;
+  const companyPump = view?.company === 'bpcl' || view?.company === 'hpcl';
+  const setupVideo = companyPump
+    ? null
+    : (videos.data?.find((v) => v.id === SETUP_VIDEO_ID && v.available) ?? null);
   const [playing, setPlaying] = React.useState(false);
 
   const now = !disabled && view && stripVisible(view) ? currentStep(view) : null;
@@ -106,13 +112,17 @@ export function SetupStrip({
 
   if (disabled || hidden || !stripVisible(view)) return null;
   const caption = stripCaptionKey(view);
-  // A server from before the services step went (it sent five) is drawn as four:
-  // a step this app has no words for is skipped, not drawn as a blank.
+  // A server that sends a step this app has no words for (the retired services step
+  // came first) is drawn without it: skipped, not drawn as a blank.
   const steps = view.strip.filter(({ step }) => step in STRIP_LABEL_KEYS);
 
   return (
     <div data-setup-strip className="shrink-0 border-b border-wa-divider bg-wa-bar px-2 pb-1.5 pt-1.5">
-      <ol aria-label={t('setup.stripLabel')} className="grid grid-cols-4 gap-1">
+      <ol
+        aria-label={t('setup.stripLabel')}
+        // One column per step it draws: a server from before the company step still sends four.
+        className={cn('grid gap-1', steps.length === 4 ? 'grid-cols-4' : 'grid-cols-5')}
+      >
         {steps.map(({ step, state }, i) => {
           const tappable = state === 'current' && DEALER_STEPS.includes(step);
           const inner = (

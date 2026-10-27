@@ -2,6 +2,7 @@ import { PortalLoginBox } from '@/features/chat/PortalLoginBox';
 import type { OutletSetupView, SetupCardKind } from '@dk/shared/types';
 
 import { BillingCard } from './BillingCard';
+import { CompanyCard } from './CompanyCard';
 import { PaymentCard } from './PaymentCard';
 import { StartedCard } from './StartedCard';
 
@@ -17,6 +18,8 @@ import { StartedCard } from './StartedCard';
  */
 export function SetupCardView({ card, view }: { card: SetupCardKind; view: OutletSetupView }) {
   switch (card) {
+    case 'company':
+      return <CompanyCard view={view} />;
     case 'billing':
       return <BillingCard view={view} />;
     case 'payment':

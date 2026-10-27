@@ -33,6 +33,7 @@
  * Nothing in these types carries payment instructions to the app.
  */
 
+import type { OilCompanyId } from './oilCompany';
 import type { PaymentChannel } from './payment';
 import type { PortalId } from './portalLogin';
 
@@ -42,6 +43,8 @@ import type { PortalId } from './portalLogin';
  * Where an outlet's setup stands — the step that is OPEN now.
  *
  * - `sign_in`   approved, the owner has never signed in
+ * - `company`   waiting for the owner to say which oil company the pump is with
+ *               (Indian Oil, BPCL, HPCL): it decides which portal logins are asked
  * - `billing`   waiting for the bill name / address / state (GSTIN optional)
  * - `payment`   bill not sent (MDG), sent and unpaid (dealer), or paid
  * - `logins`    a portal login the outlet needs is not saved
@@ -52,6 +55,7 @@ import type { PortalId } from './portalLogin';
  */
 export const SETUP_STAGES = [
   'sign_in',
+  'company',
   'billing',
   'payment',
   'logins',
@@ -65,8 +69,8 @@ export type SetupStage = (typeof SETUP_STAGES)[number];
 export const SETUP_WAITING_ON = ['dealer', 'mdg', 'nobody'] as const;
 export type SetupWaitingOn = (typeof SETUP_WAITING_ON)[number];
 
-/** The steps on the strip at the top of the owner's chat: three of the dealer's, then "we start". */
-export const SETUP_STRIP_STEPS = ['billing', 'payment', 'logins', 'start'] as const;
+/** The steps on the strip at the top of the owner's chat: four of the dealer's, then "we start". */
+export const SETUP_STRIP_STEPS = ['company', 'billing', 'payment', 'logins', 'start'] as const;
 export type SetupStripStep = (typeof SETUP_STRIP_STEPS)[number];
 export type SetupStripState = 'done' | 'current' | 'todo' | 'skipped';
 
@@ -88,9 +92,11 @@ export const SETUP_SERVICE_IDS = [
 export type SetupServiceId = (typeof SETUP_SERVICE_IDS)[number];
 
 /**
- * The portal logins every outlet is asked for, SDMS first. The full standard set
- * needs both. An admin may mark one "not needed for this outlet" (an outlet with
- * no IRAS automation, say); `setup.portalsNotNeeded` then takes it out of the ask.
+ * The portal logins an INDIAN OIL outlet is asked for, SDMS first. The full standard
+ * set needs both. A BPCL or HPCL outlet is asked for its company's one portal instead
+ * (`COMPANY_PORTALS` in `types/oilCompany.ts`). An admin may mark one "not needed for
+ * this outlet" (an outlet with no IRAS automation, say); `setup.portalsNotNeeded`
+ * then takes it out of the ask.
  */
 export const STANDARD_PORTALS: readonly PortalId[] = ['sdms', 'iras'];
 
@@ -189,6 +195,13 @@ export interface OutletSetupView {
   stage: SetupStage;
   waitingOn: SetupWaitingOn;
   strip: Array<{ step: SetupStripStep; state: SetupStripState }>;
+  /**
+   * The oil company the owner chose on the company card. Null until chosen. An outlet
+   * that saved its bill details before this step existed reads as `iocl`.
+   */
+  company: OilCompanyId | null;
+  /** Who chose the company: the dealer, or MDG's team for them. Null while none is chosen. */
+  companySavedBy: 'dealer' | 'mdg' | null;
   billing: SetupBilling | null;
   /**
    * Who saved the billing details: the dealer, or MDG's team for them (the card says
@@ -200,8 +213,9 @@ export interface OutletSetupView {
   billingPrefill: { name: string | null; stateCode: string | null; gstin: string | null };
   payment: SetupPaymentDealerView;
   /**
-   * The portals the logins step asks for: both (`STANDARD_PORTALS`), minus any an
-   * admin marked "not needed for this outlet". Their state is `GET /me/portal-logins`.
+   * The portals the logins step asks for: the company's (`COMPANY_PORTALS` — SDMS and
+   * IRAS for Indian Oil, the one company portal for BPCL or HPCL), minus any an admin
+   * marked "not needed for this outlet". Their state is `GET /me/portal-logins`.
    */
   loginsNeeded: PortalId[];
   /** Only an owner may save or type; a manager sees the same cards read-only. */
@@ -217,6 +231,7 @@ export interface OutletSetupView {
 export const SETUP_CARDS = [
   'welcome',
   'services',
+  'company',
   'billing',
   'payment',
   'logins',
@@ -237,6 +252,8 @@ export type SetupSource = (typeof SETUP_SOURCES)[number];
 export interface SetupMilestones {
   approvedAt: string | null;
   firstSignInAt: string | null;
+  /** When the oil company was chosen. Null on an outlet that saved its bill details before the step existed. */
+  companySavedAt: string | null;
   billingSavedAt: string | null;
   billSentAt: string | null;
   paidAt: string | null;
@@ -266,6 +283,7 @@ export interface SetupDoneBy {
  */
 export interface SetupDoneByMap {
   signIn: SetupDoneBy | null;
+  company: SetupDoneBy | null;
   billing: SetupDoneBy | null;
   /** `mdg` when ANY needed login that is saved was typed by the team. Null while none is saved. */
   logins: SetupDoneBy | null;
@@ -381,11 +399,13 @@ export interface OutletSetupAdmin {
   /** When the current stage opened. */
   stageSince: string;
   milestones: SetupMilestones;
-  /** Who did sign-in, billing and logins: the dealer, or the team for them. */
+  /** Who did sign-in, company, billing and logins: the dealer, or the team for them. */
   doneBy: SetupDoneByMap;
+  /** The oil company: chosen on the card, `iocl` for an outlet from before the step, null while not chosen. */
+  company: OilCompanyId | null;
   billing: SetupBilling | null;
   payment: SetupPaymentAdminView;
-  /** Both portals minus the ones in `portalsNotNeeded`. */
+  /** The company's portals minus the ones in `portalsNotNeeded`. */
   loginsNeeded: PortalId[];
   /** Portals an admin marked "not needed for this outlet" (undoable until the services start). */
   portalsNotNeeded: SetupPortalNotNeeded[];

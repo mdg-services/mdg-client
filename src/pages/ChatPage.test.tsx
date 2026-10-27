@@ -1646,7 +1646,7 @@ describe('ChatPage — "Show in chat" from the gallery', () => {
 describe('ChatPage — the setup strip', () => {
   const onTheWay = makeSetupView({
     stage: 'billing',
-    strip: makeStrip(['current', 'todo', 'todo', 'todo']),
+    strip: makeStrip(['done', 'current', 'todo', 'todo', 'todo']),
   });
   const setupCalls = () => h.api.get.mock.calls.filter(([p]) => p === '/v1/me/setup');
   const strip = () => document.querySelector('[data-setup-strip]');

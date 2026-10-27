@@ -396,7 +396,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   // form sits under the words, one block per portal. Like a request it is as
   // wide as a picture and carries its time on its own line.
   const portalLogin = message.portalLogin;
-  // A SETUP CARD MDG posted (`message.setupCard`): the services picker, the
+  // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
   // box; a card that is only words (the welcome) leaves the bubble as it was.

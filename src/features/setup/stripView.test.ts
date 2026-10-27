@@ -16,21 +16,25 @@ describe('the strip', () => {
     expect(stripVisible(makeSetupView({ active: false }))).toBe(false);
     expect(stripVisible(makeSetupView({ stage: 'live' }))).toBe(false);
     expect(stripVisible(makeSetupView({ stage: 'lost' }))).toBe(false);
-    for (const stage of ['sign_in', 'billing', 'payment', 'logins', 'setup', 'watch'] as const) {
+    for (const stage of ['sign_in', 'company', 'billing', 'payment', 'logins', 'setup', 'watch'] as const) {
       expect(stripVisible(makeSetupView({ stage })), stage).toBe(true);
     }
   });
 
   it('finds the current step', () => {
     expect(currentStep(makeSetupView())).toBe('billing');
-    expect(currentStep(makeSetupView({ strip: makeStrip(['done', 'current', 'todo', 'todo']) }))).toBe(
+    expect(
+      currentStep(makeSetupView({ strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']) })),
+    ).toBe('company');
+    expect(currentStep(makeSetupView({ strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']) }))).toBe(
       'payment',
     );
-    expect(currentStep(makeSetupView({ strip: makeStrip(['done', 'done', 'done', 'done']) }))).toBeNull();
+    expect(currentStep(makeSetupView({ strip: makeStrip(['done', 'done', 'done', 'done', 'done']) }))).toBeNull();
   });
 
   it('says what is happening now, and never anything about paying', () => {
     const key = (v: Parameters<typeof makeSetupView>[0]) => stripCaptionKey(makeSetupView(v));
+    expect(key({ stage: 'company' })).toBe('setup.nowCompany');
     expect(key({ stage: 'billing' })).toBe('setup.nowBilling');
     expect(key({ stage: 'payment' })).toBe('setup.nowBillPrep');
     expect(
@@ -45,9 +49,9 @@ describe('the strip', () => {
     expect(key({ stage: 'sign_in' })).toBeNull();
   });
 
-  it('has four steps, and none of them is a choice of services', () => {
-    expect(Object.keys(STRIP_LABEL_KEYS)).toEqual(['billing', 'payment', 'logins', 'start']);
-    expect(DEALER_STEPS).toEqual(['billing', 'payment', 'logins']);
+  it('has five steps, the company first, and none of them is a choice of services', () => {
+    expect(Object.keys(STRIP_LABEL_KEYS)).toEqual(['company', 'billing', 'payment', 'logins', 'start']);
+    expect(DEALER_STEPS).toEqual(['company', 'billing', 'payment', 'logins']);
     // A view from a server that still has the old stage is drawn without a caption, not a blank one.
     expect(stripCaptionKey({ ...makeSetupView(), stage: 'services' as never })).toBeNull();
   });

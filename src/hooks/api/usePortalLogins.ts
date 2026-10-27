@@ -5,7 +5,8 @@ import { useAuthStore } from '@/store/auth';
 import type { PortalId, PortalLoginsView } from '@dk/shared/types';
 
 /**
- * Where the outlet's SDMS and IRAS logins stand, for the login box MDG posts in
+ * Where the outlet's portal logins stand — SDMS and IRAS for an Indian Oil outlet,
+ * the one BPCL or HPCL portal for one of those — for the login box MDG posts in
  * the chat (`message.portalLogin`).
  *
  * The view says whether each login is saved, missing or was refused by the

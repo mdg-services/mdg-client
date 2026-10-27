@@ -8,6 +8,7 @@
 import { z } from 'zod';
 
 import { GST_STATES, cleanGstin, isGstin } from '../lib/gst';
+import { OIL_COMPANIES } from '../types/oilCompany';
 import {
   SETUP_CALL_OUTCOMES,
   SETUP_MESSAGE_LANGS,
@@ -39,6 +40,13 @@ export const saveSetupBillingSchema = z
   .strict()
   .transform((v) => ({ ...v, stateCode: v.gstin ? v.gstin.slice(0, 2) : v.stateCode }));
 export type SaveSetupBillingInput = z.infer<typeof saveSetupBillingSchema>;
+
+/**
+ * The company card: which oil company the pump is with. The owner's
+ * `PUT /me/setup/company` and the admin's `PUT /dealers/:id/setup/company` take this body.
+ */
+export const saveSetupCompanySchema = z.object({ company: z.enum(OIL_COMPANIES) }).strict();
+export type SaveSetupCompanyInput = z.infer<typeof saveSetupCompanySchema>;
 
 /** Approve a registration. The code defaults to the next free one. */
 export const approveRegistrationSchema = z

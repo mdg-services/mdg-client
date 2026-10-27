@@ -13,7 +13,7 @@ import { useOutletSetup } from './useOutletSetup';
  * anything here, and a bubble with only those keeps its ordinary shape.
  */
 export function setupCardHasBody(card: SetupCardKind): boolean {
-  return card === 'billing' || card === 'payment' || card === 'started';
+  return card === 'company' || card === 'billing' || card === 'payment' || card === 'started';
 }
 
 /**

@@ -23,7 +23,7 @@ function Probe() {
 
 const atPayment: OutletSetupView = makeSetupView({
   stage: 'payment',
-  strip: makeStrip(['done', 'current', 'todo', 'todo']),
+  strip: makeStrip(['done', 'done', 'current', 'todo', 'todo']),
 });
 
 beforeEach(() => {

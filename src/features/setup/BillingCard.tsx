@@ -50,6 +50,9 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
   const [editing, setEditing] = React.useState(false);
   const [tried, setTried] = React.useState(false);
   const [lockedByServer, setLockedByServer] = React.useState(false);
+  // The server's word that the company card comes first (an old billing card, posted
+  // before the company step existed, filled in before the company was chosen).
+  const [companyFirst, setCompanyFirst] = React.useState(false);
 
   const gst = checkGstin(noGst ? '' : gstinText);
   // With a good GST number the state is not a choice: the number says which.
@@ -62,6 +65,16 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
   const gstOk = gst.state === 'empty' || gst.state === 'ok';
 
   const showForm = canChange && (editing || !saved);
+
+  // The company comes first: until it is chosen there is nothing to fill here, only a
+  // pointer to the company card (the server refuses a bill saved before it).
+  if (view.stage === 'company' && !saved) {
+    return (
+      <CardBox kind="billing">
+        <Note>{t('setup.companyFirst')}</Note>
+      </CardBox>
+    );
+  }
 
   if (!showForm) {
     if (!saved) {
@@ -110,6 +123,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
     setTried(true);
     if (!nameOk || !addressOk || !stateOk || !gstOk) return;
     setLockedByServer(false);
+    setCompanyFirst(false);
     try {
       await save.mutateAsync({
         name: name.trim(),
@@ -120,8 +134,12 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
       setEditing(false);
       setTried(false);
     } catch (err) {
-      // 409: the payment was recorded while this was open, so it is closed now.
-      if (err instanceof ApiError && err.status === 409) setLockedByServer(true);
+      // 409 COMPANY_FIRST: the company is not chosen yet. Any other 409: the payment was
+      // recorded while this was open, so it is closed now.
+      if (err instanceof ApiError && err.status === 409) {
+        if (err.code === 'COMPANY_FIRST') setCompanyFirst(true);
+        else setLockedByServer(true);
+      }
     }
   };
 
@@ -242,7 +260,9 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
           </label>
         </div>
 
-        {lockedByServer ? (
+        {companyFirst ? (
+          <Alert>{t('setup.companyFirst')}</Alert>
+        ) : lockedByServer ? (
           <Alert>{t('setup.billLocked')}</Alert>
         ) : save.isError ? (
           <Alert>{t('setup.saveFailed')}</Alert>

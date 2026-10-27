@@ -1121,10 +1121,11 @@ export const messages = {
     hi: 'अभी यह जाँच नहीं हो पाया',
   },
 
-  // The login box MDG posts when it needs the outlet's SDMS / IRAS login. The
-  // words above it are the message's own; these are the box. "{portal}" is the
-  // portal's name, the same in both languages. What is typed goes to the
-  // outlet's record and never into the chat, and the box says so.
+  // The login box MDG posts when it needs the outlet's portal logins (SDMS and
+  // IRAS, or the one BPCL / HPCL portal). The words above it are the message's
+  // own; these are the box. "{portal}" is the portal's name, the same in both
+  // languages. What is typed goes to the outlet's record and never into the
+  // chat, and the box says so.
   'chat.portalTitle': { en: '{portal} login', hi: '{portal} लॉगिन' },
   'chat.portalNeeded': { en: 'Needed', hi: 'बाकी' },
   // Shown instead of "Needed" when the team marked this login not needed for the outlet.
@@ -1212,6 +1213,7 @@ export const messages = {
 
   /* ── setting up a new outlet (onboarding): the strip and its cards ───── */
   'setup.stripLabel': { en: 'Getting your services started', hi: 'आपकी सेवाएँ शुरू करने के कदम' },
+  'setup.stepCompany': { en: 'Company', hi: 'कंपनी' },
   'setup.stepBilling': { en: 'Bill address', hi: 'बिल का पता' },
   'setup.stepPayment': { en: 'Payment', hi: 'भुगतान' },
   'setup.stepLogins': { en: 'Logins', hi: 'लॉगिन' },
@@ -1225,6 +1227,10 @@ export const messages = {
   'setup.howItWorks': { en: 'How setup works — a short video', hi: 'सेटअप कैसे होता है — छोटा वीडियो' },
   // The one line under the strip: what is happening now. Nothing here says how
   // to pay, or where: the Play Store does not allow it inside the app.
+  'setup.nowCompany': {
+    en: 'Tell us which company your pump is with',
+    hi: 'बताइए आपका पंप किस कंपनी का है',
+  },
   'setup.nowBilling': {
     en: 'Fill in the name and address for your bill',
     hi: 'बिल का नाम और पता भरिए',
@@ -1244,6 +1250,19 @@ export const messages = {
   'setup.ownerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },
   'setup.change': { en: 'Change', hi: 'बदलें' },
   'setup.saveFailed': { en: "Couldn't save — try again", hi: 'सेव नहीं हो सका — फिर कोशिश कीजिए' },
+  /* company card */
+  'setup.companyQuestion': {
+    en: 'Which company is your petrol pump with?',
+    hi: 'आपका पेट्रोल पंप किस कंपनी का है?',
+  },
+  'setup.companyFirst': {
+    en: "First tell us which company your pump is with, in the company card in this chat.",
+    hi: 'पहले इस चैट के कंपनी वाले कार्ड में बताइए कि आपका पंप किस कंपनी का है।',
+  },
+  'setup.companyLocked': {
+    en: 'Your services have started, so the company cannot be changed here any more.',
+    hi: 'आपकी सेवाएँ शुरू हो चुकी हैं, इसलिए कंपनी अब यहाँ बदली नहीं जा सकती।',
+  },
   /* billing card */
   'setup.billName': { en: 'Name on the bill', hi: 'बिल पर नाम' },
   'setup.billAddress': { en: 'Address (one line)', hi: 'पता (एक लाइन में)' },
