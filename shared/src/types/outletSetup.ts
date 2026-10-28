@@ -93,7 +93,7 @@ export type SetupServiceId = (typeof SETUP_SERVICE_IDS)[number];
 
 /**
  * The portal logins an INDIAN OIL outlet is asked for, SDMS first. The full standard
- * set needs both. A BPCL or HPCL outlet is asked for its company's one portal instead
+ * set needs both. A BPCL or HPCL outlet is asked for its company's portals instead
  * (`COMPANY_PORTALS` in `types/oilCompany.ts`). An admin may mark one "not needed for
  * this outlet" (an outlet with no IRAS automation, say); `setup.portalsNotNeeded`
  * then takes it out of the ask.
@@ -214,8 +214,9 @@ export interface OutletSetupView {
   payment: SetupPaymentDealerView;
   /**
    * The portals the logins step asks for: the company's (`COMPANY_PORTALS` — SDMS and
-   * IRAS for Indian Oil, the one company portal for BPCL or HPCL), minus any an admin
-   * marked "not needed for this outlet". Their state is `GET /me/portal-logins`.
+   * IRAS for Indian Oil, the BPCL portal and BROMA/eConnect for BPCL, the HPCL portal
+   * for HPCL), minus any an admin marked "not needed for this outlet". Their state is
+   * `GET /me/portal-logins`.
    */
   loginsNeeded: PortalId[];
   /** Only an owner may save or type; a manager sees the same cards read-only. */

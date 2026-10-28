@@ -140,10 +140,14 @@ export const AUDIT_ACTIONS = [
   'SDMS_CREDENTIALS_SET',
   'SDMS_CREDENTIALS_CLEAR',
   'SDMS_CREDENTIALS_REVEAL',
-  // BPCL / HPCL — the one company portal login of such an outlet (onboarding's logins step)
+  // BPCL / HPCL — the company portal logins of such an outlet (onboarding's logins step):
+  // BPCL's dealer portal and BROMA/eConnect, HPCL's one portal
   'BPCL_CREDENTIALS_SET',
   'BPCL_CREDENTIALS_CLEAR',
   'BPCL_CREDENTIALS_REVEAL',
+  'ECONNECT_CREDENTIALS_SET',
+  'ECONNECT_CREDENTIALS_CLEAR',
+  'ECONNECT_CREDENTIALS_REVEAL',
   'HPCL_CREDENTIALS_SET',
   'HPCL_CREDENTIALS_CLEAR',
   'HPCL_CREDENTIALS_REVEAL',

@@ -23,30 +23,33 @@
  * of the chat could leak.
  */
 
-export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'hpcl';
+export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl';
 
-export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'hpcl'];
+export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl'];
 
 /**
- * The company portals: the one dealer portal of BPCL and of HPCL. MDG's team works
- * them by hand for now, so nothing tries such a login on its own (no queued check,
- * no refusal hold) and the box never sends the SDMS/IRAS explainer video with it.
+ * The company portals: BPCL's two (its dealer portal, and BROMA/eConnect) and HPCL's
+ * one. MDG's team works them by hand for now, so nothing tries such a login on its own
+ * (no queued check, no refusal hold) and the box never sends the SDMS/IRAS explainer
+ * video with it.
  */
-export const COMPANY_PORTAL_IDS: readonly PortalId[] = ['bpcl', 'hpcl'];
+export const COMPANY_PORTAL_IDS: readonly PortalId[] = ['bpcl', 'econnect', 'hpcl'];
 
-/** True for a company portal (BPCL, HPCL): saved and read back, never tried automatically. */
+/** True for a company portal (BPCL, BROMA/eConnect, HPCL): saved and read back, never tried automatically. */
 export function isCompanyPortal(p: PortalId): boolean {
   return COMPANY_PORTAL_IDS.includes(p);
 }
 
 /**
  * The portal's name as a dealer knows it. The same in both languages. A company
- * portal is named by its company only ("BPCL portal"), never by what MDG does on it.
+ * portal is named by its company ("BPCL portal") or by the name the dealer knows it
+ * by ("BROMA/eConnect"), never by what MDG does on it.
  */
 export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
   sdms: 'SDMS',
   iras: 'IRAS',
   bpcl: 'BPCL portal',
+  econnect: 'BROMA/eConnect',
   hpcl: 'HPCL portal',
 };
 

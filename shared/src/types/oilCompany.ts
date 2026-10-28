@@ -3,10 +3,11 @@
  * Hindustan Petroleum (HPCL).
  *
  * Every MDG service was built on Indian Oil's two portals, SDMS and IRAS. BPCL and
- * HPCL outlets are welcome too, but for now MDG's team works their company portal
- * BY HAND: the onboarding asks such an outlet for ONE login, the company's own
- * dealer portal, and names it only by the company ("BPCL portal"), never by what
- * MDG will do with it. Nothing tries that login automatically yet.
+ * HPCL outlets are welcome too, but for now MDG's team works their company portals
+ * BY HAND: the onboarding asks a BPCL outlet for two logins (the company's dealer
+ * portal, and BROMA/eConnect) and an HPCL outlet for one, names each only by the
+ * company ("BPCL portal") or the name the dealer knows ("BROMA/eConnect"), never by
+ * what MDG will do with it. Nothing tries those logins automatically yet.
  *
  * The company is asked as the first step of the onboarding (`setup.company`). An
  * outlet with no company on record is Indian Oil: every outlet from before this
@@ -28,12 +29,12 @@ export const OIL_COMPANY_NAMES: Readonly<
 
 /**
  * The portal logins the onboarding asks an outlet of each company for, in the
- * order the login box shows them. Indian Oil: SDMS then IRAS. BPCL and HPCL: the
- * company's one dealer portal.
+ * order the login box shows them. Indian Oil: SDMS then IRAS. BPCL: its dealer
+ * portal then BROMA/eConnect. HPCL: its one dealer portal.
  */
 export const COMPANY_PORTALS: Readonly<Record<OilCompanyId, readonly PortalId[]>> = {
   iocl: ['sdms', 'iras'],
-  bpcl: ['bpcl'],
+  bpcl: ['bpcl', 'econnect'],
   hpcl: ['hpcl'],
 };
 
