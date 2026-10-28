@@ -12,6 +12,11 @@
  * on that page and left a number. Viewers who came without a code stay
  * anonymous — counted and listed, never followed up.
  *
+ * ADDED BY HAND (28 Oct 2026). Somebody the team met at a pump, was referred
+ * to, or simply wants to work, whether or not they ever opened the film: an
+ * admin types their number and the lead is made there and then, given to that
+ * admin and chased by the same clock as every other lead.
+ *
  * WHY THE STATUS IS DERIVED. Where a lead stands is worked out on the server
  * from facts (their film visits, WhatsApp replies, call-backs, registration,
  * the team's logged contacts) by one pure clock. Nobody sets it by hand, so
@@ -26,6 +31,8 @@ export const LEAD_ORIGINS = [
   'share_link',
   /** Asked for a call on the full film's page. */
   'film_callback',
+  /** An admin typed their number on the Leads page: they need not have seen the film. */
+  'manual',
 ] as const;
 export type LeadOrigin = (typeof LEAD_ORIGINS)[number];
 
@@ -33,6 +40,7 @@ export const LEAD_ORIGIN_LABELS: Record<LeadOrigin, string> = {
   campaign: 'WhatsApp film invite',
   share_link: 'Share link',
   film_callback: 'Call-back from the film page',
+  manual: 'Added by hand',
 };
 
 /** Where a lead stands. */
@@ -66,7 +74,13 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
  * own "New registration" alert does it, and after it nothing else would until
  * the outlet is approved.
  */
-export const LEAD_CHASED_STATUSES = ['new', 'trying', 'talking', 'interested', 'registered'] as const;
+export const LEAD_CHASED_STATUSES = [
+  'new',
+  'trying',
+  'talking',
+  'interested',
+  'registered',
+] as const;
 /** Every status that is still open. */
 export const LEAD_OPEN_STATUSES = ['new', 'trying', 'talking', 'interested', 'registered'] as const;
 /** Every closed status. */
@@ -204,6 +218,8 @@ export const LEAD_ACTIVITY_KINDS = [
   'closed',
   'reopened',
   'phone_added',
+  /** An admin made the lead by hand (origin `manual`). */
+  'created',
 ] as const;
 export type LeadActivityKind = (typeof LEAD_ACTIVITY_KINDS)[number];
 

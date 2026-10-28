@@ -56,10 +56,10 @@ export const logLeadContactSchema = z
     nextAt: isoDateTime.optional(),
   })
   .strict()
-  .refine(
-    (v) => !(v.nextAt && (LEAD_CLOSING_OUTCOMES as readonly string[]).includes(v.outcome)),
-    { message: 'A follow-up time cannot go with an outcome that closes the lead', path: ['nextAt'] },
-  );
+  .refine((v) => !(v.nextAt && (LEAD_CLOSING_OUTCOMES as readonly string[]).includes(v.outcome)), {
+    message: 'A follow-up time cannot go with an outcome that closes the lead',
+    path: ['nextAt'],
+  });
 export type LogLeadContactInput = z.infer<typeof logLeadContactSchema>;
 
 /** Choosing when to get in touch next. The server refuses a time in the past or too far ahead. */
@@ -112,6 +112,34 @@ export const addLeadPhoneSchema = z
   .strict();
 export type AddLeadPhoneInput = z.infer<typeof addLeadPhoneSchema>;
 
+/** The longest name or place typed on a lead made by hand. */
+export const LEAD_NAME_MAX = 80;
+
+/** Optional short text where "" means "not given". */
+const optionalShort = z
+  .union([z.string().trim().max(LEAD_NAME_MAX), z.literal('')])
+  .optional()
+  .transform((v) => (v ? v : undefined));
+
+/**
+ * Making a lead by hand: somebody the team wants to work who never came in
+ * through the film. The number is the person; a number that is already a lead
+ * opens that lead instead of making a second one.
+ */
+export const createLeadSchema = z
+  .object({
+    mobile: z
+      .string()
+      .trim()
+      .regex(/^[0-9+\s-]{10,15}$/),
+    name: optionalShort,
+    /** Pump name or town. */
+    place: optionalShort,
+    note: optionalNote,
+  })
+  .strict();
+export type CreateLeadInput = z.infer<typeof createLeadSchema>;
+
 /** The WhatsApp inbox asking whether a chat is a lead. */
 export const leadLookupQuerySchema = z.object({
   person: z.string().trim().min(1).max(260),
@@ -136,7 +164,11 @@ export const addLeadRecordingSchema = z
     contentType: z.string().trim().min(1).max(100),
     size: z.number().int().min(1).max(LEAD_RECORDING_MAX_BYTES),
     /** What the browser measured, when it could. Four hours at most. */
-    durationSec: z.number().min(0).max(4 * 60 * 60).optional(),
+    durationSec: z
+      .number()
+      .min(0)
+      .max(4 * 60 * 60)
+      .optional(),
   })
   .strict();
 export type AddLeadRecordingInput = z.infer<typeof addLeadRecordingSchema>;
