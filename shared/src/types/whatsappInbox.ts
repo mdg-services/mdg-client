@@ -178,6 +178,9 @@ export const WHATSAPP_STAGE_LABELS: Record<WhatsAppStage, string> = {
 /**
  * The lists the inbox can show.
  *
+ * - `replied` — they have written to us at least once (words or a file, not
+ *   only a reaction or a stop) and are not on the stop list: the chats with a
+ *   conversation going, without the invites nobody answered.
  * - `unread` — something from them nobody has read, or marked unread by hand.
  * - `needs_reply` — they wrote last and nobody has answered since.
  * - `waiting` — we wrote last and they have not answered (including people
@@ -186,6 +189,7 @@ export const WHATSAPP_STAGE_LABELS: Record<WhatsAppStage, string> = {
  */
 export const WHATSAPP_CHAT_FILTERS = [
   'all',
+  'replied',
   'unread',
   'needs_reply',
   'waiting',
@@ -195,6 +199,7 @@ export type WhatsAppChatFilter = (typeof WHATSAPP_CHAT_FILTERS)[number];
 
 export const WHATSAPP_CHAT_FILTER_LABELS: Record<WhatsAppChatFilter, string> = {
   all: 'All',
+  replied: 'Replied',
   unread: 'Unread',
   needs_reply: 'Needs reply',
   waiting: 'Waiting on them',
