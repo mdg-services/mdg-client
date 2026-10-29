@@ -122,6 +122,23 @@ export interface WhatsAppResultPerson {
   /** Pressed "मुझे कॉल करें". Not counted as `replied`. */
   askedCall: boolean;
   stopped: boolean;
+  /**
+   * Their lead on the Leads page, when they are one (29 Oct 2026): the page
+   * links to it instead of offering "Add as lead". Absent from an older server.
+   */
+  lead?: WhatsAppResultLead | null;
+  /**
+   * On the stop list now, whichever promotion they stopped (`stopped` is about
+   * this row's promotion only). A lead made of them would only close as "asked
+   * to stop", so the page offers no "Add as lead". Absent from an older server.
+   */
+  onStopList?: boolean;
+}
+
+/** A Message results row's lead, as much as the row needs to link to it. */
+export interface WhatsAppResultLead {
+  id: string;
+  ref: string;
 }
 
 export interface WhatsAppResults {

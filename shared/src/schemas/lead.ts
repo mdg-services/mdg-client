@@ -140,6 +140,24 @@ export const createLeadSchema = z
   .strict();
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
 
+/**
+ * "Add as lead" from WhatsApp — a row of Message results, or a chat in the
+ * inbox. `person` is the inbox's id for the chat, which is their WhatsApp number
+ * (`91` + ten digits) when there is one; a chat known only by a username cannot
+ * be added. The server finds the campaign that went to them, so the lead
+ * carries its name and the greeting the campaign used.
+ */
+export const leadFromWhatsAppSchema = z
+  .object({
+    person: z
+      .string()
+      .trim()
+      .regex(/^\d{10,15}$/),
+    note: optionalNote,
+  })
+  .strict();
+export type LeadFromWhatsAppInput = z.infer<typeof leadFromWhatsAppSchema>;
+
 /** The WhatsApp inbox asking whether a chat is a lead. */
 export const leadLookupQuerySchema = z.object({
   person: z.string().trim().min(1).max(260),

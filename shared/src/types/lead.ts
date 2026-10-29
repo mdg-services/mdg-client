@@ -1,16 +1,22 @@
 /**
- * Leads — every person who started the full Dealer Kavach film from a link we
- * can tie to them, or asked for a call from that film's page, kept on one list
- * until they say no, ask us to stop, or become a client (ADR 0024).
+ * Leads — every person who wrote back to us on WhatsApp, asked for a call from
+ * the film's page, or was added by the team, kept on one list until they say
+ * no, ask us to stop, or become a client (ADR 0024).
  *
- * WHO IS A LEAD. The owner's rule (24 Oct 2026): the full film page
- * (mdgservices.in/film, film id `kavach`) played for at least one second. A
- * film view carries no name or number (ADR 0015 §8), so a view becomes a lead
- * only through the share code in its link (`?r=`): a WhatsApp campaign send
- * names the person and their number, an admin's share link names them by its
- * label. A call-back asked for on the full film's page is a lead too: they were
- * on that page and left a number. Viewers who came without a code stay
- * anonymous — counted and listed, never followed up.
+ * WHO IS A LEAD (the owner's rule since 29 Oct 2026). Somebody who writes to
+ * the MDG Services WhatsApp number — a message of any kind, or a tap on the
+ * film invite's "Call me" — becomes a lead (origin `whatsapp_reply`). A stop
+ * and an emoji reaction on its own do not count. A call-back asked for on the
+ * full film's page is a lead too (`film_callback`). Watching the film no longer
+ * makes anybody a lead: a visit only fills in the watch bar of a lead that
+ * exists. An admin can add anybody by hand (`manual`), or anybody a WhatsApp
+ * campaign went to (`campaign`).
+ *
+ * THE OLD RULE (24–28 Oct 2026): the full film played for at least a second
+ * from a link with the person's code — a campaign send (`campaign`) or an
+ * admin's share link (`share_link`). Leads made that way stay as they are.
+ * Viewers who came without a code stay anonymous — counted and listed, never
+ * followed up.
  *
  * ADDED BY HAND (28 Oct 2026). Somebody the team met at a pump, was referred
  * to, or simply wants to work, whether or not they ever opened the film: an
@@ -25,7 +31,11 @@
 
 /** How the lead first reached us. */
 export const LEAD_ORIGINS = [
-  /** A WhatsApp film invite: the send ledger knows their name and number. */
+  /**
+   * Somebody a WhatsApp campaign went to: added by an admin from the campaign,
+   * or (the old rule, before 29 Oct 2026) made when they watched the film from
+   * their invite. The send ledger knows their name and number.
+   */
   'campaign',
   /** A share link an admin made on the Films page: known by the link's label. */
   'share_link',
@@ -33,14 +43,20 @@ export const LEAD_ORIGINS = [
   'film_callback',
   /** An admin typed their number on the Leads page: they need not have seen the film. */
   'manual',
+  /**
+   * Wrote to us on the MDG Services WhatsApp number, or tapped "Call me" (29 Oct
+   * 2026). `campaign` and the name come from their invite when they had one.
+   */
+  'whatsapp_reply',
 ] as const;
 export type LeadOrigin = (typeof LEAD_ORIGINS)[number];
 
 export const LEAD_ORIGIN_LABELS: Record<LeadOrigin, string> = {
-  campaign: 'WhatsApp film invite',
+  campaign: 'WhatsApp campaign',
   share_link: 'Share link',
   film_callback: 'Call-back from the film page',
   manual: 'Added by hand',
+  whatsapp_reply: 'Wrote to us on WhatsApp',
 };
 
 /** Where a lead stands. */
@@ -201,7 +217,7 @@ export const LEAD_SIGN_KINDS = [
 export type LeadSignKind = (typeof LEAD_SIGN_KINDS)[number];
 
 export const LEAD_SIGN_LABELS: Record<LeadSignKind, string> = {
-  watched: 'Watched the film again',
+  watched: 'Watched the film',
   replied: 'Replied on WhatsApp',
   call_me: 'Tapped "Call me"',
   callback: 'Asked for a call-back',
@@ -378,6 +394,11 @@ export interface LeadCounts {
 /** The last 30 days, as a funnel. Each number counts leads that reached at least that step. */
 export interface LeadFunnel {
   days: number;
+  /**
+   * Leads that began in the window: the first step, shown as "new leads". The
+   * name is from when a lead began by watching the film (before 29 Oct 2026),
+   * kept so an older admin build still reads it.
+   */
   watched: number;
   contacted: number;
   spoke: number;
