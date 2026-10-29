@@ -154,6 +154,147 @@ export function renderSimpleTemplate(text: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Words the template already says
+// ─────────────────────────────────────────────────────────────────────────
+
+/**
+ * A greeting the typed words open with, or a sign-off they close with. Both
+ * templates (this one and the link one) already open with "Namaste," and close
+ * with "Thank you, Team MDG Services", so typed words that have their own
+ * reach the person with two of each — on 29 Oct 2026 a lead got "Namaste,
+ * Namaste, … Thank you, Team MDG Services Thank you, Team MDG Services".
+ *
+ * The composer warns before such a message goes; the server drops them from
+ * any template send the admin did not choose to keep them in.
+ */
+export interface TemplateRepeats {
+  /** The greeting, as typed and on one line ("Namaste ji,"); null when there is none. */
+  greeting: string | null;
+  /** The sign-off, as typed and on one line ("Thank you, Team MDG Services"); null when there is none. */
+  closing: string | null;
+}
+
+/** Not a letter, a vowel sign (Devanagari's are marks) or a digit: where a word ends. */
+const WORD_END = '(?![\\p{L}\\p{M}\\p{N}])';
+/** What may sit around a greeting or a sign-off: spaces, punctuation, dashes, emoji (🙏). */
+const FILLER = '[\\s,.!?।:;~&\\-–—\\p{Extended_Pictographic}\\p{Emoji_Modifier}\\uFE0F\\u200D]';
+const GREETING_WORDS = [
+  'namaste',
+  'namastey',
+  'namastay',
+  'namasthe',
+  'namste',
+  'namaskaar',
+  'namaskar',
+  'namaskaram',
+  'pranaam',
+  'pranam',
+  'hello',
+  'hii*',
+  'hey',
+  'good\\s+(?:morning|afternoon|evening|day)',
+  'नमस्ते',
+  'नमस्कार',
+  'प्रणाम',
+].join('|');
+/** Who a greeting or a thank-you may be followed by: "Namaste ji", "Thank you sir". */
+const HONORIFICS = [
+  'ji',
+  'jee',
+  'sir',
+  'madam',
+  "ma['’]?am",
+  'sahab',
+  'saheb',
+  'all',
+  'everyone',
+  'जी',
+  'सर',
+  'साहब',
+].join('|');
+const THANKS_WORDS = [
+  'thanks?\\s*(?:&|and)\\s*regards',
+  '(?:with\\s+)?(?:(?:warm|best|kind)\\s+)?regards',
+  'thank\\s*(?:you|u)(?:\\s+(?:so|very)\\s+much)?',
+  'thanks(?:\\s+a\\s+lot)?',
+  'thx',
+  'dhan[yn]+[aeiy]*[vwb]aa?d',
+  'shukriya',
+  'धन्यवाद',
+  'शुक्रिया',
+  'आभार',
+].join('|');
+/** Our own name at the foot of a message: "Team MDG Services", "– टीम MDG". */
+const SIGNATURE_WORDS = [
+  '(?:from\\s+)?(?:the\\s+)?team\\s+mdg(?:\\s+services)?',
+  'mdg\\s+services(?:\\s+team)?',
+  'mdg\\s+team',
+  'टीम\\s+mdg(?:\\s+services)?',
+  "team\\s+dealer['’]?s?\\s+kavach",
+  "dealer['’]?s?\\s+kavach\\s+team",
+].join('|');
+
+const GREETING_RE = new RegExp(
+  `^(?:(?:${GREETING_WORDS})(?:\\s+(?:${HONORIFICS}))?${WORD_END}${FILLER}*)+`,
+  'iu',
+);
+// A thank-you at the very end, after anything that is not a letter (a space
+// will do: Hinglish is often typed without a full stop), with our name after it or not.
+const THANKS_RE = new RegExp(
+  `(^|[^\\p{L}\\p{M}\\p{N}])((?:${THANKS_WORDS})(?:\\s+(?:${HONORIFICS}))?${WORD_END}(?:${FILLER}*(?:${SIGNATURE_WORDS})${WORD_END})?${FILLER}*)$`,
+  'iu',
+);
+// Our name alone at the very end only counts after a break — a new line, a
+// dash, a full stop — or "please call MDG Services" and "Company: MDG Services"
+// would lose their last words.
+const SIGNATURE_RE = new RegExp(
+  `(^|[\\n.!।~\\-–—])(\\s*(?:${SIGNATURE_WORDS})${WORD_END}${FILLER}*)$`,
+  'iu',
+);
+
+const oneLine = (s: string): string =>
+  s
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s,.;:~&\-–—]+/, '')
+    .trim();
+
+function splitRepeats(text: string): TemplateRepeats & { rest: string } {
+  let rest = text.trim();
+  const opened = GREETING_RE.exec(rest);
+  const greeting = opened ? oneLine(opened[0]) : null;
+  if (opened) rest = rest.slice(opened[0].length);
+  // "Thanks. Regards, Team MDG" is two sign-offs: take them off one at a time.
+  let closingAt: number | null = null;
+  for (let i = 0; i < 3; i += 1) {
+    const closed = THANKS_RE.exec(rest) ?? SIGNATURE_RE.exec(rest);
+    if (!closed) break;
+    const at = closed.index + closed[1]!.length;
+    closingAt = at;
+    rest = rest.slice(0, at);
+  }
+  const typedRest = text.trim().slice(opened ? opened[0].length : 0);
+  const closing = closingAt === null ? null : oneLine(typedRest.slice(closingAt));
+  rest = rest.replace(/[\s,;:~&\-–—]+$/, '').trim();
+  // "Namaste, services shuru…" without its greeting starts with a capital.
+  if (greeting && /^[a-z]/.test(rest)) rest = rest[0]!.toUpperCase() + rest.slice(1);
+  return { greeting: greeting || null, closing: closing || null, rest };
+}
+
+/** The greeting and sign-off in typed words that the template would say a second time. */
+export function templateRepeats(text: string): TemplateRepeats {
+  const { greeting, closing } = splitRepeats(text);
+  return { greeting, closing };
+}
+
+/**
+ * The typed words without their own greeting and sign-off. Empty when there was
+ * nothing else ("Namaste ji 🙏"): the caller decides what to do with that.
+ */
+export function withoutTemplateRepeats(text: string): string {
+  return splitRepeats(text).rest;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // Chats
 // ─────────────────────────────────────────────────────────────────────────
 
@@ -438,6 +579,13 @@ export interface WhatsAppSendInput {
    * window — because only its button can be counted (`whatsappLinks.ts`).
    */
   link?: string | null;
+  /**
+   * The admin was warned that the words have their own greeting or sign-off
+   * (`templateRepeats`) and chose to send them as typed. Without it, a message
+   * that goes in a template has them dropped, because the template already
+   * says them. No effect on an ordinary message.
+   */
+  keepRepeats?: boolean;
 }
 
 /** Start a chat with somebody who is not in the inbox yet. */
@@ -451,6 +599,8 @@ export interface WhatsAppNewChatInput {
   clientId: string;
   /** As `WhatsAppSendInput.link`. */
   link?: string | null;
+  /** As `WhatsAppSendInput.keepRepeats`. */
+  keepRepeats?: boolean;
 }
 
 export interface WhatsAppSendResult {
