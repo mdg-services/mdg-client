@@ -19,8 +19,19 @@ export const serviceLogCoreSchema = z
     path: ['serviceName'],
   });
 
-/** Body for resolving a conversation — requires the service that was provided. */
-export const resolveConversationSchema = serviceLogCoreSchema;
+/**
+ * Body for resolving a conversation. EVERY FIELD IS OPTIONAL: an admin closing a
+ * chat that needed nothing done must not have to invent a service and a note to
+ * do it. An empty string reads as "not given". With nothing given, the chat
+ * closes and no service-log entry is written; with notes but no service, the
+ * entry is filed under "Other".
+ */
+export const resolveConversationSchema = z.object({
+  serviceId: z.string().trim().max(80).optional(),
+  serviceName: z.string().trim().max(160).optional(),
+  notes: z.string().trim().max(2000).optional(),
+  attachments: z.array(attachmentSchema).max(10).optional(),
+});
 export type ResolveConversationInput = z.infer<typeof resolveConversationSchema>;
 
 /** Body for creating a standalone service-log entry (admin). */
