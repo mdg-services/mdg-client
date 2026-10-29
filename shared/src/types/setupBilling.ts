@@ -75,6 +75,19 @@ export interface OnboardingConfig {
    */
   firstBillAutopay: boolean;
   /**
+   * A first bill BELOW the monthly price also goes as the autopay approval: the
+   * approval takes that amount now (Razorpay's "upfront amount") and the monthly
+   * price from a month after Send bill (`FIRST_MONTH_UPFRONT`, OFF until a live test
+   * has proven it). Off: such a bill goes as a one-time payment link.
+   */
+  firstMonthUpfront: boolean;
+  /**
+   * Outlet codes it is on for while it is not on for all
+   * (`FIRST_MONTH_UPFRONT_OUTLETS`): how the live test runs on one outlet. On for an
+   * outlet = `firstMonthUpfront || firstMonthUpfrontOutlets.includes(code)`.
+   */
+  firstMonthUpfrontOutlets: string[];
+  /**
    * Every change to the monthly price, newest first. A bill keeps the price it
    * was raised at; a change applies to bills raised after it.
    */

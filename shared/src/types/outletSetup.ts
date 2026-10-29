@@ -385,6 +385,11 @@ export interface SetupSubscriptionView {
   overdue: boolean;
   /** Services paused by a person for non-payment (not an archive: the dealer still signs in and sees the bill). */
   billingHold: { at: string; byName: string; reason: string } | null;
+  /**
+   * Billing ended for this outlet: its first month was given back, so no further
+   * bill is raised until a super-admin bills it again. Null while billing is on.
+   */
+  billingEnded: { at: string; reason: string } | null;
 }
 
 export interface OutletSetupAdmin {

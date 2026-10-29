@@ -29,6 +29,12 @@ export type MoneyAction =
        * pressing Send bill again on a bill whose approval went out.
        */
       approvalOut?: boolean;
+      /**
+       * A first month below the monthly price taken by the approval itself (ADR 0022
+       * §13.3): `amountPaise` is taken at approval, `monthlyPaise` from `firstDebitOn`.
+       * Left out: the approval takes `amountPaise` now and every month.
+       */
+      upfront?: { monthlyPaise: number; firstDebitOn: string };
     }
   | {
       kind: 'request_payment';
@@ -89,7 +95,9 @@ export type MoneyAction =
   | { kind: 'cancel_payment'; renewal: boolean }
   | { kind: 'pause_services' }
   | { kind: 'resume_services' }
-  | { kind: 'start_services' };
+  | { kind: 'start_services' }
+  /** "Bill this outlet again" after billing ended: the next daily run raises and sends a bill. */
+  | { kind: 'restart_billing'; amountPaise: number };
 
 export type MoneyActionKind = MoneyAction['kind'];
 
@@ -145,6 +153,12 @@ function dayWords(day: string): string {
   return month ? `${Number(m[3])} ${month} ${m[1]}` : day;
 }
 
+/** `2026-11-30` as "30 Nov", the way the app's own notification names a day. */
+function dayShort(day: string): string {
+  const full = dayWords(day);
+  return full === day ? day : full.replace(/ \d{4}$/, '');
+}
+
 /** The same sentence for every action that makes Razorpay text the payment link. */
 const RAZORPAY_LINK_TEXT =
   "Razorpay texts and emails the payment link, in Razorpay's own words, to the phone number and email on file.";
@@ -191,8 +205,12 @@ export function dealerReceives(action: MoneyAction): DealerReceivesPreview {
     case 'send_bill': {
       const amount = formatPaise(action.amountPaise);
       const asAutopay = action.autopay && action.paymentsOn;
+      // A first month below the monthly price, taken by the approval itself (§13.3).
+      const up = asAutopay ? action.upfront : undefined;
       if (asAutopay) {
-        charged = `${amount} is taken the moment they approve the autopay, and ${amount} every month on the same day after that.`;
+        charged = up
+          ? `${amount} is taken the moment they approve the autopay, for the first month. Then ${formatPaise(up.monthlyPaise)} on ${dayWords(up.firstDebitOn)} and every month on that date.`
+          : `${amount} is taken the moment they approve the autopay, and ${amount} every month on the same day after that.`;
         // Razorpay texts an approval link only once.
         const textedBefore = action.approvalOut ?? action.resend;
         if (!textedBefore) {
@@ -204,10 +222,16 @@ export function dealerReceives(action: MoneyAction): DealerReceivesPreview {
         }
         lines.push({
           channel: 'whatsapp_by_hand',
-          words: `WhatsApp words for you to send by hand. They say approving takes ${amount} now and every month. The usual bill template is not used, because it says "Pay here".`,
+          words: up
+            ? `WhatsApp words for you to send by hand. They say approving takes ${amount} now for the first month, then ${formatPaise(up.monthlyPaise)} on ${dayWords(up.firstDebitOn)} and every month on that date. The usual bill template is not used, because it says "Pay here".`
+            : `WhatsApp words for you to send by hand. They say approving takes ${amount} now and every month. The usual bill template is not used, because it says "Pay here".`,
         });
         notes.push(UPI_NOTICE);
-        notes.push('When they approve, the app sends "Autopay is on" and "Payment received".');
+        notes.push(
+          up
+            ? `When they approve, the app sends "Autopay is on": "${formatPaise(action.amountPaise)} taken for the first month. ${formatPaise(up.monthlyPaise)} from ${dayShort(up.firstDebitOn)}, then every month. Nothing to do." It also sends "Payment received".`
+            : 'When they approve, the app sends "Autopay is on" and "Payment received".',
+        );
         if (textedBefore) {
           notes.push('Razorpay texts an approval only once, so it sends nothing again.');
         }
@@ -446,6 +470,21 @@ export function dealerReceives(action: MoneyAction): DealerReceivesPreview {
     case 'resume_services':
       notes.push('Exactly the services the pause stopped start again.');
       break;
+
+    case 'restart_billing': {
+      const amount = formatPaise(action.amountPaise);
+      // Nothing goes now: the daily run raises the bill, so the owner hears nothing yet.
+      notes.push(
+        `The next daily run raises a ${amount} bill for the month that starts today and sends it as a payment link: Razorpay SMS and email, and the bill on WhatsApp.`,
+      );
+      notes.push('The owner is not told anything now.');
+      // Once the bill is raised it is a row in the app's list, as any other bill is.
+      lines.push({
+        channel: 'app_screen',
+        words: "The new bill shows in the app's payments list, read-only, with the amount and the due day.",
+      });
+      break;
+    }
 
     case 'start_services':
       lines.push({

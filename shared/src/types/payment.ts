@@ -377,3 +377,32 @@ export const PAYMENT_PURPOSE_LABELS: Record<PaymentPurpose, string> = {
   service: 'A service',
   other: 'Other',
 };
+
+/**
+ * One line of an outlet's billing history, in plain words (`GET
+ * /admin/payments/dealers/:dealerId/activity`, newest first): a bill raised, a link
+ * or message sent, money in, a due day moved, a hold, autopay set up, approved,
+ * debited, failing or stopped, a refund, billing ended or restarted.
+ */
+export const BILLING_ACTIVITY_KINDS = [
+  'bill',
+  'sent',
+  'paid',
+  'more_time',
+  'hold',
+  'autopay',
+  'refund',
+  'billing',
+] as const;
+export type BillingActivityKind = (typeof BILLING_ACTIVITY_KINDS)[number];
+
+export interface BillingActivityItem {
+  at: string;
+  kind: BillingActivityKind;
+  /** One plain sentence, e.g. "Razorpay texted the payment link for MDG-2026-00012." */
+  words: string;
+  /** The admin who did it; null for the owner or the system. */
+  byName: string | null;
+  /** The bill it is about, when there is one. */
+  paymentId: string | null;
+}

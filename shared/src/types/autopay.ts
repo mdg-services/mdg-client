@@ -136,6 +136,11 @@ export interface AdminAutopay {
   sentTo: { phone: string | null; email: string | null } | null;
   /** `YYYY-MM-DD`: the first planned debit; null when the first debit is taken at approval. */
   firstDebitOn: string | null;
+  /**
+   * A special first month taken at approval (Razorpay's upfront amount), GST
+   * included; the monthly amount follows from `firstDebitOn`. Null otherwise.
+   */
+  upfrontPaise: number | null;
   nextDebitOn: string | null;
   /** Months taken so far. */
   chargedCount: number;
@@ -224,4 +229,32 @@ export interface StartAutopayResult {
   whatsappText: string;
   /** A wa.me link that opens WhatsApp with `whatsappText` ready, or null with no number. */
   waLink: string | null;
+}
+
+/** One outlet's autopay on the admin's list of every outlet (`GET /admin/autopay`). */
+export interface AdminAutopayListRow {
+  dealerId: string;
+  dealerCode: string;
+  /** `off` when the outlet's last autopay ended, or it never had one but bills monthly. */
+  state: AutopayViewState;
+  amountPaise: number | null;
+  /** `YYYY-MM-DD`; null when nothing is planned. */
+  nextDebitOn: string | null;
+  /** `YYYY-MM-DD`: the last day the outlet is paid for. */
+  paidThrough: string | null;
+  /** While an approval waits: when it was sent and when it runs out (ISO). */
+  approvalSentAt: string | null;
+  approvalExpiresAt: string | null;
+  /** The owner stopped it and asked for the first month back (ISO). */
+  refundAskedAt: string | null;
+  /**
+   * That refund ask still waits for a call: no follow-up note logged, the first
+   * month not refunded and billing not ended. The list puts these near the top.
+   */
+  needsCall: boolean;
+  /** A special first month taken at approval (Razorpay's upfront amount), GST included; null otherwise. */
+  upfrontPaise: number | null;
+  /** When the last one ended, and how. */
+  endedAt: string | null;
+  endedBy: AutopayEndedBy | null;
 }

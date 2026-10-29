@@ -157,9 +157,25 @@ export const sendSetupBillRequestSchema = z
      * English (`en`). Unset: the outlet's default (`services/outletSetup/messageLang.ts`).
      */
     messageLang: z.enum(SETUP_MESSAGE_LANGS).optional(),
+    /**
+     * Why the first month is below the monthly price (ADR 0022 §13.3). Required, and
+     * only a super-admin may send such a bill; ignored at or above the price.
+     */
+    reason: z.string().trim().min(3).max(300).optional(),
   })
   .strict();
 export type SendSetupBillRequest = z.infer<typeof sendSetupBillRequestSchema>;
+
+/**
+ * "Bill this outlet again" (`POST /admin/payments/dealers/:dealerId/billing/restart`,
+ * super-admin): an outlet whose billing ended after a first-month refund is billed
+ * again. Its paid-through day moves up to yesterday, so the next daily run raises a
+ * bill for the month starting today and sends it as a payment link. Logged.
+ */
+export const restartBillingSchema = z
+  .object({ reason: z.string().trim().min(3).max(300) })
+  .strict();
+export type RestartBillingInput = z.infer<typeof restartBillingSchema>;
 
 /**
  * A refund made by hand (`POST /admin/payments/:id/manual-refund`, super-admin):
