@@ -217,6 +217,37 @@ describe('AutopayPage — what it shows', () => {
   });
 });
 
+describe('AutopayPage — services paid till', () => {
+  it('shows the last paid day while autopay is on', async () => {
+    serve(makeAutopayStatus({ paidThrough: '2026-11-24' }));
+    renderPage();
+
+    expect(await screen.findByText('Services paid till 24 Nov')).toBeInTheDocument();
+  });
+
+  it('shows it while autopay is waiting for approval or failing too', async () => {
+    serve(makeAutopayStatus({ state: 'failing', paidThrough: '2026-11-24' }));
+    renderPage();
+
+    expect(await screen.findByText('Services paid till 24 Nov')).toBeInTheDocument();
+  });
+
+  it('is left out when the paid day is not known yet', async () => {
+    serve(makeAutopayStatus({ state: 'setting_up', paidThrough: null, nextDebitOn: null }));
+    renderPage();
+
+    await screen.findByText('Waiting');
+    expect(screen.queryByText(/Services paid till/)).not.toBeInTheDocument();
+  });
+
+  it('says it in Hindi', async () => {
+    serve(makeAutopayStatus({ paidThrough: '2026-11-24' }));
+    renderPage({ lang: 'hi' });
+
+    expect(await screen.findByText(/^डीलर कवच 24 नव.* तक चलेगा$/)).toBeInTheDocument();
+  });
+});
+
 describe('AutopayPage — a manager', () => {
   it('sees only that the owner changes it: no request, no amount, no button', async () => {
     serve(makeAutopayStatus());
@@ -295,6 +326,204 @@ describe('AutopayPage — the stop dialog', () => {
     expect(
       within(dialog).getByText('₹3,540 is being taken right now. Stopping will not undo it.'),
     ).toBeInTheDocument();
+  });
+
+  describe('the first-month refund tick', () => {
+    const TICK = 'Also give me my first month back';
+
+    it('is shown, and off, inside the first month', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      expect(within(dialog).getByRole('checkbox', { name: TICK })).not.toBeChecked();
+    });
+
+    it('is not shown outside the first month', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: false }));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(within(dialog).queryByText(TICK)).not.toBeInTheDocument();
+    });
+
+    it('sends nothing about a refund when it is left alone', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      vi.mocked(api.post).mockResolvedValue(stoppedOff({ firstMonthRefundable: true }));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      await screen.findByText('Autopay is off');
+      expect(api.post).toHaveBeenCalledWith(STOP_PATH, {});
+    });
+
+    it('sends refundFirstMonth, with the reason, when ticked', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      vi.mocked(api.post).mockResolvedValue(
+        stoppedOff({ firstMonthRefundable: true, refundAskedAt: new Date().toISOString() }),
+      );
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Price is too much' }));
+      await user.click(within(dialog).getByRole('checkbox', { name: TICK }));
+      expect(within(dialog).getByRole('checkbox', { name: TICK })).toBeChecked();
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      await screen.findByText('Autopay is off');
+      expect(api.post).toHaveBeenCalledTimes(1);
+      expect(api.post).toHaveBeenCalledWith(STOP_PATH, {
+        reason: 'too_expensive',
+        refundFirstMonth: true,
+      });
+    });
+
+    it('can be ticked and then un-ticked, and then nothing is sent', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      vi.mocked(api.post).mockResolvedValue(stoppedOff());
+      renderPage();
+
+      const dialog = await openDialog(user);
+      const tick = within(dialog).getByRole('checkbox', { name: TICK });
+      await user.click(tick);
+      await user.click(tick);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      await screen.findByText('Autopay is off');
+      expect(api.post).toHaveBeenCalledWith(STOP_PATH, {});
+    });
+
+    it('says it in Hindi', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      renderPage({ lang: 'hi' });
+
+      await user.click(await screen.findByRole('button', { name: 'ऑटोपे बंद करें' }));
+      const dialog = await screen.findByRole('alertdialog');
+      expect(
+        within(dialog).getByRole('checkbox', { name: 'मेरा पहला महीना भी वापस कर दें' }),
+      ).toBeInTheDocument();
+    });
+
+    // One screen, one confirm: ticking swaps the older lines for the one promise.
+    it('swaps the older refund line and the "bill each month" sentence for one promise while ticked', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      const OLD_HELP = 'Not happy with the first month? We refund it in full. Ask in chat.';
+      expect(within(dialog).getByRole('button', { name: OLD_HELP })).toBeInTheDocument();
+      expect(within(dialog).getByText(/After that you get a bill each month/)).toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('checkbox', { name: TICK }));
+
+      expect(within(dialog).queryByRole('button', { name: OLD_HELP })).not.toBeInTheDocument();
+      expect(within(dialog).queryByText(/bill each month/)).not.toBeInTheDocument();
+      expect(
+        within(dialog).getByText('We will refund your first month. Our team will call you about it.'),
+      ).toBeInTheDocument();
+      // The way to chat stays, in plain words.
+      expect(
+        within(dialog).getByRole('button', { name: 'Something not right? Ask in chat.' }),
+      ).toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('checkbox', { name: TICK }));
+      expect(within(dialog).getByRole('button', { name: OLD_HELP })).toBeInTheDocument();
+      expect(within(dialog).getByText(/After that you get a bill each month/)).toBeInTheDocument();
+    });
+
+    it('when ticked and there is no autopay left (409), says how to get the first month back in chat', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }), makeAutopayStatus(null));
+      vi.mocked(api.post).mockRejectedValue(new ApiError(409, 'NO_AUTOPAY', 'already off'));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('checkbox', { name: TICK }));
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      expect(
+        await screen.findByText(
+          'Autopay was already off. To get your first month back, ask us in chat.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('Autopay is already off.')).not.toBeInTheDocument();
+      expect(api.post).toHaveBeenCalledWith(STOP_PATH, { refundFirstMonth: true });
+    });
+
+    it('says that in Hindi too', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }), makeAutopayStatus(null));
+      vi.mocked(api.post).mockRejectedValue(new ApiError(409, 'NO_AUTOPAY', 'already off'));
+      renderPage({ lang: 'hi' });
+
+      await user.click(await screen.findByRole('button', { name: 'ऑटोपे बंद करें' }));
+      const dialog = await screen.findByRole('alertdialog');
+      await user.click(
+        within(dialog).getByRole('checkbox', { name: 'मेरा पहला महीना भी वापस कर दें' }),
+      );
+      await user.click(within(dialog).getByRole('button', { name: 'ऑटोपे बंद करें' }));
+
+      expect(
+        await screen.findByText(
+          'ऑटोपे पहले से बंद था। पहला महीना वापस पाने के लिए चैट में हमसे कहिए।',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('keeps the bare "already off" toast when the tick was not ticked', async () => {
+      const user = userEvent.setup();
+      serve(makeAutopayStatus({ firstMonthRefundable: true }), makeAutopayStatus(null));
+      vi.mocked(api.post).mockRejectedValue(new ApiError(409, 'NO_AUTOPAY', 'already off'));
+      renderPage();
+
+      const dialog = await openDialog(user);
+      await user.click(within(dialog).getByRole('button', { name: 'Stop autopay' }));
+
+      expect(await screen.findByText('Autopay is already off.')).toBeInTheDocument();
+    });
+  });
+
+  describe('after a stop that asked for the first month back', () => {
+    it('says the first month comes back after a short call', async () => {
+      serve(stoppedOff({ refundAskedAt: '2026-10-29T06:00:00.000Z' }));
+      renderPage();
+
+      expect(
+        await screen.findByText('We will refund your first month. Our team will call you about it.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Dealer Kavach works till 24 Nov. Nothing will be taken automatically.'),
+      ).toBeInTheDocument();
+    });
+
+    it('says it in Hindi', async () => {
+      serve(stoppedOff({ refundAskedAt: '2026-10-29T06:00:00.000Z' }));
+      renderPage({ lang: 'hi' });
+
+      expect(
+        await screen.findByText(
+          'हम आपके पहले महीने का पैसा लौटा देंगे। हमारी टीम इस बारे में आपको कॉल करेगी।',
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('says nothing about a refund when none was asked for', async () => {
+      serve(stoppedOff());
+      renderPage();
+
+      await screen.findByText('Autopay is off');
+      expect(screen.queryByText(/first month back/)).not.toBeInTheDocument();
+    });
   });
 
   it('offers the first-month refund in the help line only inside the first month', async () => {

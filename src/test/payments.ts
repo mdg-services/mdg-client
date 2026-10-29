@@ -27,6 +27,7 @@ export function makePayment(overrides: Partial<DealerPayment> = {}): DealerPayme
     invoice: null,
     creditNotes: [],
     autopayOn: null,
+    waitingForAutopayApproval: false,
     ...overrides,
   };
 }
@@ -138,6 +139,7 @@ export function makeAutopay(overrides: Partial<DealerAutopay> = {}): DealerAutop
     debitInProgress: false,
     stoppedAt: null,
     firstMonthRefundable: false,
+    refundAskedAt: null,
     ...overrides,
   };
 }

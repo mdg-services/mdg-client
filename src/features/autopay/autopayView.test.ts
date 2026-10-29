@@ -12,13 +12,18 @@ import {
   STOP_REASON_KEY,
   autopayBody,
   autopaySubtitle,
+  canAskRefund,
   canStop,
   dialogBody,
   dialogTitleKey,
   helpLineKey,
   inProgressLine,
   keepLabelKey,
+  noAutopayToastKey,
   offBody,
+  paidTillLine,
+  refundAsked,
+  refundAskedLine,
   showAskInChat,
   stopBody,
   stopLabelKey,
@@ -206,6 +211,52 @@ describe('the dialog', () => {
     expect(dialogBody(en, 'en', a)).not.toMatch(/keeps working/);
   });
 
+  // While the refund tick is on, the owner is asking for the money back: no promise of
+  // "a bill each month" and no second "we refund it in full" under it.
+  it('drops the "bill each month" sentence while the refund tick is on', () => {
+    const a = makeAutopay({ paidThrough: '2026-11-24', firstMonthRefundable: true });
+    expect(dialogBody(en, 'en', a, true)).toBe(
+      'No money will be taken automatically after this. Dealer Kavach keeps working till 24 Nov.',
+    );
+    expect(dialogBody(en, 'en', a, true)).not.toMatch(/bill each month/);
+    expect(dialogBody(hi, 'hi', a, true)).toMatch(
+      /^इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच 24 नव.* तक चलता रहेगा।$/,
+    );
+    expect(dialogBody(hi, 'hi', a, true)).not.toMatch(/हर महीने का बिल/);
+    // Unticked it is the old sentence.
+    expect(dialogBody(en, 'en', a, false)).toMatch(/After that you get a bill each month/);
+    // No paid day: the first bill is not "still to be paid" to someone asking for it back.
+    const noDay = makeAutopay({ paidThrough: null, firstMonthRefundable: true });
+    expect(dialogBody(en, 'en', noDay, true)).toBe(
+      'No money will be taken automatically after this.',
+    );
+    // A tick left over once the first month is over counts for nothing.
+    const over = makeAutopay({ paidThrough: '2026-11-24', firstMonthRefundable: false });
+    expect(refundAsked(true, over)).toBe(false);
+    expect(dialogBody(en, 'en', over, true)).toMatch(/bill each month/);
+  });
+
+  it('swaps the refund help line for the plain one while the tick is on', () => {
+    expect(helpLineKey({ firstMonthRefundable: true }, true)).toBe('autopay.dialog.help');
+    expect(helpLineKey({ firstMonthRefundable: true }, false)).toBe('autopay.dialog.helpRefund');
+    expect(helpLineKey({ firstMonthRefundable: false }, true)).toBe('autopay.dialog.help');
+  });
+
+  it('tells a ticked refund when there was no autopay left to stop how to ask in chat', () => {
+    const inFirst = makeAutopay({ firstMonthRefundable: true });
+    expect(noAutopayToastKey(true, inFirst)).toBe('autopay.toast.alreadyOffRefund');
+    expect(en(noAutopayToastKey(true, inFirst))).toBe(
+      'Autopay was already off. To get your first month back, ask us in chat.',
+    );
+    expect(hi(noAutopayToastKey(true, inFirst))).toBe(
+      'ऑटोपे पहले से बंद था। पहला महीना वापस पाने के लिए चैट में हमसे कहिए।',
+    );
+    expect(noAutopayToastKey(false, inFirst)).toBe('autopay.toast.alreadyOff');
+    expect(noAutopayToastKey(true, makeAutopay({ firstMonthRefundable: false }))).toBe(
+      'autopay.toast.alreadyOff',
+    );
+  });
+
   it('opens with the in-flight warning only while a debit is being taken', () => {
     expect(inProgressLine(en, makeAutopay({ debitInProgress: false }))).toBeNull();
     const a = makeAutopay({ debitInProgress: true });
@@ -255,6 +306,56 @@ describe('the reasons', () => {
   it('go in the request when one is picked, and never block it when none is', () => {
     expect(stopBody('too_expensive')).toEqual({ reason: 'too_expensive' });
     expect(stopBody(null)).toEqual({});
+  });
+
+  it('send the refund request only when it was ticked', () => {
+    expect(stopBody(null, true)).toEqual({ refundFirstMonth: true });
+    expect(stopBody('closing', true)).toEqual({ reason: 'closing', refundFirstMonth: true });
+    expect(stopBody(null, false)).toEqual({});
+    expect(stopBody('closing', false)).toEqual({ reason: 'closing' });
+  });
+
+  it('never send the refund request outside the first month, even if it was ticked', () => {
+    const late = makeAutopay({ firstMonthRefundable: false });
+    expect(stopBody(null, true, late)).toEqual({});
+    expect(stopBody('other', true, late)).toEqual({ reason: 'other' });
+    expect(stopBody(null, true, makeAutopay({ firstMonthRefundable: true }))).toEqual({
+      refundFirstMonth: true,
+    });
+  });
+
+  it('offer the refund tick only inside the first month', () => {
+    expect(canAskRefund(makeAutopay({ firstMonthRefundable: true }))).toBe(true);
+    expect(canAskRefund(makeAutopay({ firstMonthRefundable: false }))).toBe(false);
+  });
+});
+
+describe('the paid-till line', () => {
+  it('names the last paid day, in English and in Hindi', () => {
+    const a = makeAutopay({ paidThrough: '2026-11-24' });
+    expect(paidTillLine(en, 'en', a)).toBe('Services paid till 24 Nov');
+    expect(paidTillLine(hi, 'hi', a)).toMatch(/^डीलर कवच 24 नव.* तक चलेगा$/);
+  });
+
+  it('is there while autopay is on, and gone when the day is not known', () => {
+    expect(paidTillLine(en, 'en', makeAutopay({ state: 'on' }))).not.toBeNull();
+    expect(paidTillLine(en, 'en', makeAutopay({ paidThrough: null }))).toBeNull();
+  });
+});
+
+describe('the refund-asked line', () => {
+  it('is said once the owner stopped and asked for the first month back', () => {
+    const asked = makeAutopay({ state: 'off', refundAskedAt: '2026-10-29T06:00:00.000Z' });
+    expect(refundAskedLine(en, asked)).toBe(
+      'We will refund your first month. Our team will call you about it.',
+    );
+    expect(refundAskedLine(hi, asked)).toBe(
+      'हम आपके पहले महीने का पैसा लौटा देंगे। हमारी टीम इस बारे में आपको कॉल करेगी।',
+    );
+  });
+
+  it('is left out when no refund was asked for', () => {
+    expect(refundAskedLine(en, makeAutopay({ state: 'off' }))).toBeNull();
   });
 });
 

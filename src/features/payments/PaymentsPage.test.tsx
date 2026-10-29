@@ -546,6 +546,41 @@ describe('PaymentsPage — the autopay card', () => {
   });
 });
 
+describe('PaymentsPage — a bill waiting for its autopay approval', () => {
+  const WAITING = 'Waiting for your autopay approval. Nothing has been taken yet.';
+
+  it('shows the line instead of a Pay button in a browser', async () => {
+    listReturns(makePayment({ waitingForAutopayApproval: true }));
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getByText(WAITING)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+
+  it('keeps the Pay button on a neighbouring bill that is not waiting', async () => {
+    listReturns(
+      makePayment({ id: 'a', title: 'Waiting one', waitingForAutopayApproval: true }),
+      makePayment({ id: 'b', title: 'Plain one', dueDate: '2026-12-01' }),
+    );
+    renderPayments();
+
+    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    expect(within(due).getAllByText(WAITING)).toHaveLength(1);
+    expect(screen.getAllByRole('button', { name: /Pay/ })).toHaveLength(1);
+  });
+
+  it('shows the line in the Android app too, with no link and no Pay button', async () => {
+    enterNativeShell();
+    listReturns(makePayment({ waitingForAutopayApproval: true }));
+    renderPayments();
+
+    const line = await screen.findByText(WAITING);
+    expect(line.textContent).not.toMatch(/link|pay now|pay here/i);
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+});
+
 describe('PaymentsPage — a due bill that autopay will take', () => {
   // The debit day has gone and the bill is still due: autopay is trying again.
   it('says autopay is trying again once its day has passed, with no Pay button', async () => {

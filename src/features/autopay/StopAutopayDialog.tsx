@@ -13,11 +13,14 @@ import { isNoAutopay, useStopAutopay } from './api';
 import {
   STOP_REASONS,
   STOP_REASON_KEY,
+  canAskRefund,
   dialogBody,
   dialogTitleKey,
   helpLineKey,
   inProgressLine,
   keepLabelKey,
+  noAutopayToastKey,
+  refundAsked,
   stopBody,
   stopFailureKey,
   stopLabelKey,
@@ -65,6 +68,7 @@ export function StopAutopayDialog({
   const openChat = useOpenMyChat();
   const stop = useStopAutopay();
   const [reason, setReason] = React.useState<AutopayStopReason | null>(null);
+  const [refund, setRefund] = React.useState(false);
   const [failed, setFailed] = React.useState<MessageKey | null>(null);
   const saving = stop.isPending;
 
@@ -79,15 +83,16 @@ export function StopAutopayDialog({
     setFailed(null);
     const sentAt = Date.now();
     try {
-      const result = await stop.mutateAsync(stopBody(reason));
+      const result = await stop.mutateAsync(stopBody(reason, refund, autopay));
       toast.success(
         t(wasAlreadyOff(result.autopay, sentAt) ? 'autopay.toast.alreadyOff' : 'autopay.toast.stopped'),
       );
       onDone();
     } catch (err) {
       if (isNoAutopay(err)) {
-        // Nothing left to stop. The status is read again (see `useStopAutopay`).
-        toast.success(t('autopay.toast.alreadyOff'));
+        // Nothing left to stop. The status is read again (see `useStopAutopay`). If the
+        // refund tick was on, the ask went nowhere, and the toast says how to make it.
+        toast.success(t(noAutopayToastKey(refund, autopay)));
         onDone();
         return;
       }
@@ -127,7 +132,7 @@ export function StopAutopayDialog({
         </p>
         <div id="autopay-stop-desc" className="mt-2 flex flex-col gap-2 text-[15px]">
           {inProgress ? <p className="font-medium text-wa-bar-text">{inProgress}</p> : null}
-          <p className="text-wa-meta">{dialogBody(t, lang, autopay)}</p>
+          <p className="text-wa-meta">{dialogBody(t, lang, autopay, refund)}</p>
         </div>
 
         <div role="group" aria-labelledby="autopay-stop-why" className="mt-4">
@@ -159,13 +164,31 @@ export function StopAutopayDialog({
           </div>
         </div>
 
+        {/* Off at first, and only inside the first month. Stopping works the same
+            ticked or not: it is a request for the money back, never a hurdle. */}
+        {canAskRefund(autopay) ? (
+          <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 text-[15px] text-wa-bar-text">
+            <input
+              type="checkbox"
+              checked={refund}
+              disabled={saving}
+              onChange={(e) => setRefund(e.target.checked)}
+              className="h-5 w-5 shrink-0 accent-wa-accent"
+            />
+            {t('autopay.dialog.refundTick')}
+          </label>
+        ) : null}
+        {refundAsked(refund, autopay) ? (
+          <p className="mt-1 text-[15px] text-wa-meta">{t('autopay.off.refundAsked')}</p>
+        ) : null}
+
         <button
           type="button"
           disabled={saving}
           onClick={askInChat}
           className="mt-3 min-h-[44px] w-full py-2 text-left text-[15px] font-medium text-wa-accent disabled:opacity-70"
         >
-          {t(helpLineKey(autopay))}
+          {t(helpLineKey(autopay, refund))}
         </button>
 
         {/* The buttons stay on screen however long the words are: at 320px in Hindi

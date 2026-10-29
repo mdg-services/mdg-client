@@ -118,16 +118,49 @@ export function inProgressLine(t: TFunction, autopay: DealerAutopay): string | n
     : null;
 }
 
-/** What stopping does and does not do: the service runs on to the paid day. */
-export function dialogBody(t: TFunction, lang: Lang, autopay: DealerAutopay): string {
-  return autopay.paidThrough
-    ? t('autopay.dialog.body', { date: formatDayMonth(lang, autopay.paidThrough) })
-    : t('autopay.dialog.bodyNoDate');
+/**
+ * Whether the refund tick is in force: ticked, and still allowed (inside the first
+ * month). The one test the screen's words and the request body both go by.
+ */
+export function refundAsked(
+  refundTicked: boolean,
+  autopay: Pick<DealerAutopay, 'firstMonthRefundable'>,
+): boolean {
+  return refundTicked && canAskRefund(autopay);
 }
 
-/** The dialog's one help line. Inside the first month it also says the money comes back. */
-export function helpLineKey(autopay: Pick<DealerAutopay, 'firstMonthRefundable'>): MessageKey {
-  return autopay.firstMonthRefundable ? 'autopay.dialog.helpRefund' : 'autopay.dialog.help';
+/**
+ * What stopping does and does not do: the service runs on to the paid day. With the
+ * refund tick on it does not promise a bill each month: the owner is asking for the
+ * money back, and says so right under the tick.
+ */
+export function dialogBody(
+  t: TFunction,
+  lang: Lang,
+  autopay: DealerAutopay,
+  refundTicked = false,
+): string {
+  const asking = refundAsked(refundTicked, autopay);
+  if (autopay.paidThrough) {
+    return t(asking ? 'autopay.dialog.bodyRefund' : 'autopay.dialog.body', {
+      date: formatDayMonth(lang, autopay.paidThrough),
+    });
+  }
+  return t(asking ? 'autopay.dialog.bodyRefundNoDate' : 'autopay.dialog.bodyNoDate');
+}
+
+/**
+ * The dialog's one help line. Inside the first month it also says the money comes
+ * back, until the tick is on: then the tick's own line says it, and this one is the
+ * plain one, so the same promise is not made twice.
+ */
+export function helpLineKey(
+  autopay: Pick<DealerAutopay, 'firstMonthRefundable'>,
+  refundTicked = false,
+): MessageKey {
+  return autopay.firstMonthRefundable && !refundTicked
+    ? 'autopay.dialog.helpRefund'
+    : 'autopay.dialog.help';
 }
 
 /** The off screen's words: the service runs on to the paid day, nothing is taken. */
@@ -156,9 +189,51 @@ export function toggleReason(
   return current === tapped ? null : tapped;
 }
 
-/** The request body: the reason if one was picked, an empty body if not. A reason never blocks the stop. */
-export function stopBody(reason: AutopayStopReason | null): StopAutopayDealerInput {
-  return reason ? { reason } : {};
+/** The tick "Also give me my first month back" is drawn only inside the first month. */
+export function canAskRefund(autopay: Pick<DealerAutopay, 'firstMonthRefundable'>): boolean {
+  return autopay.firstMonthRefundable;
+}
+
+/**
+ * The request body: the reason if one was picked, the refund request if it was
+ * ticked, an empty body if neither. A reason never blocks the stop. The refund
+ * is sent only while the first month is refundable — the server answers 400
+ * otherwise — so a tick left over from a stale screen never goes out.
+ */
+export function stopBody(
+  reason: AutopayStopReason | null,
+  refundFirstMonth = false,
+  autopay: Pick<DealerAutopay, 'firstMonthRefundable'> = { firstMonthRefundable: true },
+): StopAutopayDealerInput {
+  const body: StopAutopayDealerInput = reason ? { reason } : {};
+  if (refundAsked(refundFirstMonth, autopay)) body.refundFirstMonth = true;
+  return body;
+}
+
+/** "Services paid till 24 Nov", while autopay runs. Null when the last paid day is not known yet. */
+export function paidTillLine(t: TFunction, lang: Lang, autopay: DealerAutopay): string | null {
+  return autopay.paidThrough
+    ? t('autopay.paidTill', { date: formatDayMonth(lang, autopay.paidThrough) })
+    : null;
+}
+
+/**
+ * The toast when there was no autopay left to stop (the server answered 409
+ * `NO_AUTOPAY`). With the refund tick on, a bare "already off" would hide that the
+ * ask for the first month back went nowhere, so it says how to make it.
+ */
+export function noAutopayToastKey(
+  refundTicked: boolean,
+  autopay: Pick<DealerAutopay, 'firstMonthRefundable'>,
+): MessageKey {
+  return refundAsked(refundTicked, autopay)
+    ? 'autopay.toast.alreadyOffRefund'
+    : 'autopay.toast.alreadyOff';
+}
+
+/** After a stop that asked for the first month back: what happens next. */
+export function refundAskedLine(t: TFunction, autopay: DealerAutopay): string | null {
+  return autopay.refundAskedAt ? t('autopay.off.refundAsked') : null;
 }
 
 /**

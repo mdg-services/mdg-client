@@ -13,7 +13,8 @@ export function StateBlock({
 }: {
   icon: ReactNode;
   title: string;
-  description?: string;
+  /** Words, or several short paragraphs when one screen has more than one thing to say. */
+  description?: ReactNode;
   action?: ReactNode;
 }) {
   return (
@@ -25,7 +26,11 @@ export function StateBlock({
         {icon}
       </div>
       <p className="text-lg font-semibold text-text">{title}</p>
-      {description ? <p className="max-w-xs text-base text-text-muted">{description}</p> : null}
+      {description ? (
+        <div className="flex max-w-xs flex-col gap-2 text-base text-text-muted">
+          {typeof description === 'string' ? <p>{description}</p> : description}
+        </div>
+      ) : null}
       {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );

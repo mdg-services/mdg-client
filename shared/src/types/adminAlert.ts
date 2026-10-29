@@ -86,6 +86,15 @@ export const ADMIN_ALERT_KINDS = [
   'boot_step_failed',
   /** Apple or Google is refusing our notification key, so every phone of that kind gets nothing. */
   'push_failing',
+  // ── Billing, release 1 (ADR 0022 §13.2) ──
+  /** A first-month autopay approval was sent 2+ days ago and the owner has not approved it: call them. */
+  'autopay_approval_waiting',
+  /** A first-month autopay approval ran out unused and the first bill is still unpaid: send a new approval or a pay link. */
+  'autopay_approval_expired',
+  /** An autopay debit failed; Razorpay is retrying. Clears when a debit goes through or autopay ends. */
+  'autopay_debit_failed',
+  /** An owner stopped autopay in the first month and asked for the money back: call, then a super-admin refunds. */
+  'first_month_refund_asked',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -299,6 +308,27 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Notifications failing',
     clearsWhen: 'Clears after a day with no failed deliveries.',
     superAdminOnly: true,
+  },
+  autopay_approval_waiting: {
+    label: 'Autopay not approved yet',
+    clearsWhen: 'Clears when the owner approves, a pay link is sent instead, or the approval runs out.',
+    superAdminOnly: false,
+  },
+  autopay_approval_expired: {
+    label: 'Autopay approval ran out',
+    clearsWhen: 'Clears when the first bill is paid, a new approval or a pay link is sent, or the setup is closed.',
+    superAdminOnly: false,
+  },
+  autopay_debit_failed: {
+    label: 'Autopay debit failed',
+    clearsWhen: 'Clears when a debit goes through, or autopay ends.',
+    superAdminOnly: false,
+  },
+  // Every admin sees it, to make the call; the refund itself is a super-admin's press.
+  first_month_refund_asked: {
+    label: 'First month refund asked',
+    clearsWhen: 'Clears when the first month is refunded, or the call is marked done.',
+    superAdminOnly: false,
   },
 };
 

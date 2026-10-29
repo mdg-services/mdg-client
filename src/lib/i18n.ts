@@ -1537,6 +1537,13 @@ export const messages = {
     hi: 'ऑटोपे अभी इसे नहीं काट पाया। वह फिर कोशिश कर रहा है।',
   },
 
+  // A first bill whose autopay approval is out and not yet approved. Said in the
+  // app too: it names no link and no way to pay, only where the bill stands.
+  'payments.waitingForApproval': {
+    en: 'Waiting for your autopay approval. Nothing has been taken yet.',
+    hi: 'आपकी ऑटोपे मंज़ूरी का इंतज़ार है। अभी तक कुछ नहीं कटा है।',
+  },
+
   /* ── autopay (ADR 0022 §13) ──────────────────────────────────────────── */
   // The monthly bill taken by itself. Inside the app autopay is only SHOWN and
   // STOPPED: nothing here points at a way to turn it on (Google Play's Payments
@@ -1607,6 +1614,16 @@ export const messages = {
     en: 'No money will be taken automatically after this. Nothing has been taken so far. Your first bill is still to be paid.',
     hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। अभी तक कुछ नहीं कटा है। आपका पहला बिल अभी चुकाना बाकी है।',
   },
+  // The same, while "Also give me my first month back" is ticked: no promise of a
+  // bill each month to a dealer who is asking for the money back.
+  'autopay.dialog.bodyRefund': {
+    en: 'No money will be taken automatically after this. Dealer Kavach keeps working till {date}.',
+    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे। डीलर कवच {date} तक चलता रहेगा।',
+  },
+  'autopay.dialog.bodyRefundNoDate': {
+    en: 'No money will be taken automatically after this.',
+    hi: 'इसके बाद पैसे अपने-आप नहीं कटेंगे।',
+  },
   'autopay.dialog.reasonLabel': { en: 'Why? (optional)', hi: 'क्यों? (ज़रूरी नहीं)' },
   'autopay.reason.pay_myself': {
     en: "I'll pay myself each month",
@@ -1629,6 +1646,11 @@ export const messages = {
   'autopay.dialog.helpRefund': {
     en: 'Not happy with the first month? We refund it in full. Ask in chat.',
     hi: 'पहला महीना पसंद नहीं आया? पूरा पैसा वापस होगा। चैट में पूछिए।',
+  },
+  // Only inside the first month. Off at first; ticking it asks for the money back.
+  'autopay.dialog.refundTick': {
+    en: 'Also give me my first month back',
+    hi: 'मेरा पहला महीना भी वापस कर दें',
   },
   'autopay.dialog.keep': { en: 'Keep autopay', hi: 'ऑटोपे चालू रखें' },
   'autopay.dialog.keepSetup': { en: 'Keep setup', hi: 'सेटअप रखें' },
@@ -1665,6 +1687,12 @@ export const messages = {
     hi: 'ऑटोपे बंद हो गया। अब पैसे नहीं कटेंगे।',
   },
   'autopay.toast.alreadyOff': { en: 'Autopay is already off.', hi: 'ऑटोपे पहले से बंद है।' },
+  // The refund tick was ticked, and there was no autopay left to stop: the ask did not
+  // go anywhere, so say how to make it.
+  'autopay.toast.alreadyOffRefund': {
+    en: 'Autopay was already off. To get your first month back, ask us in chat.',
+    hi: 'ऑटोपे पहले से बंद था। पहला महीना वापस पाने के लिए चैट में हमसे कहिए।',
+  },
 
   // The screen once it is off.
   'autopay.off.title': { en: 'Autopay is off', hi: 'ऑटोपे बंद है' },
@@ -1675,6 +1703,17 @@ export const messages = {
   'autopay.off.bodyNoDate': {
     en: 'Nothing will be taken automatically.',
     hi: 'पैसे अपने-आप नहीं कटेंगे।',
+  },
+  // After a stop that also asked for the first month back, and under the tick while it is
+  // ticked. The refund never depends on the call.
+  'autopay.off.refundAsked': {
+    en: 'We will refund your first month. Our team will call you about it.',
+    hi: 'हम आपके पहले महीने का पैसा लौटा देंगे। हमारी टीम इस बारे में आपको कॉल करेगी।',
+  },
+  // On the card while autopay is running: the last day already paid for.
+  'autopay.paidTill': {
+    en: 'Services paid till {date}',
+    hi: 'डीलर कवच {date} तक चलेगा',
   },
   'autopay.off.stopService': {
     en: 'Want to stop Dealer Kavach itself? Tell us in chat.',

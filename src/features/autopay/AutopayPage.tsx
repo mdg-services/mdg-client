@@ -15,6 +15,8 @@ import {
   autopayBody,
   canStop,
   offBody,
+  paidTillLine,
+  refundAskedLine,
   showAskInChat,
   stopLabelKey,
 } from './autopayView';
@@ -81,7 +83,14 @@ function AutopayDetail({ autopay }: { autopay: DealerAutopay }) {
         <StateBlock
           icon={<CheckCircle2 width={28} strokeWidth={1.5} />}
           title={t('autopay.off.title')}
-          description={offBody(t, lang, autopay)}
+          description={
+            <>
+              <p>{offBody(t, lang, autopay)}</p>
+              {refundAskedLine(t, autopay) ? (
+                <p className="font-medium text-text">{refundAskedLine(t, autopay)}</p>
+              ) : null}
+            </>
+          }
         />
         <ChatRow title={t('autopay.off.stopService')} />
       </>
@@ -102,6 +111,9 @@ function AutopayDetail({ autopay }: { autopay: DealerAutopay }) {
             {t('autopay.pump', { code: dealerCodeLabel(autopay.outletCode) })}
           </p>
           <p className="text-base text-text">{autopayBody(t, lang, autopay)}</p>
+          {paidTillLine(t, lang, autopay) ? (
+            <p className="text-base font-medium text-text">{paidTillLine(t, lang, autopay)}</p>
+          ) : null}
         </CardContent>
       </Card>
 

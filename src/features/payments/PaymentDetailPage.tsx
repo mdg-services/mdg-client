@@ -12,7 +12,7 @@ import { failureReasonKey, isNotConfigured, isTryAgainSoon } from './errors';
 import { GstDocuments } from './GstDocuments';
 import { PayButton } from './PayButton';
 import { PaymentStatusChip } from './PaymentStatusChip';
-import { dueNote, hasReceipt } from './paymentView';
+import { dueNote, hasReceipt, isWaitingForApproval, showsPayButton } from './paymentView';
 import { canPayHere } from './policy';
 import { Receipt } from './Receipt';
 import { StateBlock } from './StateBlock';
@@ -78,7 +78,6 @@ export function PaymentDetailPage() {
       );
     }
   } else {
-    const isOpen = payment.status === 'due' || payment.status === 'processing';
     const due = dueNote(t, lang, payment);
     const reasonKey = failureReasonKey(payment.lastFailure?.reason);
     const lastFailureText = reasonKey
@@ -101,6 +100,12 @@ export function PaymentDetailPage() {
               </p>
             ) : null}
             {due ? <p className="text-base text-text-muted">{due}</p> : null}
+            {/* Read-only, so it is said in the app too: it names no link and no way to pay. */}
+            {isWaitingForApproval(payment) ? (
+              <p role="status" className="rounded-lg bg-surface-2 p-3 text-base text-text">
+                {t('payments.waitingForApproval')}
+              </p>
+            ) : null}
             {payment.status === 'processing' ? (
               <p
                 role="status"
@@ -117,8 +122,9 @@ export function PaymentDetailPage() {
                 {lastFailureText}
               </p>
             ) : null}
-            {/* No Pay on a bill autopay is about to take: paying it too would be paying twice. */}
-            {canPayHere() && isOpen && !payment.autopayOn ? <PayButton payment={payment} /> : null}
+            {/* No Pay on a bill autopay is about to take, or one waiting on its autopay
+                approval: paying it too would be paying twice. */}
+            {canPayHere() && showsPayButton(payment) ? <PayButton payment={payment} /> : null}
           </CardContent>
         </Card>
         {hasReceipt(payment.status) ? (

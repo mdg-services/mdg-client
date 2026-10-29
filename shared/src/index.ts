@@ -46,6 +46,7 @@ export * from './lib/isoDays';
 export * from './lib/expiry';
 export * from './lib/money';
 export * from './lib/gst';
+export * from './lib/dealerReceives';
 // The admin's view of the AI first line: the inbox chip, the turn log's
 // vocabulary, and the rule for whether a composed answer is still usable. Here
 // rather than in `mdg-admin` because that app has no test runner at all — see

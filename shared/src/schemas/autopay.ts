@@ -12,9 +12,29 @@ import { MANUAL_PAYMENT_MODES } from '../types/payment';
 export const stopAutopayDealerSchema = z
   .object({
     reason: z.enum(AUTOPAY_STOP_REASONS).optional(),
+    /**
+     * "Also give me my first month back", offered only while the first month is
+     * refundable. The stop then sends no payment link, and a super-admin gets a
+     * task to refund after a call. Refused (400) once the first month is over.
+     */
+    refundFirstMonth: z.boolean().optional(),
   })
   .strict();
 export type StopAutopayDealerInput = z.infer<typeof stopAutopayDealerSchema>;
+
+/**
+ * "Send a pay link instead" (`POST /admin/autopay/dealers/:dealerId/pay-link-instead`):
+ * a first-month autopay approval nobody has approved is stopped, and the first
+ * bill goes out as a one-time payment link (Razorpay's SMS and email, plus the
+ * bill WhatsApp). For an owner whose bank does not do UPI autopay, or who would
+ * rather pay once.
+ */
+export const payLinkInsteadSchema = z
+  .object({
+    note: z.string().trim().min(3).max(300).optional(),
+  })
+  .strict();
+export type PayLinkInsteadInput = z.infer<typeof payLinkInsteadSchema>;
 
 /** An admin stopping it, on the owner's word: who asked and how goes in the note. */
 export const stopAutopayAdminSchema = z

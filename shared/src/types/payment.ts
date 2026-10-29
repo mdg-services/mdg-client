@@ -205,6 +205,42 @@ export interface DealerPayment {
    * autopay is on for it. Null for anything else (the bill then comes as a link).
    */
   autopayOn: string | null;
+  /**
+   * An autopay approval was sent for this bill (the first month by autopay, ADR
+   * 0022 §13.1) and the owner has not approved it yet: approving pays it, and no
+   * other way of paying it is open meanwhile. The browser shows no Pay button.
+   */
+  waitingForAutopayApproval: boolean;
+}
+
+/** One move of a bill's pay-by day ("Give more time"). */
+export interface PaymentDueDateChange {
+  /** `YYYY-MM-DD` before and after. */
+  from: string;
+  to: string;
+  reason: string;
+  byName: string;
+  at: string;
+  /** The owner was sent an app notification with the new day. */
+  toldDealer: boolean;
+}
+
+/**
+ * What the system itself sent the dealer about a bill, logged as it goes:
+ * `link` Razorpay's SMS (and email) with the payment link, made or re-sent ·
+ * `whatsapp` the bill or reminder WhatsApp sent by template · `approval` the
+ * autopay approval link, texted by Razorpay · `push` an app notification about
+ * this bill (a moved pay-by day). Words a person sends by hand are not logged:
+ * nothing here knows whether they went.
+ */
+export const PAYMENT_SEND_KINDS = ['link', 'whatsapp', 'approval', 'push'] as const;
+export type PaymentSendKind = (typeof PAYMENT_SEND_KINDS)[number];
+
+export interface PaymentSend {
+  kind: PaymentSendKind;
+  at: string;
+  /** The admin whose press sent it; null for the system's own sends (renewals, reminders). */
+  byName: string | null;
 }
 
 /** What an admin sees of a payment. */
@@ -262,6 +298,23 @@ export interface AdminPayment extends DealerPayment {
     checkedAt: string | null;
     checkedByName: string | null;
   } | null;
+  /** Every "Give more time" on this bill, oldest first. */
+  dueDateChanges: PaymentDueDateChange[];
+  /**
+   * `YYYY-MM-DD`, for a bill autopay is meant to take ("Hold chasing until…"):
+   * until the end of this day nothing chases it — no overdue alert, no reminder,
+   * and no payment link if the debit fails or autopay ends. Razorpay's own
+   * retries of the debit go on regardless. Null when not held.
+   */
+  chaseHeldUntil: string | null;
+  /**
+   * Autopay is meant to take this bill: its subscription has not let go of it, or
+   * it is a first bill whose approval is still out. Such a bill's day cannot move
+   * ("Hold chasing" instead of "Give more time"). The server's own rule.
+   */
+  autopayTakes: boolean;
+  /** What the system sent the dealer about this bill, oldest first. */
+  sends: PaymentSend[];
   updatedAt: string;
 }
 

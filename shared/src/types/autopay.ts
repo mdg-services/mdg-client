@@ -111,6 +111,8 @@ export interface DealerAutopay {
   stoppedAt: string | null;
   /** The outlet is still inside its first paid month, which is refunded in full on request. */
   firstMonthRefundable: boolean;
+  /** When the owner stopped it and asked for the first month back; the refund follows a call. Null otherwise. */
+  refundAskedAt: string | null;
 }
 
 export interface DealerAutopayStatus {
@@ -154,6 +156,10 @@ export interface AdminAutopay {
   stopNote: string | null;
   /** The call after a stop: who made it and what they heard. */
   followUp: { doneAt: string; byName: string; note: string } | null;
+  /** When the approval link stops working (ISO); null once approved or when not known. */
+  approvalExpiresAt: string | null;
+  /** The owner stopped it and asked for the first month back (ISO); null otherwise. */
+  refundAskedAt: string | null;
 }
 
 /** An outlet's autopay on the admin's outlet page (`GET /admin/autopay/dealers/:dealerId`). */
@@ -170,6 +176,17 @@ export interface AdminAutopayOverview {
   paidThrough: string | null;
   /** The outlet's first bill and whether its first-month money-back can be given now. Null before it is sent. */
   firstMonth: AutopayFirstMonth | null;
+  /**
+   * "Send a pay link instead" can be pressed: a first-month approval is out and
+   * nobody has approved it. False otherwise.
+   */
+  canPayLinkInstead: boolean;
+  /**
+   * While an approval waits: the WhatsApp words with its link, in the outlet's
+   * language, and a wa.me link that opens WhatsApp with them — for a person to
+   * send or send again at any time. Null when no approval is waiting.
+   */
+  approvalWords: { text: string; waLink: string | null } | null;
 }
 
 /**

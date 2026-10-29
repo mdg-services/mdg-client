@@ -48,6 +48,30 @@ export function canStartPayment(payment: Pick<DealerPayment, 'status'>): boolean
   return payment.status === 'due';
 }
 
+/**
+ * A first bill whose autopay approval was sent and has not been approved yet.
+ * Approving pays it, and the server refuses every other way of paying it
+ * meanwhile (409 WAITING_FOR_AUTOPAY), so no screen offers one. Only a `due`
+ * bill can be waiting: once it is paid or cancelled the flag no longer matters.
+ */
+export function isWaitingForApproval(
+  payment: Pick<DealerPayment, 'status' | 'waitingForAutopayApproval'>,
+): boolean {
+  return payment.status === 'due' && payment.waitingForAutopayApproval;
+}
+
+/**
+ * Whether a bill gets a Pay button (in a browser; the app never draws one).
+ * Open bills do, except one autopay is about to take and one waiting on its
+ * autopay approval: paying either by hand would be paying twice.
+ */
+export function showsPayButton(
+  payment: Pick<DealerPayment, 'status' | 'autopayOn' | 'waitingForAutopayApproval'>,
+): boolean {
+  const isOpen = payment.status === 'due' || payment.status === 'processing';
+  return isOpen && !payment.autopayOn && !isWaitingForApproval(payment);
+}
+
 /** The sooner a due date, the higher it sits; payments with no date go last. */
 function byDueDate(a: DealerPayment, b: DealerPayment): number {
   if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);

@@ -177,3 +177,36 @@ export const recordManualRefundSchema = z
   })
   .strict();
 export type RecordManualRefundInput = z.infer<typeof recordManualRefundSchema>;
+
+/**
+ * "Give more time" (`POST /admin/payments/:id/more-time`): move an open bill's
+ * pay-by day. Its reminders and the overdue alert move with it. Nothing is sent
+ * unless `tellDealer`, which sends one app notification with the new day and no
+ * link. Any admin may go up to 7 days past the bill's first due day; a
+ * super-admin further.
+ */
+export const giveMoreTimeSchema = z
+  .object({
+    dueOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    reason: z.string().trim().min(3).max(300),
+    tellDealer: z.boolean().default(false),
+  })
+  .strict();
+export type GiveMoreTimeInput = z.infer<typeof giveMoreTimeSchema>;
+
+/**
+ * "Hold chasing until…" (`POST /admin/payments/:id/hold-chasing`), for a bill
+ * autopay is meant to take: no overdue alert, no reminder and no payment link
+ * until the end of `until`. `until: null` lifts the hold. Same 7-day rule as
+ * `giveMoreTimeSchema`, counted from the bill's due day.
+ */
+export const holdChasingSchema = z
+  .object({
+    until: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable(),
+    reason: z.string().trim().min(3).max(300).optional(),
+  })
+  .strict();
+export type HoldChasingInput = z.infer<typeof holdChasingSchema>;

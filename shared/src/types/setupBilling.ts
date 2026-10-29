@@ -70,6 +70,11 @@ export interface OnboardingConfig {
   /** An approved WhatsApp bill template is set: the server then sends the bill message itself. */
   whatsappBillTemplate: boolean;
   /**
+   * Send bill sends a first bill at the monthly price as the autopay approval
+   * (`FIRST_BILL_AUTOPAY`, on unless switched off on the server).
+   */
+  firstBillAutopay: boolean;
+  /**
    * Every change to the monthly price, newest first. A bill keeps the price it
    * was raised at; a change applies to bills raised after it.
    */

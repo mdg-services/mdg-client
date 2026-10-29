@@ -211,6 +211,50 @@ describe('PaymentDetailPage — a payment that is due', () => {
   });
 });
 
+describe('PaymentDetailPage — a bill waiting for its autopay approval', () => {
+  const WAITING = 'Waiting for your autopay approval. Nothing has been taken yet.';
+
+  it('shows the line and no Pay button in a browser', async () => {
+    renderDetail(makePayment({ waitingForAutopayApproval: true }));
+
+    expect(await screen.findByText(WAITING)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+  });
+
+  it('says it in Hindi', async () => {
+    renderDetail(makePayment({ waitingForAutopayApproval: true }), 'hi');
+
+    expect(
+      await screen.findByText('आपकी ऑटोपे मंज़ूरी का इंतज़ार है। अभी तक कुछ नहीं कटा है।'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /भुगतान/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the line in the Android app too, with no Pay button and no word of links or paying', async () => {
+    enterNativeShell();
+    renderDetail(makePayment({ waitingForAutopayApproval: true }));
+
+    const line = await screen.findByText(WAITING);
+    expect(line.textContent).not.toMatch(/link|pay now|pay here/i);
+    expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('shows a Pay button again for an ordinary due bill', async () => {
+    renderDetail(makePayment({ waitingForAutopayApproval: false }));
+
+    expect(await screen.findByRole('button', { name: /Pay/ })).toBeInTheDocument();
+    expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
+  });
+
+  it('does not say it of a bill that is already paid', async () => {
+    renderDetail(makePaidPayment({ waitingForAutopayApproval: true }));
+
+    await screen.findByRole('region', { name: 'Receipt' });
+    expect(screen.queryByText(WAITING)).not.toBeInTheDocument();
+  });
+});
+
 describe('PaymentDetailPage — a due payment that autopay will take', () => {
   it('reads "Autopay will take this on …" in place of the due date', async () => {
     renderDetail(makePayment({ autopayOn: '2036-10-28' }));

@@ -14,7 +14,9 @@ import {
   formatDayMonth,
   formatDueDate,
   hasReceipt,
+  isWaitingForApproval,
   methodLabel,
+  showsPayButton,
   splitPayments,
   todayIst,
 } from './paymentView';
@@ -259,5 +261,29 @@ describe('todayIst', () => {
   it('is the calendar day in India, whatever the phone clock says', () => {
     expect(todayIst(Date.parse('2026-10-28T18:29:00.000Z'))).toBe('2026-10-28');
     expect(todayIst(Date.parse('2026-10-28T18:31:00.000Z'))).toBe('2026-10-29');
+  });
+});
+
+describe('a bill waiting for its autopay approval', () => {
+  it('is waiting only while it is due', () => {
+    expect(isWaitingForApproval(makePayment({ waitingForAutopayApproval: true }))).toBe(true);
+    expect(isWaitingForApproval(makePayment({ waitingForAutopayApproval: false }))).toBe(false);
+    for (const status of ['processing', 'paid', 'cancelled', 'refunded'] as const) {
+      expect(isWaitingForApproval(makePayment({ status, waitingForAutopayApproval: true }))).toBe(
+        false,
+      );
+    }
+  });
+
+  it('gets no Pay button, and an ordinary open bill does', () => {
+    expect(showsPayButton(makePayment({ waitingForAutopayApproval: true }))).toBe(false);
+    expect(showsPayButton(makePayment())).toBe(true);
+    // Kept for the follow-up of a tap already made.
+    expect(showsPayButton(makePayment({ status: 'processing' }))).toBe(true);
+  });
+
+  it('still gets none when autopay will take it, or when it is not open', () => {
+    expect(showsPayButton(makePayment({ autopayOn: '2036-10-28' }))).toBe(false);
+    expect(showsPayButton(makePaidPayment())).toBe(false);
   });
 });
