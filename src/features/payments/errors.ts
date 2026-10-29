@@ -90,6 +90,8 @@ export function paymentErrorKey(err: unknown): MessageKey {
   }
   if (isNotConfigured(err)) return 'payments.err.notConfigured';
   if (err instanceof ApiError) {
+    // A first bill an autopay approval is out for: the approval pays it, not this.
+    if (err.code === 'WAITING_FOR_AUTOPAY') return 'payments.err.waitingForAutopay';
     if (err.status === 409 || err.code === 'PAYMENT_NOT_PAYABLE') return 'payments.err.notPayable';
     if (err.code === 'BAD_SIGNATURE') return 'payments.err.badSignature';
     if (err.status === 429) return 'payments.err.rateLimited';

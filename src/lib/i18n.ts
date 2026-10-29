@@ -1489,6 +1489,10 @@ export const messages = {
     en: 'This payment cannot be paid any more. It may already be paid or cancelled.',
     hi: 'यह भुगतान अब नहीं हो सकता। हो सकता है यह पहले ही चुका दिया गया हो या रद्द हो गया हो।',
   },
+  'payments.err.waitingForAutopay': {
+    en: 'This bill is paid by the autopay approval we sent you by SMS. Approve it once with your UPI PIN.',
+    hi: 'यह बिल उस ऑटोपे मंज़ूरी से चुकेगा जो हमने आपको SMS से भेजी है। उसे एक बार अपने UPI PIN से मंज़ूर करें।',
+  },
   'payments.err.badSignature': {
     en: "We couldn't confirm this payment just now. If money was cut from your account, please don't pay again. We will check it.",
     hi: 'अभी यह भुगतान पक्का नहीं हो पाया। अगर आपके खाते से पैसे कट गए हों, तो दोबारा न चुकाएँ। हम जाँच लेंगे।',

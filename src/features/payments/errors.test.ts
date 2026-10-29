@@ -15,6 +15,7 @@ describe('paymentErrorKey', () => {
     [new ApiError(503, 'INVOICE_PDF_BUSY', 'x'), 'payments.err.provider'],
     [new ApiError(503, 'HTTP_503', 'x'), 'payments.err.provider'],
     [new ApiError(409, 'PAYMENT_NOT_PAYABLE', 'x'), 'payments.err.notPayable'],
+    [new ApiError(409, 'WAITING_FOR_AUTOPAY', 'x'), 'payments.err.waitingForAutopay'],
     [new ApiError(400, 'BAD_SIGNATURE', 'x'), 'payments.err.badSignature'],
     [new ApiError(429, 'RATE_LIMITED', 'x'), 'payments.err.rateLimited'],
     [new ApiError(502, 'PAYMENT_PROVIDER_ERROR', 'x'), 'payments.err.provider'],

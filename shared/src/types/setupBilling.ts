@@ -29,10 +29,16 @@ export type SetupBillWhatsApp =
       waLink: string;
     };
 
-/** The Razorpay payment link made for the bill, and where Razorpay sent it by SMS or email. */
+/** The Razorpay link made for the bill, and where Razorpay sent it by SMS or email. */
 export interface SetupBillLink {
   url: string;
   sentTo: { phone: string | null; email: string | null };
+  /**
+   * True when the link is an autopay approval (ADR 0022 §13.1): approving it pays
+   * this bill and takes the monthly price every month after. Absent or false: a
+   * one-time payment link.
+   */
+  autopay?: boolean;
 }
 
 /** What `POST /dealers/:id/setup/bill` answers: the outlet's fresh setup, and how the bill went out. */
