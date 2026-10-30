@@ -1,9 +1,10 @@
 import { act, screen } from '@testing-library/react';
 import * as React from 'react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { markSignedInHere } from '@/features/auth/firstScreen';
 import { requirePasswordChange, useAuthStore } from '@/store/auth';
-import { renderWithProviders, resetStores, signIn } from '@/test/utils';
+import { makeUser, renderWithProviders, resetStores, signIn } from '@/test/utils';
 
 import { App } from './App';
 
@@ -67,7 +68,23 @@ vi.mock('@/pages/LoginPage', async () => {
 });
 
 describe('App routing', () => {
+  // A phone someone has signed in on before: a signed-out visit goes to Sign in.
+  beforeEach(() => markSignedInHere());
   afterEach(() => resetStores());
+
+  it('opens on Register on a phone nobody has signed in on, and on Sign in once someone has', async () => {
+    localStorage.clear();
+    const fresh = renderWithProviders(<App />, { route: '/', withRouter: true });
+    expect(await screen.findByText('register-page')).toBeInTheDocument();
+    expect(screen.queryByText('login-page')).not.toBeInTheDocument();
+    fresh.unmount();
+
+    // A real sign-in marks the phone; signing out later does not unmark it.
+    useAuthStore.getState().login({ token: 'test-token', user: makeUser() });
+    useAuthStore.getState().logout();
+    renderWithProviders(<App />, { route: '/', withRouter: true });
+    expect(await screen.findByText('login-page')).toBeInTheDocument();
+  });
 
   it('redirects an unauthenticated visit to /login carrying the from path', async () => {
     renderWithProviders(<App />, { route: '/settings', withRouter: true });

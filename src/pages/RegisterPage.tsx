@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input } from '@/components/ui';
 import { PasswordInput } from '@/features/auth/PasswordInput';
+import { requestSignIn, startSession } from '@/features/auth/signIn';
 import {
   LIMITS,
   PASSWORD_LIMITS,
@@ -16,12 +17,20 @@ import {
   refFromSearch,
   submitEnrollment,
   toMobile,
+  type EnrollAccount,
   type SiteType,
 } from '@/features/register/enroll';
 import { useSubmissionId } from '@/features/register/submissionId';
 import { TermsSheet } from '@/features/register/TermsSheet';
 import { cn } from '@/lib/cn';
-import { useLang, useT } from '@/lib/i18n';
+import { useLang, useT, type MessageKey } from '@/lib/i18n';
+
+/** The card after sending, in each case (`register.success*` for a person's look first). */
+const SUCCESS_WORDS: Record<EnrollAccount, { badge: MessageKey; title: MessageKey; body: MessageKey }> = {
+  ready: { badge: 'register.readyBadge', title: 'register.readyTitle', body: 'register.readyBody' },
+  existing: { badge: 'register.existingBadge', title: 'register.existingTitle', body: 'register.existingBody' },
+  waiting: { badge: 'register.successBadge', title: 'register.successTitle', body: 'register.successBody' },
+};
 
 interface FormValues {
   name: string;
@@ -36,14 +45,19 @@ interface FormValues {
 }
 
 /**
- * Sign-up for someone who has downloaded the app and has no login.
+ * Sign-up for someone who has downloaded the app and has no login — the first
+ * screen on a phone nobody has signed in on (`features/auth/firstScreen.ts`).
  *
- * This does not open an account by itself. It is the website's enrolment form —
- * the same details, the same Terms & Conditions, and a password the dealer
- * chooses — filled in without leaving the app and sent to the same place the
- * website sends it. That emails the MDG inbox and hands the registration to our
- * API, where MDG's team approves it; a WhatsApp message then says the account
- * is ready, and the dealer signs in with their mobile number and this password.
+ * It is the website's enrolment form — the same details, the same Terms &
+ * Conditions, and a password the dealer chooses — filled in without leaving the
+ * app and sent to the same place the website sends it. That emails the MDG inbox
+ * and hands the registration to our API, which answers where the dealer stands:
+ *  - `ready`: the account is open, and this screen signs them in with the mobile
+ *    and password just typed, straight into their chat. If that sign-in does not
+ *    go through, it says the account is ready and offers Sign in;
+ *  - `existing`: this mobile already signs in to an account — Sign in (a second
+ *    pump is the team's to add);
+ *  - `waiting`: MDG's team looks first; a WhatsApp message says when it is ready.
  */
 export function RegisterPage() {
   const t = useT();
@@ -52,7 +66,15 @@ export function RegisterPage() {
   const location = useLocation();
   const submissionIdFor = useSubmissionId();
   const [termsOpen, setTermsOpen] = React.useState(false);
-  const [sentTo, setSentTo] = React.useState<{ email: string } | null>(null);
+  const [sentTo, setSentTo] = React.useState<{
+    email: string;
+    mobile: string;
+    account: EnrollAccount;
+  } | null>(null);
+
+  // To the sign-in screen with the mobile number already in its box.
+  const toSignIn = (mobile?: string) =>
+    navigate('/login', mobile ? { state: { identifier: mobile } } : undefined);
 
   // Back to the sign-in screen the way the phone's Back button would get
   // there, so the two never leave different histories behind. Opened directly
@@ -129,7 +151,7 @@ export function RegisterPage() {
     // The password is in `variables` while the call lives; the mutation's own
     // record of it goes as soon as it settles.
     gcTime: 0,
-    mutationFn: (v: FormValues) => {
+    mutationFn: async (v: FormValues) => {
       const fields = {
         name: v.name,
         // As ten plain digits, however it was typed (the check above passed it).
@@ -146,10 +168,23 @@ export function RegisterPage() {
         lang,
         ...(ref ? { ref } : {}),
       };
-      return submitEnrollment({ ...fields, submissionId: submissionIdFor(fields) });
+      const account = await submitEnrollment({ ...fields, submissionId: submissionIdFor(fields) });
+      // The account is open: sign them in with what they just typed, so they land
+      // in their chat instead of on a second form. A sign-in that does not go
+      // through is not a failed registration — the card below offers Sign in.
+      const session =
+        account === 'ready'
+          ? await requestSignIn(fields.mobile, v.password).catch(() => null)
+          : null;
+      return { account, session };
     },
-    onSuccess: (_data, v) => {
-      setSentTo({ email: v.email });
+    onSuccess: ({ account, session }, v) => {
+      if (session) {
+        startSession(session);
+        navigate('/chat', { replace: true });
+        return;
+      }
+      setSentTo({ email: v.email, mobile: toMobile(v.mobile) ?? v.mobile, account });
       window.scrollTo({ top: 0 });
     },
   });
@@ -185,27 +220,45 @@ export function RegisterPage() {
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-success text-white">
                   <Check width={16} strokeWidth={2.4} />
                 </span>
-                <span className="text-sm font-semibold">{t('register.successBadge')}</span>
+                <span className="text-sm font-semibold">{t(SUCCESS_WORDS[sentTo.account].badge)}</span>
               </div>
               <p className="mt-4 text-lg font-semibold leading-snug text-text">
-                {t('register.successTitle')}
+                {t(SUCCESS_WORDS[sentTo.account].title)}
               </p>
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                {t('register.successBody')}
+                {t(SUCCESS_WORDS[sentTo.account].body)}
               </p>
               {sentTo.email ? (
                 <p className="mt-2 text-sm leading-relaxed text-text-muted">
                   {t('register.successEmail', { email: sentTo.email })}
                 </p>
               ) : null}
-              <Button size="lg" fullWidth className="mt-6" onClick={goBack}>
-                {t('register.back')}
-              </Button>
+              {sentTo.account === 'waiting' ? (
+                <Button size="lg" fullWidth className="mt-6" onClick={goBack}>
+                  {t('register.back')}
+                </Button>
+              ) : (
+                <Button size="lg" fullWidth className="mt-6" onClick={() => toSignIn(sentTo.mobile)}>
+                  {t('auth.signIn')}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <>
             <p className="mt-2 text-sm leading-relaxed text-text-muted">{t('register.intro')}</p>
+            {/* First, because this is the first screen on a new phone: anybody who
+                already has an account is one tap from signing in. */}
+            <p className="mt-3 text-sm text-text-muted">
+              {t('register.alreadyRegistered')}{' '}
+              <button
+                type="button"
+                onClick={() => toSignIn()}
+                className="min-h-11 rounded-lg px-1 font-medium text-brand underline underline-offset-4"
+              >
+                {t('auth.signIn')}
+              </button>
+            </p>
 
             <Card className="mt-5">
               <CardContent>

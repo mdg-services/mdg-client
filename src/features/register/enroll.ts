@@ -4,10 +4,11 @@
  * "Sign up" in the app is the website's enrolment form, filled in here and sent
  * to the SAME endpoint the website uses (`mdgservices.in/api/enroll`). That
  * endpoint emails the MDG inbox, sends the dealer a welcome when an email was
- * given, and hands the registration to our own API, where MDG's team approves
- * it. The dealer chooses their own password on this form; it travels in that one
- * request and is stored only as a one-way hash, never emailed or shown to
- * anyone. Once approved, they sign in with their mobile number and that password.
+ * given, and hands the registration to our own API, which opens the account at
+ * once unless a person needs to look at it first. The dealer chooses their own
+ * password on this form; it travels in that one request and is stored only as a
+ * one-way hash, never emailed or shown to anyone. They sign in with their mobile
+ * number and that password — straight away, when the account is ready.
  *
  * The rules below mirror the endpoint's own schema
  * (`mdg-landing/server/validation.ts`) so the screen never sends a form the
@@ -122,14 +123,27 @@ export class EnrollError extends Error {
 }
 
 /**
- * Send the form. Resolves once the endpoint says the emails went out; throws
- * an `EnrollError` otherwise.
+ * Where the dealer stands once the form is in, as the endpoint answers it
+ * (`mdg-landing/src/lib/enrollAccount.ts`): `ready` — the account is open, sign
+ * in; `existing` — this mobile already signs in to an account; `waiting` — MDG's
+ * team looks at it first. An endpoint from before the answer existed says
+ * nothing, which is `waiting`: what this screen always said.
+ */
+export type EnrollAccount = 'ready' | 'existing' | 'waiting';
+
+export function enrollAccountOf(value: unknown): EnrollAccount {
+  return value === 'ready' || value === 'existing' ? value : 'waiting';
+}
+
+/**
+ * Send the form. Resolves, with where the dealer now stands, once the endpoint
+ * says the emails went out; throws an `EnrollError` otherwise.
  *
  * Deliberately not `apiFetch`: that client is bound to our API's base URL and
  * its auth handling, and a 401 there signs the user out — none of which has
  * anything to do with someone who has no account yet.
  */
-export async function submitEnrollment(payload: EnrollmentPayload): Promise<void> {
+export async function submitEnrollment(payload: EnrollmentPayload): Promise<EnrollAccount> {
   let res: Response;
   try {
     res = await fetch(ENROLL_URL, {
@@ -140,8 +154,9 @@ export async function submitEnrollment(payload: EnrollmentPayload): Promise<void
   } catch (err) {
     throw new EnrollError(0, err instanceof Error ? err.message : 'Network error');
   }
-  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; account?: unknown };
   if (!res.ok || !data.ok) {
     throw new EnrollError(res.status, data.error || `Enrolment failed (${res.status})`);
   }
+  return enrollAccountOf(data.account);
 }

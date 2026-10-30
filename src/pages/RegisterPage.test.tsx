@@ -3,9 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { firstScreen } from '@/features/auth/firstScreen';
 import { TERMS_EN, TERMS_HI } from '@/features/register/terms';
+import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
-import { renderWithProviders, resetStores } from '@/test/utils';
+import { makeUser, renderWithProviders, resetStores } from '@/test/utils';
 
 import { LoginPage } from './LoginPage';
 import { RegisterPage } from './RegisterPage';
@@ -16,14 +18,23 @@ function renderAt(route: string, lang: 'en' | 'hi' = 'en') {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/chat" element={<div>chat-list</div>} />
     </Routes>,
     { route },
   );
 }
 
-function okResponse() {
-  return new Response(JSON.stringify({ ok: true }), {
+/** The endpoint's answer; with no `account`, as one from before the answer existed (`waiting`). */
+function okResponse(account?: string) {
+  return new Response(JSON.stringify({ ok: true, ...(account ? { account } : {}) }), {
     status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+function jsonResponse(status: number, body: unknown) {
+  return new Response(JSON.stringify(body), {
+    status,
     headers: { 'Content-Type': 'application/json' },
   });
 }
@@ -55,7 +66,7 @@ describe('RegisterPage', () => {
     const user = userEvent.setup();
     renderAt('/login');
 
-    expect(screen.getByText(/Register your pump and choose a password/)).toBeInTheDocument();
+    expect(screen.getByText(/Register your pump and choose your own password/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Register your pump' }));
 
     expect(await screen.findByRole('heading', { name: 'Register your pump' })).toBeInTheDocument();
@@ -127,7 +138,7 @@ describe('RegisterPage', () => {
     expect(await screen.findByText('You are registered.')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Once the MDG team approves it, you will get a WhatsApp message. Then sign in with your mobile number and this same password.',
+        'The MDG team will check it, and a WhatsApp message will tell you when your account is ready. Then sign in with your mobile number and this same password.',
       ),
     ).toBeInTheDocument();
     expect(
@@ -174,7 +185,7 @@ describe('RegisterPage', () => {
     expect(await screen.findByText('रजिस्ट्रेशन हो गया।')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'मंज़ूरी के बाद WhatsApp पर संदेश आएगा — फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
+        'MDG टीम इसे देखेगी, और खाता तैयार होते ही WhatsApp पर संदेश आएगा। फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
       ),
     ).toBeInTheDocument();
     const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
@@ -193,6 +204,68 @@ describe('RegisterPage', () => {
     await screen.findByText('You are registered.');
     const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
     expect(body).not.toHaveProperty('ref');
+  });
+
+  describe('where the dealer stands once it is in', () => {
+    async function send(user: ReturnType<typeof userEvent.setup>) {
+      await fillValidForm(user);
+      await user.click(screen.getByRole('checkbox'));
+      await user.click(screen.getByRole('button', { name: 'Submit' }));
+    }
+
+    it('starts with a way to sign in, for anybody who already has an account', async () => {
+      const user = userEvent.setup();
+      renderAt('/register');
+      expect(screen.getByText('Already registered?')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(await screen.findByText(/Register your pump and choose your own password/)).toBeInTheDocument();
+    });
+
+    it('an account that is ready: signs in with what was just typed and opens the chat', async () => {
+      fetchMock
+        .mockResolvedValueOnce(okResponse('ready'))
+        .mockResolvedValueOnce(
+          jsonResponse(200, { ok: true, data: { token: 'new-token', user: makeUser({ id: 'u-new' }) } }),
+        );
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+
+      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+      expect(useAuthStore.getState().token).toBe('new-token');
+      const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
+      expect(url).toMatch(/\/v1\/auth\/login$/);
+      expect(JSON.parse(init.body as string)).toEqual({ identifier: '9876543210', password: PASSWORD });
+      // this phone now opens on Sign in, not Register
+      expect(firstScreen()).toBe('/login');
+    });
+
+    it('an account that is ready but the sign-in did not go through: says so, and Sign in has the number in', async () => {
+      fetchMock
+        .mockResolvedValueOnce(okResponse('ready'))
+        .mockResolvedValueOnce(jsonResponse(401, { ok: false, error: { code: 'UNAUTHORIZED', message: 'no' } }));
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+
+      expect(await screen.findByText('Your account is ready.')).toBeInTheDocument();
+      expect(useAuthStore.getState().token).toBeNull();
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
+    });
+
+    it('a number that already has an account: no second sign-in, and Sign in has the number in', async () => {
+      fetchMock.mockResolvedValueOnce(okResponse('existing'));
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+
+      expect(await screen.findByText('This mobile number already has an account.')).toBeInTheDocument();
+      expect(screen.getByText(/If this is another pump of yours/)).toBeInTheDocument();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
+    });
   });
 
   describe('the password', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { digitsOf, toMobile } from './enroll';
+import { digitsOf, enrollAccountOf, toMobile } from './enroll';
 
 describe('toMobile', () => {
   it('takes a mobile however it is typed', () => {
@@ -62,5 +62,15 @@ describe('digitsOf', () => {
     expect(digitsOf(' 48-29 13 ')).toBe('482913');
     expect(digitsOf('abc')).toBe('');
     expect(digitsOf('')).toBe('');
+  });
+});
+
+describe('enrollAccountOf', () => {
+  it('reads the endpoint\'s answer, and anything else — an older endpoint says nothing — is waiting', () => {
+    expect(enrollAccountOf('ready')).toBe('ready');
+    expect(enrollAccountOf('existing')).toBe('existing');
+    expect(enrollAccountOf('waiting')).toBe('waiting');
+    expect(enrollAccountOf(undefined)).toBe('waiting');
+    expect(enrollAccountOf('approved')).toBe('waiting');
   });
 });

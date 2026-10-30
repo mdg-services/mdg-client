@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
 
@@ -12,16 +12,15 @@ import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ForgotPasswordSheet } from '@/features/auth/ForgotPasswordSheet';
 import { parseIdentifier } from '@/features/auth/identifier';
 import { PasswordInput } from '@/features/auth/PasswordInput';
-import { ApiError, apiFetch } from '@/lib/api';
+import { requestSignIn, startSession } from '@/features/auth/signIn';
+import { ApiError } from '@/lib/api';
 import { useT, type MessageKey } from '@/lib/i18n';
-import { postToNative } from '@/lib/nativeBridge';
 import {
   ACCOUNT_DELETED_KEY,
   PASSWORD_CHANGE_REQUIRED,
   SESSION_EXPIRED_KEY,
   useAuthStore,
 } from '@/store/auth';
-import type { AuthLoginResponse } from '@dk/shared/types';
 
 type FormValues = { identifier: string; password: string };
 
@@ -78,8 +77,10 @@ export function LoginPage() {
     clearNote(SESSION_EXPIRED_KEY);
     clearNote(ACCOUNT_DELETED_KEY);
   }, []);
-  const login = useAuthStore((s) => s.login);
   const token = useAuthStore((s) => s.token);
+  // Sent here from Register ("this number already has an account"), with the mobile.
+  const location = useLocation();
+  const handedIdentifier = (location.state as { identifier?: unknown } | null)?.identifier;
   const [forgotOpen, setForgotOpen] = React.useState(false);
 
   React.useEffect(() => {
@@ -107,7 +108,13 @@ export function LoginPage() {
     setValue,
     setFocus,
     formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      identifier: typeof handedIdentifier === 'string' ? handedIdentifier : '',
+      password: '',
+    },
+  });
 
   // A new password was set from "Forgot your password?": back to this form with the
   // mobile or email already in the box, and the cursor where the password goes. The
@@ -124,21 +131,13 @@ export function LoginPage() {
     // mutation's record of it goes the moment it settles.
     gcTime: 0,
     mutationFn: (values: FormValues) =>
-      apiFetch<AuthLoginResponse>('/v1/auth/login', {
-        method: 'POST',
-        body: {
-          // Ten plain digits for a mobile, lower-case for an email.
-          identifier: parseIdentifier(values.identifier)?.value ?? values.identifier.trim(),
-          password: values.password,
-        },
-        // A 401 here is "that password is wrong", not "your session ended".
-        signOutOn401: false,
-      }),
+      requestSignIn(
+        // Ten plain digits for a mobile, lower-case for an email.
+        parseIdentifier(values.identifier)?.value ?? values.identifier.trim(),
+        values.password,
+      ),
     onSuccess: (data) => {
-      login({ token: data.token, user: data.user });
-      // Tell the native shell (if any) to register for push notifications.
-      // No-op in a normal browser.
-      postToNative({ type: 'auth:login', token: data.token });
+      startSession(data);
       navigate('/chat', { replace: true });
     },
     onError: (err) => {
@@ -241,10 +240,10 @@ export function LoginPage() {
             </form>
           </CardContent>
         </Card>
-        {/* A dealer makes their own login: they register, choose a password,
-            and MDG's team approves. Someone who installed the app from the
-            Play Store with nothing to sign in with is sent to the enrolment
-            form, in the app. */}
+        {/* A dealer makes their own login: they register and choose a password.
+            Someone who installed the app from the Play Store with nothing to
+            sign in with is sent to the enrolment form, in the app (a new phone
+            opens there by itself: features/auth/firstScreen.ts). */}
         <div className="mt-6 flex flex-col items-center gap-3">
           <p className="text-center text-xs leading-relaxed text-text-subtle">
             {t('auth.noLogin')}

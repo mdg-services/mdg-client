@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { Spinner } from '@/components/ui';
+import { firstScreen } from '@/features/auth/firstScreen';
 // Imported, not lazy: it is a redirect a few lines long, and a chunk request
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
@@ -133,7 +134,8 @@ function ProtectedLayout() {
   const mustChangePassword = useAuthStore((s) => !!s.user?.mustChangePassword);
   const location = useLocation();
   if (!token) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+    // Register on a phone nobody has signed in on, Sign in otherwise (`firstScreen.ts`).
+    return <Navigate to={firstScreen()} replace state={{ from: location.pathname }} />;
   }
   if (mustChangePassword) return <ForcedPasswordChange />;
   return <AppShell />;

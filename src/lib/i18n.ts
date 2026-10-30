@@ -81,10 +81,10 @@ export const messages = {
   },
   'auth.signIn': { en: 'Sign in', hi: 'साइन इन करें' },
   // A dealer chooses their own password when they register, and signs in with
-  // it once MDG's team has approved the registration.
+  // it: at once from the app when the account opens straight away.
   'auth.noLogin': {
-    en: 'No account yet? Register your pump and choose a password. Once the MDG team approves it, sign in with your mobile number and that password.',
-    hi: 'अभी खाता नहीं है? अपना पंप रजिस्टर कीजिए और अपना पासवर्ड चुनिए। MDG टीम की मंज़ूरी के बाद अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन कीजिए।',
+    en: 'No account yet? Register your pump and choose your own password. Then sign in with your mobile number and that password.',
+    hi: 'अभी खाता नहीं है? अपना पंप रजिस्टर कीजिए और अपना पासवर्ड चुनिए। फिर अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन कीजिए।',
   },
   'auth.register': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
   'auth.loginFailed': {
@@ -177,9 +177,11 @@ export const messages = {
   // the two say the same thing, so a dealer who has seen one recognises the other.
   'register.title': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
   'register.intro': {
-    en: 'Fill in your details and choose a password. Once the MDG team approves, you sign in with your mobile number and that password.',
-    hi: 'अपनी जानकारी भरिए और अपना पासवर्ड चुनिए। MDG की टीम की मंज़ूरी के बाद आप अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन करेंगे।',
+    en: 'Fill in your details and choose a password. You sign in with your mobile number and that password.',
+    hi: 'अपनी जानकारी भरिए और अपना पासवर्ड चुनिए। आप अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन करेंगे।',
   },
+  // On top of Register, which is the first screen on a phone nobody has signed in on.
+  'register.alreadyRegistered': { en: 'Already registered?', hi: 'पहले से रजिस्टर्ड हैं?' },
   'register.back': { en: 'Back to sign in', hi: 'साइन इन पर वापस' },
   'register.optional': { en: '(optional)', hi: '(ज़रूरी नहीं)' },
   'register.name': { en: 'Your name', hi: 'आपका नाम' },
@@ -251,9 +253,27 @@ export const messages = {
     en: 'You are registered.',
     hi: 'रजिस्ट्रेशन हो गया।',
   },
+  // A person at MDG looks at this registration first (the account did not open at once).
   'register.successBody': {
-    en: 'Once the MDG team approves it, you will get a WhatsApp message. Then sign in with your mobile number and this same password.',
-    hi: 'मंज़ूरी के बाद WhatsApp पर संदेश आएगा — फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
+    en: 'The MDG team will check it, and a WhatsApp message will tell you when your account is ready. Then sign in with your mobile number and this same password.',
+    hi: 'MDG टीम इसे देखेगी, और खाता तैयार होते ही WhatsApp पर संदेश आएगा। फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
+  },
+  // The account opened, but signing in straight after did not go through.
+  'register.readyBadge': { en: 'Account ready', hi: 'खाता तैयार' },
+  'register.readyTitle': { en: 'Your account is ready.', hi: 'आपका खाता तैयार है।' },
+  'register.readyBody': {
+    en: 'Sign in with your mobile number and the password you just chose.',
+    hi: 'अपने मोबाइल नंबर और अभी चुने पासवर्ड से साइन इन करें।',
+  },
+  // This mobile already signs in to an account: registering twice, or a second pump.
+  'register.existingBadge': { en: 'Already registered', hi: 'पहले से रजिस्टर्ड' },
+  'register.existingTitle': {
+    en: 'This mobile number already has an account.',
+    hi: 'इस मोबाइल नंबर पर खाता पहले से है।',
+  },
+  'register.existingBody': {
+    en: 'Sign in with it. Forgot the password? Tap "Forgot your password?" on the sign-in screen. If this is another pump of yours, the MDG team will contact you to add it.',
+    hi: 'इसी नंबर से साइन इन करें। पासवर्ड भूल गए? साइन-इन स्क्रीन पर "पासवर्ड भूल गए?" दबाइए। अगर यह आपका दूसरा पंप है, तो MDG टीम इसे जोड़ने के लिए संपर्क करेगी।',
   },
   'register.successEmail': {
     en: 'A welcome email is on its way to {email}.',

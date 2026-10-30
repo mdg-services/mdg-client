@@ -101,7 +101,7 @@ describe('LoginPage', () => {
     it('says a dealer chooses their own password, and when to sign in', () => {
       renderLogin();
       expect(
-        screen.getByText(/Register your pump and choose a password. Once the MDG team approves it/),
+        screen.getByText(/Register your pump and choose your own password. Then sign in with your mobile number/),
       ).toBeInTheDocument();
     });
   });
