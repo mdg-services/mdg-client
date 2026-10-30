@@ -38,6 +38,7 @@ vi.mock('./MessageBubble', () => ({
     onJumpTo,
     ticketStatus,
     ticketNumber,
+    ticketUntil,
   }: {
     message: Message;
     first?: boolean;
@@ -47,6 +48,7 @@ vi.mock('./MessageBubble', () => ({
     onJumpTo?: (targetId: string, fromId: string) => void;
     ticketStatus?: string;
     ticketNumber?: number;
+    ticketUntil?: string;
   }) => {
     captured.openImageRefs.push(onOpenImage);
     captured.onJumpTo = onJumpTo ?? null;
@@ -58,6 +60,7 @@ vi.mock('./MessageBubble', () => ({
         data-highlight={highlight}
         data-ticket-status={ticketStatus}
         data-ticket-number={ticketNumber}
+        data-ticket-until={ticketUntil}
       >
         <button
           type="button"
@@ -1096,6 +1099,88 @@ describe('MessageList — ticket status lines', () => {
     );
     expect(bubble('raising').getAttribute('data-ticket-status')).toBe(status);
     expect(bubble('raising').getAttribute('data-ticket-number')).toBe('42');
+  });
+
+  it('hands a ticket someone is working on the time they promised', () => {
+    const until = iso(2 * 60 * 60_000);
+    renderList(
+      <MessageList
+        currentUserId="u1"
+        messages={[plain, raising]}
+        tickets={[ticket({ seen: true, promiseUntil: until })]}
+      />,
+    );
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
+    expect(bubble('raising').getAttribute('data-ticket-until')).toBe(until);
+    expect(bubble('plain').hasAttribute('data-ticket-until')).toBe(false);
+  });
+
+  it('hands no time for any state but working, even when the ticket carries one', () => {
+    renderList(
+      <MessageList
+        currentUserId="u1"
+        messages={[raising]}
+        tickets={[ticket({ seen: true, state: 'RESOLVED', promiseUntil: iso(60_000) })]}
+      />,
+    );
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('resolved');
+    expect(bubble('raising').hasAttribute('data-ticket-until')).toBe(false);
+  });
+
+  it('falls back to the seen / unseen word by itself when the promised time runs out', () => {
+    // Nothing is sent when a time passes, so the list arms one timer for it. Only
+    // the clock and the timer are faked; the list's other waits stay real.
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
+    renderList(
+      <MessageList
+        currentUserId="u1"
+        messages={[raising]}
+        tickets={[ticket({ seen: true, promiseUntil: '2026-10-30T10:30:00.000Z' })]}
+      />,
+    );
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
+
+    act(() => {
+      vi.advanceTimersByTime(29 * 60_000);
+    });
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('looking');
+    expect(bubble('raising').hasAttribute('data-ticket-until')).toBe(false);
+  });
+
+  it('moves on to the next promise when the first one runs out', () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
+    vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
+    const second = makeMessage({
+      id: 'second',
+      createdAt: iso(-2000),
+      ai: { ...aiBlock, ticketId: 't-43' } as never,
+    });
+    renderList(
+      <MessageList
+        currentUserId="u1"
+        messages={[raising, second]}
+        tickets={[
+          ticket({ seen: true, promiseUntil: '2026-10-30T10:10:00.000Z' }),
+          ticket({ id: 't-43', number: 43, promiseUntil: '2026-10-30T11:00:00.000Z' }),
+        ]}
+      />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(11 * 60_000);
+    });
+    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('looking');
+    expect(bubble('second').getAttribute('data-ticket-status')).toBe('working');
+
+    act(() => {
+      vi.advanceTimersByTime(50 * 60_000);
+    });
+    expect(bubble('second').getAttribute('data-ticket-status')).toBe('raised');
   });
 
   it('gives nothing to a message that names no ticket', () => {

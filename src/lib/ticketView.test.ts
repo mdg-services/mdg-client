@@ -15,10 +15,14 @@ import {
   TICKET_TRIGGER_KIND,
   TICKET_TRIGGER_LABEL,
   TICKET_WARN_MINUTES,
+  onItChoices,
+  promiseActive,
+  promiseTimeText,
   ticketAgeLabel,
   ticketAgeMinutes,
   ticketAgeTone,
   ticketDealerStatus,
+  ticketDealerUpdateBy,
   ticketRef,
   ticketTriggerTone,
   type AiHandoffReason,
@@ -45,7 +49,7 @@ import {
  *  - THE AGE TONES decide when an open ticket turns amber and red on the list,
  *    and a ticket that is urgent and unopened must be red at once;
  *  - THE DEALER'S LINE is the only thing a dealer is ever told about a ticket,
- *    so it must stay three plain phrases in both languages and never claim more
+ *    so it must stay four plain phrases in both languages and never claim more
  *    than "a person closed it";
  *  - THE LABEL MAPS are `Record`s over closed lists, so a new trigger or topic
  *    cannot ship without a label. That is a compile-time guarantee everywhere
@@ -146,6 +150,8 @@ describe('ticketTriggerTone', () => {
     blocked: 'neutral',
     machine_fault: 'danger',
     limit: 'neutral',
+    // A dealer writing again on a ticket somebody already has: a person's job.
+    dealer_wrote: 'neutral',
   };
 
   it('has an expected tone for every trigger (this table cannot go stale)', () => {
@@ -191,16 +197,28 @@ describe('TICKET_TRIGGER_FOR_REASON', () => {
     vendor_busy: 'machine_fault',
     escalated: 'needs_person',
     could_not_verify: 'could_not_verify',
+    // The three quiet reasons: the machine stood down on purpose and posted
+    // nothing. None of them opens a ticket — a person is already on the thread.
+    ack: null,
+    quiet_reply: null,
+    on_it: null,
   };
 
   it('covers every handoff reason the first line can give, and no other key', () => {
     expect(keysOf(TICKET_TRIGGER_FOR_REASON)).toEqual([...AI_HANDOFF_REASONS].sort());
   });
 
-  it('opens a ticket for every reason except two', () => {
+  it('opens a ticket for every reason except the five that post nothing new', () => {
     const noTicket = AI_HANDOFF_REASONS.filter((r) => TICKET_TRIGGER_FOR_REASON[r] === null);
-    expect(noTicket.sort()).toEqual(['follow_up', 'group_thread']);
+    expect(noTicket.sort()).toEqual(['ack', 'follow_up', 'group_thread', 'on_it', 'quiet_reply']);
   });
+
+  it.each(['ack', 'quiet_reply', 'on_it'] as const)(
+    'opens NO ticket when the machine stands down because of "%s" — a person has the thread, or nobody needs to',
+    (reason) => {
+      expect(TICKET_TRIGGER_FOR_REASON[reason]).toBeNull();
+    },
+  );
 
   it('opens NO ticket on a group thread — nothing is posted to the dealer there', () => {
     expect(TICKET_TRIGGER_FOR_REASON.group_thread).toBeNull();
@@ -226,11 +244,15 @@ describe('TICKET_TRIGGER_FOR_REASON', () => {
 
   it('leaves no trigger that nothing can raise', () => {
     // A trigger no reason maps to would be a filter on the Tickets page that
-    // can never match a row.
+    // can never match a row. `dealer_wrote` is the one exception, on purpose: it
+    // is only ever the trigger of a FOLLOW-UP folded into a ticket somebody
+    // already holds (`followUps[].trigger`), never of the ticket itself.
     const raised = new Set(Object.values(TICKET_TRIGGER_FOR_REASON));
     for (const trigger of TICKET_TRIGGERS) {
+      if (trigger === 'dealer_wrote') continue;
       expect(raised.has(trigger)).toBe(true);
     }
+    expect(raised.has('dealer_wrote')).toBe(false);
   });
 });
 
@@ -385,22 +407,64 @@ describe('ticketDealerStatus', () => {
     expect(ticketDealerStatus({ state: 'RESOLVED', seen: false })).toBe('resolved');
   });
 
+  it('says "working" while a person\'s "on it until" time is still ahead', () => {
+    const promiseUntil = new Date(NOW.getTime() + 30 * MIN).toISOString();
+    expect(ticketDealerStatus({ state: 'OPEN', seen: true, promiseUntil }, NOW)).toBe('working');
+    // Working wins over "sent": a person on an unopened ticket has plainly opened it.
+    expect(ticketDealerStatus({ state: 'OPEN', seen: false, promiseUntil }, NOW)).toBe('working');
+  });
+
+  it('goes back to "looking" / "raised" by itself once that time passes, with no job to do it', () => {
+    const promiseUntil = ago(1);
+    expect(ticketDealerStatus({ state: 'OPEN', seen: true, promiseUntil }, NOW)).toBe('looking');
+    expect(ticketDealerStatus({ state: 'OPEN', seen: false, promiseUntil }, NOW)).toBe('raised');
+    // The very instant it is reached counts as passed.
+    expect(
+      ticketDealerStatus({ state: 'OPEN', seen: true, promiseUntil: NOW.toISOString() }, NOW),
+    ).toBe('looking');
+  });
+
+  it('says "resolved" for a closed ticket even if a promise is still ahead', () => {
+    const promiseUntil = new Date(NOW.getTime() + 30 * MIN).toISOString();
+    expect(ticketDealerStatus({ state: 'RESOLVED', seen: true, promiseUntil }, NOW)).toBe(
+      'resolved',
+    );
+  });
+
   it('only ever returns a status the dealer text has words for', () => {
+    const ahead = new Date(NOW.getTime() + 30 * MIN).toISOString();
     for (const state of TICKET_STATES) {
       for (const seen of [true, false]) {
-        expect(Object.keys(TICKET_DEALER_STATUS_TEXT)).toContain(
-          ticketDealerStatus({ state, seen }),
-        );
+        for (const promiseUntil of [undefined, ahead, ago(1)]) {
+          expect(Object.keys(TICKET_DEALER_STATUS_TEXT)).toContain(
+            ticketDealerStatus({ state, seen, promiseUntil }, NOW),
+          );
+        }
       }
     }
   });
 });
 
+describe('promiseActive', () => {
+  it('is true only while the time is ahead of the clock', () => {
+    expect(promiseActive(new Date(NOW.getTime() + MIN).toISOString(), NOW)).toBe(true);
+    expect(promiseActive(NOW.toISOString(), NOW)).toBe(false);
+    expect(promiseActive(ago(1), NOW)).toBe(false);
+  });
+
+  it('is false for no time, an empty one, or one it cannot read', () => {
+    expect(promiseActive(undefined, NOW)).toBe(false);
+    expect(promiseActive(null, NOW)).toBe(false);
+    expect(promiseActive('', NOW)).toBe(false);
+    expect(promiseActive('not a date', NOW)).toBe(false);
+  });
+});
+
 describe('TICKET_DEALER_STATUS_TEXT', () => {
-  const STATUSES = ['raised', 'looking', 'resolved'] as const;
+  const STATUSES = ['raised', 'looking', 'working', 'resolved'] as const;
   const DEVANAGARI = /[ऀ-ॿ]/;
 
-  it('has three phrases, one per status, and no more', () => {
+  it('has four phrases, one per status, and no more', () => {
     expect(keysOf(TICKET_DEALER_STATUS_TEXT)).toEqual([...STATUSES].sort());
   });
 
@@ -452,6 +516,113 @@ describe('TICKET_DEALER_STATUS_TEXT', () => {
     );
     expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.hi}`).toBe(
       '#42 · MDG टीम देख रही है',
+    );
+  });
+
+  it('says in plain words that the team is on it, and promises nothing but an update', () => {
+    expect(TICKET_DEALER_STATUS_TEXT.working.en).toBe('MDG team is working on it');
+    expect(TICKET_DEALER_STATUS_TEXT.working.hi).toBe('MDG टीम इस पर काम कर रही है');
+  });
+});
+
+/**
+ * The "on it until" times. NOW is 15:30 IST on Monday 12 Oct 2026, so IST is
+ * five and a half hours ahead of the UTC the strings below are written in.
+ */
+describe('onItChoices', () => {
+  it('offers an hour, three hours, and tomorrow at ten, in that order', () => {
+    const choices = onItChoices(NOW);
+    expect(choices.map((c) => c.key)).toEqual(['1h', '3h', 'tomorrow']);
+    expect(choices.map((c) => c.label)).toEqual(['1 hour', '3 hours', 'Tomorrow 10:00']);
+  });
+
+  it('gives times, not lengths', () => {
+    const [hour, three, tomorrow] = onItChoices(NOW);
+    expect(hour.until.toISOString()).toBe('2026-10-12T11:00:00.000Z');
+    expect(three.until.toISOString()).toBe('2026-10-12T13:00:00.000Z');
+    // 10:00 IST on 13 Oct is 04:30 UTC.
+    expect(tomorrow.until.toISOString()).toBe('2026-10-13T04:30:00.000Z');
+  });
+
+  it('means the next IST day, even when it is already tomorrow in UTC', () => {
+    // 23:30 IST on 12 Oct is 18:00 UTC; "tomorrow" is still 13 Oct 10:00 IST.
+    const lateEvening = new Date('2026-10-12T18:00:00.000Z');
+    expect(onItChoices(lateEvening)[2].until.toISOString()).toBe('2026-10-13T04:30:00.000Z');
+    // 00:30 IST on 13 Oct is 19:00 UTC on the 12th; "tomorrow" is the 14th.
+    const justAfterMidnight = new Date('2026-10-12T19:00:00.000Z');
+    expect(onItChoices(justAfterMidnight)[2].until.toISOString()).toBe('2026-10-14T04:30:00.000Z');
+  });
+
+  it('rolls over a month end', () => {
+    const lastDay = new Date('2026-10-31T10:00:00.000Z');
+    expect(onItChoices(lastDay)[2].until.toISOString()).toBe('2026-11-01T04:30:00.000Z');
+  });
+
+  it('keeps every choice inside the 72 hours the server allows', () => {
+    for (const c of onItChoices(NOW)) {
+      expect(c.until.getTime() - NOW.getTime()).toBeLessThanOrEqual(72 * 60 * MIN);
+      expect(c.until.getTime()).toBeGreaterThan(NOW.getTime());
+    }
+  });
+});
+
+describe('promiseTimeText', () => {
+  it('says a time today as the clock alone, in English', () => {
+    expect(promiseTimeText('2026-10-12T12:30:00.000Z', 'en', NOW)).toBe('6:00 pm');
+    expect(promiseTimeText('2026-10-12T05:00:00.000Z', 'en', NOW)).toBe('10:30 am');
+  });
+
+  it('says noon and midnight as 12, not 0', () => {
+    expect(promiseTimeText('2026-10-12T06:30:00.000Z', 'en', NOW)).toBe('12:00 pm');
+    expect(promiseTimeText('2026-10-12T18:30:00.000Z', 'en', NOW)).toBe('tomorrow 12:00 am');
+  });
+
+  it('says tomorrow, and then the date', () => {
+    expect(promiseTimeText('2026-10-13T04:30:00.000Z', 'en', NOW)).toBe('tomorrow 10:00 am');
+    expect(promiseTimeText('2026-10-14T04:30:00.000Z', 'en', NOW)).toBe('14 Oct, 10:00 am');
+  });
+
+  it('judges today and tomorrow by the IST day, not the UTC one', () => {
+    // 23:00 UTC on the 12th is 04:30 IST on the 13th: tomorrow, though the UTC date is today.
+    expect(promiseTimeText('2026-10-12T23:00:00.000Z', 'en', NOW)).toBe('tomorrow 4:30 am');
+  });
+
+  it('writes the same moments in Hindi, with the part of the day', () => {
+    expect(promiseTimeText('2026-10-12T12:30:00.000Z', 'hi', NOW)).toBe('आज शाम 6 बजे');
+    expect(promiseTimeText('2026-10-13T04:30:00.000Z', 'hi', NOW)).toBe('कल सुबह 10 बजे');
+    expect(promiseTimeText('2026-10-14T04:30:00.000Z', 'hi', NOW)).toBe('14 अक्टूबर सुबह 10 बजे');
+  });
+
+  it('calls a time just past midnight "tonight" when it is said in the evening', () => {
+    // 23:30 IST on the 12th; "1 hour" lands at 00:30 on the 13th. "कल रात 12:30"
+    // would read as the NEXT night, a day late.
+    const evening = new Date('2026-10-12T18:00:00.000Z');
+    expect(promiseTimeText('2026-10-12T19:00:00.000Z', 'en', evening)).toBe('12:30 am tonight');
+    expect(promiseTimeText('2026-10-12T19:00:00.000Z', 'hi', evening)).toBe('आज रात 12:30 बजे');
+    // From the morning, the same moment is still "tomorrow".
+    expect(promiseTimeText('2026-10-12T19:00:00.000Z', 'en', new Date('2026-10-12T04:00:00.000Z'))).toBe(
+      'tomorrow 12:30 am',
+    );
+  });
+
+  it('keeps the minutes in Hindi when there are any', () => {
+    expect(promiseTimeText('2026-10-12T12:45:00.000Z', 'hi', NOW)).toBe('आज शाम 6:15 बजे');
+  });
+
+  it('is empty for a time it cannot read', () => {
+    expect(promiseTimeText('nope', 'en', NOW)).toBe('');
+    expect(promiseTimeText('nope', 'hi', NOW)).toBe('');
+  });
+});
+
+describe('ticketDealerUpdateBy', () => {
+  it('is the tail of the working line, in both languages', () => {
+    expect(ticketDealerUpdateBy('2026-10-12T12:30:00.000Z', 'en', NOW)).toBe('update by 6:00 pm');
+    expect(ticketDealerUpdateBy('2026-10-12T12:30:00.000Z', 'hi', NOW)).toBe(
+      'आज शाम 6 बजे तक अपडेट',
+    );
+    expect(ticketDealerUpdateBy('2026-10-13T04:30:00.000Z', 'en', NOW)).toBe(
+      'update by tomorrow 10:00 am',
     );
   });
 });

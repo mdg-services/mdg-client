@@ -345,6 +345,12 @@ export const AUDIT_ACTIONS = [
   'TICKET_REOPEN',
   /** An admin marked a ticket urgent, or not. */
   'TICKET_URGENCY',
+  /** An admin put themselves "on it until" a time: the dealer is shown the time and the AI stays off that matter. */
+  'TICKET_ON_IT',
+  /** An admin let go of "on it" before its time ("Let AI answer"). */
+  'TICKET_ON_IT_CLEARED',
+  /** An admin ended a chat's after-reply quiet early ("Let AI answer"), so the AI may answer the next message. */
+  'CONVERSATION_QUIET_CLEARED',
   /** A super-admin resolved a grievance sent from the website, with a note. */
   'GRIEVANCE_RESOLVE',
   /** A super-admin reopened a resolved grievance. */

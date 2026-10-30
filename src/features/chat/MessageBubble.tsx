@@ -298,6 +298,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   onJumpTo,
   ticketStatus,
   ticketNumber,
+  ticketUntil,
   askPhase = 'none',
   askReason,
   onAskAnswer,
@@ -333,6 +334,8 @@ export const MessageBubble = React.memo(function MessageBubble({
    */
   ticketStatus?: TicketLineStatus;
   ticketNumber?: number;
+  /** The time the team said it would update by (ISO), given only while the status is `working`. */
+  ticketUntil?: string;
   /**
    * Where the request this message asks for stands (ADR 0019) — set by
    * MessageList only on a message that carries `ask`. A status word, not the
@@ -620,7 +623,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           // closing is not a success to celebrate, it only says a person has
           // dealt with it, and what they wrote is in the thread.
           <p className="mt-0.5 px-1 text-[11px] text-wa-meta">
-            {ticketLineText(lang, ticketStatus, ticketNumber)}
+            {ticketLineText(lang, ticketStatus, ticketNumber, ticketUntil)}
           </p>
         ) : null}
       </div>

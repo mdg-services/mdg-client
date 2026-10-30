@@ -209,6 +209,9 @@ export const AI_HANDOFF_REASON_LABEL: Record<AiHandoffReason, string> = {
   vendor_busy: 'The vendor was busy or too slow',
   escalated: 'It read the records and decided a person must handle this',
   could_not_verify: 'It could not prove every figure in its answer, so it did not send it',
+  ack: 'Only “ok” or “thanks” — nothing to answer',
+  quiet_reply: 'A person at MDG replied here or picked the chat up a moment ago, so it stayed out',
+  on_it: 'A person is on this ticket and the message was about it',
 };
 
 /**

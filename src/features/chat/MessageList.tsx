@@ -29,7 +29,7 @@ import {
   type UnreadOnOpen,
 } from './messageRuns';
 import { SwipeToReply } from './SwipeToReply';
-import { ticketLinesById } from './ticketLine';
+import { msUntilPromiseEnds, ticketLinesById } from './ticketLine';
 
 /** What the jump-to-quote loop needs back from fetching one older page. */
 export interface FetchOlderResult {
@@ -527,9 +527,36 @@ export function MessageList({
     // Re-run only for a NEW request, not because `handleJumpTo` was rebuilt.
   }, [jumpKey]);
 
-  // Per-ticket status for the bubbles, rebuilt only when the conversation's
-  // ticket list is replaced (a `conversation:updated` with the new state).
-  const ticketLines = React.useMemo(() => ticketLinesById(tickets), [tickets]);
+  // Per-ticket status for the bubbles, rebuilt when the conversation's ticket
+  // list is replaced (a `conversation:updated` with the new state) — and when an
+  // "on it until" time runs out. Nothing is sent when that happens, and the line
+  // must not go on saying the team is working on it past the time it gave, so
+  // one timer is armed for the soonest running one and bumps `promiseEnds`.
+  const [promiseEnds, setPromiseEnds] = React.useState(0);
+  const ticketLines = React.useMemo(
+    () => ticketLinesById(tickets),
+    // `promiseEnds` is not read inside: bumping it is how the timer below asks
+    // for the lines to be worked out again against the clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tickets, promiseEnds],
+  );
+  React.useEffect(() => {
+    const wait = msUntilPromiseEnds(tickets);
+    if (wait === null) return;
+    const timer = window.setTimeout(() => setPromiseEnds((n) => n + 1), wait);
+    return () => window.clearTimeout(timer);
+  }, [tickets, promiseEnds]);
+  // A PHONE THAT SLEPT PAST THE TIME. A timer does not count the time the device
+  // was asleep, so it can fire long after the promise ended; coming back to the
+  // screen works the lines out again at once.
+  React.useEffect(() => {
+    if (msUntilPromiseEnds(tickets) === null) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setPromiseEnds((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [tickets]);
 
   const selecting = !!selectedIds && selectedIds.size > 0;
   const soleSelected =
@@ -631,6 +658,7 @@ export function MessageList({
             onJumpTo={handleJumpTo}
             ticketStatus={ticketLine?.status}
             ticketNumber={ticketLine?.number}
+            ticketUntil={ticketLine?.until}
             askPhase={askView?.phase}
             askReason={askView?.reason}
             onAskAnswer={onAskAnswer}

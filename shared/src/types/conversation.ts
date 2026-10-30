@@ -123,6 +123,16 @@ export interface Conversation {
    */
   awaitingReplySince?: string | null;
   /**
+   * Admin-only. While this is in the future the AI posts nothing in this chat:
+   * a person replied (or picked it up) and is in a live conversation. Set by a
+   * typed reply to now + the quiet window, never shortened by one; cleared by
+   * "Let AI answer". A past value means nothing — every reader compares it with
+   * the clock, so it needs no job to end it.
+   */
+  replyQuietUntil?: string | null;
+  /** Who started the current quiet window, for "AI quiet until 4:10 pm · Asha replied". */
+  replyQuietByName?: string | null;
+  /**
    * True when an ASSIGNED ticket was auto-returned to the unassigned pool because
    * the assigned admin left the client waiting past the auto-unassign SLA.
    * Cleared on the next pickup, reply, or resolve.

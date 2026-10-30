@@ -1521,6 +1521,123 @@ describe('MessageBubble — the ticket status line', () => {
     expect(screen.getByText('#42 · MDG टीम देख रही है')).toBeInTheDocument();
   });
 
+  describe('while a person is working on it', () => {
+    // 15:30 IST. Only the clock is faked: the bubble reads it when it draws.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
+    });
+    const SIX_PM = '2026-10-30T12:30:00.000Z';
+    const TOMORROW_TEN = '2026-10-31T04:30:00.000Z';
+
+    it('says who is on it and when to expect an update', () => {
+      render(
+        <MessageBubble
+          message={raisingMessage()}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="working"
+          ticketNumber={3}
+          ticketUntil={SIX_PM}
+        />,
+      );
+      expect(
+        screen.getByText('#3 · MDG team is working on it · update by 6:00 pm'),
+      ).toBeInTheDocument();
+    });
+
+    it('speaks Hindi on the Hindi screen', () => {
+      useLangStore.setState({ lang: 'hi', explicit: true });
+      render(
+        <MessageBubble
+          message={raisingMessage()}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="working"
+          ticketNumber={3}
+          ticketUntil={SIX_PM}
+        />,
+      );
+      expect(
+        screen.getByText('#3 · MDG टीम इस पर काम कर रही है · आज शाम 6 बजे तक अपडेट'),
+      ).toBeInTheDocument();
+    });
+
+    it('says tomorrow for a time on the next day', () => {
+      render(
+        <MessageBubble
+          message={raisingMessage()}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="working"
+          ticketNumber={3}
+          ticketUntil={TOMORROW_TEN}
+        />,
+      );
+      expect(
+        screen.getByText('#3 · MDG team is working on it · update by tomorrow 10:00 am'),
+      ).toBeInTheDocument();
+    });
+
+    it('is still one quiet line, with no button, when it carries a time', () => {
+      const { container } = render(
+        <MessageBubble
+          message={raisingMessage()}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="working"
+          ticketNumber={3}
+          ticketUntil={SIX_PM}
+        />,
+      );
+      const line = screen.getByText(/update by 6:00 pm/);
+      expect(line.closest('button')).toBeNull();
+      expect(container.querySelectorAll('button').length).toBe(0);
+      expect(line.getAttribute('class')).toContain('text-wa-meta');
+    });
+
+    it('follows the ticket into working and back out when the time runs out', () => {
+      const message = raisingMessage();
+      const view = render(
+        <MessageBubble
+          message={message}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="looking"
+          ticketNumber={3}
+        />,
+      );
+      expect(screen.getByText('#3 · MDG team is looking at it')).toBeInTheDocument();
+
+      view.rerender(
+        <MessageBubble
+          message={message}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="working"
+          ticketNumber={3}
+          ticketUntil={SIX_PM}
+        />,
+      );
+      expect(screen.queryByText('#3 · MDG team is looking at it')).toBeNull();
+      expect(
+        screen.getByText('#3 · MDG team is working on it · update by 6:00 pm'),
+      ).toBeInTheDocument();
+
+      view.rerender(
+        <MessageBubble
+          message={message}
+          mine={false}
+          currentUserId="me"
+          ticketStatus="looking"
+          ticketNumber={3}
+        />,
+      );
+      expect(screen.getByText('#3 · MDG team is looking at it')).toBeInTheDocument();
+      expect(screen.queryByText(/update by/)).toBeNull();
+    });
+  });
+
   it('draws nothing when the bubble is not handed a status', () => {
     // The message names a ticket but the conversation no longer lists it — a
     // resolved ticket past the server's seven-day window. The line is simply

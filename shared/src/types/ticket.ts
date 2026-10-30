@@ -52,6 +52,13 @@ export const TICKET_TRIGGERS = [
   'machine_fault',
   /** The dealer hit the hourly or daily question limit. */
   'limit',
+  /**
+   * The dealer wrote again while a person had the thread — a reply was under
+   * half an hour old, or someone was "on it" — so the AI stayed out and the
+   * message was added to the open ticket. Only ever a follow-up's trigger; no
+   * ticket is opened for it.
+   */
+  'dealer_wrote',
 ] as const;
 export type TicketTrigger = (typeof TICKET_TRIGGERS)[number];
 
@@ -69,6 +76,27 @@ export const TICKET_TOPICS = [
   'other',
 ] as const;
 export type TicketTopic = (typeof TICKET_TOPICS)[number];
+
+/**
+ * "On it until…" — a person at MDG has the ticket and has promised the dealer an
+ * update by `until`. Until then the AI stays off that matter (it still answers a
+ * clearly unrelated question). It ends with the ticket's resolve, with "Let AI
+ * answer", or by `until` passing — the last needs no job: every reader compares
+ * it with the clock.
+ */
+export interface TicketPromise {
+  until: string;
+  setAt: string;
+  byName?: string;
+}
+
+/** The longest "on it until" a person may set, in hours. */
+export const TICKET_PROMISE_MAX_HOURS = 72;
+
+/** `POST /tickets/:id/on-it`. `until` is an ISO instant, after now and inside the maximum. */
+export interface TicketOnItBody {
+  until: string;
+}
 
 /** A later message folded into an open ticket. */
 export interface TicketFollowUp {
@@ -111,6 +139,10 @@ export interface TicketView {
   resolvedByName?: string;
   /** Required to resolve. Internal — the dealer never sees it. */
   resolutionNote?: string;
+  /** Set while a person is "on it"; absent once it is let go or the ticket is resolved. May be in the past. */
+  promise?: TicketPromise;
+  /** The person who last put themselves on it. Display only — not a lock. */
+  ownerName?: string;
   updatedAt: string;
 }
 
@@ -127,6 +159,8 @@ export interface TicketDealerView {
   seen: boolean;
   raisedAt: string;
   resolvedAt?: string;
+  /** The time MDG promised an update by, while a person is "on it". The time only — never who. */
+  promiseUntil?: string;
 }
 
 /** `GET /tickets/counts`. */

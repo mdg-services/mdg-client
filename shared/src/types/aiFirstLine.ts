@@ -479,6 +479,23 @@ export const AI_HANDOFF_REASONS = [
    * was raised instead.
    */
   'could_not_verify',
+  /**
+   * Only "ok", "thanks", "ji", a thumbs-up — nothing to answer. No reply, no
+   * ticket, and the reply clock is not started by it.
+   */
+  'ack',
+  /**
+   * A person at MDG replied in this chat less than the quiet window ago
+   * (`Conversation.replyQuietUntil`), so the machine stayed out of a live
+   * conversation. The message was added to the open ticket, if there is one.
+   */
+  'quiet_reply',
+  /**
+   * A person is "on it" for the open ticket (`Ticket.promise`) and the message
+   * was about that matter, or the machine could not tell. It stayed out and the
+   * message was added to the ticket.
+   */
+  'on_it',
 ] as const;
 export type AiHandoffReason = (typeof AI_HANDOFF_REASONS)[number];
 
