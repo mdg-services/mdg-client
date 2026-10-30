@@ -21,6 +21,7 @@ import {
   replyPreview,
   replySenderLabel,
 } from '@/features/chat/replyContext';
+import { TicketBar } from '@/features/chat/TicketBar';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
 import { SetupStrip } from '@/features/setup/SetupStrip';
@@ -553,6 +554,12 @@ export function ChatPage() {
           ]}
         />
       )}
+
+      {/* The ticket bar: where the question the dealer has open with the team
+          stands, pinned under the header so it is in view however far the thread
+          has scrolled. Out of the way while picking messages or searching.
+          ALWAYS MOUNTED, hiding itself, for the reason given below. */}
+      <TicketBar tickets={conversation?.tickets} hidden={selecting || searching} />
 
       {/* The setup strip: where the outlet is on its way to live service. Only
           in the owner's own chat with MDG (the manager group never carries

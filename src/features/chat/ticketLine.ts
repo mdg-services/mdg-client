@@ -60,8 +60,8 @@ export function ticketLinesById(
   return lines;
 }
 
-/** The longest delay `setTimeout` accepts (about 24 days). */
-const MAX_TIMER_MS = 2 ** 31 - 1;
+/** The longest delay `setTimeout` accepts (about 24 days). The pinned bar's timer reads it too. */
+export const MAX_TIMER_MS = 2 ** 31 - 1;
 
 /**
  * How long until the soonest running "on it" time passes, or `null` when none is

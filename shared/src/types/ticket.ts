@@ -59,6 +59,12 @@ export const TICKET_TRIGGERS = [
    * ticket is opened for it.
    */
   'dealer_wrote',
+  /** A person at MDG opened it by hand — after a phone call, or for something the AI never saw. */
+  'opened_by_person',
+  /** The AI is switched off for this dealer (or everywhere), so the message came straight to a person. */
+  'ai_off',
+  /** The AI asked the dealer to say it again twice and still could not understand; a person reads it. */
+  'not_understood',
 ] as const;
 export type TicketTrigger = (typeof TICKET_TRIGGERS)[number];
 
@@ -88,6 +94,12 @@ export interface TicketPromise {
   until: string;
   setAt: string;
   byName?: string;
+  /**
+   * Set when the time passed with no update and the dealer was sent the "taking
+   * a little longer" line (ten minutes after `until`). From then the ticket is
+   * Late everywhere, and the whole team is told.
+   */
+  lateAt?: string;
 }
 
 /** The longest "on it until" a person may set, in hours. */
@@ -143,6 +155,20 @@ export interface TicketView {
   promise?: TicketPromise;
   /** The person who last put themselves on it. Display only — not a lock. */
   ownerName?: string;
+  /** Their id, so "Mine" never depends on two people having different names. */
+  ownerId?: string;
+  /**
+   * The last time a person at MDG acted on it in a way the dealer would notice:
+   * a typed reply in its thread, "answered outside the app", or opening it by
+   * hand. Absent while nobody has — that is what makes a ticket New.
+   */
+  lastPersonAt?: string;
+  /**
+   * The thread's waiting clock (`Conversation.awaitingSince`), copied in when the
+   * ticket is read: the oldest dealer message nobody at MDG has answered yet.
+   * Absent when MDG spoke last.
+   */
+  dealerWaitingSince?: string;
   updatedAt: string;
 }
 
@@ -161,6 +187,17 @@ export interface TicketDealerView {
   resolvedAt?: string;
   /** The time MDG promised an update by, while a person is "on it". The time only — never who. */
   promiseUntil?: string;
+  /**
+   * True when a person at MDG wrote to the dealer after the promise was made, so
+   * a time that has passed is not a broken promise. Absent with no promise.
+   */
+  updatedAfterPromise?: boolean;
+  /**
+   * True once the "taking a little longer" line went out and the team was told
+   * (`promise.lateAt`). Until then a passed time reads "MDG team is looking at it":
+   * the bar never says the team was reminded before it was.
+   */
+  teamReminded?: boolean;
 }
 
 /** `GET /tickets/counts`. */
@@ -168,6 +205,10 @@ export interface TicketCounts {
   open: number;
   /** Open and nobody has opened it yet. */
   unseen: number;
+  /** Open tickets that are New, Waiting or Late (`ticketDeskState`): the inbox badge. */
+  needsUs: number;
+  /** Open tickets the signed-in admin is on (`ownerName` is theirs and the promise is ahead). */
+  mine: number;
   urgent: number;
 }
 
@@ -175,3 +216,34 @@ export interface TicketCounts {
 export const TICKET_NOTE_MAX = 1_000;
 /** Most follow-ups kept on one ticket; older ones are dropped from the record, never the thread. */
 export const TICKET_FOLLOW_UPS_MAX = 20;
+
+/**
+ * `POST /tickets/:id/close` — the one way to finish a ticket (the chat's own
+ * Resolve is gone). Everything is optional. 409 with code `DEALER_WAITING` when
+ * the dealer has written since MDG last replied: answer first (the admin's sheet
+ * sends the answer as an ordinary reply, then closes).
+ */
+export interface TicketCloseBody {
+  /** Internal; the dealer never sees it. */
+  note?: string;
+  /** Adds an entry to the dealer's "Services provided" history. */
+  service?: { serviceId: string; serviceName?: string };
+}
+
+/** `POST /tickets` — a person opens a ticket by hand (after a call, a WhatsApp, a visit). */
+export interface TicketOpenBody {
+  conversationId: string;
+  /** One line: what it is about. Shown to admins only. */
+  summary: string;
+  /** Optional "on it until" set in the same step. */
+  onItUntil?: string;
+}
+
+/** `POST /conversations/:id/answered-outside` — "I answered this on the phone / WhatsApp". */
+export interface AnsweredOutsideBody {
+  /** Internal; kept in the audit trail. */
+  note?: string;
+}
+
+/** Longest one-line summary a person may type for a ticket they open. */
+export const TICKET_SUMMARY_MAX = 200;

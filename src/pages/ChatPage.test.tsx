@@ -220,39 +220,54 @@ beforeEach(() => {
 });
 afterEach(() => resetStores());
 
+/**
+ * The line under the bubble that raised the ticket. The pinned bar above the
+ * thread can say the very same words ("#42 · MDG team is looking at it"), and
+ * whether it does depends on the hour in India — so asking the whole screen for
+ * the text would find two or one by the time of day. This asks for the one in
+ * the thread only.
+ */
+function lineUnderBubble(words: string) {
+  return waitFor(() => {
+    const lines = screen.queryAllByText(words).filter((el) => !el.closest('[data-ticket-bar]'));
+    expect(lines).toHaveLength(1);
+    return lines[0]!;
+  });
+}
+
 describe('ChatPage — the ticket status line', () => {
   it('shows where the raised ticket stands under the message that raised it', async () => {
     mount(conversation([ticket()]));
-    expect(await screen.findByText('#42 · Sent to the MDG team')).toBeInTheDocument();
+    expect(await lineUnderBubble('#42 · Sent to the MDG team')).toBeInTheDocument();
   });
 
   it('updates in place when a conversation:updated arrives with the ticket changed', async () => {
     mount(conversation([ticket()]));
-    await screen.findByText('#42 · Sent to the MDG team');
+    await lineUnderBubble('#42 · Sent to the MDG team');
 
     // An admin opens it.
     serverUpdates(conversation([ticket({ seen: true })]));
-    expect(await screen.findByText('#42 · MDG team is looking at it')).toBeInTheDocument();
+    expect(await lineUnderBubble('#42 · MDG team is looking at it')).toBeInTheDocument();
     expect(screen.queryByText('#42 · Sent to the MDG team')).toBeNull();
 
     // An admin resolves it.
     serverUpdates(
       conversation([ticket({ seen: true, state: 'RESOLVED', resolvedAt: '2026-10-12T09:30:00.000Z' })]),
     );
-    expect(await screen.findByText('#42 · Closed by the MDG team')).toBeInTheDocument();
+    expect(await lineUnderBubble('#42 · Closed by the MDG team')).toBeInTheDocument();
     expect(screen.queryByText('#42 · MDG team is looking at it')).toBeNull();
   });
 
   it('draws the line in Hindi when the app is in Hindi, and follows a switch', async () => {
     mount(conversation([ticket({ seen: true })]));
-    expect(await screen.findByText('#42 · MDG team is looking at it')).toBeInTheDocument();
+    expect(await lineUnderBubble('#42 · MDG team is looking at it')).toBeInTheDocument();
     act(() => useLangStore.setState({ lang: 'hi', explicit: true }));
-    expect(await screen.findByText('#42 · MDG टीम देख रही है')).toBeInTheDocument();
+    expect(await lineUnderBubble('#42 · MDG टीम देख रही है')).toBeInTheDocument();
   });
 
   it('shows nothing once the conversation stops listing the ticket', async () => {
     mount(conversation([ticket()]));
-    await screen.findByText('#42 · Sent to the MDG team');
+    await lineUnderBubble('#42 · Sent to the MDG team');
 
     // A resolved ticket past the server's seven-day window drops out.
     serverUpdates(conversation([]));
@@ -273,6 +288,93 @@ describe('ChatPage — the ticket status line', () => {
     expect(screen.queryByText(/talk to a person/i)).toBeNull();
     expect(screen.queryByText(/talk to support/i)).toBeNull();
     expect(screen.queryByText(/someone from mdg is coming/i)).toBeNull();
+  });
+});
+
+/**
+ * The pinned bar under the header. Which phase reads when is the shared helpers'
+ * and `TicketBar`'s own tests; this is the page: where it hangs, that it follows
+ * the conversation the server sends, the language, and when it steps aside.
+ *
+ * Times are taken from the real clock, an hour or two either side of now, so
+ * these hold at any hour of the day — "being worked on" and "done" do not depend
+ * on whether the team is in.
+ */
+describe('ChatPage — the pinned ticket bar', () => {
+  const HOUR = 3_600_000;
+  const ago = (ms: number) => new Date(Date.now() - ms).toISOString();
+  const ahead = (ms: number) => new Date(Date.now() + ms).toISOString();
+  const closedHourAgo = () =>
+    ticket({ seen: true, state: 'RESOLVED', resolvedAt: ago(HOUR) });
+  const theBar = () => document.querySelector('[data-ticket-bar]');
+
+  it('hangs under the header and above the thread, as one line of text', async () => {
+    mount(conversation([closedHourAgo()]));
+    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    const bar = theBar()!;
+    const header = screen.getByRole('button', { name: 'More options' });
+    const thread = document.querySelectorAll('[data-scroller]')[0]!;
+    expect(header.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.compareDocumentPosition(thread) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(bar.querySelector('button, a')).toBeNull();
+  });
+
+  it('leaves the line under the bubble as it was', async () => {
+    mount(conversation([closedHourAgo()]));
+    await screen.findByText('#42 · Done ✓');
+    expect(await lineUnderBubble('#42 · Closed by the MDG team')).toBeInTheDocument();
+  });
+
+  it('says what is being worked on and by when', async () => {
+    mount(conversation([ticket({ seen: true, promiseUntil: ahead(2 * HOUR) })]));
+    await screen.findByText(/^#42 · Being worked on · update by /);
+    expect(theBar()).toHaveAttribute('data-phase', 'working');
+  });
+
+  it('follows the conversation the server sends', async () => {
+    mount(conversation([ticket({ seen: true, promiseUntil: ahead(2 * HOUR) })]));
+    await screen.findByText(/^#42 · Being worked on · update by /);
+
+    // The team closes it.
+    serverUpdates(conversation([closedHourAgo()]));
+    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    expect(screen.queryByText(/Being worked on/)).toBeNull();
+
+    // And a day later the conversation no longer lists it.
+    serverUpdates(conversation([]));
+    await waitFor(() => expect(theBar()).toBeNull());
+  });
+
+  it('speaks Hindi when the app does, and follows a switch', async () => {
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    mount(conversation([closedHourAgo()]));
+    expect(await screen.findByText('#42 · पूरा हुआ ✓')).toBeInTheDocument();
+    act(() => useLangStore.setState({ lang: 'en', explicit: true }));
+    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+  });
+
+  it('is not there without a ticket, or with one closed more than a day ago', async () => {
+    mount(conversation([ticket({ seen: true, state: 'RESOLVED', resolvedAt: ago(25 * HOUR) })]));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(theBar()).toBeNull();
+  });
+
+  it('is not there from a server that sends no tickets at all', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(theBar()).toBeNull();
+  });
+
+  it('steps aside while searching, and comes back when the search closes', async () => {
+    mount(conversation([closedHourAgo()]));
+    await screen.findByText('#42 · Done ✓');
+    fireEvent.click(await screen.findByRole('button', { name: 'More options' }));
+    fireEvent.click(within(screen.getByRole('menu')).getByText('Search'));
+    await screen.findByRole('searchbox');
+    expect(theBar()).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    expect(document.querySelectorAll('[data-scroller]')).toHaveLength(1);
   });
 });
 

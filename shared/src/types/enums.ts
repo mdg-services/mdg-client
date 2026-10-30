@@ -351,6 +351,14 @@ export const AUDIT_ACTIONS = [
   'TICKET_ON_IT_CLEARED',
   /** An admin ended a chat's after-reply quiet early ("Let AI answer"), so the AI may answer the next message. */
   'CONVERSATION_QUIET_CLEARED',
+  /** An admin said they answered the dealer outside the app (phone, WhatsApp): the chat stops counting as waiting. */
+  'CONVERSATION_ANSWERED_OUTSIDE',
+  /** An admin opened a ticket by hand. */
+  'TICKET_OPEN_BY_PERSON',
+  /** An "on it until" time passed with no update: the owner was reminded, or the dealer was sent the "taking longer" line. Actor is the system. */
+  'TICKET_PROMISE_REMINDER',
+  /** An admin changed their own phone-notification preferences. */
+  'ADMIN_NOTIFICATION_PREFS',
   /** A super-admin resolved a grievance sent from the website, with a note. */
   'GRIEVANCE_RESOLVE',
   /** A super-admin reopened a resolved grievance. */

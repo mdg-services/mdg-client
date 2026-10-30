@@ -95,6 +95,13 @@ export const ADMIN_ALERT_KINDS = [
   'autopay_debit_failed',
   /** An owner stopped autopay in the first month and asked for the money back: call, then a super-admin refunds. */
   'first_month_refund_asked',
+  // ── The ticket desk (ADR 0026) ──
+  /** A person's "on it until" time passed ten minutes ago with no update to the dealer. */
+  'ticket_late',
+  /** An open ticket has had no activity for three days. */
+  'ticket_idle',
+  /** The AI is not answering dealers (switched off, or tripped by wrong answers): every message comes to a person. */
+  'ai_down',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -182,9 +189,8 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   },
   ticket_open: {
     label: 'Ticket',
-    // Hiding the alert does NOT resolve the ticket. Only a person writing a
-    // resolution note on the ticket does.
-    clearsWhen: 'Clears when someone resolves the ticket with a note.',
+    // Hiding the alert does NOT close the ticket. Only a person closing it does.
+    clearsWhen: 'Clears when someone closes the ticket.',
     superAdminOnly: false,
   },
   // Super-admin only, like the film pages and the site assistant's leads: the
@@ -328,6 +334,21 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   first_month_refund_asked: {
     label: 'First month refund asked',
     clearsWhen: 'Clears when the first month is refunded, or the call is marked done.',
+    superAdminOnly: false,
+  },
+  ticket_late: {
+    label: 'Ticket late',
+    clearsWhen: 'Clears when someone replies to the dealer, sets a new time, or closes the ticket.',
+    superAdminOnly: false,
+  },
+  ticket_idle: {
+    label: 'Ticket idle',
+    clearsWhen: 'Clears when anything happens on the ticket, or it is closed.',
+    superAdminOnly: false,
+  },
+  ai_down: {
+    label: 'AI not answering',
+    clearsWhen: 'Clears when the AI is switched back on.',
     superAdminOnly: false,
   },
 };

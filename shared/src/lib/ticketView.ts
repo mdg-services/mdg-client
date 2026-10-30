@@ -28,6 +28,9 @@ export const TICKET_TRIGGER_LABEL: Record<TicketTrigger, string> = {
   machine_fault: 'AI fault',
   limit: 'Question limit reached',
   dealer_wrote: 'Dealer wrote again',
+  opened_by_person: 'Opened by a person',
+  ai_off: 'AI is switched off',
+  not_understood: 'AI could not understand',
 };
 
 /**
@@ -47,6 +50,9 @@ export const TICKET_TRIGGER_KIND: Record<TicketTrigger, 'person' | 'gap' | 'faul
   machine_fault: 'fault',
   limit: 'person',
   dealer_wrote: 'person',
+  opened_by_person: 'person',
+  ai_off: 'person',
+  not_understood: 'person',
 };
 
 export function ticketTriggerTone(trigger: TicketTrigger): TicketTone {
@@ -265,4 +271,168 @@ export function promiseTimeText(iso: string, lang: 'en' | 'hi', now: Date = new 
 export function ticketDealerUpdateBy(iso: string, lang: 'en' | 'hi', now: Date = new Date()): string {
   const when = promiseTimeText(iso, lang, now);
   return lang === 'hi' ? `${when} तक अपडेट` : `update by ${when}`;
+}
+
+/* ───────────────────────── The ticket desk (ADR 0026) ───────────────────────── */
+
+/** MDG's team hours, IST: a ticket raised outside them is told the team will see it in the morning. */
+export const TEAM_HOURS = { open: 9, close: 23 } as const;
+
+/** A dealer waiting this long, or an "on it" time passed with no update, makes a ticket Late. */
+export const TICKET_LATE_AFTER_MINUTES = 30;
+/** After an "on it" time passes with no update: the owner is reminded at once, the dealer and the team this much later. */
+export const PROMISE_TEAM_REMINDER_MINUTES = 10;
+/** An open ticket with nothing happening for this long is raised as idle. */
+export const TICKET_IDLE_DAYS = 3;
+/** A closed ticket's bar stays on the dealer's chat this long. */
+export const TICKET_CLOSED_BAR_HOURS = 24;
+
+function istHour(d: Date): number {
+  return new Date(d.getTime() + 330 * 60_000).getUTCHours();
+}
+
+/** Is it inside MDG's team hours (09:00–23:00 IST)? */
+export function insideTeamHours(now: Date = new Date()): boolean {
+  const h = istHour(now);
+  return h >= TEAM_HOURS.open && h < TEAM_HOURS.close;
+}
+
+/** The next time the team starts (09:00 IST): today if it is still early morning, else tomorrow. */
+export function nextTeamOpening(now: Date = new Date()): Date {
+  const ist = new Date(now.getTime() + 330 * 60_000);
+  const sameDay = ist.getUTCHours() < TEAM_HOURS.open;
+  return new Date(
+    Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate() + (sameDay ? 0 : 1), TEAM_HOURS.open, 0) -
+      330 * 60_000,
+  );
+}
+
+/**
+ * Where an open ticket stands for MDG, in the words the inbox uses. Decided here,
+ * once, for the server's counts and the admin's list alike.
+ *
+ * - `closed`  — resolved.
+ * - `on_it`   — a person's "on it until" time is still ahead.
+ * - `late`    — the dealer has waited `TICKET_LATE_AFTER_MINUTES`, or an "on it"
+ *               time passed with no update since it was made.
+ * - `new`     — nobody at MDG has done anything with it yet.
+ * - `waiting` — the dealer wrote after MDG's last reply.
+ * - `replied` — MDG spoke last; nothing is owed right now.
+ */
+export type TicketDeskState = 'new' | 'on_it' | 'waiting' | 'late' | 'replied' | 'closed';
+
+export function ticketDeskState(
+  t: Pick<TicketView, 'state' | 'promise' | 'lastPersonAt' | 'dealerWaitingSince' | 'ownerName'>,
+  now: Date = new Date(),
+): TicketDeskState {
+  if (t.state === 'RESOLVED') return 'closed';
+  if (promiseActive(t.promise?.until, now)) return 'on_it';
+  const lastPerson = t.lastPersonAt ? new Date(t.lastPersonAt).getTime() : 0;
+  if (t.promise?.until && lastPerson <= new Date(t.promise.setAt).getTime()) return 'late';
+  if (t.dealerWaitingSince) {
+    const waited = now.getTime() - new Date(t.dealerWaitingSince).getTime();
+    if (waited >= TICKET_LATE_AFTER_MINUTES * 60_000) return 'late';
+  }
+  if (!t.lastPersonAt && !t.promise && !t.ownerName) return 'new';
+  if (t.dealerWaitingSince) return 'waiting';
+  return 'replied';
+}
+
+export const TICKET_DESK_STATE_LABEL: Record<TicketDeskState, string> = {
+  new: 'New',
+  on_it: 'On it',
+  waiting: 'Waiting',
+  late: 'Late',
+  replied: 'Replied',
+  closed: 'Closed',
+};
+
+export const TICKET_DESK_STATE_TONE: Record<TicketDeskState, TicketTone> = {
+  new: 'warning',
+  on_it: 'info',
+  waiting: 'warning',
+  late: 'danger',
+  replied: 'neutral',
+  closed: 'success',
+};
+
+/** The order the Tickets list shows them in: what needs a person first. */
+export const TICKET_DESK_STATE_RANK: Record<TicketDeskState, number> = {
+  late: 0,
+  new: 1,
+  waiting: 2,
+  on_it: 3,
+  replied: 4,
+  closed: 5,
+};
+
+/** Does this state count toward the inbox badge ("needs us")? */
+export function ticketNeedsUs(state: TicketDeskState): boolean {
+  return state === 'new' || state === 'waiting' || state === 'late';
+}
+
+/**
+ * The pinned bar under the dealer's chat header: which ticket it shows, and how.
+ * `null` is no bar. One ticket is open per chat; with none open, the most recently
+ * closed one shows "Done ✓" for `TICKET_CLOSED_BAR_HOURS`.
+ */
+export type TicketBarPhase = 'new' | 'night' | 'looking' | 'working' | 'late' | 'closed';
+
+export function ticketBarPhase(
+  t: Pick<
+    TicketDealerView,
+    'state' | 'seen' | 'promiseUntil' | 'updatedAfterPromise' | 'teamReminded' | 'resolvedAt'
+  >,
+  now: Date = new Date(),
+): TicketBarPhase | null {
+  if (t.state === 'RESOLVED') {
+    const at = t.resolvedAt ? new Date(t.resolvedAt).getTime() : 0;
+    return now.getTime() - at <= TICKET_CLOSED_BAR_HOURS * 3_600_000 ? 'closed' : null;
+  }
+  if (promiseActive(t.promiseUntil, now)) return 'working';
+  // "Team reminded" only once it is true: the line and the team's alert go out
+  // `PROMISE_TEAM_REMINDER_MINUTES` after the time (later still at night).
+  if (t.promiseUntil && !t.updatedAfterPromise && t.teamReminded) return 'late';
+  if (!t.seen) return insideTeamHours(now) ? 'new' : 'night';
+  return 'looking';
+}
+
+/** The ticket the bar is about: the open one, else the newest closed one still inside the bar's window. */
+export function ticketForBar<T extends Pick<TicketDealerView, 'state' | 'resolvedAt' | 'raisedAt'>>(
+  tickets: readonly T[] | undefined,
+  now: Date = new Date(),
+): T | undefined {
+  const list = tickets ?? [];
+  const open = list.find((t) => t.state === 'OPEN');
+  if (open) return open;
+  return list
+    .filter(
+      (t) =>
+        t.state === 'RESOLVED' &&
+        t.resolvedAt &&
+        now.getTime() - new Date(t.resolvedAt).getTime() <= TICKET_CLOSED_BAR_HOURS * 3_600_000,
+    )
+    .sort((a, b) => new Date(b.resolvedAt!).getTime() - new Date(a.resolvedAt!).getTime())[0];
+}
+
+/** The bar's words, after the ticket's "#N · ". `{when}` is the promised time (`promiseTimeText`). */
+export const TICKET_BAR_TEXT: Record<TicketBarPhase, { en: string; hi: string }> = {
+  new: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेज दिया है' },
+  night: { en: 'The team will see this from 9 am', hi: 'टीम सुबह 9 बजे से देखेगी' },
+  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है' },
+  working: { en: 'Being worked on · update by {when}', hi: 'काम चल रहा है · {when} तक अपडेट' },
+  late: { en: 'Taking a little longer · team reminded', hi: 'थोड़ा और समय लग रहा है · टीम को याद दिलाया' },
+  closed: { en: 'Done ✓', hi: 'पूरा हुआ ✓' },
+};
+
+/** "#4 · काम चल रहा है · आज शाम 6 बजे तक अपडेट" — the whole bar line. */
+export function ticketBarText(
+  t: Pick<TicketDealerView, 'number' | 'promiseUntil'>,
+  phase: TicketBarPhase,
+  lang: 'en' | 'hi',
+  now: Date = new Date(),
+): string {
+  const words = TICKET_BAR_TEXT[phase][lang];
+  const when = t.promiseUntil ? promiseTimeText(t.promiseUntil, lang, now) : '';
+  return `${ticketRef(t.number)} · ${words.replace('{when}', when)}`;
 }

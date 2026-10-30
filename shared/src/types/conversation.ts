@@ -360,3 +360,21 @@ export interface PresignUploadResponse {
   storageKey: string;
   expiresIn: number;
 }
+
+/**
+ * `GET/PATCH /admin/me/notification-preferences` — one admin's own phone
+ * settings. `dealerMessagePush` off means no buzz for each dealer message;
+ * tickets, late tickets and alerts still buzz.
+ */
+export interface AdminNotificationPrefs {
+  dealerMessagePush: boolean;
+}
+
+/**
+ * The admin inbox's two tabs (ADR 0026). `tickets` lists tickets (`GET /tickets`);
+ * `chats` lists every conversation by its last message, whatever its status
+ * (`GET /conversations?status=chats`). Old links (`all`, `ai-guard`, `flagged`,
+ * `open`, `mine`, `resolved`, `tickets`) still load.
+ */
+export const INBOX_TABS = ['tickets', 'chats'] as const;
+export type InboxTab = (typeof INBOX_TABS)[number];

@@ -152,6 +152,10 @@ describe('ticketTriggerTone', () => {
     limit: 'neutral',
     // A dealer writing again on a ticket somebody already has: a person's job.
     dealer_wrote: 'neutral',
+    // The three the ticket desk added: all a person's work, none a bug or a gap.
+    opened_by_person: 'neutral',
+    ai_off: 'neutral',
+    not_understood: 'neutral',
   };
 
   it('has an expected tone for every trigger (this table cannot go stale)', () => {
@@ -244,15 +248,25 @@ describe('TICKET_TRIGGER_FOR_REASON', () => {
 
   it('leaves no trigger that nothing can raise', () => {
     // A trigger no reason maps to would be a filter on the Tickets page that
-    // can never match a row. `dealer_wrote` is the one exception, on purpose: it
-    // is only ever the trigger of a FOLLOW-UP folded into a ticket somebody
-    // already holds (`followUps[].trigger`), never of the ticket itself.
+    // can never match a row. Four are exceptions, on purpose, because they are
+    // not a handoff reason's: `dealer_wrote` is only ever the trigger of a
+    // FOLLOW-UP folded into a ticket somebody already holds
+    // (`followUps[].trigger`), never of the ticket itself; `opened_by_person` is
+    // a person opening one by hand; `ai_off` and `not_understood` are raised
+    // straight from the AI's gates and its ask-again count, before any reason
+    // exists.
+    const NOT_FROM_A_REASON: readonly TicketTrigger[] = [
+      'dealer_wrote',
+      'opened_by_person',
+      'ai_off',
+      'not_understood',
+    ];
     const raised = new Set(Object.values(TICKET_TRIGGER_FOR_REASON));
     for (const trigger of TICKET_TRIGGERS) {
-      if (trigger === 'dealer_wrote') continue;
+      if (NOT_FROM_A_REASON.includes(trigger)) continue;
       expect(raised.has(trigger)).toBe(true);
     }
-    expect(raised.has('dealer_wrote')).toBe(false);
+    for (const trigger of NOT_FROM_A_REASON) expect(raised.has(trigger)).toBe(false);
   });
 });
 
