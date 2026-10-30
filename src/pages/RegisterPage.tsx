@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input } from '@/components/ui';
+import { markAccountHere } from '@/features/auth/firstScreen';
 import { PasswordInput } from '@/features/auth/PasswordInput';
 import { requestSignIn, startSession } from '@/features/auth/signIn';
 import {
@@ -179,6 +180,8 @@ export function RegisterPage() {
       return { account, session };
     },
     onSuccess: ({ account, session }, v) => {
+      // From now on this phone opens on Sign in, whatever the answer (`firstScreen.ts`).
+      markAccountHere();
       if (session) {
         startSession(session);
         navigate('/chat', { replace: true });

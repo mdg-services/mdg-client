@@ -2,7 +2,7 @@ import { act, screen } from '@testing-library/react';
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { markSignedInHere } from '@/features/auth/firstScreen';
+import { markAccountHere } from '@/features/auth/firstScreen';
 import { requirePasswordChange, useAuthStore } from '@/store/auth';
 import { makeUser, renderWithProviders, resetStores, signIn } from '@/test/utils';
 
@@ -69,7 +69,7 @@ vi.mock('@/pages/LoginPage', async () => {
 
 describe('App routing', () => {
   // A phone someone has signed in on before: a signed-out visit goes to Sign in.
-  beforeEach(() => markSignedInHere());
+  beforeEach(() => markAccountHere());
   afterEach(() => resetStores());
 
   it('opens on Register on a phone nobody has signed in on, and on Sign in once someone has', async () => {

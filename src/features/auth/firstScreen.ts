@@ -8,14 +8,18 @@
  * they have already filled in. Register itself starts with "Already registered?
  * Sign in", one tap for anybody this guesses wrong for.
  *
- * "Has signed in here" is a mark left on the phone at every sign-in, and by any
- * session that was already open when this rule arrived (`store/auth.ts`).
+ * "Has an account here" is a mark left on the phone at every sign-in, by any
+ * session that was already open when this rule arrived (`store/auth.ts`), and by
+ * every registration this phone sent that went through (`RegisterPage`) — even
+ * one a person at MDG still has to look at, so its sender comes back to Sign in
+ * and not to a second form (30 Oct 2026: an owner registered twice that way).
  * With storage switched off nothing can be remembered either way, so it is Sign
  * in, which is what the app showed before.
  */
+// The name it had when only a sign-in set it; kept, because phones already carry it.
 const SIGNED_IN_BEFORE_KEY = 'mdg.client.signedInBefore';
 
-export function markSignedInHere(): void {
+export function markAccountHere(): void {
   try {
     localStorage.setItem(SIGNED_IN_BEFORE_KEY, '1');
   } catch {

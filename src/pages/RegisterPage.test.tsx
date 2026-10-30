@@ -266,6 +266,28 @@ describe('RegisterPage', () => {
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
       expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
     });
+
+    it.each(['waiting', 'existing'])(
+      'a registration that went through (%s) sends this phone to Sign in next time, not to a second form',
+      async (account) => {
+        fetchMock.mockResolvedValueOnce(okResponse(account));
+        expect(firstScreen()).toBe('/register');
+        const user = userEvent.setup();
+        renderAt('/register');
+        await send(user);
+        await screen.findByRole('status');
+        expect(firstScreen()).toBe('/login');
+      },
+    );
+
+    it('a registration that did not go through leaves this phone on Register', async () => {
+      fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+      await screen.findByRole('alert');
+      expect(firstScreen()).toBe('/register');
+    });
   });
 
   describe('the password', () => {

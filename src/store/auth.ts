@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import { markSignedInHere } from '@/features/auth/firstScreen';
+import { markAccountHere } from '@/features/auth/firstScreen';
 import { postToNative } from '@/lib/nativeBridge';
 import { queryClient } from '@/lib/queryClient';
 import type { User } from '@dk/shared/types';
@@ -115,7 +115,7 @@ export const useAuthStore = create<AuthState>()(
         queryClient.clear();
         set({ token, user });
         // From now on this phone opens on Sign in, not Register (`firstScreen.ts`).
-        markSignedInHere();
+        markAccountHere();
       },
       logout: () => {
         const { token } = get();
@@ -139,7 +139,7 @@ export const useAuthStore = create<AuthState>()(
       // A session already open when the first-screen rule arrived never passed
       // through `login`: mark its phone too, so it opens on Sign in if it ends.
       onRehydrateStorage: () => (state) => {
-        if (state?.token) markSignedInHere();
+        if (state?.token) markAccountHere();
       },
     },
   ),
