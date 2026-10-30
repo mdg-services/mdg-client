@@ -14,10 +14,14 @@
  * ADR 0015): the time, and nothing else. No IP address, no browser string, no
  * place. The code already says whose message it was.
  *
- * The link rides in its own approved template (`WHATSAPP_LINK_TEMPLATE`): the
- * same greeting, words and sign-off as the simple message, and under it a
- * button whose address ends in the code. A link typed into the words of an
- * ordinary message is still not counted.
+ * While the person's 24-hour window is open, the link goes as an ordinary
+ * message with a link button (Meta's `cta_url` message): the words exactly as
+ * typed, line breaks and all, and under them the same "Open link" button. With
+ * the window closed it rides in its own approved template
+ * (`WHATSAPP_LINK_TEMPLATE`): the same greeting, words and sign-off as the
+ * simple message, and under it a button whose address ends in the code — and,
+ * as in every template, the lines joined into one paragraph. A link typed into
+ * the words of an ordinary message is still not counted.
  */
 
 import { toTemplateParam } from './whatsappInbox';
@@ -42,6 +46,13 @@ export const WHATSAPP_LINK_TEMPLATE = {
   /** As the simple message: Meta caps a body at 1,024 characters including the fixed words. */
   maxLength: 900,
 } as const;
+
+/**
+ * The longest words a link may go with in an open window, as an ordinary
+ * message with a link button. Meta caps that message's words at 1,024
+ * characters, line breaks counted — less than an ordinary message's 4,096.
+ */
+export const WHATSAPP_LINK_MESSAGE_MAX_LENGTH = 1024;
 
 /** The longest address the admin may give a link. */
 export const WHATSAPP_LINK_MAX_LENGTH = 1000;

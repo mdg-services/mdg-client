@@ -575,8 +575,9 @@ export interface WhatsAppSendInput {
   replyTo?: string | null;
   /**
    * An address to send them to, as typed (`toLinkTarget` reads it). With one,
-   * the message always goes in the link template — even inside the 24-hour
-   * window — because only its button can be counted (`whatsappLinks.ts`).
+   * the message carries a counted "Open link" button: inside the 24-hour
+   * window as an ordinary message with that button, its lines kept; outside
+   * it in the link template (`whatsappLinks.ts`). It never quotes a message.
    */
   link?: string | null;
   /**
