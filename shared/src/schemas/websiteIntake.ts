@@ -86,6 +86,11 @@ export const websiteEnrolmentIntakeSchema = z.object({
     .regex(/^[A-Za-z0-9_-]{1,32}$/)
     .optional(),
   lang: z.enum(WEBSITE_LANGS).optional(),
+  /**
+   * The browser signature the form was sent from, as the website's server saw it:
+   * read into the kind of device (`lib/device.ts`) and dropped, never stored.
+   */
+  userAgent: z.string().max(500).optional(),
 });
 export type WebsiteEnrolmentIntake = z.infer<typeof websiteEnrolmentIntakeSchema>;
 

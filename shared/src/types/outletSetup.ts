@@ -33,6 +33,8 @@
  * Nothing in these types carries payment instructions to the app.
  */
 
+import type { DeviceKind, DeviceSeen } from '../lib/device';
+
 import type { OilCompanyId } from './oilCompany';
 import type { PaymentChannel } from './payment';
 import type { PortalId } from './portalLogin';
@@ -392,12 +394,41 @@ export interface SetupSubscriptionView {
   billingEnded: { at: string; reason: string } | null;
 }
 
+/**
+ * Where a registration was filled in: the website's form or the one inside the
+ * Dealer Kavach app, and on what device. Shown on the Onboarding page as "App ·
+ * Android" (owner's request, 30 Oct 2026).
+ */
+export interface SignupOrigin {
+  via: 'website' | 'app';
+  /** Null for a registration from before 30 Oct 2026, when the device was not recorded. */
+  device: DeviceSeen | null;
+}
+
+/** The owner's most recent sign-in: which device they use Dealer Kavach on. */
+export interface LastSignIn {
+  /** Null when that sign-in's browser signature could not be read. */
+  device: DeviceSeen | null;
+  at: string;
+}
+
+/** Registrations over the last 90 days, by form and by device: what the Onboarding page counts on top. */
+export interface SignupMix {
+  via: { app: number; website: number };
+  /** `unknown`: registrations from before the device was recorded. */
+  device: Record<DeviceKind | 'unknown', number>;
+}
+
 export interface OutletSetupAdmin {
   dealerId: string;
   code: string;
   /** The registration it came from. Null only for an outlet older than onboarding v2. */
   enrolmentId: string | null;
   source: SetupSource;
+  /** The registration's form and device; null for an outlet added by hand. */
+  origin: SignupOrigin | null;
+  /** Null until an owner has signed in. */
+  lastSignIn: LastSignIn | null;
   ownerName: string | null;
   mobile: string | null;
   stage: SetupStage;
@@ -466,6 +497,8 @@ export type OnboardingBoardRow =
       lastCall: SetupCall | null;
       /** The language the welcome starts in: what they last wrote to us in, else the form's, else Hinglish. */
       messageLang: SetupMessageLang;
+      /** The website's form or the app's, and the device. */
+      origin: SignupOrigin;
     }
   | { kind: 'outlet'; outlet: OutletSetupAdmin };
 
@@ -492,6 +525,8 @@ export interface OnboardingBoard {
   passwordHelp: PasswordHelpRow[];
   /** Counts over the last 90 days, for the funnel at the top of the page. */
   funnel: { registered: number; approved: number; signedIn: number; paid: number; live: number };
+  /** The same 90 days' registrations by form and by device. Absent from a backend older than 30 Oct 2026. */
+  signups?: SignupMix;
 }
 
 /** The owner a registration may be added to as another outlet (one person, several pumps). */

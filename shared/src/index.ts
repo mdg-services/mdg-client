@@ -56,6 +56,10 @@ export * from './lib/aiFirstLineView';
 // for the same reason: the admin has no test runner, and the dealer bubble and
 // the Tickets page must agree on what a state is called.
 export * from './lib/ticketView';
+// The kind of device a request came from (Android, iPhone, a computer; inside the
+// app or not), read from its browser signature: the Onboarding page's "App ·
+// Android". Shared so the backend and the admin name devices the same way.
+export * from './lib/device';
 // The one rule that decides whether a dealer may be shown their Kavach figure.
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.
