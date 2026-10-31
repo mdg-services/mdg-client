@@ -544,6 +544,18 @@ export interface WhatsAppChatMessage {
   phoneNumberId: string | null;
   /** Outbound from the inbox: the composer's id for it, so a pending bubble can be matched. */
   clientId: string | null;
+  /**
+   * Outbound: one of MDG's guide videos, sent from the inbox's "Send a video".
+   * The admin plays it from the library, as the person received it (WhatsApp
+   * plays it from the start; `startSec` is the chapter its words point to).
+   * Absent or null on every other message, and from an older server.
+   */
+  guideVideo?: {
+    id: string;
+    startSec: number;
+    /** From the library; null for a video the library no longer holds. */
+    title: { hi: string; en: string } | null;
+  } | null;
 }
 
 export interface WhatsAppMessagePage {
@@ -587,6 +599,24 @@ export interface WhatsAppSendInput {
    * says them. No effect on an ordinary message.
    */
   keepRepeats?: boolean;
+}
+
+/**
+ * Send one of MDG's guide videos into a chat (`POST /chats/:person/videos`), as a
+ * WhatsApp video message with its title (and the chapter, when one is named) as
+ * the words under it (`whatsAppVideoCaption`). Only while the chat's 24-hour
+ * window is open: there is no template that carries a video. Never a video made
+ * for MDG's own team.
+ */
+export interface WhatsAppVideoSendInput {
+  /** As `WhatsAppSendInput.line`: the inbox it is sent from. */
+  line: WhatsAppLine;
+  /** As `WhatsAppSendInput.clientId`: sending the same id twice sends once. */
+  clientId: string;
+  /** The library's id for the video. */
+  video: string;
+  /** A chapter's start second, named in the words under the video. Anything else is the start. */
+  startSec?: number;
 }
 
 /** Start a chat with somebody who is not in the inbox yet. */

@@ -63,6 +63,9 @@ export * from './lib/device';
 // Search over the video library (the admin's Videos page and "Send a video"):
 // both languages, romanised Hindi, chapters. Shared so the backend tests it.
 export * from './lib/videoSearch';
+// The words a guide video goes out with on WhatsApp: the server sends them, the
+// admin's "Send a video" shows them before the send.
+export * from './lib/videoCaption';
 // The one rule that decides whether a dealer may be shown their Kavach figure.
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.

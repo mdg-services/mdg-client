@@ -172,6 +172,11 @@ export interface GuideVideoAdminItem extends GuideVideoListItem {
   sendWhen: string[];
   /** May it be sent into a dealer's app chat: not a team video, not WhatsApp-only, and uploaded. */
   sendable: boolean;
+  /**
+   * May it be sent from the WhatsApp inbox: not a team video, and its chat copy is
+   * uploaded. The WhatsApp-only video is. Absent from an older server: read as no.
+   */
+  whatsappSendable?: boolean;
   /** A picture to show for it: a signed link to the poster, the public poster, or null. */
   posterUrl: string | null;
   /** An explainer's public page in each language; null for MDG's own guides. */
