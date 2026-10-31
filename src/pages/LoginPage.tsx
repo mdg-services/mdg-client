@@ -14,6 +14,7 @@ import { parseIdentifier } from '@/features/auth/identifier';
 import { PasswordInput } from '@/features/auth/PasswordInput';
 import { requestSignIn, startSession } from '@/features/auth/signIn';
 import { ApiError } from '@/lib/api';
+import { HELPLINE } from '@/lib/helpline';
 import { useT, type MessageKey } from '@/lib/i18n';
 import {
   ACCOUNT_DELETED_KEY,
@@ -256,6 +257,18 @@ export function LoginPage() {
           >
             {t('auth.register')}
           </Button>
+          {/* The way to a person for whoever cannot get in: a forgotten
+              mobile number, a switched-off login, or no code arriving. */}
+          <a
+            href={HELPLINE.href}
+            className="flex min-h-11 flex-col items-center rounded-lg px-3 py-1 text-center text-xs leading-relaxed text-text-subtle"
+          >
+            <span>{t('auth.helpTitle')}</span>
+            <span className="text-base font-semibold tabular-nums text-brand">
+              {HELPLINE.display}
+            </span>
+            <span>{t('auth.helpHours')}</span>
+          </a>
           {/* Reachable before anyone has signed in: the privacy policy must be
               readable from inside the app, and a dealer weighing whether to
               register is who wants it. */}

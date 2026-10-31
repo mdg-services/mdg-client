@@ -900,3 +900,24 @@ describe('LoginPage — the privacy policy', () => {
     expect(screen.getByRole('link', { name: 'प्राइवेसी पॉलिसी' })).toBeInTheDocument();
   });
 });
+
+describe('LoginPage — the toll-free line', () => {
+  afterEach(() => {
+    resetStores();
+  });
+
+  // A dealer who cannot get into the chat — a switched-off login, a forgotten
+  // number, no code arriving — has no other way to a person from here.
+  it('is a phone link to the number the website prints, with its hours', () => {
+    renderLogin();
+    const link = screen.getByRole('link', { name: /Need help\? Call MDG, toll-free/ });
+    expect(link).toHaveAttribute('href', 'tel:18008913496');
+    expect(link).toHaveTextContent('1800‑891‑3496');
+    expect(link).toHaveTextContent('9am to 9pm, every day');
+  });
+
+  it('says it in Hindi', () => {
+    renderLogin('hi');
+    expect(screen.getByRole('link', { name: /मदद चाहिए\?/ })).toHaveAttribute('href', 'tel:18008913496');
+  });
+});

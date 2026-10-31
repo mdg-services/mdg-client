@@ -87,6 +87,9 @@ export const messages = {
     hi: 'अभी खाता नहीं है? अपना पंप रजिस्टर कीजिए और अपना पासवर्ड चुनिए। फिर अपने मोबाइल नंबर और उसी पासवर्ड से साइन इन कीजिए।',
   },
   'auth.register': { en: 'Register your pump', hi: 'अपना पंप रजिस्टर करें' },
+  // Above the toll-free number on the sign-in screen, and the hours under it.
+  'auth.helpTitle': { en: 'Need help? Call MDG, toll-free', hi: 'मदद चाहिए? MDG को फ़ोन कीजिए, कॉल मुफ़्त है' },
+  'auth.helpHours': { en: '9am to 9pm, every day', hi: 'सुबह 9 से रात 9 तक, हर दिन' },
   'auth.loginFailed': {
     en: "That mobile number, email or password didn't work. Try again, or tap \"Forgot your password?\".",
     hi: 'यह मोबाइल नंबर, ईमेल या पासवर्ड सही नहीं है। फिर कोशिश कीजिए, या "पासवर्ड भूल गए?" दबाइए।',
