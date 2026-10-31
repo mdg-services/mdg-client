@@ -10,6 +10,7 @@
  * another. A WhatsApp number that belongs to exactly one dealer login shares
  * that login's thread with the app chat.
  */
+import type { GuideVideoFamily, GuideVideoText } from './videoLibrary';
 import type { WhatsAppLine } from './whatsappInbox';
 
 export const REPLY_HELPER_CHANNELS = ['app', 'whatsapp'] as const;
@@ -125,12 +126,35 @@ export interface ReplyHelperDraft {
   highlights: ReplyHelperHighlight[];
 }
 
+/**
+ * A video the helper suggests sending beside the reply. The model names it; code
+ * checks it is one this person may be sent on this channel (the same rules as
+ * "Send a video") and that the start is one of its chapters. In the app chat the
+ * admin sends the video itself with one tap; on WhatsApp only a public explainer
+ * can be suggested, and its page link goes into the reply.
+ */
+export interface ReplyHelperVideo {
+  /** The library id. */
+  id: string;
+  /** Where to start: one of its chapter starts, or 0. */
+  startSec: number;
+  /** Why it fits, in one short English line for the admin. */
+  why: string;
+  /** As the library named it when suggested, so an old turn still reads if the library moves on. */
+  title: GuideVideoText;
+  family: GuideVideoFamily;
+  /** WhatsApp: the public page to put in the reply. Null in the app chat. */
+  link: string | null;
+}
+
 export interface ReplyHelperReply {
   /** A short note to the admin: what the drafts do, and anything to check. */
   note: string;
   drafts: ReplyHelperDraft[];
   /** What neither the knowledge nor the conversation covers. "Check before sending." */
   notCovered: string[];
+  /** Up to two videos worth sending with the reply, best first. Empty when none fits. */
+  videos: ReplyHelperVideo[];
 }
 
 export interface ReplyHelperTurn {

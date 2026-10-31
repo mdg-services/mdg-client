@@ -93,14 +93,11 @@ export function SetupStrip({
   const view = q.data;
   const [open, setOpen] = React.useState<SetupStripStep | null>(null);
   // "How setup works": the dealer's own walkthrough of these steps, once it is in
-  // the library (uploaded) — never a dead link before then.
-  // Not for a BPCL or HPCL pump: the walkthrough narrates Indian Oil's SDMS and IRAS
-  // logins, which such an owner is never shown.
+  // the library (uploaded) — never a dead link before then. For every company: since
+  // its third cut (31 Oct 2026) it says "your company's portal login" and never names
+  // SDMS, IRAS or an oil company, so a BPCL or HPCL owner gets it too.
   const videos = useGuideVideos();
-  const companyPump = view?.company === 'bpcl' || view?.company === 'hpcl';
-  const setupVideo = companyPump
-    ? null
-    : (videos.data?.find((v) => v.id === SETUP_VIDEO_ID && v.available) ?? null);
+  const setupVideo = videos.data?.find((v) => v.id === SETUP_VIDEO_ID && v.available) ?? null;
   const [playing, setPlaying] = React.useState(false);
 
   const now = !disabled && view && stripVisible(view) ? currentStep(view) : null;

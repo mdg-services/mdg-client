@@ -434,12 +434,11 @@ describe('the "how setup works" video under the strip', () => {
     );
   });
 
-  it('is not offered to a BPCL or HPCL pump: it narrates the Indian Oil logins', async () => {
+  it('is offered to a BPCL or HPCL pump too: the walkthrough names no company’s portals (31 Oct 2026)', async () => {
     for (const company of ['bpcl', 'hpcl'] as const) {
       serve({ ...atBilling, company, loginsNeeded: [company] }, [SETUP_VIDEO]);
       renderWithProviders(<SetupStrip />);
-      await screen.findByText('Fill in the name and address for your bill');
-      expect(screen.queryByRole('button', { name: /How setup works/ })).toBeNull();
+      expect(await screen.findByRole('button', { name: /How setup works/ })).toBeInTheDocument();
       cleanup();
     }
   });

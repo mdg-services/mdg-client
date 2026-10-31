@@ -60,6 +60,9 @@ export * from './lib/ticketView';
 // app or not), read from its browser signature: the Onboarding page's "App ·
 // Android". Shared so the backend and the admin name devices the same way.
 export * from './lib/device';
+// Search over the video library (the admin's Videos page and "Send a video"):
+// both languages, romanised Hindi, chapters. Shared so the backend tests it.
+export * from './lib/videoSearch';
 // The one rule that decides whether a dealer may be shown their Kavach figure.
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.
