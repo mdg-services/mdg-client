@@ -348,6 +348,12 @@ export interface SetupReminderState {
   lastSentAt: string | null;
   /** When the next one is due, if one is. */
   nextAt: string | null;
+  /**
+   * When the team's "call them" falls due for this step (it may already have), or
+   * null when it never will: not the dealer's move, they said not interested, or
+   * somebody replied NO to the welcome. The same clock as the call alert.
+   */
+  callDueAt: string | null;
 }
 
 // ── The setup checklist and the watch (plan §5) ────────────────────────────
