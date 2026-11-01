@@ -365,7 +365,7 @@ export type SetupChecklistKey = (typeof SETUP_CHECKLIST_KEYS)[number];
 export interface SetupChecklistItem {
   key: SetupChecklistKey;
   state: 'done' | 'missing' | 'not_needed';
-  /** Plain words: "IRAS login not checked yet", "DSR: the two Excel files". */
+  /** Plain words: "IRAS login not checked yet", "DSR: its starting figures are not set". */
   detail: string | null;
 }
 

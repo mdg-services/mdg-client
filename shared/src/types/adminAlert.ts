@@ -102,6 +102,8 @@ export const ADMIN_ALERT_KINDS = [
   'ticket_idle',
   /** The AI is not answering dealers (switched off, or tripped by wrong answers): every message comes to a person. */
   'ai_down',
+  /** Setting up an outlet's standard package stopped at a step that needs a person. */
+  'package_blocked',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -349,6 +351,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   ai_down: {
     label: 'AI not answering',
     clearsWhen: 'Clears when the AI is switched back on.',
+    superAdminOnly: false,
+  },
+  package_blocked: {
+    label: 'Service setup stopped',
+    clearsWhen: 'Clears when the setup is tried again and gets past the step.',
     superAdminOnly: false,
   },
 };
