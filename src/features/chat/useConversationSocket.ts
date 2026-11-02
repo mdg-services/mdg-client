@@ -5,6 +5,7 @@ import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/use
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
+import { invalidateWemmisLogin } from '@/hooks/api/useWemmisLogin';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -171,6 +172,9 @@ export function useConversationSocket(
       // And where a login stands (saved by MDG, or refused by the portal) — the
       // box in the thread draws it. Only a box on screen is asking.
       invalidatePortalLogins(qc);
+      // The eMaaptaul login box reads its state live the same way: the owner may
+      // have reset the password on another phone while this one was offline.
+      invalidateWemmisLogin(qc);
     });
 
     // Rechecks waiting on the server to finish filing a colleague's answer; they
@@ -251,6 +255,8 @@ export function useConversationSocket(
       // was posted against may have moved since the cache last heard (MDG saved
       // the login, or the portal refused it). Cheap when no box is on screen.
       if (!alreadyPresent && payload.message.portalLogin) invalidatePortalLogins(qc);
+      // THE eMaaptaul LOGIN BOX ARRIVED: the same reasoning, for its own view.
+      if (!alreadyPresent && payload.message.wemmisLogin) invalidateWemmisLogin(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {

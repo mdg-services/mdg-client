@@ -6,6 +6,7 @@ import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskSta
 import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
 import { portalLoginsKey } from '@/hooks/api/usePortalLogins';
 import { type ReactVars } from '@/hooks/api/useReactToMessage';
+import { wemmisLoginKey } from '@/hooks/api/useWemmisLogin';
 import { makeFakeSocket, type FakeSocket } from '@/test/fakeSocket';
 import {
   makeMessage,
@@ -829,5 +830,65 @@ describe('useConversationSocket — a login box arriving', () => {
       h.socket.server('message:new', { message, conversation: {} });
     });
     expect(spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(LOGINS))).toHaveLength(1);
+  });
+});
+
+/**
+ * The eMaaptaul login box is drawn from the live state of the login, which can
+ * have moved since the cache last heard (the owner reset the password on another
+ * phone). So a message carrying a box asks again, and so does a reconnect.
+ */
+describe('useConversationSocket — an eMaaptaul login box arriving', () => {
+  afterEach(() => resetStores());
+  const LOGIN = { queryKey: wemmisLoginKey };
+  const asked = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(LOGIN));
+
+  it('asks where the login stands when a box arrives', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'wbox-1', senderId: OTHER, wemmisLogin: {} }),
+        conversation: {},
+      });
+    });
+    expect(spy).toHaveBeenCalledWith(LOGIN);
+  });
+
+  it('does not ask for the other login box, or an ordinary message', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'p-1', senderId: OTHER, portalLogin: { portals: ['sdms'] } }),
+        conversation: {},
+      });
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'plain-w', senderId: OTHER }),
+        conversation: {},
+      });
+    });
+    expect(asked(spy)).toHaveLength(0);
+  });
+
+  it('asks once for a box the server echoes twice', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'wbox-2', senderId: OTHER, wemmisLogin: { claimId: 'c1' } });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
+    expect(asked(spy)).toHaveLength(1);
+  });
+
+  it('asks again on a RE-connect, but not on the first connect', () => {
+    const { qc } = mount([], false);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    h.socket.server('connect'); // first connection
+    expect(asked(spy)).toHaveLength(0);
+    h.socket.server('connect'); // reconnect
+    expect(asked(spy)).toHaveLength(1);
   });
 });

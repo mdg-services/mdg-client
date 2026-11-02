@@ -31,6 +31,12 @@ export interface MessageAsk {
   periodLabel?: string;
   /** True when a PDF is as good as a photo (papers); false for a photo-only ask. */
   acceptsFile?: boolean;
+  /**
+   * How the app draws the ask. Absent: the usual "Send photo" footer.
+   * `sign-letter`: the message carries a letter (a PDF) to print, sign and send
+   * back — the app shows the three steps and names its buttons for that.
+   */
+  variant?: 'sign-letter';
 }
 
 /**

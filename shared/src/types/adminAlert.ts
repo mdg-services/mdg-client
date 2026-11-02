@@ -104,6 +104,8 @@ export const ADMIN_ALERT_KINDS = [
   'ai_down',
   /** Setting up an outlet's standard package stopped at a step that needs a person. */
   'package_blocked',
+  /** A calibration subsidy claim needs a person: a check failed, a run stopped, or the signed letter is overdue. */
+  'calibration_claim',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -356,6 +358,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   package_blocked: {
     label: 'Service setup stopped',
     clearsWhen: 'Clears when the setup is tried again and gets past the step.',
+    superAdminOnly: false,
+  },
+  calibration_claim: {
+    label: 'Calibration claim needs you',
+    clearsWhen: 'Clears when the claim moves past the step, or is cancelled.',
     superAdminOnly: false,
   },
 };

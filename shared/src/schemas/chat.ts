@@ -132,7 +132,9 @@ export const presignUploadSchema = z.object({
     .int()
     .positive()
     .max(25 * 1024 * 1024),
-  scope: z.enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask']).default('chat'),
+  scope: z
+    .enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask', 'calibration'])
+    .default('chat'),
   conversationId: z.string().optional(),
   /**
    * Required for the `staff`, `tt-density`, `kavach`, `slip` and `ask` scopes:
@@ -148,6 +150,11 @@ export const presignUploadSchema = z.object({
    * `volunteerDocumentAskSchema` deliberately carries no attachment.
    */
   askId: z.string().optional(),
+  /**
+   * Required for the `calibration` scope (admin only): the calibration claim a
+   * paper is filed against. Its object lives under `calibration/<dealerId>/<claimId>/`.
+   */
+  claimId: z.string().optional(),
 });
 /**
  * This union is the ONLY declaration of the upload scopes. `/uploads/sign`

@@ -4,6 +4,7 @@ import * as React from 'react';
 import { Spinner } from '@/components/ui';
 import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { cn } from '@/lib/cn';
+import type { AttachmentSource } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
 import { linkify } from '@/lib/linkify';
 import { detectPlatform } from '@/lib/nativeBridge';
@@ -15,7 +16,10 @@ import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { PortalLoginBox } from './PortalLoginBox';
 import { replyPreview, replySenderLabel } from './replyContext';
+import { SignLetterOpen } from './SignLetterAsk';
+import { isSignLetterAsk } from './signLetterView';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
+import { WemmisLoginBox } from './WemmisLoginBox';
 
 const TIME_FORMATS = new Map<Lang, Intl.DateTimeFormat>();
 
@@ -196,12 +200,15 @@ export type AskAnswerHow = 'camera' | 'files' | 'gallery';
  */
 function AskFooter({
   message,
+  source,
   phase,
   reason,
   onAnswer,
   onRetry,
 }: {
   message: Message;
+  /** The message as an attachment's address: how a letter on it is downloaded. */
+  source: AttachmentSource;
   phase: AskPhase;
   reason?: string;
   onAnswer?: (message: Message, how: AskAnswerHow) => void;
@@ -242,14 +249,22 @@ function AskFooter({
   }
 
   // `open`
+  const sentBack = reason ? (
+    <p className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug">
+      <span className="font-medium">{t('chat.askSentBack')}: </span>
+      {reason}
+    </p>
+  ) : null;
+
+  // A LETTER TO SIGN: three steps and its own buttons (ADR 0029). It is still the
+  // same request — the phases above, and the answer below, are the usual ones.
+  if (isSignLetterAsk(message)) {
+    return <SignLetterOpen message={message} source={source} lead={sentBack} onAnswer={onAnswer} />;
+  }
+
   return (
     <div className="mt-1.5 flex flex-col gap-1.5">
-      {reason ? (
-        <p className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug">
-          <span className="font-medium">{t('chat.askSentBack')}: </span>
-          {reason}
-        </p>
-      ) : null}
+      {sentBack}
       <button
         type="button"
         onClick={() => onAnswer?.(message, 'camera')}
@@ -399,13 +414,18 @@ export const MessageBubble = React.memo(function MessageBubble({
   // form sits under the words, one block per portal. Like a request it is as
   // wide as a picture and carries its time on its own line.
   const portalLogin = message.portalLogin;
+  // THE eMaaptaul LOGIN BOX (`message.wemmisLogin`, ADR 0029): the same idea, for
+  // the Bihar weights-and-measures site's login. Wide and timed on its own line,
+  // like the box above.
+  const wemmisLogin = message.wemmisLogin;
   // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
   // box; a card that is only words (the welcome) leaves the bubble as it was.
   const setupCard = message.setupCard;
   const hasSetupBody = !!setupCard && setupCardHasBody(setupCard.card);
-  const wide = hasMedia || videos.length > 0 || !!ask || !!portalLogin || hasSetupBody;
+  const wide =
+    hasMedia || videos.length > 0 || !!ask || !!portalLogin || !!wemmisLogin || hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
@@ -417,7 +437,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   // width of the bubble, and a time pinned to the bottom-right corner would sit
   // on top of it. So does a login box, for the same reason.
   const metaInFlow =
-    !timeOnPicture && (showAiBadge || !hasBody || !!ask || !!portalLogin || hasSetupBody);
+    !timeOnPicture &&
+    (showAiBadge || !hasBody || !!ask || !!portalLogin || !!wemmisLogin || hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
@@ -547,11 +568,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 
           {portalLogin ? <PortalLoginBox portals={portalLogin.portals} /> : null}
 
+          {wemmisLogin ? <WemmisLoginBox /> : null}
+
           {setupCard ? <SetupCard card={setupCard.card} /> : null}
 
           {ask ? (
             <AskFooter
               message={message}
+              source={source}
               phase={askPhase}
               reason={askReason}
               onAnswer={onAskAnswer}

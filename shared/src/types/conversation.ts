@@ -1,6 +1,7 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
 import type { MessageSetupCard } from './outletSetup';
+import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -324,6 +325,14 @@ export interface Message {
    * never becomes a message. See `portalLogin.ts`.
    */
   portalLogin?: MessagePortalLogin;
+  /**
+   * Set on an MDG message that asks an owner for the outlet's eMaaptaul (Bihar
+   * weights and measures) login, for a calibration subsidy claim: the app draws
+   * a user ID + password form, or an OTP password reset, inside the bubble.
+   * What is typed goes over its own route and never becomes a message. See
+   * `calibrationClaim.ts`.
+   */
+  wemmisLogin?: MessageWemmisLogin;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

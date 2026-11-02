@@ -151,6 +151,15 @@ export const AUDIT_ACTIONS = [
   'HPCL_CREDENTIALS_SET',
   'HPCL_CREDENTIALS_CLEAR',
   'HPCL_CREDENTIALS_REVEAL',
+  // Bihar weights and measures (eMaaptaul) — the login a calibration subsidy claim uses (ADR 0029)
+  'WEMMIS_CREDENTIALS_SET',
+  'WEMMIS_CREDENTIALS_CLEAR',
+  /** The owner reset the eMaaptaul password with an OTP, through the chat box. */
+  'WEMMIS_PASSWORD_RESET',
+  // Calibration subsidy claims (ADR 0029): every admin step on a claim
+  'CALIBRATION_CLAIM_START',
+  'CALIBRATION_CLAIM_ACTION',
+  'CALIBRATION_CLAIM_DOCUMENT',
   'CREDIT_DOD_SHARE',
   // IndianOil SDMS — Inspection Reports aggregation
   'INSPECTION_REPORTS_COLLECT',

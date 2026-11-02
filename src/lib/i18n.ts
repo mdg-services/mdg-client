@@ -1180,6 +1180,104 @@ export const messages = {
     hi: 'सेव नहीं हुआ, फिर से कोशिश करें',
   },
 
+  // The eMaaptaul login box (ADR 0029): the Bihar weights-and-measures site where
+  // the calibration certificate and the fee receipt are downloaded. "eMaaptaul"
+  // is the site's name and stays in Latin letters in both languages, like the
+  // portal names above. The box has its own form, and a "Forgot password?" that
+  // resets the password with an OTP sent to the mobile registered on the site.
+  // The words a dealer already uses: "OTP", "मोबाइल", "सर्टिफ़िकेट". What is typed
+  // goes to the outlet's record, never into the chat — the line under the form
+  // is the other login box's (`chat.portalKeptSafe`).
+  'chat.wemmisTitle': { en: 'eMaaptaul login', hi: 'eMaaptaul लॉगिन' },
+  'chat.wemmisWhy': {
+    en: 'To download your calibration certificate and fee receipt',
+    hi: 'आपका कैलिब्रेशन सर्टिफ़िकेट और फ़ीस की रसीद डाउनलोड करने के लिए',
+  },
+  'chat.wemmisSavedAs': { en: 'Saved ✓ {username}', hi: 'मिल गया ✓ {username}' },
+  'chat.wemmisRefusedNote': {
+    en: 'The site did not accept the saved password. Enter it again, or reset it.',
+    hi: 'साइट ने सेव किया हुआ पासवर्ड नहीं माना। फिर से भरिए, या रीसेट कीजिए।',
+  },
+  'chat.wemmisForgot': { en: 'Forgot password?', hi: 'पासवर्ड भूल गए?' },
+  'chat.wemmisMobile': { en: 'Mobile number', hi: 'मोबाइल नंबर' },
+  'chat.wemmisMobileHelp': {
+    en: 'The mobile number registered on eMaaptaul',
+    hi: 'eMaaptaul पर दर्ज मोबाइल नंबर',
+  },
+  'chat.wemmisSendOtp': { en: 'Send OTP', hi: 'OTP भेजें' },
+  'chat.wemmisOpening': {
+    en: 'Opening the eMaaptaul site… this can take up to a minute',
+    hi: 'eMaaptaul साइट खुल रही है… एक मिनट तक लग सकता है',
+  },
+  'chat.wemmisOtpSentTo': { en: 'OTP sent to {mobile}', hi: '{mobile} पर OTP भेजा गया' },
+  'chat.wemmisOtpSent': { en: 'OTP sent to your mobile', hi: 'आपके मोबाइल पर OTP भेजा गया' },
+  'chat.wemmisOtpGroup': { en: 'OTP', hi: 'OTP' },
+  'chat.wemmisOtpDigit': { en: 'OTP digit {n} of {total}', hi: 'OTP का अंक {n} / {total}' },
+  'chat.wemmisTimeLeft': { en: 'Time left {time}', hi: '{time} बाकी' },
+  'chat.wemmisCheck': { en: 'Check', hi: 'जाँचें' },
+  'chat.wemmisChecking': { en: 'Checking your OTP…', hi: 'OTP जाँच रहे हैं…' },
+  'chat.wemmisResetting': { en: 'Setting your new password…', hi: 'नया पासवर्ड बना रहे हैं…' },
+  'chat.wemmisWrongOtp': {
+    en: 'That OTP did not match. Type it again.',
+    hi: 'यह OTP मेल नहीं खाया। फिर से डालिए।',
+  },
+  'chat.wemmisCaptchaLabel': { en: 'Letters in the picture', hi: 'तस्वीर में लिखे अक्षर' },
+  'chat.wemmisCaptchaAlt': { en: 'Letters to type', hi: 'डालने वाले अक्षर' },
+  'chat.wemmisChooseUser': {
+    en: "Several logins use this mobile. Which one is the pump's?",
+    hi: 'इस मोबाइल पर कई लॉगिन हैं। पंप का कौन-सा है?',
+  },
+  'chat.wemmisDone': {
+    en: "Password reset. MDG's team will now download your certificate.",
+    hi: 'पासवर्ड रीसेट हो गया। MDG की टीम अब आपका सर्टिफ़िकेट डाउनलोड करेगी।',
+  },
+  // Only when the server sent no words of its own for a failed reset.
+  'chat.wemmisFailed': { en: 'The reset did not go through.', hi: 'रीसेट नहीं हो पाया।' },
+  'chat.wemmisExpired': {
+    en: 'Time ran out. Send a new OTP.',
+    hi: 'समय निकल गया। नया OTP भेजिए।',
+  },
+  // A 409 from the server: a reset is already running for this pump, or the step
+  // the owner answered is already over.
+  'chat.wemmisBusy': {
+    en: 'A reset is already running. Wait a minute, then try again.',
+    hi: 'रीसेट पहले से चल रहा है। एक मिनट रुककर फिर कोशिश करें।',
+  },
+  'chat.wemmisMoved': {
+    en: 'That step is already over. Wait a moment.',
+    hi: 'यह कदम पूरा हो चुका है। थोड़ा रुकिए।',
+  },
+  'chat.wemmisSendFailed': {
+    en: "Couldn't send — try again",
+    hi: 'भेजा नहीं जा सका, फिर से कोशिश करें',
+  },
+
+  // The signed letter (ADR 0029): MDG posts a letter as a PDF and asks the owner
+  // to print it, sign it, stamp it and send a photo back. Three short steps sit
+  // above the buttons, in a dealer's own words: "लेटर", "साइन", "मोहर", "फ़ोटो".
+  'chat.letterStepsLabel': {
+    en: 'How to send the signed letter',
+    hi: 'साइन किया लेटर कैसे भेजें',
+  },
+  'chat.letterStep1': {
+    en: 'Download the letter and print it',
+    hi: 'लेटर डाउनलोड करके प्रिंट निकालिए',
+  },
+  'chat.letterStep2': {
+    en: "Sign it and put the pump's stamp",
+    hi: 'उस पर साइन कीजिए और पंप की मोहर लगाइए',
+  },
+  'chat.letterStep3': {
+    en: 'Send a photo of the signed page (or the scanned PDF)',
+    hi: 'साइन किए पेज की फ़ोटो (या स्कैन की PDF) भेजिए',
+  },
+  'chat.letterDownload': { en: 'Download letter', hi: 'लेटर डाउनलोड करें' },
+  'chat.letterPhoto': { en: 'Photo of signed letter', hi: 'साइन किए लेटर की फ़ोटो भेजें' },
+  'chat.letterNoPrinter': {
+    en: 'No printer? Reply here and our team will help.',
+    hi: 'प्रिंटर नहीं है? यहीं लिखिए, हमारी टीम मदद करेगी।',
+  },
+
   // Selecting messages (long-press).
   'chat.clearSelection': { en: 'Clear selection', hi: 'चुनाव हटाएं' },
 

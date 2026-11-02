@@ -75,6 +75,12 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'load-planner': { en: 'Load planner', hi: 'टैंकर मंगाने की योजना' },
   /** Missing until now too. The dealer's question is simply whether supply is open. */
   'ro-supply-status': { en: 'RO supply status', hi: 'सप्लाई की स्थिति' },
+  /**
+   * Dealers already call both halves of this by their English names — the
+   * officer comes for "कैलिब्रेशन", IndianOil pays a "सब्सिडी" — so those are the
+   * words, and "क्लेम" is what MDG does with them.
+   */
+  'calibration-claim': { en: 'Calibration subsidy claim', hi: 'कैलिब्रेशन सब्सिडी क्लेम' },
 };
 
 /**
@@ -138,5 +144,9 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'custom-request': {
     en: 'any other piece of work the owner asks MDG for',
     hi: 'कोई भी और काम जो मालिक MDG से करवाना चाहें',
+  },
+  'calibration-claim': {
+    en: "the yearly calibration subsidy, claimed from IndianOil for the owner",
+    hi: 'सालाना कैलिब्रेशन की सब्सिडी, मालिक की ओर से इंडियन ऑयल से क्लेम',
   },
 };

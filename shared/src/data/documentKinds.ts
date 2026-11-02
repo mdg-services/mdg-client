@@ -257,6 +257,32 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
     autoRenew: true,
     profileFieldKey: 'wmLicenceNo',
   },
+  {
+    /**
+     * The request letter for a calibration subsidy claim (ADR 0029), signed and
+     * stamped by the owner. MDG writes the letter and sends it with this ask; the
+     * owner prints it, signs it and sends a photo or a scan back. Never asked by
+     * hand from the catalog — the claim asks for it, once per financial year,
+     * keyed on the year the claim's April starts in.
+     */
+    code: 'calibration-request-letter',
+    srNo: 7,
+    titleEn: 'Signed calibration claim letter',
+    titleHi: 'कैलिब्रेशन क्लेम का साइन किया हुआ पत्र',
+    hintEn: 'The letter MDG sent, printed, signed and stamped by the owner — the whole page, clearly readable.',
+    hintHi: 'MDG का भेजा पत्र — प्रिंट करके, मालिक के साइन और मोहर के साथ। पूरा पन्ना साफ़ पढ़ा जाए।',
+    confirmEn: 'Send the signed letter?',
+    confirmHi: 'साइन किया हुआ पत्र भेजें?',
+    periodKind: 'YEAR',
+    freeform: false,
+    recurring: false,
+    source: 'own',
+    reviewRequired: true,
+    serviceId: 'calibration-claim',
+    requiresService: true,
+    dealerVisible: true,
+    active: true,
+  },
 ];
 
 /**
@@ -278,4 +304,4 @@ export const DOCUMENT_KIND_SEED: readonly DocumentKind[] = [
  * seeded after the release, and to make `version` on a row say which release
  * first wrote it.
  */
-export const DOCUMENT_KIND_SEED_VERSION = 2;
+export const DOCUMENT_KIND_SEED_VERSION = 3;
