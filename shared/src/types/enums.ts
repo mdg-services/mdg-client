@@ -156,6 +156,11 @@ export const AUDIT_ACTIONS = [
   'WEMMIS_CREDENTIALS_CLEAR',
   /** The owner reset the eMaaptaul password with an OTP, through the chat box. */
   'WEMMIS_PASSWORD_RESET',
+  /**
+   * A super-admin had the server sign them in to a dealer's portal in a browser on
+   * their laptop (ADR 0030). Written before the password is typed, like a reveal.
+   */
+  'PORTAL_SUMMON',
   // Calibration subsidy claims (ADR 0029): every admin step on a claim
   'CALIBRATION_CLAIM_START',
   'CALIBRATION_CLAIM_ACTION',

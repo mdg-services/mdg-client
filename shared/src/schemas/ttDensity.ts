@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { browserOnSchema } from './serviceRun';
+
 /**
  * Wire shapes for the TT Density routes.
  *
@@ -119,6 +121,8 @@ function daysBetweenInclusive(from: string, to: string): number {
 export const ttDensityCollectSchema = z
   .object({
     lookbackDays: z.number().int().min(1).max(31).optional(),
+    /** On the super-admin's laptop instead of the server (ADR 0030). */
+    browserOn: browserOnSchema,
   })
   .default({});
 export type TtDensityCollectInput = z.infer<typeof ttDensityCollectSchema>;

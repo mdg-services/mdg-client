@@ -1,4 +1,5 @@
 import type { ServiceRunStatus } from './enums';
+import type { BrowserPlace } from './laptopBridge';
 import type { RunArtifactKind } from './plugin';
 
 export interface ServiceRunStep {
@@ -67,6 +68,8 @@ export interface ServiceRun {
   output?: unknown;
   /** Absent on rows written before the field existed. */
   trigger?: ServiceRunTrigger;
+  /** Where its browser opened: on the server, or on a super-admin's laptop (ADR 0030). */
+  browserOn?: BrowserPlace;
   /**
    * The run that drove this one, set on a `backfill`. Lets the admin panel
    * attribute an out-of-band collection to the report that asked for it.

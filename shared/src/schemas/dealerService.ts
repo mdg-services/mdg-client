@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { cadenceSchema, cronSchema, dealerServiceStatusSchema } from './common';
+import { browserOnSchema } from './serviceRun';
 
 export const attachServiceSchema = z.object({
   serviceId: z
@@ -39,6 +40,8 @@ export const runNowSchema = z
   .object({
     /** Optional one-off config override; merged on top of the stored config. */
     configOverride: z.record(z.string(), z.unknown()).optional(),
+    /** On the super-admin's laptop instead of the server (ADR 0030). */
+    browserOn: browserOnSchema,
   })
   .default({});
 export type RunNowInput = z.infer<typeof runNowSchema>;
