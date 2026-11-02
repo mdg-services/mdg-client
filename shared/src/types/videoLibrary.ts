@@ -9,7 +9,7 @@
  * its catalog from those files plus the uploaded object's key and length, so
  * adding a video is one folder and one upload — no code list to extend.
  *
- * TWO FAMILIES in one library (`family`):
+ * THREE FAMILIES in one library (`family`):
  *  - `guide`: MDG's own videos — how the app works, what each service is, and the
  *    team's walkthroughs. Private: they live in the bucket and play in the apps.
  *  - `explainer`: the short pump-knowledge explainers published on
@@ -18,6 +18,11 @@
  *    website's own catalog, so the team can find them, send them into a chat and
  *    the Reply helper can suggest them. They are never listed in the dealer app's
  *    Help, which is about the app.
+ *  - `khata_kavach`: how-to videos for the Khata Kavach apps, MDG's second product
+ *    (the pump's credit ledger with its transporters). Private, in the bucket like
+ *    a guide, but about another app: the team finds and sends them, and nothing
+ *    in Dealer Kavach offers them on its own — not the app's Help, not the chat
+ *    assistant, not the Reply helper.
  */
 import type { OilCompanyId } from './oilCompany';
 
@@ -32,8 +37,15 @@ export const GUIDE_VIDEO_PLATFORMS = ['android', 'ios'] as const;
 export type GuideVideoPlatform = (typeof GUIDE_VIDEO_PLATFORMS)[number];
 
 /** Which kind of video (see the top of this file). Absent on an entry = `guide`. */
-export const GUIDE_VIDEO_FAMILIES = ['guide', 'explainer'] as const;
+export const GUIDE_VIDEO_FAMILIES = ['guide', 'explainer', 'khata_kavach'] as const;
 export type GuideVideoFamily = (typeof GUIDE_VIDEO_FAMILIES)[number];
+
+/**
+ * The families a `library.json` may name. `explainer` is not one: those are built
+ * from the website's catalog, never from a folder here.
+ */
+export const LIBRARY_FILE_FAMILIES = ['guide', 'khata_kavach'] as const;
+export type LibraryFileFamily = (typeof LIBRARY_FILE_FAMILIES)[number];
 
 /** Who a video is for. `admin` videos play only in the admin's "How this works". */
 export const GUIDE_VIDEO_AUDIENCES = ['owner', 'manager', 'both', 'admin'] as const;
@@ -108,10 +120,16 @@ export interface GuideVideoLibraryFile {
    * IndianOil from them.
    */
   companies?: OilCompanyId[];
+  /**
+   * Absent = `guide`. `khata_kavach` for a video about the Khata Kavach apps: the
+   * team sends it, and Dealer Kavach never offers it by itself (see the top of
+   * this file).
+   */
+  family?: LibraryFileFamily;
 }
 
 /** One catalog entry as the backend holds it: the file plus where the video is. */
-export interface GuideVideoEntry extends GuideVideoLibraryFile {
+export interface GuideVideoEntry extends Omit<GuideVideoLibraryFile, 'family'> {
   /** The video's folder name under `marketing/explainers/` (an explainer: `pk-<its website slug>`). */
   slug: string;
   /** `guides/<slug>-hi-v<n>.mp4` in the bucket (an explainer: `guides/<slug>-hi-<content hash>.mp4`). */
@@ -164,7 +182,7 @@ export interface GuideVideoAdminItem extends GuideVideoListItem {
   /** True for a video that goes on WhatsApp only: never offered to send into the app's chat. */
   outsideAppOnly: boolean;
   chapters: GuideVideoAdminChapter[];
-  /** `guide` or `explainer` (a public pump-knowledge video). */
+  /** `guide`, `explainer` (a public pump-knowledge video) or `khata_kavach` (a Khata Kavach app video). */
   family: GuideVideoFamily;
   /** The words people type for it, for the search. */
   aliases: string[];
