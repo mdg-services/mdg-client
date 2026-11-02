@@ -356,6 +356,25 @@ export interface LiveCaptchaView {
   expiresAt: string;
 }
 
+/**
+ * A picture code waiting for an admin, as every screen of the admin app sees it
+ * (`GET /calibration-claim/live`): the pop-up for the admin it is put to, and a
+ * banner for everyone else, so a code that has a three-minute limit is not left
+ * to whoever happens to have the claim pane open.
+ */
+export interface LiveCaptchaPrompt extends LiveCaptchaView {
+  dealerId: string;
+  dealerCode: string | null;
+  /** The claim's year ("2026-27") when the sign-in is for a claim. */
+  financialYear: string | null;
+  /**
+   * The admin it is put to first: the last person at MDG who acted on the claim
+   * (pressed Run now or Retry, or started it). Null when there is nobody to name,
+   * and then it is put to every admin alike.
+   */
+  askedOf: { id: string; name: string } | null;
+}
+
 /** The admin pane's one read. */
 export interface CalibrationClaimOverview {
   attached: boolean;
