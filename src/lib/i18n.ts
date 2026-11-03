@@ -610,6 +610,26 @@ export const messages = {
     en: 'Tell your manager this password. They will choose their own when they first sign in.',
     hi: 'यह पासवर्ड अपने मैनेजर को बताइए। पहली बार साइन इन करते ही वे अपना नया पासवर्ड बनाएँगे।',
   },
+  // Who the invite is for: the pump's manager, or a partner who is another owner.
+  'profile.inviteManager': { en: 'Manager', hi: 'मैनेजर' },
+  'profile.invitePartner': { en: 'Partner (another owner)', hi: 'पार्टनर (दूसरे मालिक)' },
+  'profile.partnerMobile': {
+    en: "Partner's mobile number (they sign in with it)",
+    hi: 'पार्टनर का मोबाइल नंबर (इसी से साइन इन करेंगे)',
+  },
+  'profile.partnerNote': {
+    en: 'Tell your partner this password. They choose their own at first sign-in. A partner sees everything you see, and can fill in what MDG asks for.',
+    hi: 'यह पासवर्ड अपने पार्टनर को बताइए। पहली बार साइन इन करते ही वे अपना नया पासवर्ड बनाएँगे। पार्टनर वो सब देख सकते हैं जो आप देखते हैं, और MDG जो माँगे वो भर सकते हैं।',
+  },
+  'profile.partnerAdded': { en: 'Partner added', hi: 'पार्टनर जुड़ गए' },
+  'profile.numberHasLogin': {
+    en: 'This number already has a Dealer Kavach login. Ask the MDG team in chat.',
+    hi: 'इस नंबर से पहले से डीलर कवच लॉगिन है। चैट में MDG टीम से कहें।',
+  },
+  'profile.tooManyOwners': {
+    en: 'Your pump already has 5 owners. Ask the MDG team in chat.',
+    hi: 'आपके पंप पर पहले से 5 मालिक हैं। चैट में MDG टीम से कहें।',
+  },
   'profile.noTeammates': { en: 'No teammates yet.', hi: 'अभी कोई साथी नहीं।' },
   'profile.actionFailed': {
     en: "That didn't work. Please try again, or message us in Chat.",
@@ -1005,7 +1025,7 @@ export const messages = {
     hi: 'खाता नहीं हट सका। नेटवर्क जाँचिए और फिर कोशिश कीजिए।',
   },
   'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
-  'settings.teamDesc': { en: 'Add or pause your manager', hi: 'मैनेजर जोड़ें या रोकें' },
+  'settings.teamDesc': { en: 'Add your manager or a partner', hi: 'मैनेजर या पार्टनर जोड़ें' },
   // Notifications: what the phone has been told, on one line. Only inside the app.
   'settings.notifications': { en: 'Notifications', hi: 'नोटिफ़िकेशन' },
   'settings.notificationsOn': { en: 'On', hi: 'चालू' },

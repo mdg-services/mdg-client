@@ -81,7 +81,7 @@ describe('SettingsPage — what is on it', () => {
 
     // Each row says one thing under its title.
     expect(screen.getByText('Change your password, or delete your account')).toBeInTheDocument();
-    expect(screen.getByText('Add or pause your manager')).toBeInTheDocument();
+    expect(screen.getByText('Add your manager or a partner')).toBeInTheDocument();
     expect(screen.getByText('Learn the app with short videos')).toBeInTheDocument();
   });
 

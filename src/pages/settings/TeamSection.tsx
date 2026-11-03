@@ -22,6 +22,8 @@ import type { User } from '@dk/shared/types';
 import { RoleBadge, StatusDot } from './RoleBadge';
 
 type InviteValues = { name: string; mobile: string; email: string; password: string };
+/** Who the invite is for: the pump's one manager, or a partner who is another owner. */
+type InviteRole = 'dealer-staff' | 'dealer-owner';
 
 /** "+91 98765 43210" → "9876543210": the sign-in name the server matches on. */
 function tenDigits(mobile: string): string {
@@ -35,6 +37,8 @@ export function TeamSection() {
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId;
   const [inviteOpen, setInviteOpen] = React.useState(false);
+  const [inviteRole, setInviteRole] = React.useState<InviteRole>('dealer-staff');
+  const partner = inviteRole === 'dealer-owner';
   const [forbidden, setForbidden] = React.useState(false);
 
   const teamQuery = useQuery<User[]>({
@@ -71,7 +75,7 @@ export function TeamSection() {
     () =>
       z.object({
         name: z.string().min(1, t('common.required')).max(120),
-        // The manager signs in with this number (onboarding v2); an email is optional.
+        // The manager or partner signs in with this number (onboarding v2); an email is optional.
         mobile: z
           .string()
           .refine((v) => /^[6-9]\d{9}$/.test(tenDigits(v)), t('register.mobileInvalid')),
@@ -95,20 +99,24 @@ export function TeamSection() {
         phone: tenDigits(values.mobile),
         ...(values.email.trim() ? { email: values.email.trim() } : {}),
         name: values.name,
-        role: 'dealer-staff',
+        role: inviteRole,
         password: values.password,
       }),
     onSuccess: () => {
-      toast.success(t('profile.teammateAdded'));
+      toast.success(t(partner ? 'profile.partnerAdded' : 'profile.teammateAdded'));
       reset();
       setInviteOpen(false);
       void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
     },
     onError: (err) => {
-      // The two refusals an owner can act on get their own words; anything else
+      // The refusals an owner can act on get their own words; anything else
       // stays the general line.
       const msg = err instanceof ApiError ? err.message : '';
-      if (err instanceof ApiError && err.status === 409 && /manager/i.test(msg)) {
+      if (err instanceof ApiError && err.status === 409 && /already has a Dealer Kavach login/i.test(msg)) {
+        toast.error(t('profile.numberHasLogin'));
+      } else if (err instanceof ApiError && err.status === 409 && /owners/i.test(msg)) {
+        toast.error(t('profile.tooManyOwners'));
+      } else if (err instanceof ApiError && err.status === 409 && /manager/i.test(msg)) {
         toast.error(t('profile.teamHasManager'));
       } else if (err instanceof ApiError && err.status === 409 && /email/i.test(msg)) {
         toast.error(t('profile.emailInUse'));
@@ -141,6 +149,24 @@ export function TeamSection() {
             className="mb-4 flex flex-col gap-2 rounded-xl border border-border bg-surface-2 p-3"
             noValidate
           >
+            <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-lg bg-surface p-1">
+              {(['dealer-staff', 'dealer-owner'] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  role="radio"
+                  aria-checked={inviteRole === role}
+                  onClick={() => setInviteRole(role)}
+                  className={
+                    inviteRole === role
+                      ? 'rounded-md bg-brand px-2 py-1.5 text-xs font-semibold text-white'
+                      : 'rounded-md px-2 py-1.5 text-xs font-medium text-text-muted active:bg-surface-2'
+                  }
+                >
+                  {t(role === 'dealer-owner' ? 'profile.invitePartner' : 'profile.inviteManager')}
+                </button>
+              ))}
+            </div>
             <Input
               placeholder={t('profile.fullName')}
               autoCapitalize="words"
@@ -154,7 +180,7 @@ export function TeamSection() {
             ) : null}
             <Input
               type="tel"
-              placeholder={t('profile.managerMobile')}
+              placeholder={t(partner ? 'profile.partnerMobile' : 'profile.managerMobile')}
               inputMode="numeric"
               autoComplete="off"
               invalid={!!errors.mobile}
@@ -189,7 +215,9 @@ export function TeamSection() {
             {errors.password ? (
               <p className="text-xs text-danger">{errors.password.message}</p>
             ) : (
-              <p className="text-xs text-text-subtle">{t('profile.tempPasswordNote')}</p>
+              <p className="text-xs text-text-subtle">
+                {t(partner ? 'profile.partnerNote' : 'profile.tempPasswordNote')}
+              </p>
             )}
             <div className="flex gap-2">
               <Button

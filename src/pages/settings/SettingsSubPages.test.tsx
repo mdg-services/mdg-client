@@ -255,7 +255,7 @@ describe('Settings → your team', () => {
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
   });
 
-  it('invites a manager, and always as a manager', async () => {
+  it('invites a manager by default', async () => {
     signIn(owner);
     vi.mocked(api.get).mockResolvedValue([] as never);
     vi.mocked(api.post).mockResolvedValue({} as never);
@@ -314,6 +314,62 @@ describe('Settings → your team', () => {
       role: 'dealer-staff',
       password: 'temp-pass-1',
     });
+  });
+
+  it('invites a partner as another owner when Partner is picked', async () => {
+    signIn(owner);
+    vi.mocked(api.get).mockResolvedValue([] as never);
+    vi.mocked(api.post).mockResolvedValue({} as never);
+    renderAt('/settings/team');
+
+    await screen.findByText('No teammates yet.');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Invite' }));
+    await user.click(screen.getByRole('radio', { name: 'Partner (another owner)' }));
+    expect(screen.getByRole('radio', { name: 'Partner (another owner)' })).toHaveAttribute('aria-checked', 'true');
+    await user.type(screen.getByPlaceholderText('Full name'), 'Ravi Partner');
+    await user.type(
+      screen.getByPlaceholderText("Partner's mobile number (they sign in with it)"),
+      '9876543212',
+    );
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
+    expect(screen.getByText(/A partner sees everything you see/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send invite' }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(api.post).toHaveBeenCalledWith('/v1/dealer-users', {
+      dealerId: 'd1',
+      phone: '9876543212',
+      name: 'Ravi Partner',
+      role: 'dealer-owner',
+      password: 'temp-pass-1',
+    });
+    expect(await screen.findByText('Partner added')).toBeInTheDocument();
+  });
+
+  it('says in words when a partner\'s number already has a login', async () => {
+    signIn(owner);
+    vi.mocked(api.get).mockResolvedValue([] as never);
+    vi.mocked(api.post).mockRejectedValue(
+      new ApiError(409, 'CONFLICT', 'This number already has a Dealer Kavach login. Ask the MDG team in chat to add it.'),
+    );
+    renderAt('/settings/team');
+
+    await screen.findByText('No teammates yet.');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Invite' }));
+    await user.click(screen.getByRole('radio', { name: 'Partner (another owner)' }));
+    await user.type(screen.getByPlaceholderText('Full name'), 'Ravi Partner');
+    await user.type(
+      screen.getByPlaceholderText("Partner's mobile number (they sign in with it)"),
+      '9876543213',
+    );
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
+    await user.click(screen.getByRole('button', { name: 'Send invite' }));
+
+    expect(
+      await screen.findByText('This number already has a Dealer Kavach login. Ask the MDG team in chat.'),
+    ).toBeInTheDocument();
   });
 
   it('explains a second manager is not allowed, in words', async () => {
