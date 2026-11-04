@@ -13,9 +13,11 @@ import { z } from 'zod';
 import {
   FILM_AUTOPLAY_OUTCOMES,
   FILM_BEACON_KINDS,
+  FILM_BREAKDOWN_KEYS,
   FILM_CTAS,
   FILM_IDS,
   type FilmBeacon,
+  type FilmBreakdownKey,
   type FilmCta,
 } from '../types/film';
 
@@ -119,6 +121,13 @@ export const filmStatsQuerySchema = z.object({
   tag: z.string().regex(FILM_TAG_PATTERN).optional(),
 });
 export type FilmStatsQuery = z.infer<typeof filmStatsQuerySchema>;
+
+export const filmBreakdownQuerySchema = filmStatsQuerySchema.extend({
+  by: z.enum(FILM_BREAKDOWN_KEYS as [FilmBreakdownKey, ...FilmBreakdownKey[]]),
+  offset: z.coerce.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+});
+export type FilmBreakdownQuery = z.infer<typeof filmBreakdownQuerySchema>;
 
 export const filmSessionsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),

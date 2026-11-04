@@ -221,8 +221,13 @@ export interface FilmStats {
     viewers: number;
     watchSeconds: number;
   }>;
-  /** Up to 50 rows each, most views first. */
+  /** Up to 50 rows each, most views first. The rest are paged (`FilmBreakdownPage`). */
   breakdowns: Record<FilmBreakdownKey, FilmBreakdownRow[]>;
+  /**
+   * How many rows each breakdown has in all, beyond the 50 sent here. Optional
+   * so a reader built before it existed still type-checks against an older server.
+   */
+  breakdownTotals?: Record<FilmBreakdownKey, number>;
   /**
    * The short only (null on the full film). `fullClicks` counts short views that
    * tapped "watch the full film"; `viewersWhoStartedFull` counts short viewers
@@ -281,6 +286,15 @@ export interface FilmSessionPage {
   items: FilmSessionRow[];
   /** Pass as `before` for the next page; null when there is no more. */
   nextBefore: string | null;
+}
+
+/** One page of a breakdown (`GET /admin/films/:film/breakdown`), most views first. */
+export interface FilmBreakdownPage {
+  items: FilmBreakdownRow[];
+  /** Rows in the whole breakdown. */
+  total: number;
+  /** Pass as `offset` for the next page; null when there is no more. */
+  nextOffset: number | null;
 }
 
 export interface FilmShareLink {

@@ -20,11 +20,33 @@
  *   (`whatsappLinks.ts`). A link typed into a message's words is not tracked.
  *
  * A "send" is one message to many people: one campaign from the campaign
- * script, or the same words sent from the inbox on the same day.
+ * script, the same words sent from the inbox on the same day, or every one of
+ * the app's own messages of one kind (a bill, a sign-in reminder).
+ *
+ * Since 5 Nov 2026 the sends of each of our two numbers are kept apart (the
+ * page shows one number at a time, as the inbox does), and sends are listed in
+ * groups: a campaign is a place, and a campaign that went on more than one day
+ * — the numbers it missed sent again — lists each day under its place.
  */
 
-/** Which send the page shows when it names none: every send at once. */
+import type { WhatsAppLine } from './whatsappInbox';
+
+/** Asked for as a send: every send from the open number at once. */
 export const WHATSAPP_RESULTS_ALL = 'all';
+
+/**
+ * A send's place in its group (`WhatsAppResultSend.group`).
+ *
+ * - `total` — the whole group. For a campaign, every number it went to, each
+ *   counted once at its latest try; for anything else, every message in it.
+ *   Listed only for a campaign, or a group of two sends or more.
+ * - `first` / `later` — one day of a campaign that went on more than one day:
+ *   its first day, then each later day (the numbers it missed sent again, or
+ *   more of its list).
+ * - `single` — one send that is not a campaign.
+ */
+export const WHATSAPP_RESULT_PARTS = ['total', 'first', 'later', 'single'] as const;
+export type WhatsAppResultPart = (typeof WHATSAPP_RESULT_PARTS)[number];
 
 /** How far one message got with one person, best first. */
 export const WHATSAPP_RESULT_OUTCOMES = [
@@ -86,7 +108,13 @@ export interface WhatsAppResultSend {
   id: string;
   /** What it said: the words sent, or what kind of message it was. */
   label: string;
-  /** The kind of message in plain words: "Film invite", "Message". */
+  /**
+   * `label` is the words that were sent. False when we do not hold them — a
+   * film invite, the app's own messages, a send made outside the inbox — and
+   * `label` says what it was instead.
+   */
+  hasWords: boolean;
+  /** The kind of message in plain words: "Film invite", "Message", "Bill". */
   kind: string;
   /** The campaign script's name for it; null for anything sent another way. */
   campaign: string | null;
@@ -95,6 +123,22 @@ export interface WhatsAppResultSend {
   firstSentAt: string;
   lastSentAt: string;
   counts: WhatsAppResultCounts;
+  /** The number it went from: `marketing` (MDG Services) or `clients` (Dealer's Kavach). */
+  line: WhatsAppLine;
+  /**
+   * The group it is listed under, in words: the place a campaign went to
+   * ("Noida", read off `noida-film-29oct`), else what kind of message it was
+   * ("Account ready", "Messages typed in the inbox"). Sends of one group are
+   * next to each other in `sends`, its `total` first.
+   */
+  group: string;
+  part: WhatsAppResultPart;
+  /**
+   * Messages to numbers this campaign had already tried: the ones it missed,
+   * sent again. On a campaign's `total`, every try after a number's first. 0
+   * for anything that is not a campaign.
+   */
+  sentAgain: number;
 }
 
 export interface WhatsAppResultPerson {
@@ -102,6 +146,7 @@ export interface WhatsAppResultPerson {
   person: string;
   phone: string | null;
   name: string | null;
+  /** The send this message is listed in: a campaign's day when it went on several, never a `total`. */
   sendId: string;
   outcome: WhatsAppResultOutcome;
   /** How we know they opened it. Null when we do not. */
@@ -142,11 +187,18 @@ export interface WhatsAppResultLead {
 }
 
 export interface WhatsAppResults {
-  /** Newest first. */
+  /**
+   * Both numbers' sends, in groups (`group`): campaigns first, the newest place
+   * first and its days in order, then the other groups, the newest first.
+   */
   sends: WhatsAppResultSend[];
-  /** Every send added together. */
+  /** Every send of both numbers added together. */
   total: WhatsAppResultCounts;
-  /** Which send `counts` and `people` are for: a send's id, or `all`. */
+  /** Every send of each number added together. */
+  totals: Record<WhatsAppLine, WhatsAppResultCounts>;
+  /** The number whose sends are open: the selected send's, or the one asked for with `all`. */
+  line: WhatsAppLine;
+  /** Which send `counts` and `people` are for: a send's id, or `all` (every send from `line`). */
   selected: string;
   counts: WhatsAppResultCounts;
   /** Everyone in the selected send, the most engaged first. */
