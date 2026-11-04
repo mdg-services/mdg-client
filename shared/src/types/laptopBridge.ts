@@ -61,6 +61,8 @@ export const SUMMON_PORTAL_LABEL: Record<SummonPortal, string> = {
 export interface SummonTicket {
   summonId: string;
   portal: SummonPortal;
+  /** The outlet summoned: the extension sends a picture of its page into this dealer's chat. */
+  dealerId: string;
   /** "SDMS", "IRAS", "eMaaptaul". */
   label: string;
   dealerCode: string | null;

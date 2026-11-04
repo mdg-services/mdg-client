@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { markAccountHere } from '@/features/auth/firstScreen';
+import { isEmbedded } from '@/lib/embedMode';
 import { postToNative } from '@/lib/nativeBridge';
 import { queryClient } from '@/lib/queryClient';
 import type { User } from '@dk/shared/types';
@@ -102,6 +103,20 @@ function teardownPushOnLogout(authToken: string | null): void {
   }
 }
 
+/**
+ * Where the sign-in is saved: this browser's local storage, as it always was —
+ * except inside the Dealer Kavach extension's side panel (`?embed=extension`,
+ * ADR 0032 §6), where NOTHING is read or written. The panel is handed its token by
+ * the extension and keeps it in memory; a saved copy could replace the dealer's own
+ * web sign-in in the same browser, and a saved one found there would sign the panel
+ * in as somebody the extension never asked for.
+ */
+const noSavedSignIn = {
+  getItem: (): string | null => null,
+  setItem: (): void => {},
+  removeItem: (): void => {},
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -135,6 +150,7 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'mdg.client.auth',
+      storage: createJSONStorage(() => (isEmbedded() ? noSavedSignIn : localStorage)),
       partialize: (s) => ({ token: s.token, user: s.user }),
       // A session already open when the first-screen rule arrived never passed
       // through `login`: mark its phone too, so it opens on Sign in if it ends.
@@ -148,6 +164,18 @@ export const useAuthStore = create<AuthState>()(
 /** Imperative accessor for the fetch client (outside React). */
 export function getAuthToken(): string | null {
   return useAuthStore.getState().token;
+}
+
+/**
+ * Whether the sign-out now under way is the server's doing (`clearAuth`) rather than the
+ * person's own Log out. The extension's panel acts on the difference (`embedBridge.ts`): a
+ * Log out signs the extension out as well, a refusal may only mean the app held an older token.
+ */
+let refusedSignOut = false;
+
+/** Why the sign-out under way is happening. Read by the panel bridge as the token goes. */
+export function takeSignOutReason(): 'refused' | 'logout' {
+  return refusedSignOut ? 'refused' : 'logout';
 }
 
 /** Where an involuntary logout leaves its note for the login screen. */
@@ -170,12 +198,21 @@ export const ACCOUNT_DELETED_KEY = 'mdg.client.accountDeleted';
  * haunt a later deliberate logout.
  */
 export function clearAuth(): void {
-  try {
-    sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
-  } catch {
-    // Private mode / storage disabled: the sign-out still has to happen.
+  refusedSignOut = true;
+  // The panel has no sign-in screen to leave a note for; it tells the extension instead.
+  if (!isEmbedded()) {
+    try {
+      sessionStorage.setItem(SESSION_EXPIRED_KEY, '1');
+    } catch {
+      // Private mode / storage disabled: the sign-out still has to happen.
+    }
   }
-  useAuthStore.getState().logout();
+  try {
+    // The store tells its listeners as it signs out, so they read the reason now.
+    useAuthStore.getState().logout();
+  } finally {
+    refusedSignOut = false;
+  }
 }
 
 /**

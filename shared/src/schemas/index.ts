@@ -27,3 +27,4 @@ export * from './payment';
 export * from './autopay';
 export * from './lead';
 export * from './calibrationClaim';
+export * from './extension';

@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SIGN_IN_SURFACES } from '../types/extension';
+
 /**
  * Sign in. `identifier` is an email or a mobile number (dealers mostly have no
  * email, and the mobile is required at registration). `email` is the older
@@ -11,6 +13,11 @@ export const loginSchema = z
     identifier: z.string().trim().min(3).max(200).optional(),
     email: z.string().trim().email().toLowerCase().optional(),
     password: z.string().min(8).max(200),
+    /**
+     * The Dealer Kavach Chrome extension signs in as its own device (ADR 0032), so
+     * a dealer's phone stays signed in beside it. Absent for every other sign-in.
+     */
+    surface: z.enum(SIGN_IN_SURFACES).optional(),
   })
   .refine((v) => Boolean(v.identifier || v.email), {
     message: 'Enter your mobile number or email',

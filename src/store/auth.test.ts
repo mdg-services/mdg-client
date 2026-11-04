@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { resetStores } from '@/test/utils';
 
-import { useAuthStore } from './auth';
+import { SESSION_EXPIRED_KEY, clearAuth, useAuthStore } from './auth';
 
 /** A token-shaped string carrying the claims the store reads. Not signed. */
 function token(claims: Record<string, unknown>): string {
@@ -45,5 +45,23 @@ describe('swapping in a renewed token', () => {
   it('does nothing while signed out', () => {
     useAuthStore.getState().setToken(token({ sub: 'u1', sid: 's1' }));
     expect(useAuthStore.getState().token).toBeNull();
+  });
+});
+
+describe('the saved sign-in, outside the extension panel', () => {
+  it('is still kept in local storage under its own name', () => {
+    const t = token({ sub: 'u1', sid: 's1' });
+    useAuthStore.getState().login({ token: t, user });
+    const saved = JSON.parse(localStorage.getItem('mdg.client.auth') ?? 'null') as {
+      state: { token: string };
+    } | null;
+    expect(saved?.state.token).toBe(t);
+  });
+
+  it('leaves a note for the sign-in screen when the server ends the session', () => {
+    useAuthStore.getState().login({ token: token({ sub: 'u1', sid: 's1' }), user });
+    clearAuth();
+    expect(sessionStorage.getItem(SESSION_EXPIRED_KEY)).toBe('1');
+    sessionStorage.removeItem(SESSION_EXPIRED_KEY);
   });
 });

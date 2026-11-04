@@ -53,3 +53,4 @@ export * from './replyHelper';
 export * from './servicePackage';
 export * from './calibrationClaim';
 export * from './laptopBridge';
+export * from './extension';

@@ -157,6 +157,20 @@
     background: color-mix(in srgb, var(--color-online) 32%, transparent);
   }
 
+  /* Inside the Dealer Kavach extension's side panel (320–500 px wide, ADR 0032 §6):
+     never scroll sideways. `data-embed` is set by the embed bridge; without it
+     none of this applies. */
+  html[data-embed] {
+    overflow-x: hidden;
+  }
+  /* `clip`, not `hidden`: it cuts the overflow without making body or #root a
+     scroll container of their own, which would change how every screen scrolls. */
+  html[data-embed] body,
+  html[data-embed] #root {
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   *:focus-visible {
     outline: 2px solid var(--color-focus-ring);
     outline-offset: 2px;

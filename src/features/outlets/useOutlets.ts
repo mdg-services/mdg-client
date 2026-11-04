@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
+import { withEmbed } from '@/lib/embedMode';
 import { postToNative } from '@/lib/nativeBridge';
 import { useAuthStore } from '@/store/auth';
 import type { AuthLoginResponse, OutletChoice, OutletsView } from '@dk/shared/types';
@@ -43,7 +44,8 @@ export function hasOtherOutlets(view: OutletsView | undefined): view is OutletsV
  * nothing of the first one is still on screen or in a socket.
  */
 export function reloadIntoChat(): void {
-  window.location.assign('/chat');
+  // Inside the extension's panel the address must keep saying so (ADR 0032 §6).
+  window.location.assign(withEmbed('/chat'));
 }
 
 /**

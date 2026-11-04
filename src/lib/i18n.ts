@@ -1352,6 +1352,62 @@ export const messages = {
   'composer.dropPhoto': { en: 'Remove this photo', hi: 'यह फोटो हटाएं' },
   'composer.photoN': { en: 'Photo {n} of {total}', hi: 'फोटो {n} / {total}' },
 
+  /* ── drop files or a folder on a conversation ───────────────────────── */
+  'drop.title': { en: 'Drop to send', hi: 'भेजने के लिए यहाँ छोड़ें' },
+  'drop.hint': {
+    en: 'Photos, PDF, Word, Excel or text files. A folder works too.',
+    hi: 'फोटो, PDF, Word, Excel या टेक्स्ट फाइल। फोल्डर भी चलेगा।',
+  },
+  'drop.sending': {
+    en: 'Sending files: {done} of {total}',
+    hi: 'फाइलें भेजी जा रही हैं: {total} में से {done}',
+  },
+  'drop.reading': { en: 'Reading the files…', hi: 'फाइलें पढ़ी जा रही हैं…' },
+  'drop.stopping': { en: 'Stopping…', hi: 'रोक रहे हैं…' },
+  'drop.sentOne': { en: 'Sent 1 file', hi: '1 फाइल भेज दी गई' },
+  'drop.sentAll': { en: 'Sent {n} files', hi: '{n} फाइल भेज दी गईं' },
+  'drop.sentSome': { en: 'Sent {n} of {total}', hi: '{total} में से {n} फाइल भेजी गईं' },
+  'drop.stopped': {
+    en: 'Stopped. Sent {n} of {total}.',
+    hi: 'रोक दिया। {total} में से {n} फाइल भेजी गईं।',
+  },
+  'drop.noneToSend': {
+    en: 'None of these files can be sent.',
+    hi: 'इनमें से कोई फाइल भेजी नहीं जा सकती।',
+  },
+  'drop.tooMany': {
+    en: 'Only the first {n} files were read. Drop the rest again.',
+    hi: 'सिर्फ़ पहली {n} फाइल पढ़ी गईं। बाकी फिर से छोड़ें।',
+  },
+  'drop.busy': {
+    en: 'Files are still being sent. Wait, or press Cancel.',
+    hi: 'फाइलें अभी भेजी जा रही हैं। रुकिए, या रद्द करें दबाइए।',
+  },
+  'drop.busyReading': {
+    en: 'Still reading the files you dropped. Wait a moment.',
+    hi: 'आपकी छोड़ी हुई फाइलें अभी पढ़ी जा रही हैं। थोड़ा रुकिए।',
+  },
+  'drop.reason.type': {
+    en: 'This kind of file cannot be sent',
+    hi: 'इस तरह की फाइल नहीं भेज सकते',
+  },
+  'drop.reason.audio': {
+    en: 'Send voice notes with the mic button',
+    hi: 'वॉइस नोट माइक बटन से भेजिए',
+  },
+  'drop.reason.size': { en: 'Bigger than 25 MB', hi: '25 MB से बड़ी है' },
+  'drop.reason.empty': { en: 'The file is empty', hi: 'फाइल खाली है' },
+  'drop.reason.unreadable': { en: 'Could not be read', hi: 'पढ़ी नहीं जा सकी' },
+  'drop.reason.upload': { en: 'Did not go through', hi: 'भेजी नहीं जा सकी' },
+
+  /* ── inside the Dealer Kavach extension's side panel ────────────────── */
+  'embed.opening': { en: 'Opening your chat…', hi: 'आपकी चैट खुल रही है…' },
+  'embed.signedOut': { en: 'Signed out', hi: 'साइन आउट हो गया' },
+  'embed.signedOutDesc': {
+    en: 'Sign in again from the Dealer Kavach panel.',
+    hi: 'डीलर कवच पैनल से फिर साइन इन करें।',
+  },
+
   /* ── setting up a new outlet (onboarding): the strip and its cards ───── */
   'setup.stripLabel': { en: 'Getting your services started', hi: 'आपकी सेवाएँ शुरू करने के कदम' },
   'setup.stepCompany': { en: 'Company', hi: 'कंपनी' },

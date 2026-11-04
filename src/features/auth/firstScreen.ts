@@ -1,3 +1,5 @@
+import { isEmbedded } from '@/lib/embedMode';
+
 /**
  * Which screen someone who is not signed in sees first.
  *
@@ -20,6 +22,8 @@
 const SIGNED_IN_BEFORE_KEY = 'mdg.client.signedInBefore';
 
 export function markAccountHere(): void {
+  // The extension's side panel writes nothing to this browser's storage (ADR 0032 §6).
+  if (isEmbedded()) return;
   try {
     localStorage.setItem(SIGNED_IN_BEFORE_KEY, '1');
   } catch {

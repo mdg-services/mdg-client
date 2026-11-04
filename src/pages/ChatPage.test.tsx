@@ -1167,6 +1167,93 @@ describe('ChatPage — sending', () => {
     expect(await screen.findByText(/a\.jpg/)).toBeInTheDocument();
   });
 
+  it('sends files dropped on the conversation through the same upload and post, ten to a message', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    h.upload.mockImplementation(async (item: { file: File }) => ({
+      storageKey: `chat/${CONVERSATION_ID}/${item.file.name}`,
+      filename: item.file.name,
+      contentType: 'image/jpeg',
+      size: 1,
+      kind: 'image',
+    }));
+    let n = 0;
+    h.api.post.mockImplementation(async () => {
+      n += 1;
+      return sent({ id: `real-${n}`, body: undefined });
+    });
+
+    const files = Array.from({ length: 12 }, (_, i) => photo(`p${i}.jpg`));
+    // The drop zone is the screen's own frame, which the composer sits in.
+    fireEvent.drop(screen.getByTestId('composer').parentElement!, {
+      dataTransfer: {
+        types: ['Files'],
+        files,
+        items: files.map((f) => ({ kind: 'file', webkitGetAsEntry: () => null, getAsFile: () => f })),
+      },
+    });
+
+    expect(await screen.findByText('Sent 12 files')).toBeInTheDocument();
+    expect(h.upload).toHaveBeenCalledTimes(12);
+    expect(h.upload.mock.calls.every((c) => c[1] === CONVERSATION_ID)).toBe(true);
+    expect(h.api.post).toHaveBeenCalledTimes(2);
+    expect(h.api.post.mock.calls.every((c) => c[0] === `/v1/conversations/${CONVERSATION_ID}/messages`)).toBe(
+      true,
+    );
+    const bodies = h.api.post.mock.calls.map(
+      (c) => c[1] as { attachments: { filename: string }[] } & Record<string, unknown>,
+    );
+    expect(bodies.map((b) => b.attachments.length)).toEqual([10, 2]);
+    expect(bodies[0]!.attachments[0]!.filename).toBe('p0.jpg');
+    expect(bodies[1]!.attachments[1]!.filename).toBe('p11.jpg');
+    // Plain messages: never a quote, never the answer to one of MDG's requests.
+    for (const b of bodies) {
+      expect(b).not.toHaveProperty('replyToMessageId');
+      expect(b).not.toHaveProperty('answersAsk');
+    }
+  });
+
+  it('Cancel on a drop stops uploading, sends what is already up, and says how many went', async () => {
+    mount(conversation(undefined));
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    const uploads: Array<() => void> = [];
+    h.upload.mockImplementation(
+      (item: { file: File }) =>
+        new Promise<Attachment>((resolve) =>
+          uploads.push(() =>
+            resolve({
+              storageKey: `chat/${CONVERSATION_ID}/${item.file.name}`,
+              filename: item.file.name,
+              contentType: 'image/jpeg',
+              size: 1,
+              kind: 'image',
+            }),
+          ),
+        ),
+    );
+    h.api.post.mockResolvedValue(sent({ id: 'real-1', body: undefined }));
+
+    const files = Array.from({ length: 12 }, (_, i) => photo(`p${i}.jpg`));
+    fireEvent.drop(screen.getByTestId('composer').parentElement!, {
+      dataTransfer: {
+        types: ['Files'],
+        files,
+        items: files.map((f) => ({ kind: 'file', webkitGetAsEntry: () => null, getAsFile: () => f })),
+      },
+    });
+    await waitFor(() => expect(h.upload).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }));
+    await act(async () => uploads[0]!());
+
+    expect(await screen.findByText('Stopped. Sent 1 of 12.')).toBeInTheDocument();
+    // The first file was already on its way and went; the other eleven were never started.
+    expect(h.upload).toHaveBeenCalledTimes(1);
+    expect(h.api.post).toHaveBeenCalledTimes(1);
+    const body = h.api.post.mock.calls[0]![1] as { attachments: { filename: string }[] };
+    expect(body.attachments.map((a) => a.filename)).toEqual(['p0.jpg']);
+  });
+
   it('a send that the server refuses takes its bubble away, says so, and gives back the reply target', async () => {
     mount(conversation(undefined));
     await screen.findByText('Ye MDG team ko bhej diya hai.');

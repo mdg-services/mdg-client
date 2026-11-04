@@ -7,6 +7,8 @@ import { firstScreen } from '@/features/auth/firstScreen';
 // Imported, not lazy: it is a redirect a few lines long, and a chunk request
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
+import { EmbedStatus } from '@/features/embed/EmbedStatus';
+import { isEmbedded } from '@/lib/embedMode';
 import { useT } from '@/lib/i18n';
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 import { setMonitoringUser } from '@/lib/monitoring';
@@ -128,12 +130,20 @@ function FullScreenSpinner() {
  * is not mounted for them at all, since the server refuses everything it would
  * ask for. `mustChangePassword` comes with the sign-in, and is set too when any
  * call is answered `PASSWORD_CHANGE_REQUIRED` (`lib/api.ts`).
+ *
+ * INSIDE THE EXTENSION'S SIDE PANEL (`?embed=extension`, ADR 0032 §6) there is no
+ * sign-in screen to go to: the panel hands the app its token and the app loads the
+ * profile with it, so until both are in memory the panel's own status screen is
+ * what shows — "Opening…", or "Signed out" once the server ended the sign-in.
  */
 function ProtectedLayout() {
   const token = useAuthStore((s) => s.token);
+  const hasUser = useAuthStore((s) => !!s.user);
   const mustChangePassword = useAuthStore((s) => !!s.user?.mustChangePassword);
   const location = useLocation();
-  if (!token) {
+  if (isEmbedded()) {
+    if (!token || !hasUser) return <EmbedStatus loading={!!token} />;
+  } else if (!token) {
     // Register on a phone nobody has signed in on, Sign in otherwise (`firstScreen.ts`).
     return <Navigate to={firstScreen()} replace state={{ from: location.pathname }} />;
   }
@@ -161,13 +171,22 @@ function useMonitoringIdentity() {
 
 export function App() {
   useMonitoringIdentity();
+  // The panel has no Sign in and no Register: both addresses go to the chat, which
+  // shows the panel's own status screen until the extension has signed it in.
+  const embedded = isEmbedded();
 
   return (
     <ChunkErrorBoundary>
       <React.Suspense fallback={<FullScreenSpinner />}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route
+            path="/login"
+            element={embedded ? <Navigate to="/chat" replace /> : <LoginPage />}
+          />
+          <Route
+            path="/register"
+            element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
+          />
           <Route element={<ProtectedLayout />}>
             {/* The app is the chat. Its first screen is the conversation LIST,
                 always — even for a member with a single thread, as WhatsApp

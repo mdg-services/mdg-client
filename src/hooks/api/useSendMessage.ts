@@ -22,6 +22,13 @@ interface SendVars {
   files?: OutgoingAttachment[];
   /** Told about each file that could not be uploaded; the rest are still sent. */
   onFileFailed?: (item: OutgoingAttachment) => void;
+  /** Told about each file once it is uploaded (a dropped batch's progress). */
+  onFileUploaded?: (item: OutgoingAttachment) => void;
+  /**
+   * Asked before each file is uploaded. True stops there: what is already up is
+   * still sent, the rest is not (Cancel on a dropped batch).
+   */
+  shouldStop?: () => boolean;
   /** Message being replied to (server embeds the authoritative snapshot). */
   replyToMessageId?: string;
   /** Client-built snapshot so the optimistic bubble renders its quote instantly. */
@@ -105,16 +112,23 @@ export function useSendMessage() {
       attachments,
       files,
       onFileFailed,
+      onFileUploaded,
+      shouldStop,
       replyToMessageId,
       answersAsk,
     }) => {
       const sending: AttachmentInput[] = [...(attachments ?? [])];
       for (const item of files ?? []) {
+        if (shouldStop?.()) break;
+        let uploaded: AttachmentInput;
         try {
-          sending.push(await uploadAttachment(item, conversationId));
+          uploaded = await uploadAttachment(item, conversationId);
         } catch {
           onFileFailed?.(item);
+          continue;
         }
+        sending.push(uploaded);
+        onFileUploaded?.(item);
       }
       // NOTHING SURVIVED THE UPLOAD, and there is no text either — so there is no
       // message to post. Posting the empty one anyway is what produced two red

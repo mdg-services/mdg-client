@@ -12,6 +12,8 @@ import {
   conversationTitle,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
+import type { SendBatch } from '@/features/chat/dropFiles';
+import { DropToSend } from '@/features/chat/DropToSend';
 import type { AskAnswerHow } from '@/features/chat/MessageBubble';
 import { MessageInfoSheet } from '@/features/chat/MessageInfoSheet';
 import { MessageList } from '@/features/chat/MessageList';
@@ -442,6 +444,18 @@ export function ChatPage() {
     }
   };
 
+  // Files dropped on the conversation (`DropToSend`) go out through this same send —
+  // the upload, the photo shrinking and the post are the composer's — as plain
+  // messages: no quote, no caption, and never the answer to a request (`handleSend`
+  // above decides that from a reply strip, and a drop has none).
+  const sendDropped = React.useCallback<SendBatch>(
+    async (files, hooks) => {
+      if (!conversationId) throw new NothingToSendError();
+      await sendMessage({ conversationId, files, ...hooks });
+    },
+    [sendMessage, conversationId],
+  );
+
   const title = conversation
     ? conversationTitle(conversation, t)
     : t('chat.support');
@@ -499,7 +513,12 @@ export function ChatPage() {
   const isSoleMine = !!sole && sole.senderId === userId;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <DropToSend
+      threadId={conversationId}
+      send={sendDropped}
+      disabled={!conversationId}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       {selecting ? (
         <ChatSelectionBar
           count={selectedMessages.length}
@@ -638,6 +657,6 @@ export function ChatPage() {
           onClose={() => setInfoMessage(null)}
         />
       ) : null}
-    </div>
+    </DropToSend>
   );
 }
