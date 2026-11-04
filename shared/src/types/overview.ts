@@ -24,6 +24,7 @@
  * now", not "as of the reporting day".
  */
 
+import type { AiSendState } from './aiCheck';
 import type { DsrSheet, DsrSheetHolders, DsrSheetPlan } from './share';
 
 /** The whole payload of `GET /api/v1/overview/day`. */
@@ -185,6 +186,11 @@ export interface DealerDayRow {
     stale: boolean;
     /** The outlet's saved rule for who gets each sheet; null when it has none. */
     shareRule?: DsrSheetPlan | null;
+    /**
+     * Where the AI report check stands for this report (ADR 0031), and how many
+     * problems wait for a person's tick. Absent on a server without it.
+     */
+    ai?: { state: AiSendState; waiting: number } | null;
   };
   sent: {
     sharedAt: string | null;
