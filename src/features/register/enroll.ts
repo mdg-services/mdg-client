@@ -18,57 +18,13 @@
 export const SITE_TYPES = ['Type A', 'Type B'] as const;
 export type SiteType = (typeof SITE_TYPES)[number];
 
-/** A 10-digit Indian mobile number, as the endpoint hands it on. */
-const MOBILE_RE = /^[6-9]\d{9}$/;
-
 /**
- * Where zero sits in each script whose digits a phone keyboard in India can
- * type (Latin, Arabic-Indic, Persian, Devanagari, Bengali, Gurmukhi, Gujarati,
- * Odia, Tamil, Telugu, Kannada, Malayalam, full-width). Listed rather than
- * matched with `\p{Nd}`, which older Android WebViews cannot parse.
+ * The endpoint's own mobile rule (`mdg-landing/src/lib/mobile.ts`), now kept once in
+ * `@dk/shared` (`lib/mobile.ts`) so the admin's Add member and the server hold a login
+ * to the same rule as this screen and the sign-in. `toMobile` is the 10-digit mobile
+ * that `raw` names, or null; `digitsOf` is only the digits, in any Indian script.
  */
-const ZEROS = [
-  0x30, 0x660, 0x6f0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xff10,
-];
-
-/** Marks that only space a number out, and are dropped. */
-const SEPARATORS = /[\s\-.()]/;
-
-/**
- * Only the digits of `raw`, as plain 0-9 whatever script they were typed in (a
- * Hindi keyboard types "९८७६५"); every other character is dropped. For a box that
- * takes a run of digits and nothing else, such as the code in a message.
- */
-export function digitsOf(raw: string): string {
-  let out = '';
-  for (const ch of raw) {
-    const cp = ch.codePointAt(0) ?? 0;
-    const zero = ZEROS.find((z) => cp >= z && cp <= z + 9);
-    if (zero !== undefined) out += String(cp - zero);
-  }
-  return out;
-}
-
-/**
- * The endpoint's own mobile rule (`mdg-landing/src/lib/mobile.ts`, copied):
- * the 10-digit mobile that `raw` names, or null when it names none. Hindi (and
- * other Indian) digits, spaces, dashes, dots, brackets, +91 / 91 and a leading
- * 0 are all fine; a letter or any other mark is a typo and makes it null. The
- * country code or the 0 comes off only when it is extra: "9123456789" is
- * itself a mobile number.
- */
-export function toMobile(raw: string): string | null {
-  let digits = '';
-  for (const ch of raw) {
-    const cp = ch.codePointAt(0) ?? 0;
-    const zero = ZEROS.find((z) => cp >= z && cp <= z + 9);
-    if (zero !== undefined) digits += String(cp - zero);
-    else if (ch === '+') digits += ch;
-    else if (!SEPARATORS.test(ch)) return null;
-  }
-  const local = digits.replace(/^(?:\+?91|0)(?=\d{10}$)/, '');
-  return MOBILE_RE.test(local) ? local : null;
-}
+export { digitsOf, signInMobileOf as toMobile } from '@dk/shared';
 
 export const LIMITS = { name: 120, email: 200, pumpName: 160, sapCode: 60 } as const;
 

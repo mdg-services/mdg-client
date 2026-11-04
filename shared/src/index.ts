@@ -66,6 +66,9 @@ export * from './lib/videoSearch';
 // The words a guide video goes out with on WhatsApp: the server sends them, the
 // admin's "Send a video" shows them before the send.
 export * from './lib/videoCaption';
+// The mobile number a person signs in with: the app's sign-in, the admin's Add member,
+// the member routes and an approved registration all hold a number to this one rule.
+export * from './lib/mobile';
 // The one rule that decides whether a dealer may be shown their Kavach figure.
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.

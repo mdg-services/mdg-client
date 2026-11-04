@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { SIGN_IN_MOBILE_HINT, signInMobileOf } from '../lib/mobile';
 import { CHAT_ASK_REF_PATTERN } from '../types/chatAsk';
 import { QUICK_REACTIONS } from '../types/conversation';
 import { SHARE_AUDIENCES } from '../types/share';
@@ -217,9 +218,19 @@ export const createDealerUserSchema = z
     password: z.string().min(8).max(200),
     phone: z.string().max(40).optional(),
   })
-  .refine((v) => Boolean(v.email) || (v.phone ?? '').replace(/\D/g, '').length >= 10, {
-    message: 'Give a mobile number or an email to sign in with',
-    path: ['phone'],
+  // The member signs in with this mobile or this email, so a mobile must be one the
+  // app's sign-in takes (`lib/mobile.ts`), and one of the two must be there.
+  .superRefine((v, ctx) => {
+    const typed = (v.phone ?? '').trim();
+    if (typed && !signInMobileOf(typed)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: SIGN_IN_MOBILE_HINT, path: ['phone'] });
+    } else if (!typed && !v.email) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Give a mobile number or an email to sign in with',
+        path: ['phone'],
+      });
+    }
   });
 export type CreateDealerUserInput = z.infer<typeof createDealerUserSchema>;
 
@@ -227,7 +238,12 @@ export const updateDealerUserSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     title: z.string().trim().min(1).max(60).optional(),
-    phone: z.string().max(40).optional(),
+    /** A mobile the app's sign-in takes, or blank to remove it (the route keeps an email then). */
+    phone: z
+      .string()
+      .max(40)
+      .optional()
+      .refine((p) => !p?.trim() || signInMobileOf(p) !== null, { message: SIGN_IN_MOBILE_HINT }),
     status: z.enum(['ACTIVE', 'SUSPENDED']).optional(),
     password: z.string().min(8).max(200).optional(),
   })

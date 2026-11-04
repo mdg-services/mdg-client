@@ -19,6 +19,14 @@ describe('toMobile', () => {
     }
   });
 
+  it('takes a number copied from WhatsApp, with its invisible marks, and a 0091 prefix', () => {
+    expect(toMobile('\u202A+91 94674 66963\u202C')).toBe('9467466963'); // direction marks
+    expect(toMobile('\u200E+91 94674 66963')).toBe('9467466963');
+    expect(toMobile('+91\u200B94674 66963')).toBe('9467466963'); // a zero-width space
+    expect(toMobile('0091 94674 66963')).toBe('9467466963');
+    expect(toMobile('00919467466963')).toBe('9467466963');
+  });
+
   it('reads Hindi and other Indian digits', () => {
     expect(toMobile('९४६७४६६९६३')).toBe('9467466963'); // Devanagari
     expect(toMobile('+९१ ९४६७४ ६६९६३')).toBe('9467466963');

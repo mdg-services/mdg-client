@@ -14,6 +14,7 @@ import {
   Spinner,
   useToast,
 } from '@/components/ui';
+import { toMobile } from '@/features/register/enroll';
 import { ApiError, api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
@@ -25,10 +26,6 @@ type InviteValues = { name: string; mobile: string; email: string; password: str
 /** Who the invite is for: the pump's one manager, or a partner who is another owner. */
 type InviteRole = 'dealer-staff' | 'dealer-owner';
 
-/** "+91 98765 43210" → "9876543210": the sign-in name the server matches on. */
-function tenDigits(mobile: string): string {
-  return mobile.replace(/\D/g, '').slice(-10);
-}
 
 export function TeamSection() {
   const toast = useToast();
@@ -78,7 +75,9 @@ export function TeamSection() {
         // The manager or partner signs in with this number (onboarding v2); an email is optional.
         mobile: z
           .string()
-          .refine((v) => /^[6-9]\d{9}$/.test(tenDigits(v)), t('register.mobileInvalid')),
+          // The sign-in screen's own rule (`toMobile`): an extra digit or a letter is a typo
+          // to fix, never a different number to send.
+          .refine((v) => toMobile(v) !== null, t('register.mobileInvalid')),
         email: z.union([z.literal(''), z.string().trim().email(t('auth.emailInvalid'))]),
         password: z.string().min(8, t('profile.min8')),
       }),
@@ -96,7 +95,8 @@ export function TeamSection() {
     mutationFn: (values: InviteValues) =>
       api.post<User>('/v1/dealer-users', {
         dealerId,
-        phone: tenDigits(values.mobile),
+        // "+91 98765 43210" → "9876543210": the sign-in name the server matches on.
+        phone: toMobile(values.mobile) ?? values.mobile,
         ...(values.email.trim() ? { email: values.email.trim() } : {}),
         name: values.name,
         role: inviteRole,
