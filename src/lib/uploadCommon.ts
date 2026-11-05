@@ -36,7 +36,12 @@ import { resolveFileType } from './uploadAttachment';
 /** Where a presigned upload is filed, and what each scope needs to be filed there. */
 export type UploadTarget =
   /** A Staff Points hardcopy photograph. Keyed under `staff/<dealerId>/`. */
-  { scope: 'staff'; dealerId: string };
+  | { scope: 'staff'; dealerId: string }
+  /**
+   * A paper for a DU OTP acknowledgement (calibration certificate, DU service
+   * report, other document): a PDF, or a photo the server turns into one.
+   */
+  | { scope: 'du-otp'; dealerId: string };
 
 /**
  * A photograph, ready to go: the bytes that will actually be PUT, and the three

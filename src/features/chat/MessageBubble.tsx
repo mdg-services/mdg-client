@@ -14,6 +14,7 @@ import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
+import { DuOtpAckBox } from './DuOtpAckBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { SignLetterOpen } from './SignLetterAsk';
@@ -418,6 +419,12 @@ export const MessageBubble = React.memo(function MessageBubble({
   // the Bihar weights-and-measures site's login. Wide and timed on its own line,
   // like the box above.
   const wemmisLogin = message.wemmisLogin;
+  // THE DU OTP BOX (`message.duOtpAck`, ADR 0033): the step-by-step form that
+  // collects what IndianOil's portal needs to acknowledge a dispensing unit that
+  // was opened with an OTP. An empty object means "draw it": the box reads the
+  // outlet's live view and the message carries nothing else. Wide and timed on its
+  // own line, like the boxes above.
+  const duOtpAck = message.duOtpAck;
   // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
@@ -425,7 +432,13 @@ export const MessageBubble = React.memo(function MessageBubble({
   const setupCard = message.setupCard;
   const hasSetupBody = !!setupCard && setupCardHasBody(setupCard.card);
   const wide =
-    hasMedia || videos.length > 0 || !!ask || !!portalLogin || !!wemmisLogin || hasSetupBody;
+    hasMedia ||
+    videos.length > 0 ||
+    !!ask ||
+    !!portalLogin ||
+    !!wemmisLogin ||
+    !!duOtpAck ||
+    hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
@@ -438,7 +451,13 @@ export const MessageBubble = React.memo(function MessageBubble({
   // on top of it. So does a login box, for the same reason.
   const metaInFlow =
     !timeOnPicture &&
-    (showAiBadge || !hasBody || !!ask || !!portalLogin || !!wemmisLogin || hasSetupBody);
+    (showAiBadge ||
+      !hasBody ||
+      !!ask ||
+      !!portalLogin ||
+      !!wemmisLogin ||
+      !!duOtpAck ||
+      hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
@@ -569,6 +588,8 @@ export const MessageBubble = React.memo(function MessageBubble({
           {portalLogin ? <PortalLoginBox portals={portalLogin.portals} /> : null}
 
           {wemmisLogin ? <WemmisLoginBox /> : null}
+
+          {duOtpAck ? <DuOtpAckBox /> : null}
 
           {setupCard ? <SetupCard card={setupCard.card} /> : null}
 

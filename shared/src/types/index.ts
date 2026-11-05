@@ -52,5 +52,6 @@ export * from './lead';
 export * from './replyHelper';
 export * from './servicePackage';
 export * from './calibrationClaim';
+export * from './duOtpAck';
 export * from './laptopBridge';
 export * from './extension';

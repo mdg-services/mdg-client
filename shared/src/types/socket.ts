@@ -54,6 +54,14 @@ export interface ServerToClientEvents {
    */
   'outletSetup:changed': (payload: { dealerId: string }) => void;
   /**
+   * An outlet's DU OTP acknowledgements moved (ADR 0033): an event appeared or
+   * left the portal, the owner answered a step, a submit started or finished, the
+   * certificate fetch moved. Sent to that dealer's room (the chat box refetches
+   * `GET /me/du-otp`) and to every admin socket (the Data Vault pane refetches).
+   * Carries only the outlet's id: each side reads its own scoped view.
+   */
+  'duOtp:changed': (payload: { dealerId: string }) => void;
+  /**
    * The watch-period review queue changed: a message was held, sent, dropped or
    * expired. Admin sockets only; the queue refetches its own list.
    */

@@ -2,6 +2,7 @@ import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
+import type { MessageDuOtpAck } from './duOtpAck';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -333,6 +334,13 @@ export interface Message {
    * `calibrationClaim.ts`.
    */
   wemmisLogin?: MessageWemmisLogin;
+  /**
+   * Set on an MDG message that tells the owners a DU OTP event is waiting on
+   * IndianOil's portal (ADR 0033): the app draws the step-by-step box that
+   * gathers the reasons, papers and remark, from `GET /me/du-otp` — the outlet's
+   * state now. See `duOtpAck.ts`.
+   */
+  duOtpAck?: MessageDuOtpAck;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

@@ -165,6 +165,10 @@ export const AUDIT_ACTIONS = [
   'CALIBRATION_CLAIM_START',
   'CALIBRATION_CLAIM_ACTION',
   'CALIBRATION_CLAIM_DOCUMENT',
+  // DU OTP acknowledgements (ADR 0033): an owner's or admin's answer, the box posted again, a submit pressed
+  'DU_OTP_ANSWER',
+  'DU_OTP_ASK_POSTED',
+  'DU_OTP_SUBMIT',
   'CREDIT_DOD_SHARE',
   // IndianOil SDMS — Inspection Reports aggregation
   'INSPECTION_REPORTS_COLLECT',

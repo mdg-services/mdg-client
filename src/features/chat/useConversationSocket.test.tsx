@@ -3,6 +3,7 @@ import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskStates';
+import { duOtpKey } from '@/hooks/api/useDuOtp';
 import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
 import { portalLoginsKey } from '@/hooks/api/usePortalLogins';
 import { type ReactVars } from '@/hooks/api/useReactToMessage';
@@ -889,6 +890,58 @@ describe('useConversationSocket — an eMaaptaul login box arriving', () => {
     h.socket.server('connect'); // first connection
     expect(asked(spy)).toHaveLength(0);
     h.socket.server('connect'); // reconnect
+    expect(asked(spy)).toHaveLength(1);
+  });
+});
+
+/**
+ * The DU OTP box is drawn from the outlet's live acknowledgements, which can have
+ * moved since the cache last heard (another phone answered a step). So a message
+ * carrying a box asks again. The reconnect and the `duOtp:changed` event are the
+ * app frame's, not this thread's (see `useDuOtpSocket`).
+ */
+describe('useConversationSocket — a DU OTP box arriving', () => {
+  afterEach(() => resetStores());
+  const VIEW = { queryKey: duOtpKey };
+  const asked = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(VIEW));
+
+  it('asks where the outlet stands when a box arrives', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'du-1', senderId: OTHER, duOtpAck: {} }),
+        conversation: {},
+      });
+    });
+    expect(spy).toHaveBeenCalledWith(VIEW);
+  });
+
+  it('does not ask for an ordinary message or another box', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'plain-du', senderId: OTHER }),
+        conversation: {},
+      });
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'w-du', senderId: OTHER, wemmisLogin: {} }),
+        conversation: {},
+      });
+    });
+    expect(asked(spy)).toHaveLength(0);
+  });
+
+  it('asks once for a box the server echoes twice', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'du-2', senderId: OTHER, duOtpAck: {} });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
     expect(asked(spy)).toHaveLength(1);
   });
 });

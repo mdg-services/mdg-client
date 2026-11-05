@@ -81,6 +81,11 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    * words, and "क्लेम" is what MDG does with them.
    */
   'calibration-claim': { en: 'Calibration subsidy claim', hi: 'कैलिब्रेशन सब्सिडी क्लेम' },
+  /**
+   * The portal's own words, which is what the dealer sees on the portal and hears
+   * from the sales officer; "पावती" says what MDG does with it.
+   */
+  'du-otp-acknowledgement': { en: 'DU OTP acknowledgement', hi: 'DU OTP की पावती' },
 };
 
 /**
@@ -148,5 +153,9 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'calibration-claim': {
     en: "the yearly calibration subsidy, claimed from IndianOil for the owner",
     hi: 'सालाना कैलिब्रेशन की सब्सिडी, मालिक की ओर से इंडियन ऑयल से क्लेम',
+  },
+  'du-otp-acknowledgement': {
+    en: "IndianOil's DU OTP acknowledgements, spotted and filed for the owner so supply is not stopped",
+    hi: 'इंडियन ऑयल पोर्टल पर DU OTP की पावती — समय पर पकड़ना और मालिक की ओर से जमा करना, ताकि सप्लाई न रुके',
   },
 };

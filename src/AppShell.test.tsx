@@ -23,6 +23,9 @@ vi.mock('@/features/setup/useOutletSetupSocket', () => ({
   },
 }));
 
+// …and the DU OTP box's, for the same reason.
+vi.mock('@/features/chat/useDuOtpSocket', () => ({ useDuOtpSocket: () => undefined }));
+
 const h = vi.hoisted(() => ({
   keyboardOpen: false,
   keyboardHookCalls: 0,

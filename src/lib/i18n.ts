@@ -1272,6 +1272,138 @@ export const messages = {
     hi: 'भेजा नहीं जा सका, फिर से कोशिश करें',
   },
 
+  // DU OTP Acknowledgement (ADR 0033): a dispensing unit (DU) was opened with an
+  // OTP — re-calibrated, a pulser repaired, a part replaced — and IndianOil's
+  // portal wants each such event acknowledged, or it stops the pump's supply. MDG
+  // posts a box in the chat; the owner gives the answers one step at a time; MDG
+  // files it. Hindi first, in the words a dealer already uses: "DU", "OTP",
+  // "नोज़ल", "सर्टिफ़िकेट", "सर्विस रिपोर्ट", "रिमार्क". "IndianOil", "eMaaptaul" and
+  // "Acknowledgement" stay in Latin letters, as on the portal and in MDG's messages.
+  'chat.duOtpTitle': { en: 'DU OTP Acknowledgement', hi: 'DU OTP Acknowledgement' },
+  'chat.duOtpNone': {
+    en: 'No DU OTP acknowledgement is pending',
+    hi: 'कोई DU OTP acknowledgement बाकी नहीं है',
+  },
+  'chat.duOtpBlocked': {
+    en: 'IndianOil has stopped your fuel supply until this is done.',
+    hi: 'जब तक यह नहीं होता, IndianOil ने आपकी सप्लाई रोक रखी है।',
+  },
+  'chat.duOtpDu': { en: 'DU {name}', hi: 'DU {name}' },
+  'chat.duOtpSerial': { en: 'serial {serial}', hi: 'सीरियल {serial}' },
+  'chat.duOtpNozzle': { en: 'Nozzle {n}', hi: 'नोज़ल {n}' },
+  'chat.duOtpNozzles': { en: 'Nozzles {n}', hi: 'नोज़ल {n}' },
+  'chat.duOtpOtpDate': { en: 'OTP date {date}', hi: 'OTP की तारीख {date}' },
+  'chat.duOtpNeedTitle': { en: 'What MDG will need from you', hi: 'MDG को आपसे ये चाहिए' },
+  'chat.duOtpNeedReasons': { en: 'Why the DU was opened', hi: 'DU क्यों खोला गया' },
+  'chat.duOtpNeedCertificate': {
+    en: 'Calibration certificate (PDF or photo)',
+    hi: 'कैलिब्रेशन सर्टिफ़िकेट (PDF या फ़ोटो)',
+  },
+  'chat.duOtpNeedReport': {
+    en: 'DU service report (PDF or photo)',
+    hi: 'DU सर्विस रिपोर्ट (PDF या फ़ोटो)',
+  },
+  'chat.duOtpNeedOther': {
+    en: 'Any other paper (only if you have one)',
+    hi: 'कोई और कागज़ (हो तो)',
+  },
+  'chat.duOtpNeedRemark': { en: 'A short remark', hi: 'एक छोटा रिमार्क' },
+  'chat.duOtpNeedDate': {
+    en: 'Calibration date: the OTP date, filled in by us',
+    hi: 'कैलिब्रेशन की तारीख: OTP की तारीख, हम भर देंगे',
+  },
+  'chat.duOtpStart': { en: 'Do it for me', hi: 'मेरे लिए कर दो' },
+  'chat.duOtpStep': { en: 'Step {n} of {total}', hi: 'कदम {n} / {total}' },
+  'chat.duOtpStepReasons': { en: 'Why was the DU opened?', hi: 'DU क्यों खोला गया?' },
+  'chat.duOtpStepCertificate': { en: 'Calibration certificate', hi: 'कैलिब्रेशन सर्टिफ़िकेट' },
+  'chat.duOtpStepReport': { en: 'DU service report', hi: 'DU सर्विस रिपोर्ट' },
+  'chat.duOtpStepOther': { en: 'Any other paper?', hi: 'कोई और कागज़?' },
+  'chat.duOtpStepRemarks': { en: 'A short remark', hi: 'एक छोटा रिमार्क' },
+  'chat.duOtpStepReview': { en: 'Check and submit', hi: 'देखिए और जमा कीजिए' },
+  // The four reasons the portal offers, in the owner's words.
+  'chat.duOtpReasonCalibration': { en: 'e-Calibration', hi: 'ई-कैलिब्रेशन' },
+  'chat.duOtpReasonPulsar': { en: 'Pulsar repair', hi: 'पल्सर रिपेयर' },
+  'chat.duOtpReasonReplacement': { en: 'A part was replaced', hi: 'कोई पार्ट बदला गया' },
+  'chat.duOtpReasonOthers': { en: 'Something else', hi: 'कुछ और' },
+  'chat.duOtpReasonsHint': {
+    en: 'Tick everything that applies',
+    hi: 'जो-जो हुआ हो, सब पर टिक कीजिए',
+  },
+  'chat.duOtpNext': { en: 'Next', hi: 'आगे' },
+  'chat.duOtpUpload': { en: 'Upload PDF or photo', hi: 'PDF या फ़ोटो अपलोड करें' },
+  'chat.duOtpUploadHint': {
+    en: 'PDF or photo, up to 10 MB. Photos are made into a PDF for you.',
+    hi: 'PDF या फ़ोटो, 10 MB तक। फ़ोटो का PDF हम बना देंगे।',
+  },
+  'chat.duOtpUploading': { en: 'Uploading…', hi: 'अपलोड हो रहा है…' },
+  'chat.duOtpAdded': { en: 'Added', hi: 'डाल दिया' },
+  'chat.duOtpFetch': { en: 'Fetch it from eMaaptaul for me', hi: 'eMaaptaul से मँगवा दो' },
+  'chat.duOtpOnFile': { en: 'Use the one MDG has', hi: 'MDG के पास जो है, वही लगा दो' },
+  'chat.duOtpVc': { en: 'VC {vc}', hi: 'VC {vc}' },
+  'chat.duOtpDated': { en: 'dated {date}', hi: 'तारीख {date}' },
+  'chat.duOtpFetching': {
+    en: 'Fetching it from eMaaptaul… this can take a few minutes',
+    hi: 'eMaaptaul से मँगवा रहे हैं… कुछ मिनट लग सकते हैं',
+  },
+  // Only when the server sent no words of its own for the fetch.
+  'chat.duOtpFetchLogin': {
+    en: 'We need your eMaaptaul login first.',
+    hi: 'पहले आपका eMaaptaul लॉगिन चाहिए।',
+  },
+  'chat.duOtpFetchFailed': {
+    en: "We couldn't get it from eMaaptaul.",
+    hi: 'eMaaptaul से नहीं मिल पाया।',
+  },
+  'chat.duOtpFetchUploadInstead': {
+    en: 'You can upload it yourself instead.',
+    hi: 'आप खुद अपलोड भी कर सकते हैं।',
+  },
+  'chat.duOtpSkipOther': { en: 'No other document', hi: 'कोई और कागज़ नहीं' },
+  // The review step's row names.
+  'chat.duOtpLblReasons': { en: 'Why it was opened', hi: 'क्यों खोला गया' },
+  'chat.duOtpLblOther': { en: 'Other paper', hi: 'दूसरा कागज़' },
+  'chat.duOtpLblRemarks': { en: 'Remark', hi: 'रिमार्क' },
+  'chat.duOtpLblDate': { en: 'Calibration date', hi: 'कैलिब्रेशन की तारीख' },
+  'chat.duOtpDateNote': {
+    en: 'the OTP date, filled in by us',
+    hi: 'OTP की तारीख, हम भर देंगे',
+  },
+  'chat.duOtpSrcEmaaptaul': { en: 'from eMaaptaul', hi: 'eMaaptaul से' },
+  'chat.duOtpSrcOnFile': { en: "MDG's copy", hi: 'MDG के पास की कॉपी' },
+  'chat.duOtpSrcAdmin': { en: 'added by MDG', hi: 'MDG ने डाला' },
+  'chat.duOtpChangeField': { en: 'Change {field}', hi: '{field} बदलें' },
+  'chat.duOtpSubmit': { en: 'Submit to IndianOil', hi: 'IndianOil पर जमा करें' },
+  'chat.duOtpSubmitting': {
+    en: 'Submitting to IndianOil…',
+    hi: 'IndianOil पर जमा हो रहा है…',
+  },
+  // Only when the server sent no words of its own for a failed submit.
+  'chat.duOtpFailedFallback': { en: 'IndianOil did not take it.', hi: 'IndianOil ने इसे नहीं लिया।' },
+  'chat.duOtpTeamTold': {
+    en: 'The MDG team has been told.',
+    hi: 'MDG टीम को बता दिया गया है।',
+  },
+  'chat.duOtpDone': {
+    en: 'Done. Filed with IndianOil on {date}.',
+    hi: 'हो गया। {date} को IndianOil पर जमा हुआ।',
+  },
+  'chat.duOtpGone': {
+    en: 'Closed on IndianOil on {date}.',
+    hi: '{date} को IndianOil पर बंद हो गया।',
+  },
+  'chat.duOtpFileFailed': {
+    en: 'The upload did not go through. Check your network and try again.',
+    hi: 'अपलोड नहीं हो पाया। नेटवर्क देखकर फिर कोशिश कीजिए।',
+  },
+  'chat.duOtpBadType': {
+    en: 'Choose a PDF or a photo (JPEG, PNG or WebP).',
+    hi: 'PDF या फ़ोटो (JPEG, PNG, WebP) चुनिए।',
+  },
+  'chat.duOtpTooBig': {
+    en: 'That file is over 10 MB. Choose a smaller one.',
+    hi: 'यह फ़ाइल 10 MB से बड़ी है। छोटी फ़ाइल चुनिए।',
+  },
+
   // The signed letter (ADR 0029): MDG posts a letter as a PDF and asks the owner
   // to print it, sign it, stamp it and send a photo back. Three short steps sit
   // above the buttons, in a dealer's own words: "लेटर", "साइन", "मोहर", "फ़ोटो".

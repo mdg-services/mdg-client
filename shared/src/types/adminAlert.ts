@@ -106,6 +106,8 @@ export const ADMIN_ALERT_KINDS = [
   'package_blocked',
   /** A calibration subsidy claim needs a person: a check failed, a run stopped, or the signed letter is overdue. */
   'calibration_claim',
+  /** A DU OTP event waits on IndianOil's portal to be acknowledged, or MDG's submit of one failed. */
+  'du_otp_ack',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -363,6 +365,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   calibration_claim: {
     label: 'Calibration claim needs you',
     clearsWhen: 'Clears when the claim moves past the step, or is cancelled.',
+    superAdminOnly: false,
+  },
+  du_otp_ack: {
+    label: 'DU OTP acknowledgement pending',
+    clearsWhen: 'Clears when IndianOil has the acknowledgement, or the event leaves the portal’s list.',
     superAdminOnly: false,
   },
 };
