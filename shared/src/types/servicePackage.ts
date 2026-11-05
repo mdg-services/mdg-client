@@ -1,5 +1,5 @@
 /**
- * The standard package: the eight services every Indian Oil outlet gets, set up
+ * The standard package: the nine services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -7,7 +7,8 @@
  * the inspection — attaches each service with the same schedule every other
  * outlet runs on, and runs each once. Nothing reaches the dealer or writes to a
  * portal before the team presses Start services: tanker density (which messages
- * the dealer) and water-test filing (which writes to the portal) are attached
+ * the dealer), water-test filing (which writes to the portal) and DU OTP
+ * acknowledgements (which message the dealer when an event appears) are attached
  * PAUSED and switched on by Start services.
  *
  * The admin reads progress as a list of steps, each in plain words. A step that
@@ -15,13 +16,14 @@
  * resumes from that step.
  */
 
-/** The eight services, in the order they are attached. */
+/** The nine services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
   'credit-dod-monitoring',
   'water-ingress-testing',
   'ro-supply-status',
+  'du-otp-acknowledgement',
   'tt-density',
   'dsr-report',
   'load-planner',
