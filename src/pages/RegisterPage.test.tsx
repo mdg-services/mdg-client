@@ -254,17 +254,113 @@ describe('RegisterPage', () => {
       expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
     });
 
-    it('a number that already has an account: no second sign-in, and Sign in has the number in', async () => {
-      fetchMock.mockResolvedValueOnce(okResponse('existing'));
+    /** The server for an account that already exists: each path answers as given, in order. */
+    function existingAccount(answers: {
+      whatsapp?: boolean;
+      verify?: Array<() => Response>;
+      login?: () => Response;
+    }) {
+      const verify = [...(answers.verify ?? [() => jsonResponse(200, { ok: true, data: { resetToken: 'tok-1' } })])];
+      fetchMock.mockImplementation(async (url: string) => {
+        if (/\/password-reset\/options$/.test(url))
+          return jsonResponse(200, { ok: true, data: { whatsapp: answers.whatsapp ?? true, email: false } });
+        if (/\/password-reset\/request$/.test(url)) return jsonResponse(200, { ok: true, data: { sent: true } });
+        if (/\/password-reset\/verify$/.test(url)) return (verify.shift() ?? verify[0]!)();
+        if (/\/password-reset\/confirm$/.test(url)) return jsonResponse(200, { ok: true, data: { ok: true } });
+        if (/\/auth\/login$/.test(url))
+          return (answers.login ?? (() => jsonResponse(200, { ok: true, data: { token: 'old-dealer', user: makeUser({ id: 'u-old' }) } })))();
+        if (/\/forgot-password$/.test(url)) return jsonResponse(200, { ok: true, data: {} });
+        return okResponse('existing');
+      });
+    }
+
+    const callTo = (path: RegExp) =>
+      (fetchMock.mock.calls as Array<[string, RequestInit]>).filter(([url]) => path.test(url));
+
+    it('a number that already has an account: a WhatsApp code opens it with the password just chosen', async () => {
+      existingAccount({});
       const user = userEvent.setup();
       renderAt('/register');
       await send(user);
 
-      expect(await screen.findByText('This mobile number already has an account.')).toBeInTheDocument();
-      expect(screen.getByText(/If this is another pump of yours/)).toBeInTheDocument();
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(await screen.findByText('Welcome! Your account is already here.')).toBeInTheDocument();
+      // The code went by itself, on WhatsApp, to the number on the form.
+      expect(await screen.findByText(/sent a 6-digit code on WhatsApp to 9876543210/)).toBeInTheDocument();
+      const [[, request]] = callTo(/\/password-reset\/request$/);
+      expect(JSON.parse(request!.body as string)).toEqual({ identifier: '9876543210', channel: 'whatsapp' });
+
+      await user.type(screen.getByLabelText('The 6-digit code'), '123 456');
+      await user.click(screen.getByRole('button', { name: 'Open my account' }));
+
+      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+      expect(useAuthStore.getState().token).toBe('old-dealer');
+      const [[, verify]] = callTo(/\/password-reset\/verify$/);
+      expect(JSON.parse(verify!.body as string)).toEqual({ identifier: '9876543210', code: '123456' });
+      const [[, confirm]] = callTo(/\/password-reset\/confirm$/);
+      expect(JSON.parse(confirm!.body as string)).toEqual({ resetToken: 'tok-1', newPassword: PASSWORD });
+      const [[, login]] = callTo(/\/auth\/login$/);
+      expect(JSON.parse(login!.body as string)).toEqual({ identifier: '9876543210', password: PASSWORD });
+    });
+
+    it('a wrong code says so, empties the box, and the right one still opens the account', async () => {
+      existingAccount({
+        verify: [
+          () => jsonResponse(400, { ok: false, error: { code: 'RESET_CODE_INVALID', message: 'no' } }),
+          () => jsonResponse(200, { ok: true, data: { resetToken: 'tok-2' } }),
+        ],
+      });
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+      await screen.findByText(/sent a 6-digit code on WhatsApp/);
+
+      await user.type(screen.getByLabelText('The 6-digit code'), '000000');
+      await user.click(screen.getByRole('button', { name: 'Open my account' }));
+      expect(await screen.findByText('That code is wrong or has expired.')).toBeInTheDocument();
+      expect(screen.getByLabelText('The 6-digit code')).toHaveValue('');
+      expect(callTo(/\/password-reset\/confirm$/)).toHaveLength(0);
+
+      await user.type(screen.getByLabelText('The 6-digit code'), '654321');
+      await user.click(screen.getByRole('button', { name: 'Open my account' }));
+      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+    });
+
+    it('the password is set but the sign-in did not go through: Sign in, with the number in', async () => {
+      existingAccount({ login: () => jsonResponse(401, { ok: false, error: { code: 'UNAUTHORIZED', message: 'no' } }) });
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+      await screen.findByText(/sent a 6-digit code on WhatsApp/);
+      await user.type(screen.getByLabelText('The 6-digit code'), '123456');
+      await user.click(screen.getByRole('button', { name: 'Open my account' }));
+
+      expect(await screen.findByText(/Your password is set/)).toBeInTheDocument();
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
       expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
+    });
+
+    it('with WhatsApp codes off: no code is asked for, and Sign in has the number in', async () => {
+      existingAccount({ whatsapp: false });
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+
+      expect(await screen.findByText(/If this is another pump of yours/)).toBeInTheDocument();
+      expect(callTo(/\/password-reset\/request$/)).toHaveLength(0);
+      await user.click(screen.getByRole('button', { name: 'Sign in' }));
+      expect(await screen.findByLabelText('Mobile number or email')).toHaveValue('9876543210');
+    });
+
+    it('no code came: the team can be asked to call', async () => {
+      existingAccount({});
+      const user = userEvent.setup();
+      renderAt('/register');
+      await send(user);
+      await screen.findByText(/sent a 6-digit code on WhatsApp/);
+      await user.click(screen.getByRole('button', { name: 'No code? Ask the team to call you' }));
+      expect(await screen.findByText('The MDG team will call you.')).toBeInTheDocument();
+      const [[, ask]] = callTo(/\/forgot-password$/);
+      expect(JSON.parse(ask!.body as string)).toEqual({ identifier: '9876543210' });
     });
 
     it.each(['waiting', 'existing'])(

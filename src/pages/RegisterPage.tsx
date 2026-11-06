@@ -23,6 +23,7 @@ import {
 } from '@/features/register/enroll';
 import { useSubmissionId } from '@/features/register/submissionId';
 import { TermsSheet } from '@/features/register/TermsSheet';
+import { WelcomeBackCard } from '@/features/register/WelcomeBackCard';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
 
@@ -56,8 +57,10 @@ interface FormValues {
  *  - `ready`: the account is open, and this screen signs them in with the mobile
  *    and password just typed, straight into their chat. If that sign-in does not
  *    go through, it says the account is ready and offers Sign in;
- *  - `existing`: this mobile already signs in to an account — Sign in (a second
- *    pump is the team's to add);
+ *  - `existing`: this mobile already signs in to an account — a dealer MDG served
+ *    before the app, or a second try. A code goes on WhatsApp at once and the
+ *    account opens with the password just typed (`WelcomeBackCard`); a second
+ *    pump is still the team's to add;
  *  - `waiting`: MDG's team looks first; a WhatsApp message says when it is ready.
  */
 export function RegisterPage() {
@@ -72,6 +75,15 @@ export function RegisterPage() {
     mobile: string;
     account: EnrollAccount;
   } | null>(null);
+  // `existing` only: the password just chosen, held in memory for the WhatsApp code
+  // step to give the account, and dropped when this screen goes.
+  const chosenPassword = React.useRef<string | null>(null);
+  React.useEffect(
+    () => () => {
+      chosenPassword.current = null;
+    },
+    [],
+  );
 
   // To the sign-in screen with the mobile number already in its box.
   const toSignIn = (mobile?: string) =>
@@ -187,6 +199,7 @@ export function RegisterPage() {
         navigate('/chat', { replace: true });
         return;
       }
+      chosenPassword.current = account === 'existing' ? v.password : null;
       setSentTo({ email: v.email, mobile: toMobile(v.mobile) ?? v.mobile, account });
       window.scrollTo({ top: 0 });
     },
@@ -216,7 +229,21 @@ export function RegisterPage() {
           </h1>
         </div>
 
-        {sentTo ? (
+        {sentTo?.account === 'existing' && chosenPassword.current ? (
+          <WelcomeBackCard
+            mobile={sentTo.mobile}
+            password={chosenPassword.current}
+            onSignedIn={(session) => {
+              chosenPassword.current = null;
+              startSession(session);
+              navigate('/chat', { replace: true });
+            }}
+            onSignIn={() => {
+              chosenPassword.current = null;
+              toSignIn(sentTo.mobile);
+            }}
+          />
+        ) : sentTo ? (
           <Card className="mt-4">
             <CardContent role="status" aria-live="polite">
               <div className="flex items-center gap-2 text-success">

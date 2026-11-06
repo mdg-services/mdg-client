@@ -62,8 +62,21 @@ export const approveRegistrationSchema = z
      * the default for this person (`services/outletSetup/messageLang.ts`).
      */
     messageLang: z.enum(SETUP_MESSAGE_LANGS).optional(),
+    /**
+     * Give the person an owner login on this outlet we already serve, instead of making a
+     * new outlet: the registration matched it ("already a client") and nobody signs in
+     * with its number yet. Never with `linkToUserId`; any `code` is ignored.
+     */
+    joinDealerId: z
+      .string()
+      .regex(/^[a-f0-9]{24}$/i, 'Invalid id')
+      .optional(),
   })
-  .strict();
+  .strict()
+  .refine((v) => !(v.joinDealerId && v.linkToUserId), {
+    message: 'Pick one: a login on the existing outlet, or another outlet of the owner.',
+    path: ['joinDealerId'],
+  });
 export type ApproveRegistrationInput = z.infer<typeof approveRegistrationSchema>;
 
 /** Close a registration or an outlet's setup: the lead said no, or went silent for good. */

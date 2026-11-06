@@ -547,11 +547,26 @@ export interface LinkOwner {
   codes: string[];
 }
 
+/**
+ * The outlet we already serve that a registration could join as an owner login: the
+ * person on this number has no login of their own, so the existing outlet gets one
+ * for them (a pump the team added by hand with nobody on the app, or another owner
+ * of a pump we serve). Nothing about the outlet changes but the new login.
+ */
+export interface JoinOutletOption {
+  dealerId: string;
+  code: string;
+  /** Owner logins the outlet has now, before this one. */
+  owners: number;
+}
+
 /** `GET /admin/registrations/:id/link-option`. */
 export interface RegistrationLinkOption {
   owner: LinkOwner | null;
   /** In plain words, when `owner` is null. */
   reason: string | null;
+  /** Set when the registration can be given a login on the outlet it matched. Absent from an older backend. */
+  join?: JoinOutletOption | null;
 }
 
 /** What Approve returns: the new outlet, and whether the WhatsApp welcome went. */
@@ -567,6 +582,8 @@ export interface ApproveRegistrationResult {
    */
   tempPassword: string | null;
   welcome: SetupWelcomeOutcome;
+  /** True when the registration was given a login on an outlet we already serve (`joinDealerId`), not a new outlet. */
+  joined?: boolean;
 }
 
 /** What "Send welcome on WhatsApp" returns: the fresh setup beside what the try came to. */

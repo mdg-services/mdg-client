@@ -278,6 +278,26 @@ export const messages = {
     en: 'Sign in with it. Forgot the password? Tap "Forgot your password?" on the sign-in screen. If this is another pump of yours, the MDG team will contact you to add it.',
     hi: 'इसी नंबर से साइन इन करें। पासवर्ड भूल गए? साइन-इन स्क्रीन पर "पासवर्ड भूल गए?" दबाइए। अगर यह आपका दूसरा पंप है, तो MDG टीम इसे जोड़ने के लिए संपर्क करेगी।',
   },
+  // This mobile already has an account (a dealer we served before the app, or a second
+  // try): a WhatsApp code opens it with the password just chosen (`WelcomeBackCard`).
+  'register.welcomeBackBadge': { en: 'Already with MDG', hi: 'पहले से MDG के साथ' },
+  'register.welcomeBackTitle': {
+    en: 'Welcome! Your account is already here.',
+    hi: 'स्वागत है! आपका खाता पहले से बना हुआ है।',
+  },
+  'register.welcomeBackBody': {
+    en: 'We have sent a 6-digit code on WhatsApp to {mobile}. Type it below and your account opens, with the password you just chose.',
+    hi: 'हमने {mobile} पर WhatsApp पर 6 अंकों का कोड भेजा है। उसे नीचे लिखिए, आपका खाता खुल जाएगा — अभी चुने पासवर्ड के साथ।',
+  },
+  'register.welcomeBackSending': {
+    en: 'Sending the code on WhatsApp…',
+    hi: 'WhatsApp पर कोड भेज रहे हैं…',
+  },
+  'register.welcomeBackOpen': { en: 'Open my account', hi: 'मेरा खाता खोलिए' },
+  'register.welcomeBackSignIn': {
+    en: 'Your password is set. Sign in with your mobile number and that password.',
+    hi: 'आपका पासवर्ड सेट हो गया। मोबाइल नंबर और वही पासवर्ड डालकर साइन इन कीजिए।',
+  },
   'register.successEmail': {
     en: 'A welcome email is on its way to {email}.',
     hi: '{email} पर एक स्वागत ईमेल भी भेजा गया है।',
