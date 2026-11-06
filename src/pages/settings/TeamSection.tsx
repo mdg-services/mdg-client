@@ -23,7 +23,7 @@ import type { User } from '@dk/shared/types';
 import { RoleBadge, StatusDot } from './RoleBadge';
 
 type InviteValues = { name: string; mobile: string; email: string; password: string };
-/** Who the invite is for: the pump's one manager, or a partner who is another owner. */
+/** Who the invite is for: a manager (a pump may have several), or a partner who is another owner. */
 type InviteRole = 'dealer-staff' | 'dealer-owner';
 
 
@@ -110,14 +110,13 @@ export function TeamSection() {
     },
     onError: (err) => {
       // The refusals an owner can act on get their own words; anything else
-      // stays the general line.
+      // stays the general line. (A pump may have several managers, so a second
+      // manager is never refused.)
       const msg = err instanceof ApiError ? err.message : '';
       if (err instanceof ApiError && err.status === 409 && /already has a Dealer Kavach login/i.test(msg)) {
         toast.error(t('profile.numberHasLogin'));
       } else if (err instanceof ApiError && err.status === 409 && /owners/i.test(msg)) {
         toast.error(t('profile.tooManyOwners'));
-      } else if (err instanceof ApiError && err.status === 409 && /manager/i.test(msg)) {
-        toast.error(t('profile.teamHasManager'));
       } else if (err instanceof ApiError && err.status === 409 && /email/i.test(msg)) {
         toast.error(t('profile.emailInUse'));
       } else {

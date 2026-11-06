@@ -372,11 +372,11 @@ describe('Settings → your team', () => {
     ).toBeInTheDocument();
   });
 
-  it('explains a second manager is not allowed, in words', async () => {
+  it('explains an email already in use, in words', async () => {
     signIn(owner);
     vi.mocked(api.get).mockResolvedValue([] as never);
     vi.mocked(api.post).mockRejectedValue(
-      new ApiError(409, 'CONFLICT', 'This dealer already has a manager'),
+      new ApiError(409, 'CONFLICT', 'Email already in use'),
     );
     renderAt('/settings/team');
 
@@ -392,9 +392,7 @@ describe('Settings → your team', () => {
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
     expect(
-      await screen.findByText(
-        'Your pump already has a manager. Pause them first, or ask the MDG team.',
-      ),
+      await screen.findByText('That email is already used by another login.'),
     ).toBeInTheDocument();
   });
 });

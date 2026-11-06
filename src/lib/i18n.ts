@@ -656,11 +656,6 @@ export const messages = {
     hi: 'यह नहीं हो पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
   },
   'profile.teammateAdded': { en: 'Teammate added', hi: 'साथी जुड़ गया' },
-  // One manager per pump: the server refuses a second with a 409.
-  'profile.teamHasManager': {
-    en: 'Your pump already has a manager. Pause them first, or ask the MDG team.',
-    hi: 'आपके पंप पर पहले से मैनेजर है। पहले उन्हें रोकें, या MDG टीम से कहें।',
-  },
   'profile.emailInUse': {
     en: 'That email is already used by another login.',
     hi: 'यह ईमेल किसी और लॉगिन में पहले से है।',
