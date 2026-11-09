@@ -70,4 +70,9 @@ export interface KkSigninList {
 export interface KkSigninCode {
   code: string;
   expiresAt: string;
+  /**
+   * How long it stays readable, counted by the SERVER. The page counts down from this, not from `expiresAt` against its own
+   * clock, so a laptop whose clock is wrong cannot keep a code on screen past the server's window.
+   */
+  expiresInMs: number;
 }
