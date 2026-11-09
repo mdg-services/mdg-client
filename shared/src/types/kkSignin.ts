@@ -6,8 +6,20 @@
  * the code: `story` is the sentence the page prints, so no admin has to read a status code.
  */
 
-export const KK_SIGNIN_INTENTS = ['join', 'start', 'primary'] as const;
+/** What a code was asked for: the pump's three, then a transporter's first owner and any of his people. */
+export const KK_SIGNIN_INTENTS = ['join', 'start', 'primary', 'fleet-setup', 'fleet-signin'] as const;
 export type KkSigninIntent = (typeof KK_SIGNIN_INTENTS)[number];
+
+/** What the step a code was for did once it was typed. */
+export const KK_SIGNIN_OUTCOMES = [
+  'joined',
+  'started',
+  'handed-over',
+  'fleet-setup',
+  'fleet-signed-in',
+  'fleet-pin-reset',
+] as const;
+export type KkSigninOutcome = (typeof KK_SIGNIN_OUTCOMES)[number];
 
 export const KK_SIGNIN_RESULTS = ['sent', 'repeat', 'send-failed', 'turned-away', 'review', 'error'] as const;
 export type KkSigninResult = (typeof KK_SIGNIN_RESULTS)[number];
@@ -36,7 +48,7 @@ export interface KkSigninRow {
   sendError: { status?: number; code?: number; network?: string } | null;
   typedRight: boolean;
   wrongTries: number;
-  outcome: 'joined' | 'started' | 'handed-over' | null;
+  outcome: KkSigninOutcome | null;
   verdict: KkSigninVerdict;
   /** The one sentence: what happened and why, in plain words. */
   story: string;
