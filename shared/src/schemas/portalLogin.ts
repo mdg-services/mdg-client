@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { SDMS_NEW_PASSWORD_RE, SDMS_RESET_OTP_RE } from '../types/sdmsPasswordReset';
+
 /**
  * Request bodies for the portal-login box. See `types/portalLogin.ts`.
  *
@@ -40,3 +42,17 @@ export const askPortalLoginSchema = z
   })
   .strict();
 export type AskPortalLoginInput = z.infer<typeof askPortalLoginSchema>;
+
+/**
+ * `PUT /me/portal-logins/sdms/reset/:id` — the OTP from the owner's phone and the
+ * new password, together, because the portal takes them in one step. The
+ * password is checked against the portal's own rule here, so a shape the portal
+ * would refuse never costs the owner their OTP.
+ */
+export const answerSdmsResetSchema = z
+  .object({
+    otp: z.string().trim().regex(SDMS_RESET_OTP_RE, 'The OTP is the digits in the SMS'),
+    password: z.string().regex(SDMS_NEW_PASSWORD_RE, 'The new password does not follow the rule'),
+  })
+  .strict();
+export type AnswerSdmsResetInput = z.infer<typeof answerSdmsResetSchema>;

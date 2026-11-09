@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
-import type { PortalId, PortalLoginsView } from '@dk/shared/types';
+import { sdmsResetIsLive, type PortalId, type PortalLoginsView, type SdmsResetView } from '@dk/shared/types';
 
 /**
  * Where the outlet's portal logins stand — SDMS and IRAS for an Indian Oil outlet,
@@ -59,4 +59,67 @@ export function useSavePortalLogin() {
 /** Ask the server again — a box MDG just posted may have a new state behind it. */
 export function invalidatePortalLogins(qc: QueryClient): void {
   void qc.invalidateQueries({ queryKey: portalLoginsKey });
+}
+
+// ── SDMS "Forgot password?" ───────────────────────────────────────────────
+
+/** How often the box asks where a reset stands while it is going. */
+export const SDMS_RESET_POLL_MS = 1_500;
+
+const RESET_PATH = '/v1/me/portal-logins/sdms/reset';
+export const sdmsResetKey = (id: string) => ['portal-logins', 'sdms-reset', id] as const;
+
+/**
+ * "Forgot password?" → "Send OTP". The answer is the login box's view with the
+ * reset in it — this owner's new one, or the one another owner already started
+ * (the server keeps one per outlet).
+ */
+export function useStartSdmsReset() {
+  const qc = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: () => api.post<PortalLoginsView>(RESET_PATH, {}),
+    onSuccess: (view) => {
+      qc.setQueryData(portalLoginsKey, view);
+      if (view.sdmsReset) qc.setQueryData(sdmsResetKey(view.sdmsReset.id), view.sdmsReset);
+    },
+  });
+}
+
+/**
+ * Follow one reset: every 1.5 seconds while it is going, and at once when the
+ * owner comes back from reading the SMS; it stops by itself when the reset ends.
+ */
+export function useSdmsReset(id: string | null, seed?: SdmsResetView | null) {
+  const token = useAuthStore((s) => s.token);
+  return useQuery({
+    queryKey: sdmsResetKey(id ?? ''),
+    enabled: !!token && !!id,
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      return state && sdmsResetIsLive(state) ? SDMS_RESET_POLL_MS : false;
+    },
+    initialData: seed && id && seed.id === id ? seed : undefined,
+    queryFn: () => api.get<SdmsResetView>(`${RESET_PATH}/${encodeURIComponent(id ?? '')}`),
+  });
+}
+
+/**
+ * The OTP and the new password, together. They live in `variables` only as long
+ * as the call does (`gcTime: 0`), and the caller clears its fields too.
+ */
+export function useAnswerSdmsReset(id: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    gcTime: 0,
+    retry: false,
+    mutationFn: (vars: { otp: string; password: string }) =>
+      api.put<SdmsResetView>(`${RESET_PATH}/${encodeURIComponent(id ?? '')}`, vars),
+    onSuccess: (view) => {
+      if (id) qc.setQueryData(sdmsResetKey(id), view);
+    },
+  });
 }

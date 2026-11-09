@@ -1,7 +1,7 @@
 import { ApiError } from '@/lib/api';
 import type { MessageKey } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
-import { PORTAL_LOGIN_SAME_AS_REFUSED } from '@dk/shared/types';
+import { PORTAL_LOGIN_SAME_AS_REFUSED, SDMS_RESET_IN_PROGRESS } from '@dk/shared/types';
 
 /**
  * The small decisions behind the login box, kept apart from the drawing so they
@@ -42,6 +42,7 @@ export function portalSaveErrorKey(err: unknown): MessageKey {
     if (err.status === 409 && err.code === PORTAL_LOGIN_SAME_AS_REFUSED) {
       return 'chat.portalSameAsRefused';
     }
+    if (err.status === 409 && err.code === SDMS_RESET_IN_PROGRESS) return 'chat.portalResetBusy';
     if (err.status === 429) return 'chat.portalRateLimited';
   }
   return 'chat.portalSaveFailed';

@@ -86,6 +86,12 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    * from the sales officer; "पावती" says what MDG does with it.
    */
   'du-otp-acknowledgement': { en: 'DU OTP acknowledgement', hi: 'DU OTP की पावती' },
+  /**
+   * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
+   * password?" in the SDMS login box. Named for what it is so the admin's run
+   * history reads plainly.
+   */
+  'sdms-password-reset': { en: 'Forgot SDMS password', hi: 'SDMS पासवर्ड भूल गए' },
 };
 
 /**
@@ -158,4 +164,14 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     en: "IndianOil's DU OTP acknowledgements, spotted and filed for the owner so supply is not stopped",
     hi: 'इंडियन ऑयल पोर्टल पर DU OTP की पावती — समय पर पकड़ना और मालिक की ओर से जमा करना, ताकि सप्लाई न रुके',
   },
+  'sdms-password-reset': {
+    en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",
+    hi: 'इंडियन ऑयल पुराना SDMS पासवर्ड खत्म कर दे तो नया पासवर्ड, मालिक के फ़ोन पर आए OTP से',
+  },
 };
+
+/**
+ * Services MDG runs for the outlet behind the scenes, that are not part of what
+ * the owner takes or pays for: never listed on the dealer's Services page.
+ */
+export const BACKGROUND_SERVICE_IDS: readonly string[] = ['sdms-password-reset'];

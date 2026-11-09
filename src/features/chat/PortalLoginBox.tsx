@@ -10,9 +10,11 @@ import {
   isCompanyPortal,
   type PortalId,
   type PortalLoginState,
+  type SdmsResetView,
 } from '@dk/shared/types';
 
 import { portalSavedDate, portalSaveErrorKey } from './portalLoginView';
+import { SdmsResetFlow } from './SdmsResetFlow';
 
 const INPUT_CLASS =
   'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
@@ -237,6 +239,7 @@ function PortalRow({
   loading,
   failed,
   onRetry,
+  sdmsReset = null,
 }: {
   portal: PortalId;
   state: PortalLoginState | undefined;
@@ -244,10 +247,26 @@ function PortalRow({
   loading: boolean;
   failed: boolean;
   onRetry: () => void;
+  /** SDMS only: the "Forgot password?" reset going now, or just ended. */
+  sdmsReset?: SdmsResetView | null;
 }) {
   const t = useT();
   const lang = useLang();
   const [changing, setChanging] = React.useState(false);
+  // SDMS "Forgot password?": opened by this owner, or a reset already going
+  // (another owner's, or this one's from before). Closing it shows the form again.
+  const [forgot, setForgot] = React.useState(false);
+  const [closedResetId, setClosedResetId] = React.useState<string | null>(null);
+  const reset = portal === 'sdms' && sdmsReset && sdmsReset.id !== closedResetId ? sdmsReset : null;
+  const resetOpen = portal === 'sdms' && canEdit && (forgot || !!reset);
+  const closeReset = React.useCallback(() => {
+    setForgot(false);
+    setClosedResetId(sdmsReset?.id ?? null);
+  }, [sdmsReset?.id]);
+  const resetDone = React.useCallback(() => {
+    setForgot(false);
+    setChanging(false);
+  }, []);
   const name = PORTAL_NAMES[portal];
   // A box posted before the team marked this login "not needed" (the server says
   // so with `needed: false`) stops asking for it. A login already saved still
@@ -323,12 +342,27 @@ function PortalRow({
         </div>
       ) : null}
 
-      {formOpen ? (
-        <PortalForm
-          portal={portal}
-          onSaved={() => setChanging(false)}
-          onCancel={state.status === 'saved' ? () => setChanging(false) : undefined}
-        />
+      {resetOpen ? (
+        <SdmsResetFlow initial={reset} onClose={closeReset} onDone={resetDone} />
+      ) : formOpen ? (
+        <>
+          <PortalForm
+            portal={portal}
+            onSaved={() => setChanging(false)}
+            onCancel={state.status === 'saved' ? () => setChanging(false) : undefined}
+          />
+          {portal === 'sdms' && state.resetPossible ? (
+            <button
+              type="button"
+              data-no-swipe
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setForgot(true)}
+              className="mt-1 flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            >
+              {t('chat.sdmsForgot')}
+            </button>
+          ) : null}
+        </>
       ) : null}
     </div>
   );
@@ -366,6 +400,7 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
           loading={q.isPending}
           failed={failed}
           onRetry={retry}
+          sdmsReset={portal === 'sdms' ? (view?.sdmsReset ?? null) : null}
         />
       ))}
     </div>

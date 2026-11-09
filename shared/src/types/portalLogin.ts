@@ -1,3 +1,5 @@
+import type { SdmsResetView } from './sdmsPasswordReset';
+
 /**
  * The outlet's portal logins — Indian Oil's SDMS and IRAS, or the one dealer
  * portal of BPCL or HPCL (`types/oilCompany.ts`) — as the dealer side may see
@@ -89,6 +91,11 @@ export interface PortalLoginState {
   savedBy?: 'dealer' | 'mdg';
   /** When the portal stopped accepting it (ISO). Only with `refused`. */
   refusedAt?: string;
+  /**
+   * SDMS only: the box may offer "Forgot password?" — the outlet's SAP code is on
+   * record, which is what the portal's own reset asks for. See `sdmsPasswordReset.ts`.
+   */
+  resetPossible?: boolean;
 }
 
 /** `GET /me/portal-logins` — the box's state for the signed-in dealer user. */
@@ -96,6 +103,11 @@ export interface PortalLoginsView {
   portals: PortalLoginState[];
   /** True when this user may fill the box. Owners only: the logins are the owner's. */
   canEdit: boolean;
+  /**
+   * The SDMS "Forgot password?" reset that is going now, or that ended in the last
+   * few minutes (so every owner's box shows how it ended). Null when there is none.
+   */
+  sdmsReset?: SdmsResetView | null;
 }
 
 /**
