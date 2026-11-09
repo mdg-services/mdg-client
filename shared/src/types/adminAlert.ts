@@ -110,6 +110,9 @@ export const ADMIN_ALERT_KINDS = [
   'du_otp_ack',
   // ── A dealer we served before the app signs in to it for the first time ──
   'old_outlet_joined',
+  // ── Khata Kavach ──
+  /** A WhatsApp sign-in code for a Khata Kavach pump was sent and has not reached the phone (or Meta refused it). */
+  'kk_code_not_delivered',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -378,6 +381,13 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Client joined the app',
     clearsWhen: 'Clears when you hide it, or by itself three days after they joined.',
     superAdminOnly: false,
+  },
+  // Super-admin only: the sign-ins page behind it shows pump owners' numbers, and
+  // these people are not on any account manager's book.
+  kk_code_not_delivered: {
+    label: 'Khata Kavach code',
+    clearsWhen: 'Clears when a later code for that number arrives, or the person gets in.',
+    superAdminOnly: true,
   },
 };
 
