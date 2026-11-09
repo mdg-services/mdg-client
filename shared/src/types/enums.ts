@@ -159,6 +159,10 @@ export const AUDIT_ACTIONS = [
   'PARTNERS_PASSWORD_RESET',
   /** The owner (or the team for them) answered "do you also own a tanker?". */
   'TANKER_ANSWER_SAVED',
+  // IOC XtraPower — IndianOil's fleet-card portal, asked of an outlet on demand
+  'XTRAPOWER_CREDENTIALS_SET',
+  'XTRAPOWER_CREDENTIALS_CLEAR',
+  'XTRAPOWER_CREDENTIALS_REVEAL',
   // Bihar weights and measures (eMaaptaul) — the login a calibration subsidy claim uses (ADR 0029)
   'WEMMIS_CREDENTIALS_SET',
   'WEMMIS_CREDENTIALS_CLEAR',

@@ -2,7 +2,7 @@ import type { SdmsResetView } from './sdmsPasswordReset';
 
 /**
  * The outlet's portal logins — Indian Oil's SDMS and IRAS (and IndianOil Partners for
- * an owner who runs a tanker), or the dealer portals of BPCL or HPCL
+ * an owner who runs a tanker, and IOC XtraPower where the team asks for it), or the dealer portals of BPCL or HPCL
  * (`types/oilCompany.ts`) — as the dealer side may see and fill them.
  *
  * MDG's team works on these portals on the outlet's behalf: the daily sales
@@ -25,9 +25,9 @@ import type { SdmsResetView } from './sdmsPasswordReset';
  * of the chat could leak.
  */
 
-export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl' | 'partners';
+export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl' | 'partners' | 'xtrapower';
 
-export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners'];
+export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower'];
 
 /**
  * The company portals: BPCL's two (its dealer portal, and BROMA/eConnect) and HPCL's
@@ -56,8 +56,24 @@ export function isCompanyPortal(p: PortalId): boolean {
  */
 export const TANKER_PORTAL: PortalId = 'partners';
 
-/** The portals nothing tries on its own: the company portals and IndianOil Partners. */
-export const HAND_WORKED_PORTAL_IDS: readonly PortalId[] = [...COMPANY_PORTAL_IDS, TANKER_PORTAL];
+/**
+ * IOC XtraPower (beta.iocxtrapower.com), IndianOil's fleet-card portal. Asked ON DEMAND
+ * only: the team ticks it in "Ask for portal login" for the outlet that needs it, and it
+ * is never part of onboarding. Its sign-in sits behind Google's "I'm not a robot" tick,
+ * so like IndianOil Partners it is saved and read back and never tried automatically.
+ *
+ * Its "Forgot password?" is GUIDED, never automated: the last step of XtraPower's own
+ * reset is behind the same tick, so the owner does the reset on XtraPower's page (the
+ * phone app opens it in its own screen with the steps on top) and then types the new
+ * password into the box. See {@link XTRAPOWER_RESET_URL}.
+ */
+export const XTRAPOWER_PORTAL: PortalId = 'xtrapower';
+
+/** XtraPower's own "Reset Password" page: user ID, registered mobile, a 6-digit SMS code, a new password. */
+export const XTRAPOWER_RESET_URL = 'https://beta.iocxtrapower.com/account/reset-password';
+
+/** The portals nothing tries on its own: the company portals, IndianOil Partners and IOC XtraPower. */
+export const HAND_WORKED_PORTAL_IDS: readonly PortalId[] = [...COMPANY_PORTAL_IDS, TANKER_PORTAL, XTRAPOWER_PORTAL];
 
 /** True for a login that is saved and read back but never tried automatically. */
 export function isHandWorkedPortal(p: PortalId): boolean {
@@ -67,6 +83,14 @@ export function isHandWorkedPortal(p: PortalId): boolean {
 /** True for a portal whose box row offers "Forgot password?" (`POST /me/portal-logins/:portal/reset`). */
 export function canResetPortalPassword(p: PortalId): boolean {
   return p === TANKER_PORTAL;
+}
+
+/**
+ * The portal's own reset page, for a portal whose "Forgot password?" the owner does
+ * themselves with the box's steps beside it (IOC XtraPower). Null for every other portal.
+ */
+export function guidedResetUrl(p: PortalId): string | null {
+  return p === XTRAPOWER_PORTAL ? XTRAPOWER_RESET_URL : null;
 }
 
 /**
@@ -81,6 +105,7 @@ export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
   econnect: 'BROMA/eConnect',
   hpcl: 'HPCL portal',
   partners: 'IndianOil Partners',
+  xtrapower: 'IOC XtraPower',
 };
 
 /**

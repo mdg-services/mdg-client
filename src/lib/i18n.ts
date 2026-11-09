@@ -1273,6 +1273,36 @@ export const messages = {
     en: 'Type your user ID (vendor SAP code) above, then tap Forgot password? again.',
     hi: 'ऊपर अपनी यूज़र आईडी (वेंडर SAP कोड) भरिए, फिर से पासवर्ड भूल गए? दबाइए।',
   },
+  // IOC XtraPower's "Forgot password?" is GUIDED: the owner resets it on XtraPower's own
+  // page (its last step has Google's "I'm not a robot" tick), with these steps beside it,
+  // then types the new password into the row. The button names are XtraPower's own, in
+  // English in both languages, because that is what its page shows.
+  'chat.xtrapowerGuideIntro': {
+    en: "Reset it yourself on XtraPower's own page. It takes about 2 minutes:",
+    hi: 'XtraPower के अपने पेज पर खुद पासवर्ड बदलिए, लगभग 2 मिनट लगेंगे:',
+  },
+  'chat.xtrapowerStep1': {
+    en: 'Type your User ID and tap Continue.',
+    hi: 'अपनी User ID भरकर Continue दबाइए।',
+  },
+  'chat.xtrapowerStep2': {
+    en: 'Type the mobile number registered with XtraPower (and your PAN or TAN if it asks), then tap Generate OTP.',
+    hi: 'XtraPower में रजिस्टर्ड मोबाइल नंबर भरिए (माँगे तो PAN या TAN भी), फिर Generate OTP दबाइए।',
+  },
+  'chat.xtrapowerStep3': {
+    en: 'Type the 6-digit code from the SMS and tap Verify & Continue.',
+    hi: 'SMS में आया 6 अंकों का कोड भरकर Verify & Continue दबाइए।',
+  },
+  'chat.xtrapowerStep4': {
+    en: "Choose a new password: at least 8 characters, with a capital letter, a small letter, a number and one of @ # $ % & * _ (no spaces). Tick I'm not a robot and save.",
+    hi: "नया पासवर्ड बनाइए: कम से कम 8 अक्षर, जिसमें एक बड़ा अक्षर, एक छोटा अक्षर, एक अंक और @ # $ % & * _ में से एक हो (स्पेस नहीं)। I'm not a robot पर टिक करके सेव कीजिए।",
+  },
+  'chat.xtrapowerGuideOpen': { en: 'Open XtraPower', hi: 'XtraPower खोलें' },
+  'chat.xtrapowerGuideBack': {
+    en: 'Done? Enter your User ID and the new password below.',
+    hi: 'हो गया? नीचे अपनी User ID और नया पासवर्ड भरिए।',
+  },
+  'chat.xtrapowerPortalTitle': { en: 'XtraPower password reset', hi: 'XtraPower पासवर्ड रीसेट' },
   'chat.portalResetOff': {
     en: "Password reset isn't available right now. Try again later.",
     hi: 'पासवर्ड रीसेट अभी उपलब्ध नहीं है। बाद में कोशिश करें।',

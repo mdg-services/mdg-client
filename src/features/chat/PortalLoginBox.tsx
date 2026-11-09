@@ -1,4 +1,4 @@
-import { Check, Eye, EyeOff, KeyRound, Lock, Truck } from 'lucide-react';
+import { Check, ExternalLink, Eye, EyeOff, KeyRound, Lock, Truck } from 'lucide-react';
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
@@ -10,10 +10,12 @@ import {
 } from '@/hooks/api/usePortalLogins';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
+import { openPortalPage } from '@/lib/nativeBridge';
 import {
   PORTAL_NAMES,
   TANKER_PORTAL,
   canResetPortalPassword,
+  guidedResetUrl,
   isCompanyPortal,
   type PortalId,
   type PortalLoginState,
@@ -50,6 +52,7 @@ function PortalForm({
   onCancel,
   onForgot,
   hasSavedId = false,
+  lead,
 }: {
   portal: PortalId;
   onSaved: () => void;
@@ -62,6 +65,8 @@ function PortalForm({
   onForgot?: (typedUserId: string) => void;
   /** A user ID is on record, so "Forgot password?" works with the field left empty. */
   hasSavedId?: boolean;
+  /** One line above the fields: what to type here (after a guided reset, the new password). */
+  lead?: MessageKey;
 }) {
   const t = useT();
   const save = useSavePortalLogin();
@@ -127,6 +132,7 @@ function PortalForm({
       noValidate
       className="mt-2 flex flex-col gap-2"
     >
+      {lead ? <p className="text-[13px] font-medium leading-snug text-wa-bubble-text">{t(lead)}</p> : null}
       <div>
         <label htmlFor={userId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
           {t('chat.portalUserId')}
@@ -302,6 +308,9 @@ function PortalRow({
   // IndianOil Partners "Forgot password?" asked: the user ID typed in the form above, if
   // any (an empty one means the saved ID).
   const [askingReset, setAskingReset] = React.useState<{ userId: string } | null>(null);
+  // IOC XtraPower "Forgot password?": the steps, the way to XtraPower's page, and the form
+  // for the new password, until the owner saves it or closes them.
+  const [guiding, setGuiding] = React.useState(false);
   // The owner closed the "enter the new password" form a finished reset opened.
   const [resetDismissedAt, setResetDismissedAt] = React.useState<string | null>(null);
   // SDMS "Forgot password?": opened by this owner, or a reset already going
@@ -335,9 +344,13 @@ function PortalRow({
     canEdit &&
     !resetRunning &&
     !askingReset &&
+    !guiding &&
     (state.status !== 'saved' || changing || awaitingNew);
+  const guideUrl = guidedResetUrl(portal);
   const canForget =
     !!state && !notNeeded && canEdit && canResetPortalPassword(portal) && !resetRunning && !askingReset;
+  // A portal whose reset the owner does on its own page, with the steps here.
+  const canGuide = !!state && !notNeeded && canEdit && !!guideUrl && !guiding;
   const savedDate = state?.savedAt ? portalSavedDate(state.savedAt, lang) : '';
 
   return (
@@ -406,7 +419,22 @@ function PortalRow({
         <ResetConfirm portal={portal} userId={askingReset.userId} onDone={() => setAskingReset(null)} />
       ) : null}
 
-      {state && state.status === 'saved' && !formOpen && !askingReset ? (
+      {guiding && guideUrl && state && canEdit ? (
+        <>
+          <PortalResetGuide url={guideUrl} />
+          <PortalForm
+            portal={portal}
+            lead="chat.xtrapowerGuideBack"
+            onSaved={() => {
+              setGuiding(false);
+              setChanging(false);
+            }}
+            onCancel={() => setGuiding(false)}
+          />
+        </>
+      ) : null}
+
+      {state && state.status === 'saved' && !formOpen && !askingReset && !guiding ? (
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <div className="min-w-0 text-[13px] leading-snug text-wa-meta">
             <span className="break-words">
@@ -446,8 +474,18 @@ function PortalRow({
                   }
                 : undefined
             }
-            onForgot={canForget ? (typed) => setAskingReset({ userId: typed }) : undefined}
-            hasSavedId={state.status === 'saved'}
+            onForgot={
+              canForget
+                ? (typed) => setAskingReset({ userId: typed })
+                : canGuide
+                  ? () => {
+                      setChanging(false);
+                      setGuiding(true);
+                    }
+                  : undefined
+            }
+            // The guided reset types the user ID on the portal's own page, not here.
+            hasSavedId={state.status === 'saved' || canGuide}
           />
           {portal === 'sdms' && state.resetPossible ? (
             <button
@@ -463,14 +501,15 @@ function PortalRow({
         </>
       ) : null}
 
-      {canForget && !formOpen && state?.status === 'saved' ? (
+      {(canForget || canGuide) && !formOpen && state?.status === 'saved' ? (
         <button
           type="button"
           data-no-swipe
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => {
             setChanging(false);
-            setAskingReset({ userId: '' });
+            if (canGuide) setGuiding(true);
+            else setAskingReset({ userId: '' });
           }}
           className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
         >
@@ -478,6 +517,50 @@ function PortalRow({
           {t('chat.portalForgot')}
         </button>
       ) : null}
+    </div>
+  );
+}
+
+/** The guided reset's steps, in order (`PortalResetGuide`). */
+const GUIDE_STEPS: readonly MessageKey[] = [
+  'chat.xtrapowerStep1',
+  'chat.xtrapowerStep2',
+  'chat.xtrapowerStep3',
+  'chat.xtrapowerStep4',
+];
+
+/**
+ * IOC XtraPower's "Forgot password?": the owner resets it on XtraPower's own page, because
+ * its last step is Google's "I'm not a robot" tick and nothing may tick that for them. The
+ * steps say what the page will ask; "Open XtraPower" opens the page (in the phone app, in
+ * its own screen with the same steps on top); the form under this takes the new password.
+ */
+function PortalResetGuide({ url }: { url: string }) {
+  const t = useT();
+  const steps = GUIDE_STEPS.map((k) => t(k));
+  return (
+    <div
+      data-no-swipe
+      data-reset-guide
+      onPointerDown={(e) => e.stopPropagation()}
+      className="mt-2 flex flex-col gap-2"
+    >
+      <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.xtrapowerGuideIntro')}</p>
+      <ol className="flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-snug text-wa-bubble-text">
+        {steps.map((step) => (
+          <li key={step} className="break-words">
+            {step}
+          </li>
+        ))}
+      </ol>
+      <button
+        type="button"
+        onClick={() => openPortalPage({ url, title: t('chat.xtrapowerPortalTitle'), steps })}
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+      >
+        <ExternalLink width={16} strokeWidth={2} className="shrink-0" aria-hidden />
+        {t('chat.xtrapowerGuideOpen')}
+      </button>
     </div>
   );
 }

@@ -9,16 +9,16 @@ import { SDMS_NEW_PASSWORD_RE, SDMS_RESET_OTP_RE } from '../types/sdmsPasswordRe
  * a login one side accepts the other never refuses.
  */
 
-export const portalIdSchema = z.enum(['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners']);
+export const portalIdSchema = z.enum(['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower']);
 
 /**
- * A login nothing tries on its own: a company portal (BPCL, BROMA/eConnect, HPCL) or
- * IndianOil Partners. The admin's own save / read-back routes under
+ * A login nothing tries on its own: a company portal (BPCL, BROMA/eConnect, HPCL),
+ * IndianOil Partners or IOC XtraPower. The admin's own save / read-back routes under
  * `/company-portal-credentials/:portal` take only these.
  */
-export const companyPortalIdSchema = z.enum(['bpcl', 'econnect', 'hpcl', 'partners']);
+export const companyPortalIdSchema = z.enum(['bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower']);
 
-/** `PUT /dealers/:id/company-portal-credentials/:portal` — an admin types a BPCL, BROMA/eConnect, HPCL or IndianOil Partners login for the outlet. */
+/** `PUT /dealers/:id/company-portal-credentials/:portal` — an admin types a BPCL, BROMA/eConnect, HPCL, IndianOil Partners or IOC XtraPower login for the outlet. */
 export const saveCompanyPortalLoginSchema = z
   .object({
     username: z.string().trim().min(1).max(200),
@@ -40,7 +40,7 @@ export type SavePortalLoginInput = z.infer<typeof savePortalLoginSchema>;
 export const askPortalLoginSchema = z
   .object({
     /** Omitted: every login the outlet needs that is missing or refused, else every login it needs. */
-    portals: z.array(portalIdSchema).min(1).max(3).optional(),
+    portals: z.array(portalIdSchema).min(1).max(4).optional(),
     /** Send the "why we need your login" video with it. */
     withVideo: z.boolean().default(true),
   })

@@ -24,6 +24,12 @@ declare global {
      * script runs. The user-agent cannot say: an iPad reports itself as a Mac.
      */
     __DK_NATIVE_PLATFORM__?: 'ios' | 'android';
+    /**
+     * What this shell build can do beyond the basics, defined by the shell before any
+     * page script runs (`portal`: it opens an outside page in its own screen). Absent
+     * from a shell built before the list existed.
+     */
+    __DK_NATIVE_FEATURES__?: readonly string[];
   }
   interface WindowEventMap {
     /** The shell's answer to `push:status`, or its own news that the state changed. */
@@ -453,4 +459,47 @@ export function detectPlatform(): NativePlatform {
   if (isNativeShell()) return 'ios';
   if (/iphone|ipad|ipod/i.test(ua)) return 'ios';
   return 'web';
+}
+
+/** True when this shell build says it can do `feature` (`__DK_NATIVE_FEATURES__`). */
+export function nativeHas(feature: string): boolean {
+  if (!isNativeShell()) return false;
+  const list = window.__DK_NATIVE_FEATURES__;
+  return Array.isArray(list) && list.includes(feature);
+}
+
+/** An outside page to open with the box's steps pinned above it (`openPortalPage`). */
+export interface PortalPageRequest {
+  url: string;
+  /** The screen's title, in the reader's language. */
+  title: string;
+  /** The numbered steps, in the reader's language. */
+  steps: readonly string[];
+}
+
+/**
+ * Open a portal's own page for the owner to work on themselves: IOC XtraPower's
+ * password reset, which nothing may do for them (its last step is Google's "I'm not a
+ * robot" tick).
+ *
+ *  - A shell that can (`portal` feature): its own screen, the page under the steps,
+ *    and Done back to the chat. The page cannot be shown inside this web app at all:
+ *    the portal forbids being framed by another site.
+ *  - An older shell: the page goes to the phone's browser, by the navigation gate the
+ *    shell already has for every outside link (the app stays where it is).
+ *  - A plain browser: a new tab.
+ *
+ * Decided synchronously, inside the tap, so a browser never blocks the new tab.
+ */
+export function openPortalPage(req: PortalPageRequest): 'app' | 'browser' {
+  if (nativeHas('portal')) {
+    postToNative({ type: 'portal:open', url: req.url, title: req.title, steps: [...req.steps] });
+    return 'app';
+  }
+  if (isNativeShell()) {
+    window.location.assign(req.url);
+    return 'browser';
+  }
+  window.open(req.url, '_blank', 'noopener,noreferrer');
+  return 'browser';
 }
