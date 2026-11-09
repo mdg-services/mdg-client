@@ -50,6 +50,11 @@ export interface KkSigninRow {
   wrongTries: number;
   outcome: KkSigninOutcome | null;
   verdict: KkSigninVerdict;
+  /**
+   * A super-admin can press "Show code" for this ask: it is a sent code, still unused, still inside its ten minutes, and
+   * the server holds the sealed copy. False for everything else (and always false if the feature is not set up).
+   */
+  codeAvailable: boolean;
   /** The one sentence: what happened and why, in plain words. */
   story: string;
 }
@@ -59,4 +64,10 @@ export interface KkSigninList {
   connected: boolean;
   rows: KkSigninRow[];
   counts: { total: number; problems: number; waiting: number; gotIn: number };
+}
+
+/** What "Show code" returns: the six digits, and when they stop being readable. Never cached, never listed. */
+export interface KkSigninCode {
+  code: string;
+  expiresAt: string;
 }
