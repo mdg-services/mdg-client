@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
-import { ArrowLeft, Check } from 'lucide-react';
+import { ArrowLeft, Check, Globe } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 
+import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input } from '@/components/ui';
 import { markAccountHere } from '@/features/auth/firstScreen';
@@ -26,6 +27,7 @@ import { TermsSheet } from '@/features/register/TermsSheet';
 import { WelcomeBackCard } from '@/features/register/WelcomeBackCard';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
+import { useGoBack } from '@/lib/useGoBack';
 
 /** The card after sending, in each case (`register.success*` for a person's look first). */
 const SUCCESS_WORDS: Record<EnrollAccount, { badge: MessageKey; title: MessageKey; body: MessageKey }> = {
@@ -89,13 +91,11 @@ export function RegisterPage() {
   const toSignIn = (mobile?: string) =>
     navigate('/login', mobile ? { state: { identifier: mobile } } : undefined);
 
-  // Back to the sign-in screen the way the phone's Back button would get
-  // there, so the two never leave different histories behind. Opened directly
-  // (no earlier entry of ours), it replaces itself with sign-in instead.
-  const goBack = () => {
-    if (location.key !== 'default') navigate(-1);
-    else navigate('/login', { replace: true });
-  };
+  const [languageOpen, setLanguageOpen] = React.useState(false);
+
+  // Back to the sign-in screen. Opened cold (the first launch), there is no
+  // earlier entry of ours to step back to, so it goes to sign-in directly.
+  const goBack = useGoBack('/login');
 
   const schema = React.useMemo(
     () =>
@@ -224,9 +224,20 @@ export function RegisterPage() {
           >
             <ArrowLeft width={22} strokeWidth={1.75} />
           </button>
-          <h1 className="text-xl font-semibold tracking-tight text-text">
+          <h1 className="min-w-0 flex-1 text-xl font-semibold tracking-tight text-text">
             {t('register.title')}
           </h1>
+          {/* The language is changeable here too: a dealer who opens the app for
+              the first time lands on this screen with no Settings to find it in. */}
+          <button
+            type="button"
+            onClick={() => setLanguageOpen(true)}
+            aria-label={t('profile.language')}
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text active:bg-surface-2"
+          >
+            <Globe width={18} strokeWidth={1.75} aria-hidden />
+            {LANGUAGE_NAMES[lang]}
+          </button>
         </div>
 
         {sentTo?.account === 'existing' && chosenPassword.current ? (
@@ -492,6 +503,8 @@ export function RegisterPage() {
           </>
         )}
       </div>
+
+      {languageOpen ? <LanguageSheet onClose={() => setLanguageOpen(false)} /> : null}
 
       {termsOpen ? (
         <TermsSheet

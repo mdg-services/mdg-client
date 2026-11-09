@@ -982,19 +982,16 @@ export const messages = {
   'chatlist.noMatch': { en: 'No chats found', hi: 'कोई चैट नहीं मिली' },
   'chatlist.settings': { en: 'Settings', hi: 'सेटिंग' },
 
-  // The one quiet reminder about notifications, at the top of the chat list. The
-  // card is shown before the phone asks, so the dealer knows what yes gets them.
-  'push.askTitle': { en: 'Turn on notifications', hi: 'नोटिफ़िकेशन चालू कीजिए' },
-  'push.askDesc': {
-    en: "Get MDG's replies and your daily report on this phone.",
-    hi: 'MDG के जवाब और रोज़ की रिपोर्ट इसी फ़ोन पर पाइए।',
-  },
+  // The banner at the top of the chat list while notifications are off.
   'push.askTurnOn': { en: 'Turn on', hi: 'चालू करें' },
-  'push.askNotNow': { en: 'Not now', hi: 'अभी नहीं' },
   'push.offTitle': { en: 'Notifications are off', hi: 'नोटिफ़िकेशन बंद हैं' },
   'push.offDesc': {
     en: "Turn them on in your phone's Settings to get MDG's replies.",
     hi: 'MDG के जवाब पाने के लिए फ़ोन की सेटिंग में इन्हें चालू कीजिए।',
+  },
+  'push.offDescAsk': {
+    en: "Turn them on to get MDG's replies and your daily report.",
+    hi: 'MDG के जवाब और रोज़ की रिपोर्ट पाने के लिए इन्हें चालू कीजिए।',
   },
   'push.openSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
 

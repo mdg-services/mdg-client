@@ -80,14 +80,13 @@ export function requestPushPermission(): void {
  * This hook mounts inside the authenticated shell, which is exactly the
  * condition "there is a session and a screen", so it is the right place to ask.
  *
- * WHAT CHANGED FOR THE IPHONE. An iPhone shows the notification prompt exactly
- * once; a dealer who taps "Don't allow" on a prompt that arrived cold, before
- * seeing a single message, has switched notifications off for good. So the
- * first mount asks the shell only for the STATE. A phone that was never asked
- * gets `ask`, and the chat list explains and offers the button; the prompt
- * comes from `requestPushPermission`, not from here. An older shell that does
- * not know the state message simply never answers, and is asked for the token
- * the old way.
+ * THE PROMPT COMES STRAIGHT AWAY. The first mount asks the shell for the STATE,
+ * and a phone that was never asked is asked at once (the app used to show a card
+ * first; the owner chose the phone's own prompt on the first screen instead). An
+ * iPhone shows that prompt only once, so a refusal there is final and the banner
+ * sends the dealer to Settings; Android may allow another try (`canAskAgain`),
+ * which the banner's button uses. An older shell that does not know the state
+ * message never answers, and is asked for the token the old way.
  *
  * `navigate` is read through a ref, not listed as a dependency: react-router
  * hands out a new one on every path change, and the effect used to tear down
@@ -113,6 +112,8 @@ export function usePushBridge(): void {
     // event that answers it also reaches the listener below; the answer is
     // acted on once, by the code that asked.
     let awaitingFirstStatus = false;
+    // The phone's prompt is raised once per start, never in a loop.
+    let prompted = false;
 
     const send = (token: string | undefined | null) => {
       if (!token) return;
@@ -132,11 +133,16 @@ export function usePushBridge(): void {
           if (!lastSentToken.current && !getInjectedPushToken()) requestNativePushToken();
           break;
         case 'undetermined':
-          // Never asked. Nothing is posted: the prompt waits for the dealer.
+          // Never asked: the phone's prompt goes up now, once per start. If it
+          // is dismissed unanswered the state stays `ask` (Settings has the row).
           setPushState('ask');
+          if (!prompted) {
+            prompted = true;
+            requestNativePushToken();
+          }
           break;
         case 'denied':
-          setPushState('off');
+          setPushState('off', status.canAskAgain);
           break;
         case 'unavailable':
           setPushState('unavailable');
@@ -167,7 +173,7 @@ export function usePushBridge(): void {
     const onPushBlocked = (event: Event) => {
       const detail = (event as CustomEvent<NativePushBlocked>).detail ?? {};
       if (detail.reason === 'permission') {
-        setPushState('off');
+        setPushState('off', detail.canAskAgain === true);
         return;
       }
       if (detail.reason === 'expo-go' || detail.reason === 'no-module') {

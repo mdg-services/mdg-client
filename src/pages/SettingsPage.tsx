@@ -70,6 +70,7 @@ export function SettingsPage() {
   const closeOutlets = React.useCallback(() => setOutletsOpen(false), []);
   // ── notifications ── only the phone's own app has anything to switch
   const pushState = usePushStore((s) => s.pushState);
+  const canAskAgain = usePushStore((s) => s.canAskAgain);
   const showNotifications = isNativeShell() && pushState !== 'unavailable';
 
   const bar = <AppBar title={t('settings.title')} onBack={goBack} />;
@@ -92,13 +93,14 @@ export function SettingsPage() {
   // under a member's name.
   const contact = user.phone || user.email;
 
-  // Granted or refused, the only door left is the phone's Settings. Never asked,
-  // the phone itself can still be made to ask — and an `unknown` state (an older
-  // shell that never said) reads the same, because asking again is harmless.
+  // Granted, or refused for good, the only door left is the phone's Settings.
+  // Never asked, or refused with the phone still willing, the phone itself can be
+  // made to ask — and an `unknown` state (an older shell that never said) reads
+  // the same, because asking again is harmless.
   const notificationsOn = pushState === 'on';
   const notificationsOff = pushState === 'off';
   const onNotifications = () => {
-    if (notificationsOn || notificationsOff) openNativeAppSettings();
+    if (notificationsOn || (notificationsOff && !canAskAgain)) openNativeAppSettings();
     else requestPushPermission();
   };
 
