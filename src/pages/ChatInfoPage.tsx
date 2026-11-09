@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { AppBar } from '@/components/AppBar';
 import { Avatar, EmptyState, Spinner } from '@/components/ui';
 import { ChatAvatar } from '@/features/chat/ChatAvatar';
-import { conversationTitle } from '@/features/chat/conversationLabel';
+import { conversationTitle, isSharedChat } from '@/features/chat/conversationLabel';
 import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useT, type TFunction } from '@/lib/i18n';
@@ -157,7 +157,7 @@ export function ChatInfoPage() {
           ) : null}
         </section>
 
-        {isGroup ? (
+        {isSharedChat(conversation) ? (
           <section className="bg-wa-bar pb-1">
             <p className="px-4 pb-1 pt-3.5 text-[14px] text-wa-meta">
               {t('chat.infoMembers', { n: members.length })}

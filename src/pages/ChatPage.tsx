@@ -10,6 +10,7 @@ import { ChatSearchBar, ChatSelectionBar } from '@/features/chat/ChatBars';
 import { Composer, type ComposerHandle, type ComposerReplyPreview } from '@/features/chat/Composer';
 import {
   conversationTitle,
+  isSharedChat,
   participantSubtitle,
 } from '@/features/chat/conversationLabel';
 import type { SendBatch } from '@/features/chat/dropFiles';
@@ -492,16 +493,19 @@ export function ChatPage() {
   }
 
   const isGroup = conversation?.kind === 'manager';
+  // The owners' chat is shared once an outlet has two owners: names on
+  // messages and on "typing" there too.
+  const shared = !!conversation && isSharedChat(conversation);
   // What sits under the name: who is writing right now (in WhatsApp's green),
   // else the group's members, else who answers in the support chat. There is no
   // "Online" here any more — nothing in this app knows whether anyone is, and a
   // dot that is always on says nothing.
   const baseSubtitle =
-    (conversation && participantSubtitle(conversation, userId)) ??
+    (conversation && participantSubtitle(conversation, userId, t)) ??
     (isGroup ? undefined : t('chat.barSupportSubtitle'));
   const subtitle: React.ReactNode = typing.active ? (
     <span className="text-wa-accent-strong">
-      {isGroup && typing.userName
+      {shared && typing.userName
         ? `${t('chat.isTyping', { name: typing.userName })}…`
         : t('chat.typing')}
     </span>
@@ -605,7 +609,7 @@ export function ChatPage() {
         onQuickAction={(quick) =>
           setComposerSeed((prev) => ({ text: quick, n: (prev?.n ?? 0) + 1 }))
         }
-        showSenderNames={isGroup}
+        showSenderNames={shared}
         selectedIds={selectedSet}
         onToggleSelect={toggleSelect}
         onReact={reactFromStrip}

@@ -10,6 +10,7 @@ import {
   formatListTime,
   hasGroupThread,
   hasUnread,
+  isSharedChat,
   participantSubtitle,
   unreadState,
 } from './conversationLabel';
@@ -59,6 +60,26 @@ describe('participantSubtitle', () => {
     expect(participantSubtitle(c, 'owner')).toBe('Pump Manager');
     // Viewer = the manager → sees the owner.
     expect(participantSubtitle(c, 'manager')).toBe('Ramesh');
+  });
+});
+
+describe("the owners' chat shared by co-owners", () => {
+  const shared = conv({
+    kind: 'support',
+    participantUserIds: ['owner', 'partner'],
+    participants: [
+      { userId: 'owner', name: 'Ramesh' },
+      { userId: 'partner', name: 'Suresh' },
+    ],
+  });
+
+  it('counts as shared once a second owner is in it', () => {
+    expect(isSharedChat(shared)).toBe(true);
+    expect(isSharedChat(conv({ participants: [{ userId: 'owner', name: 'Ramesh' }] }))).toBe(false);
+  });
+
+  it('names MDG first, then the other owners', () => {
+    expect(participantSubtitle(shared, 'owner', t)).toBe('chat.barSupportSubtitle, Suresh');
   });
 });
 

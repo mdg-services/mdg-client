@@ -8,18 +8,30 @@ export function conversationTitle(conv: Conversation, t: TFunction): string {
 }
 
 /**
- * Participant names (excluding the viewer) for a manager group thread — shown as
- * a subtitle so an owner knows who else is in the manager chat.
+ * A chat more than one person of the outlet reads: the manager group, and the
+ * owners' chat once an outlet has two owners (they share it). Messages there
+ * carry their sender's name, as in a WhatsApp group.
+ */
+export function isSharedChat(conv: Conversation): boolean {
+  return conv.kind === 'manager' || (conv.participants?.length ?? 0) > 1;
+}
+
+/**
+ * Participant names (excluding the viewer) for a shared chat — shown as a
+ * subtitle so a member knows who else reads it. In the owners' chat MDG's team
+ * lead the list: that chat is still where MDG answers.
  */
 export function participantSubtitle(
   conv: Conversation,
   myId: string | undefined,
+  t?: TFunction,
 ): string | undefined {
-  if (conv.kind !== 'manager') return undefined;
+  if (!isSharedChat(conv)) return undefined;
   const names = (conv.participants ?? [])
     .filter((p) => p.userId !== myId)
     .map((p) => p.name)
     .filter((n): n is string => Boolean(n));
+  if (conv.kind !== 'manager' && t) names.unshift(t('chat.barSupportSubtitle'));
   return names.length > 0 ? names.join(', ') : undefined;
 }
 

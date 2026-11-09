@@ -24,7 +24,7 @@ export interface ShareDelivery {
   sheets?: DsrSheet[];
 }
 
-/** How many people a share reached, by side — what the admin's toast reports. */
+/** How many chats a share reached, by side — what the admin's toast reports. */
 export interface ShareRecipients {
   owners: number;
   managers: number;
@@ -63,14 +63,17 @@ export const SHARE_AUDIENCE_LABELS: Record<ShareAudience, string> = {
 };
 
 /**
- * "Sent to 2 owners and the manager." — the admin's one-line confirmation.
- * Counts what was actually reached, so a "Both" on an outlet with no manager on
- * the app says "Sent to 2 owners." rather than claiming a manager got it.
+ * "Sent to the owners' chat and the managers' group." — the admin's one-line
+ * confirmation. Names only what was actually reached, so a "Both" on an outlet
+ * with no manager on the app says "Sent to the owners' chat." rather than
+ * claiming a manager got it.
  */
 export function describeShareRecipients(r: ShareRecipients): string {
+  // The counts are copies, one per chat. Every outlet has one owners' chat and
+  // one managers' group (since 9 Nov 2026), so the chats are named, not counted.
   const parts: string[] = [];
-  if (r.owners > 0) parts.push(r.owners === 1 ? '1 owner' : `${r.owners} owners`);
-  if (r.managers > 0) parts.push(r.managers === 1 ? 'the manager' : `${r.managers} managers`);
+  if (r.owners > 0) parts.push("the owners' chat");
+  if (r.managers > 0) parts.push("the managers' group");
   return parts.length > 0 ? `Sent to ${parts.join(' and ')}.` : 'Sent.';
 }
 
