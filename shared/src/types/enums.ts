@@ -151,6 +151,14 @@ export const AUDIT_ACTIONS = [
   'HPCL_CREDENTIALS_SET',
   'HPCL_CREDENTIALS_CLEAR',
   'HPCL_CREDENTIALS_REVEAL',
+  // IndianOil Partners — the login of an Indian Oil owner who also runs a tanker
+  'PARTNERS_CREDENTIALS_SET',
+  'PARTNERS_CREDENTIALS_CLEAR',
+  'PARTNERS_CREDENTIALS_REVEAL',
+  /** The owner pressed "Forgot password?" on IndianOil Partners; `after.result` says how it went. */
+  'PARTNERS_PASSWORD_RESET',
+  /** The owner (or the team for them) answered "do you also own a tanker?". */
+  'TANKER_ANSWER_SAVED',
   // Bihar weights and measures (eMaaptaul) — the login a calibration subsidy claim uses (ADR 0029)
   'WEMMIS_CREDENTIALS_SET',
   'WEMMIS_CREDENTIALS_CLEAR',

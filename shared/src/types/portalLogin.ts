@@ -1,7 +1,7 @@
 /**
- * The outlet's portal logins — Indian Oil's SDMS and IRAS, or the one dealer
- * portal of BPCL or HPCL (`types/oilCompany.ts`) — as the dealer side may see
- * and fill them.
+ * The outlet's portal logins — Indian Oil's SDMS and IRAS (and IndianOil Partners for
+ * an owner who runs a tanker), or the dealer portals of BPCL or HPCL
+ * (`types/oilCompany.ts`) — as the dealer side may see and fill them.
  *
  * MDG's team works on these portals on the outlet's behalf: the daily sales
  * report and the stock variation sheet come from IRAS, credit and due dates,
@@ -23,9 +23,9 @@
  * of the chat could leak.
  */
 
-export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl';
+export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl' | 'partners';
 
-export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl'];
+export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners'];
 
 /**
  * The company portals: BPCL's two (its dealer portal, and BROMA/eConnect) and HPCL's
@@ -41,6 +41,33 @@ export function isCompanyPortal(p: PortalId): boolean {
 }
 
 /**
+ * IndianOil Partners (pwa.indianoil.in/Partners), the portal of an Indian Oil owner who
+ * also runs a tanker for IndianOil. Asked only of an owner who said yes to "do you own a
+ * tanker?" (`PortalLoginsView.tanker`). Its sign-in sits behind Google's "I'm not a
+ * robot" tick, so like a company portal it is saved and read back and never tried
+ * automatically; MDG's team works it by hand. Unlike one, it sits BESIDE SDMS and IRAS,
+ * never in their place — which is why it is not a company portal.
+ *
+ * Its one automated step is the owner's own "Forgot password?": IndianOil's reset page
+ * takes the user ID (the vendor SAP code) and a picture code, and sends a new password to
+ * the mobile or email IndianOil has on record (`PortalResetView`).
+ */
+export const TANKER_PORTAL: PortalId = 'partners';
+
+/** The portals nothing tries on its own: the company portals and IndianOil Partners. */
+export const HAND_WORKED_PORTAL_IDS: readonly PortalId[] = [...COMPANY_PORTAL_IDS, TANKER_PORTAL];
+
+/** True for a login that is saved and read back but never tried automatically. */
+export function isHandWorkedPortal(p: PortalId): boolean {
+  return HAND_WORKED_PORTAL_IDS.includes(p);
+}
+
+/** True for a portal whose box row offers "Forgot password?" (`POST /me/portal-logins/:portal/reset`). */
+export function canResetPortalPassword(p: PortalId): boolean {
+  return p === TANKER_PORTAL;
+}
+
+/**
  * The portal's name as a dealer knows it. The same in both languages. A company
  * portal is named by its company ("BPCL portal") or by the name the dealer knows it
  * by ("BROMA/eConnect"), never by what MDG does on it.
@@ -51,6 +78,7 @@ export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
   bpcl: 'BPCL portal',
   econnect: 'BROMA/eConnect',
   hpcl: 'HPCL portal',
+  partners: 'IndianOil Partners',
 };
 
 /**
@@ -89,6 +117,59 @@ export interface PortalLoginState {
   savedBy?: 'dealer' | 'mdg';
   /** When the portal stopped accepting it (ISO). Only with `refused`. */
   refusedAt?: string;
+  /** The newest "Forgot password?" on this login, while it matters. Only where one can be asked. */
+  reset?: PortalResetView;
+}
+
+/**
+ * Where an owner's "Forgot password?" stands (`canResetPortalPassword`):
+ *  - `running`  MDG is filling the portal's reset page now (about a minute)
+ *  - `sent`     the portal said it sent a new password to the owner's registered mobile
+ *               or email: the box asks the owner to type it in
+ *  - `failed`   it did not go through; `reason` says why
+ */
+export type PortalResetState = 'running' | 'sent' | 'failed';
+
+/**
+ * Why a reset did not go through:
+ *  - `wrong_id`   the portal does not know that user ID
+ *  - `not_done`   anything else: the portal was down, slow, changed, or its picture code
+ *                 would not read. Never the owner's fault; they may try again later.
+ */
+export type PortalResetFailure = 'wrong_id' | 'not_done';
+
+export interface PortalResetView {
+  state: PortalResetState;
+  /** When it was asked for (ISO). */
+  at: string;
+  /** When it ended (ISO). Absent while `running`. */
+  doneAt?: string;
+  /** Only with `failed`. */
+  reason?: PortalResetFailure;
+  /**
+   * Only with `sent`: the request went in, but the portal's answer was not a plain "sent".
+   * The owner is still asked to watch for the new password, in less certain words.
+   */
+  unclear?: boolean;
+  /**
+   * What the portal itself said, word for word and clipped, when it said something
+   * worth showing ("Password sent to your registered email id"). Never a password:
+   * the portal does not show one, and nothing that looks like one is kept.
+   */
+  portalWords?: string;
+}
+
+/**
+ * The "do you also own a tanker?" question of an Indian Oil outlet. A yes adds the
+ * IndianOil Partners login to what the box asks for.
+ */
+export interface PortalTankerView {
+  /** True when this outlet is asked the question: an Indian Oil outlet. */
+  asked: boolean;
+  /** The answer, or null while there is none. */
+  owns: boolean | null;
+  /** Who answered: the owner, or MDG's team for them. Null while there is no answer. */
+  answeredBy: 'dealer' | 'mdg' | null;
 }
 
 /** `GET /me/portal-logins` — the box's state for the signed-in dealer user. */
@@ -96,7 +177,19 @@ export interface PortalLoginsView {
   portals: PortalLoginState[];
   /** True when this user may fill the box. Owners only: the logins are the owner's. */
   canEdit: boolean;
+  /** The tanker question. Absent from a server that predates it. */
+  tanker?: PortalTankerView;
 }
+
+/**
+ * The error codes of `POST /me/portal-logins/:portal/reset`: a reset is already under
+ * way, or the outlet has used up today's resets (each one makes the portal send a new
+ * password, and the last one is the only one that works).
+ */
+export const PORTAL_RESET_RUNNING = 'PORTAL_RESET_RUNNING';
+export const PORTAL_RESET_TOO_MANY = 'PORTAL_RESET_TOO_MANY';
+/** No user ID saved and none typed: the portal's reset page needs one. */
+export const PORTAL_RESET_NO_USER_ID = 'PORTAL_RESET_NO_USER_ID';
 
 /**
  * The error code `PUT /me/portal-logins/:portal` answers when the dealer types

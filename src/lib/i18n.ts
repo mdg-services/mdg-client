@@ -1214,6 +1214,72 @@ export const messages = {
     en: "Couldn't save — try again",
     hi: 'सेव नहीं हुआ, फिर से कोशिश करें',
   },
+  // "Do you also own a tanker?" — asked inside an Indian Oil pump's login box. A yes
+  // adds the IndianOil Partners row. "IndianOil Partners" is IndianOil's own name for
+  // the site and stays in Latin letters in both languages.
+  'chat.tankerQuestion': { en: 'Do you also own a tanker?', hi: 'क्या आपका टैंकर भी है?' },
+  'chat.tankerWhy': {
+    en: 'If yes, MDG also needs your IndianOil Partners login.',
+    hi: 'हाँ तो MDG को आपका IndianOil Partners लॉगिन भी चाहिए।',
+  },
+  'chat.tankerYes': { en: 'Yes', hi: 'हाँ' },
+  'chat.tankerNo': { en: 'No', hi: 'नहीं' },
+  'chat.tankerOwns': { en: 'Tanker: yes', hi: 'टैंकर: है' },
+  'chat.tankerNone': { en: 'Tanker: no', hi: 'टैंकर: नहीं है' },
+  'chat.tankerOwnerAnswers': { en: 'The owner answers this', hi: 'मालिक जवाब देंगे' },
+  'chat.tankerSaveFailed': {
+    en: "Couldn't save the answer — try again",
+    hi: 'जवाब सेव नहीं हुआ, फिर से कोशिश करें',
+  },
+  'chat.partnersUserIdHint': {
+    en: 'Your user ID is your vendor SAP code',
+    hi: 'आपकी यूज़र आईडी आपका वेंडर SAP कोड है',
+  },
+  // The owner's "Forgot password?" on IndianOil Partners: MDG fills IndianOil's reset
+  // page, and IndianOil sends a new password to the mobile or email it has on record.
+  'chat.portalForgot': { en: 'Forgot password?', hi: 'पासवर्ड भूल गए?' },
+  'chat.portalResetExplain': {
+    en: 'MDG will ask IndianOil for a new password. IndianOil sends it to the mobile or email registered with them, and the old password stops working.',
+    hi: 'MDG, IndianOil से नया पासवर्ड माँगेगा। IndianOil उसे अपने रिकॉर्ड वाले मोबाइल या ईमेल पर भेजेगा, और पुराना पासवर्ड बंद हो जाएगा।',
+  },
+  'chat.portalResetGo': { en: 'Get a new password', hi: 'नया पासवर्ड मँगाएं' },
+  'chat.portalResetRunning': {
+    en: 'Asking IndianOil for a new password… this takes about a minute.',
+    hi: 'IndianOil से नया पासवर्ड माँग रहे हैं… करीब एक मिनट लगेगा।',
+  },
+  'chat.portalResetSent': {
+    en: 'IndianOil has sent a new password to your registered mobile or email. Enter it below.',
+    hi: 'IndianOil ने नया पासवर्ड आपके रजिस्टर्ड मोबाइल या ईमेल पर भेज दिया है। नीचे भरिए।',
+  },
+  'chat.portalResetUnclear': {
+    en: 'We asked IndianOil for a new password. If it reaches your registered mobile or email, enter it below.',
+    hi: 'हमने IndianOil से नया पासवर्ड माँग लिया है। रजिस्टर्ड मोबाइल या ईमेल पर आए तो नीचे भरिए।',
+  },
+  'chat.portalResetWrongId': {
+    en: 'IndianOil did not recognise that user ID. Check your vendor SAP code and try again.',
+    hi: 'IndianOil को ये यूज़र आईडी नहीं मिली। अपना वेंडर SAP कोड जाँचकर फिर कोशिश करें।',
+  },
+  'chat.portalResetFailed': {
+    en: "Couldn't reset the password just now. Try again in a while.",
+    hi: 'अभी पासवर्ड रीसेट नहीं हो पाया। थोड़ी देर बाद फिर कोशिश करें।',
+  },
+  'chat.portalResetSaid': { en: 'IndianOil said: “{words}”', hi: 'IndianOil ने लिखा: “{words}”' },
+  'chat.portalResetTooMany': {
+    en: 'The password has been reset too many times today. Try again tomorrow.',
+    hi: 'आज बहुत बार रीसेट हो चुका। कल फिर कोशिश करें।',
+  },
+  'chat.portalResetBusy': {
+    en: 'A reset is already under way.',
+    hi: 'रीसेट पहले से चल रहा है।',
+  },
+  'chat.portalResetNeedsId': {
+    en: 'Enter your user ID (vendor SAP code) first.',
+    hi: 'पहले अपनी यूज़र आईडी (वेंडर SAP कोड) भरिए।',
+  },
+  'chat.portalResetOff': {
+    en: "Password reset isn't available right now. Try again later.",
+    hi: 'पासवर्ड रीसेट अभी उपलब्ध नहीं है। बाद में कोशिश करें।',
+  },
 
   // The eMaaptaul login box (ADR 0029): the Bihar weights-and-measures site where
   // the calibration certificate and the fee receipt are downloaded. "eMaaptaul"

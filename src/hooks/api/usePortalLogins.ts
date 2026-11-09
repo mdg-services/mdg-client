@@ -17,6 +17,9 @@ import type { PortalId, PortalLoginsView } from '@dk/shared/types';
 
 export const portalLoginsKey = ['portal-logins', 'me'] as const;
 
+/** How often the box asks again while a password reset is running on the server. */
+export const RESET_POLL_MS = 4_000;
+
 export function usePortalLogins() {
   const token = useAuthStore((s) => s.token);
   return useQuery({
@@ -25,7 +28,46 @@ export function usePortalLogins() {
     // Long enough that several boxes in one thread share one answer; a box that
     // MDG posts, or a save from this phone, replaces it right away (see below).
     staleTime: 30_000,
+    // A reset ends in about a minute. The server also says so over the socket, but a
+    // phone that was asleep may have missed it: while one runs, ask now and then.
+    refetchInterval: (query) =>
+      query.state.data?.portals.some((p) => p.reset?.state === 'running') ? RESET_POLL_MS : false,
     queryFn: () => api.get<PortalLoginsView>('/v1/me/portal-logins'),
+  });
+}
+
+/** The owner answers "do you also own a tanker?". The answer is the fresh view. */
+export function useSaveTankerAnswer() {
+  const qc = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: (owns: boolean) => api.put<PortalLoginsView>('/v1/me/portal-logins/tanker', { owns }),
+    onSuccess: (view) => {
+      qc.setQueryData(portalLoginsKey, view);
+    },
+  });
+}
+
+export interface ResetPortalPasswordVars {
+  portal: PortalId;
+  /** Only when no user ID is saved: the one the owner typed. */
+  username?: string;
+}
+
+/**
+ * The owner's "Forgot password?": MDG asks the portal for a new password. The answer
+ * is the view with the reset running; its end arrives by socket and by the poll above.
+ * Never retried: a second press is a second new password.
+ */
+export function useResetPortalPassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: ({ portal, username }: ResetPortalPasswordVars) =>
+      api.post<PortalLoginsView>(`/v1/me/portal-logins/${portal}/reset`, username ? { username } : {}),
+    onSuccess: (view) => {
+      qc.setQueryData(portalLoginsKey, view);
+    },
   });
 }
 

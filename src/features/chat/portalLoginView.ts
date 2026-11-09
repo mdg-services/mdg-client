@@ -1,7 +1,13 @@
 import { ApiError } from '@/lib/api';
 import type { MessageKey } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
-import { PORTAL_LOGIN_SAME_AS_REFUSED } from '@dk/shared/types';
+import {
+  PORTAL_LOGIN_SAME_AS_REFUSED,
+  PORTAL_RESET_NO_USER_ID,
+  PORTAL_RESET_RUNNING,
+  PORTAL_RESET_TOO_MANY,
+  type PortalResetView,
+} from '@dk/shared/types';
 
 /**
  * The small decisions behind the login box, kept apart from the drawing so they
@@ -45,4 +51,27 @@ export function portalSaveErrorKey(err: unknown): MessageKey {
     if (err.status === 429) return 'chat.portalRateLimited';
   }
   return 'chat.portalSaveFailed';
+}
+
+/** The words under a "Forgot password?" that the server turned down. */
+export function portalResetErrorKey(err: unknown): MessageKey {
+  if (err instanceof ApiError) {
+    if (err.code === PORTAL_RESET_TOO_MANY) return 'chat.portalResetTooMany';
+    if (err.code === PORTAL_RESET_RUNNING) return 'chat.portalResetBusy';
+    if (err.code === PORTAL_RESET_NO_USER_ID) return 'chat.portalResetNeedsId';
+    if (err.status === 503) return 'chat.portalResetOff';
+    if (err.status === 429) return 'chat.portalRateLimited';
+  }
+  return 'chat.portalResetFailed';
+}
+
+/**
+ * What the box says about the newest reset, or null when it says nothing. "Unclear" is a
+ * reset IndianOil took but did not plainly confirm: the owner is still asked to watch for it.
+ */
+export function portalResetLineKey(reset: PortalResetView | undefined): MessageKey | null {
+  if (!reset) return null;
+  if (reset.state === 'running') return 'chat.portalResetRunning';
+  if (reset.state === 'sent') return reset.unclear ? 'chat.portalResetUnclear' : 'chat.portalResetSent';
+  return reset.reason === 'wrong_id' ? 'chat.portalResetWrongId' : 'chat.portalResetFailed';
 }
