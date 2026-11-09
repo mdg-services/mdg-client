@@ -101,31 +101,34 @@ describe('usePushBridge', () => {
   });
 
   describe('where the phone stands, asked WITHOUT prompting', () => {
-    it('asks only for the state on first mount, and posts no token request yet', async () => {
+    it('asks for the state first on mount', async () => {
       const shell = makeShell();
       shell.answerStatus = { status: 'undetermined', canAskAgain: true };
       mount();
       await settle();
-      expect(shell.types()).toEqual(['push:status']);
+      expect(shell.types()[0]).toBe('push:status');
     });
 
-    it('a phone that was never asked: shows the card, and does NOT let the phone prompt', async () => {
+    it('a phone that was never asked: the phone prompts straight away, once', async () => {
       const shell = makeShell();
       shell.answerStatus = { status: 'undetermined', canAskAgain: true };
       mount();
       await settle();
       await vi.advanceTimersByTimeAsync(5000);
       expect(pushState()).toBe('ask');
-      expect(shell.count('push:register')).toBe(0);
+      expect(shell.count('push:register')).toBe(1);
+
+      // The shell repeating "still undetermined" (the prompt was swiped away)
+      // does not raise it a second time.
+      fire('native-push-status', { status: 'undetermined', canAskAgain: true });
+      expect(shell.count('push:register')).toBe(1);
     });
 
-    it('the prompt waits for requestPushPermission(), and the token that follows turns it on', async () => {
+    it('the token that follows the prompt turns it on', async () => {
       const shell = makeShell();
       shell.answerStatus = { status: 'undetermined', canAskAgain: true };
       mount();
       await settle();
-
-      act(() => requestPushPermission());
       expect(shell.count('push:register')).toBe(1);
 
       fire('expo-push-token', 'ExponentPushToken[abc]');
@@ -155,13 +158,36 @@ describe('usePushBridge', () => {
       expect(shell.count('push:register')).toBe(1);
     });
 
-    it('refused: says off, and never asks the phone again', async () => {
+    it('refused: says off, and never prompts on its own', async () => {
       const shell = makeShell();
       shell.answerStatus = { status: 'denied', canAskAgain: false };
       mount();
       await settle();
       expect(pushState()).toBe('off');
+      expect(usePushStore.getState().canAskAgain).toBe(false);
       expect(shell.count('push:register')).toBe(0);
+    });
+
+    it('refused with the phone still willing: remembers it can be asked again', async () => {
+      const shell = makeShell();
+      shell.answerStatus = { status: 'denied', canAskAgain: true };
+      mount();
+      await settle();
+      expect(pushState()).toBe('off');
+      expect(usePushStore.getState().canAskAgain).toBe(true);
+      expect(shell.count('push:register')).toBe(0);
+    });
+
+    it('a "no" to the prompt turns the banner on, with whether it can be asked again', async () => {
+      const shell = makeShell();
+      shell.answerStatus = { status: 'undetermined', canAskAgain: true };
+      mount();
+      await settle();
+      fire('native-push-blocked', { reason: 'permission', canAskAgain: true });
+      expect(pushState()).toBe('off');
+      expect(usePushStore.getState().canAskAgain).toBe(true);
+      fire('native-push-blocked', { reason: 'permission', canAskAgain: false });
+      expect(usePushStore.getState().canAskAgain).toBe(false);
     });
 
     it('Expo Go or a build with no notifications: unavailable, nothing to offer', async () => {

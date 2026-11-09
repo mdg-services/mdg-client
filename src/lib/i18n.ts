@@ -982,19 +982,16 @@ export const messages = {
   'chatlist.noMatch': { en: 'No chats found', hi: 'कोई चैट नहीं मिली' },
   'chatlist.settings': { en: 'Settings', hi: 'सेटिंग' },
 
-  // The one quiet reminder about notifications, at the top of the chat list. The
-  // card is shown before the phone asks, so the dealer knows what yes gets them.
-  'push.askTitle': { en: 'Turn on notifications', hi: 'नोटिफ़िकेशन चालू कीजिए' },
-  'push.askDesc': {
-    en: "Get MDG's replies and your daily report on this phone.",
-    hi: 'MDG के जवाब और रोज़ की रिपोर्ट इसी फ़ोन पर पाइए।',
-  },
+  // The banner at the top of the chat list while notifications are off.
   'push.askTurnOn': { en: 'Turn on', hi: 'चालू करें' },
-  'push.askNotNow': { en: 'Not now', hi: 'अभी नहीं' },
   'push.offTitle': { en: 'Notifications are off', hi: 'नोटिफ़िकेशन बंद हैं' },
   'push.offDesc': {
     en: "Turn them on in your phone's Settings to get MDG's replies.",
     hi: 'MDG के जवाब पाने के लिए फ़ोन की सेटिंग में इन्हें चालू कीजिए।',
+  },
+  'push.offDescAsk': {
+    en: "Turn them on to get MDG's replies and your daily report.",
+    hi: 'MDG के जवाब और रोज़ की रिपोर्ट पाने के लिए इन्हें चालू कीजिए।',
   },
   'push.openSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
 
@@ -1268,18 +1265,88 @@ export const messages = {
     en: 'The password has been reset too many times today. Try again tomorrow.',
     hi: 'आज बहुत बार रीसेट हो चुका। कल फिर कोशिश करें।',
   },
-  'chat.portalResetBusy': {
+  'chat.partnersResetBusy': {
     en: 'A reset is already under way.',
     hi: 'रीसेट पहले से चल रहा है।',
   },
   'chat.portalResetNeedsId': {
-    en: 'Enter your user ID (vendor SAP code) first.',
-    hi: 'पहले अपनी यूज़र आईडी (वेंडर SAP कोड) भरिए।',
+    en: 'Type your user ID (vendor SAP code) above, then tap Forgot password? again.',
+    hi: 'ऊपर अपनी यूज़र आईडी (वेंडर SAP कोड) भरिए, फिर से पासवर्ड भूल गए? दबाइए।',
   },
   'chat.portalResetOff': {
     en: "Password reset isn't available right now. Try again later.",
     hi: 'पासवर्ड रीसेट अभी उपलब्ध नहीं है। बाद में कोशिश करें।',
   },
+  'chat.portalResetBusy': {
+    en: 'A new SDMS password is being set right now. Wait a moment.',
+    hi: 'अभी नया SDMS पासवर्ड बन रहा है। थोड़ा रुकिए।',
+  },
+
+  // SDMS "Forgot password?" under the login box. IndianOil expires the SDMS
+  // password every few months; MDG has the OTP sent to the mobile registered with
+  // SDMS and the owner types it with a new password. "OTP" is the word dealers use.
+  'chat.sdmsForgot': { en: 'Forgot password?', hi: 'पासवर्ड भूल गए?' },
+  'chat.sdmsResetIntro': {
+    en: 'MDG will ask IndianOil to send an OTP to the mobile registered with SDMS. Keep that phone with you.',
+    hi: 'MDG, IndianOil से SDMS में दर्ज मोबाइल पर OTP भिजवाएगा। वो फ़ोन अपने पास रखिए।',
+  },
+  'chat.sdmsResetSend': { en: 'Send OTP', hi: 'OTP भिजवाएं' },
+  'chat.sdmsResetOpening': {
+    en: 'Asking IndianOil to send the OTP…',
+    hi: 'IndianOil से OTP भिजवा रहे हैं…',
+  },
+  'chat.sdmsResetStartedBy': { en: '{name} started this', hi: '{name} ने शुरू किया' },
+  'chat.sdmsResetSent': { en: 'OTP sent to the mobile registered with SDMS', hi: 'SDMS में दर्ज मोबाइल पर OTP भेजा गया' },
+  'chat.sdmsResetTimeLeft': { en: 'Time left {time}', hi: '{time} बाकी' },
+  'chat.sdmsResetOtp': { en: 'OTP', hi: 'OTP' },
+  'chat.sdmsResetNew': { en: 'New password', hi: 'नया पासवर्ड' },
+  'chat.sdmsResetRepeat': { en: 'New password again', hi: 'नया पासवर्ड दोबारा' },
+  'chat.sdmsResetRule': {
+    en: '8 to 15 letters and numbers, with at least one capital letter, one small letter and one number',
+    hi: '8 से 15 अक्षर और अंक — कम से कम एक बड़ा अक्षर (A-Z), एक छोटा अक्षर (a-z) और एक अंक',
+  },
+  'chat.sdmsResetRuleBad': {
+    en: "The new password doesn't follow the rule below",
+    hi: 'नया पासवर्ड नीचे लिखे नियम जैसा नहीं है',
+  },
+  'chat.sdmsResetMismatch': { en: "The two passwords don't match", hi: 'दोनों पासवर्ड एक जैसे नहीं हैं' },
+  'chat.sdmsResetOtpBad': { en: 'Type the OTP from the SMS', hi: 'SMS में आया OTP भरिए' },
+  'chat.sdmsResetSubmit': { en: 'Set new password', hi: 'नया पासवर्ड बनाएं' },
+  'chat.sdmsResetChecking': {
+    en: 'Setting the new password on IndianOil…',
+    hi: 'IndianOil पर नया पासवर्ड बना रहे हैं…',
+  },
+  'chat.sdmsResetCheckingBy': {
+    en: '{name} typed the OTP. Setting the new password on IndianOil…',
+    hi: '{name} ने OTP भर दिया। IndianOil पर नया पासवर्ड बना रहे हैं…',
+  },
+  'chat.sdmsResetWrongOtp': {
+    en: "IndianOil says that OTP isn't right. Check the SMS and type it again.",
+    hi: 'IndianOil के हिसाब से OTP सही नहीं है। SMS देखकर फिर से भरिए।',
+  },
+  'chat.sdmsResetUsed': {
+    en: "IndianOil doesn't take a password used before. Choose a new one.",
+    hi: 'IndianOil पहले इस्तेमाल हुआ पासवर्ड नहीं लेता। नया पासवर्ड चुनिए।',
+  },
+  'chat.sdmsResetRuleRefused': {
+    en: "IndianOil didn't accept that password. Follow the rule and try again.",
+    hi: 'IndianOil ने ये पासवर्ड नहीं लिया। नियम के हिसाब से फिर से भरिए।',
+  },
+  'chat.sdmsResetDone': {
+    en: 'New password set on IndianOil and saved ✓ Your services will run again shortly.',
+    hi: 'नया पासवर्ड IndianOil पर बन गया और सेव हो गया ✓ सेवाएं थोड़ी देर में फिर चलेंगी।',
+  },
+  'chat.sdmsResetFailed': { en: "The reset didn't go through.", hi: 'रीसेट नहीं हो पाया।' },
+  'chat.sdmsResetTaken': {
+    en: 'Another owner has already typed the OTP. Wait a moment.',
+    hi: 'दूसरे मालिक ने OTP भर दिया है। थोड़ा रुकिए।',
+  },
+  'chat.sdmsResetOver': { en: 'This reset has ended. Start again.', hi: 'ये रीसेट खत्म हो गया। फिर से शुरू कीजिए।' },
+  'chat.sdmsResetNoSap': {
+    en: 'Your SDMS ID is not saved with MDG yet. Fill in the ID and password instead.',
+    hi: 'आपकी SDMS ID अभी MDG में सेव नहीं है। ID और पासवर्ड भरिए।',
+  },
+  'chat.sdmsResetSendFailed': { en: "Couldn't start — try again", hi: 'शुरू नहीं हो पाया, फिर से कोशिश करें' },
 
   // The eMaaptaul login box (ADR 0029): the Bihar weights-and-measures site where
   // the calibration certificate and the fee receipt are downloaded. "eMaaptaul"

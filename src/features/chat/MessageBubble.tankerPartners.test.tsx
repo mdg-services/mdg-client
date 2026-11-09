@@ -137,24 +137,34 @@ describe('MessageBubble — "Forgot password?" on IndianOil Partners', () => {
     expect(within(partners).getByLabelText('Password')).toBeInTheDocument();
   });
 
-  it('asks for the user ID when none is saved, and says why a reset was turned down', async () => {
+  it('with no login saved, takes the user ID typed in the row — never asks for it twice', async () => {
     box(view([...IOCL, PARTNERS_MISSING], OWNS));
     const partners = await waitFor(() => row('partners'));
+    // Nothing typed yet: it says to type the ID above, and opens nothing.
     fireEvent.click(within(partners).getByRole('button', { name: 'Forgot password?' }));
-    const go = within(partners).getByRole('button', { name: 'Get a new password' });
-    expect(go).toBeDisabled();
-    const ids = within(partners).getAllByLabelText('User ID');
-    fireEvent.change(ids[ids.length - 1]!, { target: { value: '11031871' } });
-    expect(go).toBeEnabled();
+    expect(within(partners).getByText(/Type your user ID \(vendor SAP code\) above/)).toBeInTheDocument();
+    expect(within(partners).queryByRole('button', { name: 'Get a new password' })).toBeNull();
+
+    fireEvent.change(within(partners).getByLabelText('User ID'), { target: { value: '11031871' } });
+    fireEvent.click(within(partners).getByRole('button', { name: 'Forgot password?' }));
+    // The confirm has no field of its own.
+    expect(within(partners).queryByLabelText('User ID')).toBeNull();
 
     h.post.mockRejectedValue(new ApiError(409, PORTAL_RESET_TOO_MANY, 'too many'));
-    fireEvent.click(go);
+    fireEvent.click(within(partners).getByRole('button', { name: 'Get a new password' }));
     await waitFor(() =>
       expect(h.post).toHaveBeenCalledWith('/v1/me/portal-logins/partners/reset', { username: '11031871' }),
     );
     expect(
       await within(partners).findByText('The password has been reset too many times today. Try again tomorrow.'),
     ).toBeInTheDocument();
+  });
+
+  it('a tanker question sent by itself (a Partners box) asks the question, with no empty row', async () => {
+    box(view(IOCL), ['partners']);
+    await screen.findByText('Do you also own a tanker?');
+    expect(document.querySelector('[data-portal="partners"]')).toBeNull();
+    expect(document.querySelector('[data-portal="sdms"]')).toBeNull();
   });
 
   it('never offers a reset on SDMS or IRAS', async () => {

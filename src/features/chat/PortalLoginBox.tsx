@@ -18,6 +18,7 @@ import {
   type PortalId,
   type PortalLoginState,
   type PortalTankerView,
+  type SdmsResetView,
 } from '@dk/shared/types';
 
 import {
@@ -26,6 +27,7 @@ import {
   portalSavedDate,
   portalSaveErrorKey,
 } from './portalLoginView';
+import { SdmsResetFlow } from './SdmsResetFlow';
 
 /** What the user ID field says under it, for a portal whose ID has a name of its own. */
 const USER_ID_HINT: Partial<Record<PortalId, MessageKey>> = { partners: 'chat.partnersUserIdHint' };
@@ -46,11 +48,20 @@ function PortalForm({
   portal,
   onSaved,
   onCancel,
+  onForgot,
+  hasSavedId = false,
 }: {
   portal: PortalId;
   onSaved: () => void;
   /** Present when the form was reopened over a saved login: a way back out. */
   onCancel?: () => void;
+  /**
+   * IndianOil Partners' "Forgot password?", with the user ID typed above (empty: the
+   * saved one). The owner never types the ID twice.
+   */
+  onForgot?: (typedUserId: string) => void;
+  /** A user ID is on record, so "Forgot password?" works with the field left empty. */
+  hasSavedId?: boolean;
 }) {
   const t = useT();
   const save = useSavePortalLogin();
@@ -205,6 +216,24 @@ function PortalForm({
         </button>
       ) : null}
       <p className="text-[12px] leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
+      {onForgot ? (
+        <button
+          type="button"
+          onClick={() => {
+            const typed = username.trim();
+            if (!typed && !hasSavedId) {
+              setErrorKey('chat.portalResetNeedsId');
+              return;
+            }
+            setErrorKey(null);
+            onForgot(typed);
+          }}
+          className="flex min-h-11 items-center gap-1.5 self-start rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+        >
+          <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
+          {t('chat.portalForgot')}
+        </button>
+      ) : null}
     </form>
   );
 }
@@ -256,6 +285,7 @@ function PortalRow({
   loading,
   failed,
   onRetry,
+  sdmsReset = null,
 }: {
   portal: PortalId;
   state: PortalLoginState | undefined;
@@ -263,23 +293,42 @@ function PortalRow({
   loading: boolean;
   failed: boolean;
   onRetry: () => void;
+  /** SDMS only: the "Forgot password?" reset going now, or just ended. */
+  sdmsReset?: SdmsResetView | null;
 }) {
   const t = useT();
   const lang = useLang();
   const [changing, setChanging] = React.useState(false);
-  const [askingReset, setAskingReset] = React.useState(false);
+  // IndianOil Partners "Forgot password?" asked: the user ID typed in the form above, if
+  // any (an empty one means the saved ID).
+  const [askingReset, setAskingReset] = React.useState<{ userId: string } | null>(null);
   // The owner closed the "enter the new password" form a finished reset opened.
   const [resetDismissedAt, setResetDismissedAt] = React.useState<string | null>(null);
+  // SDMS "Forgot password?": opened by this owner, or a reset already going
+  // (another owner's, or this one's from before). Closing it shows the form again.
+  const [forgot, setForgot] = React.useState(false);
+  const [closedResetId, setClosedResetId] = React.useState<string | null>(null);
+  const reset = portal === 'sdms' && sdmsReset && sdmsReset.id !== closedResetId ? sdmsReset : null;
+  const resetOpen = portal === 'sdms' && canEdit && (forgot || !!reset);
+  const closeReset = React.useCallback(() => {
+    setForgot(false);
+    setClosedResetId(sdmsReset?.id ?? null);
+  }, [sdmsReset?.id]);
+  const resetDone = React.useCallback(() => {
+    setForgot(false);
+    setChanging(false);
+  }, []);
   const name = PORTAL_NAMES[portal];
   // A box posted before the team marked this login "not needed" (the server says
   // so with `needed: false`) stops asking for it. A login already saved still
   // shows as saved, and can still be changed.
   const notNeeded = !!state && state.needed === false && state.status !== 'saved';
-  const reset = state?.reset;
-  const resetLine = portalResetLineKey(reset);
+  // IndianOil Partners' own reset (SDMS has its `reset` above).
+  const pReset = state?.reset;
+  const resetLine = portalResetLineKey(pReset);
   // IndianOil has sent a new password: the form opens for it, until the owner closes it.
-  const awaitingNew = reset?.state === 'sent' && resetDismissedAt !== reset.at;
-  const resetRunning = reset?.state === 'running';
+  const awaitingNew = pReset?.state === 'sent' && resetDismissedAt !== pReset.at;
+  const resetRunning = pReset?.state === 'running';
   const formOpen =
     !!state &&
     !notNeeded &&
@@ -338,27 +387,23 @@ function PortalRow({
           role="status"
           className={cn(
             'mt-1 rounded-md px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text',
-            reset?.state === 'failed' ? 'bg-wa-notice' : 'bg-black/[0.05]',
+            pReset?.state === 'failed' ? 'bg-wa-notice' : 'bg-black/[0.05]',
           )}
         >
           <p className="flex items-start gap-1.5">
             {resetRunning ? <Spinner size={14} /> : null}
             <span className="min-w-0 break-words">{t(resetLine)}</span>
           </p>
-          {reset?.portalWords && !resetRunning ? (
+          {pReset?.portalWords && !resetRunning ? (
             <p className="mt-0.5 break-words text-[12px] text-wa-meta">
-              {t('chat.portalResetSaid', { words: reset.portalWords })}
+              {t('chat.portalResetSaid', { words: pReset.portalWords })}
             </p>
           ) : null}
         </div>
       ) : null}
 
       {askingReset && state ? (
-        <ResetConfirm
-          portal={portal}
-          needsUserId={state.status === 'missing'}
-          onDone={() => setAskingReset(false)}
-        />
+        <ResetConfirm portal={portal} userId={askingReset.userId} onDone={() => setAskingReset(null)} />
       ) : null}
 
       {state && state.status === 'saved' && !formOpen && !askingReset ? (
@@ -386,29 +431,46 @@ function PortalRow({
         </div>
       ) : null}
 
-      {formOpen ? (
-        <PortalForm
-          portal={portal}
-          onSaved={() => setChanging(false)}
-          onCancel={
-            state.status === 'saved'
-              ? () => {
-                  setChanging(false);
-                  if (reset) setResetDismissedAt(reset.at);
-                }
-              : undefined
-          }
-        />
+      {resetOpen ? (
+        <SdmsResetFlow initial={reset} onClose={closeReset} onDone={resetDone} />
+      ) : formOpen ? (
+        <>
+          <PortalForm
+            portal={portal}
+            onSaved={() => setChanging(false)}
+            onCancel={
+              state.status === 'saved'
+                ? () => {
+                    setChanging(false);
+                    if (pReset) setResetDismissedAt(pReset.at);
+                  }
+                : undefined
+            }
+            onForgot={canForget ? (typed) => setAskingReset({ userId: typed }) : undefined}
+            hasSavedId={state.status === 'saved'}
+          />
+          {portal === 'sdms' && state.resetPossible ? (
+            <button
+              type="button"
+              data-no-swipe
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={() => setForgot(true)}
+              className="mt-1 flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            >
+              {t('chat.sdmsForgot')}
+            </button>
+          ) : null}
+        </>
       ) : null}
 
-      {canForget ? (
+      {canForget && !formOpen && state?.status === 'saved' ? (
         <button
           type="button"
           data-no-swipe
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => {
             setChanging(false);
-            setAskingReset(true);
+            setAskingReset({ userId: '' });
           }}
           className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
         >
@@ -421,33 +483,22 @@ function PortalRow({
 }
 
 /**
- * "Forgot password?", asked: what will happen, the user ID when none is saved, and the
- * button that starts it. MDG fills the portal's own reset page; the portal sends the new
- * password to the owner's registered mobile or email.
+ * "Forgot password?", asked: what will happen, and the button that starts it. The user ID
+ * is never asked for here: it is the saved one, or the one just typed in the form above
+ * (`userId`). MDG fills the portal's own reset page; the portal sends the new password to
+ * the owner's registered mobile or email.
  */
-function ResetConfirm({
-  portal,
-  needsUserId,
-  onDone,
-}: {
-  portal: PortalId;
-  /** No login is saved: the portal's reset page needs the user ID, so the owner types it. */
-  needsUserId: boolean;
-  onDone: () => void;
-}) {
+function ResetConfirm({ portal, userId, onDone }: { portal: PortalId; userId: string; onDone: () => void }) {
   const t = useT();
   const reset = useResetPortalPassword();
-  const id = React.useId();
-  const [username, setUsername] = React.useState('');
   const [errorKey, setErrorKey] = React.useState<MessageKey | null>(null);
   const busy = reset.isPending;
-  const canGo = !busy && (!needsUserId || username.trim().length > 0);
 
   const go = async () => {
-    if (!canGo) return;
+    if (busy) return;
     setErrorKey(null);
     try {
-      await reset.mutateAsync({ portal, ...(needsUserId ? { username: username.trim() } : {}) });
+      await reset.mutateAsync({ portal, ...(userId ? { username: userId } : {}) });
       onDone();
     } catch (err) {
       setErrorKey(portalResetErrorKey(err));
@@ -462,28 +513,6 @@ function ResetConfirm({
       className="mt-2 flex flex-col gap-2"
     >
       <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.portalResetExplain')}</p>
-      {needsUserId ? (
-        <div>
-          <label htmlFor={`${id}-user`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
-            {t('chat.portalUserId')}
-          </label>
-          <input
-            id={`${id}-user`}
-            type="text"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="off"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck={false}
-            maxLength={200}
-            className={INPUT_CLASS}
-          />
-          {USER_ID_HINT[portal] ? (
-            <p className="mt-0.5 text-[12px] leading-snug text-wa-meta">{t(USER_ID_HINT[portal]!)}</p>
-          ) : null}
-        </div>
-      ) : null}
       {errorKey ? (
         <p
           role="alert"
@@ -495,7 +524,7 @@ function ResetConfirm({
       <button
         type="button"
         onClick={() => void go()}
-        disabled={!canGo}
+        disabled={busy}
         aria-busy={busy}
         className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
       >
@@ -618,14 +647,15 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
   // An Indian Oil box (SDMS or IRAS in it) also carries the tanker question, and — once
   // the owner says yes, or a login is saved — the IndianOil Partners row under it. A box
   // posted before the question existed grows both by itself: they follow the server.
-  const ioclBox = !companyPump && shown.some((p) => p === 'sdms' || p === 'iras');
+  // A box MDG posted to ask the tanker question by itself carries IndianOil Partners alone.
+  const tankerBox = !companyPump && portals.includes(TANKER_PORTAL);
+  const ioclBox = !companyPump && (tankerBox || shown.some((p) => p === 'sdms' || p === 'iras'));
   const tanker = ioclBox && view?.tanker?.asked ? view.tanker : null;
   const partners = view?.portals.find((p) => p.portal === TANKER_PORTAL);
+  // The row only once there is something in it: after a yes, a saved login, or a reset.
   const showPartners =
-    !companyPump &&
-    (portals.includes(TANKER_PORTAL) ||
-      (ioclBox && !!partners && (partners.needed || partners.status === 'saved' || !!partners.reset)));
-  if (shown.length === 0 && !showPartners) return null;
+    ioclBox && !!partners && (partners.needed || partners.status === 'saved' || !!partners.reset);
+  if (shown.length === 0 && !showPartners && !tanker) return null;
   const row = (portal: PortalId) => (
     <PortalRow
       key={portal}
@@ -635,6 +665,7 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
       loading={q.isPending}
       failed={failed}
       onRetry={retry}
+      sdmsReset={portal === 'sdms' ? (view?.sdmsReset ?? null) : null}
     />
   );
   return (

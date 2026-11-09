@@ -5,11 +5,13 @@ import { create } from 'zustand';
  *
  *  - `unknown`     — not asked yet, or the shell has not answered. Also an older
  *                    shell that never will; it still hands over a token by itself.
- *  - `ask`         — the phone has never been asked. The app explains first (a
- *                    card on the chat list, a row in Settings) and only then lets
- *                    the phone show its prompt, because the phone shows it once.
+ *  - `ask`         — the phone has never been asked. The app asks at once, on
+ *                    the first start, so this lasts only until the dealer answers
+ *                    (and is what Settings shows if that prompt went unanswered).
  *  - `on`          — permission is granted; a token is registered or on its way.
- *  - `off`         — refused. Only the phone's own Settings can turn it back on.
+ *  - `off`         — refused. The chat list keeps a banner up; it asks again when
+ *                    the phone still allows that (`canAskAgain`), else it opens
+ *                    the phone's own Settings.
  *  - `unavailable` — Expo Go, or a binary with no notifications at all. There is
  *                    nothing to offer, so nothing is shown.
  *
@@ -21,46 +23,19 @@ export type PushState = 'unknown' | 'ask' | 'on' | 'off' | 'unavailable';
 
 interface PushStoreState {
   pushState: PushState;
-  setPushState: (pushState: PushState) => void;
+  /**
+   * With `off`: will the phone still show its prompt? False (the default, and
+   * what an older shell that never says is taken to mean) sends the dealer to
+   * the phone's Settings instead of a button that would do nothing.
+   */
+  canAskAgain: boolean;
+  /** `canAskAgain` is left as it was when not given. */
+  setPushState: (pushState: PushState, canAskAgain?: boolean) => void;
 }
 
 export const usePushStore = create<PushStoreState>()((set) => ({
   pushState: 'unknown',
-  setPushState: (pushState) => set({ pushState }),
+  canAskAgain: false,
+  setPushState: (pushState, canAskAgain) =>
+    set(canAskAgain === undefined ? { pushState } : { pushState, canAskAgain }),
 }));
-
-/** The two reminders the chat list can show, each snoozed on its own clock. */
-export type PushNoticeKind = 'ask' | 'off';
-
-/**
- * How long "Not now" and the dismiss stay quiet. A dealer who has said no to the
- * explanation is asked again within the week; one whose phone says no is told
- * less often, because there is nothing they can do from inside the app.
- */
-export const PUSH_SNOOZE_DAYS: Record<PushNoticeKind, number> = { ask: 3, off: 7 };
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const snoozeKey = (kind: PushNoticeKind) => `mdg.client.pushNotice.${kind}.until`;
-
-/**
- * Whether this reminder is still snoozed. Wrapped in try/catch because a WebView
- * with storage switched off throws on ACCESS, not just on write; with no
- * storage the reminder simply shows every time, which is the safe side.
- */
-export function isPushNoticeSnoozed(kind: PushNoticeKind, now = Date.now()): boolean {
-  try {
-    const until = Number(localStorage.getItem(snoozeKey(kind)));
-    return Number.isFinite(until) && until > now;
-  } catch {
-    return false;
-  }
-}
-
-/** Hide this reminder for its snooze period. */
-export function snoozePushNotice(kind: PushNoticeKind, now = Date.now()): void {
-  try {
-    localStorage.setItem(snoozeKey(kind), String(now + PUSH_SNOOZE_DAYS[kind] * DAY_MS));
-  } catch {
-    /* storage unavailable: the reminder may come back sooner, which is harmless */
-  }
-}

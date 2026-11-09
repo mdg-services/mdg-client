@@ -6,6 +6,7 @@ import {
   PORTAL_RESET_NO_USER_ID,
   PORTAL_RESET_RUNNING,
   PORTAL_RESET_TOO_MANY,
+  SDMS_RESET_IN_PROGRESS,
   type PortalResetView,
 } from '@dk/shared/types';
 
@@ -48,6 +49,7 @@ export function portalSaveErrorKey(err: unknown): MessageKey {
     if (err.status === 409 && err.code === PORTAL_LOGIN_SAME_AS_REFUSED) {
       return 'chat.portalSameAsRefused';
     }
+    if (err.status === 409 && err.code === SDMS_RESET_IN_PROGRESS) return 'chat.portalResetBusy';
     if (err.status === 429) return 'chat.portalRateLimited';
   }
   return 'chat.portalSaveFailed';
@@ -57,7 +59,7 @@ export function portalSaveErrorKey(err: unknown): MessageKey {
 export function portalResetErrorKey(err: unknown): MessageKey {
   if (err instanceof ApiError) {
     if (err.code === PORTAL_RESET_TOO_MANY) return 'chat.portalResetTooMany';
-    if (err.code === PORTAL_RESET_RUNNING) return 'chat.portalResetBusy';
+    if (err.code === PORTAL_RESET_RUNNING) return 'chat.partnersResetBusy';
     if (err.code === PORTAL_RESET_NO_USER_ID) return 'chat.portalResetNeedsId';
     if (err.status === 503) return 'chat.portalResetOff';
     if (err.status === 429) return 'chat.portalRateLimited';

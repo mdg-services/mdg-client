@@ -62,6 +62,36 @@ describe('RegisterPage', () => {
 
   afterEach(() => resetStores());
 
+  it('opened cold (first launch), the back arrow goes to sign-in', async () => {
+    const user = userEvent.setup();
+    renderAt('/register');
+    await user.click(screen.getByRole('button', { name: 'Back to sign in' }));
+    expect(await screen.findByRole('button', { name: 'Register your pump' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('SAP code')).not.toBeInTheDocument();
+  });
+
+  it('opened from sign-in, the back arrow returns to it', async () => {
+    const user = userEvent.setup();
+    renderAt('/login');
+    await user.click(screen.getByRole('button', { name: 'Register your pump' }));
+    await user.click(await screen.findByRole('button', { name: 'Back to sign in' }));
+    expect(await screen.findByRole('button', { name: 'Register your pump' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('SAP code')).not.toBeInTheDocument();
+  });
+
+  it('has a language switch, which flips the page without losing the form', async () => {
+    const user = userEvent.setup();
+    renderAt('/register');
+    await user.type(screen.getByLabelText('Your name'), 'Ramesh');
+
+    await user.click(screen.getByRole('button', { name: 'Language' }));
+    await user.click(screen.getByRole('radio', { name: 'हिंदी' }));
+
+    expect(await screen.findByRole('heading', { name: 'अपना पंप रजिस्टर करें' })).toBeInTheDocument();
+    expect(useLangStore.getState().lang).toBe('hi');
+    expect(screen.getByDisplayValue('Ramesh')).toBeInTheDocument();
+  });
+
   it('is reached from the sign-in footer, which says you choose your own password', async () => {
     const user = userEvent.setup();
     renderAt('/login');

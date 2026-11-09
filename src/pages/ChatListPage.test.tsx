@@ -465,7 +465,7 @@ describe('ChatListPage — the notifications reminder', () => {
   });
   afterEach(() => {
     delete (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView;
-    usePushStore.setState({ pushState: 'unknown' });
+    usePushStore.setState({ pushState: 'unknown', canAskAgain: false });
   });
 
   it('shows nothing until the phone has said where it stands', () => {
@@ -475,42 +475,39 @@ describe('ChatListPage — the notifications reminder', () => {
     expect(screen.queryByText('Notifications are off')).not.toBeInTheDocument();
   });
 
-  it('a phone that was never asked gets the card above the chats, and the button asks the phone', () => {
+  it('a phone that was never asked gets no card: the phone itself asks', () => {
     h.result = loaded([support()]);
     usePushStore.setState({ pushState: 'ask' });
     renderList();
-    const card = screen.getByRole('region', { name: 'Turn on notifications' });
-    expect(within(card).getByText("Get MDG's replies and your daily report on this phone.")).toBeInTheDocument();
+    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Notifications are off' })).not.toBeInTheDocument();
+    expect(posted()).toEqual([]);
+  });
+
+  it('a phone that said no gets the banner above the chats, which opens the phone\'s Settings', () => {
+    h.result = loaded([support()]);
+    usePushStore.setState({ pushState: 'off', canAskAgain: false });
+    renderList();
+    const banner = screen.getByRole('region', { name: 'Notifications are off' });
     // Above the filter chips and the list, not among them.
     const allChip = screen.getByRole('button', { name: 'All' });
-    expect(card.compareDocumentPosition(allChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    fireEvent.click(within(card).getByRole('button', { name: 'Turn on' }));
-    expect(posted()).toEqual([{ type: 'push:register' }]);
-  });
-
-  it('"Not now" puts the card away and leaves the chats where they were', () => {
-    h.result = loaded([support()]);
-    usePushStore.setState({ pushState: 'ask' });
-    renderList();
-    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
-    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
-    expect(screen.getByText('Support')).toBeInTheDocument();
-  });
-
-  it('a phone that said no gets the slim notice, which opens the phone\'s Settings', () => {
-    h.result = loaded([support()]);
-    usePushStore.setState({ pushState: 'off' });
-    renderList();
-    expect(screen.getByText('Notifications are off')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Open settings' }));
+    expect(banner.compareDocumentPosition(allChip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(within(banner).getByRole('button', { name: 'Open settings' }));
     expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
+  });
+
+  it('a phone that said no but can be asked again: the banner button asks it', () => {
+    h.result = loaded([support()]);
+    usePushStore.setState({ pushState: 'off', canAskAgain: true });
+    renderList();
+    fireEvent.click(screen.getByRole('button', { name: 'Turn on' }));
+    expect(posted()).toEqual([{ type: 'push:register' }]);
   });
 
   it('is not drawn on the empty screen', () => {
     h.result = loaded([]);
-    usePushStore.setState({ pushState: 'ask' });
+    usePushStore.setState({ pushState: 'off', canAskAgain: true });
     renderList();
-    expect(screen.queryByText('Turn on notifications')).not.toBeInTheDocument();
+    expect(screen.queryByText('Notifications are off')).not.toBeInTheDocument();
   });
 });
