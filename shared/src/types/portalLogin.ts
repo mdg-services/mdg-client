@@ -152,6 +152,16 @@ export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
 export interface MessagePortalLogin {
   /** The logins asked for, in the order the box shows them. */
   portals: PortalId[];
+  /**
+   * "Which password?" — the owner asked to reset or change "my password" without
+   * saying which. The box first lists `portals` (every login the outlet has) and,
+   * after them, the eMaaptaul login when `withWemmis` and always the app's own
+   * password; a tap opens that one login's form, ready for the new password, with
+   * "Forgot password?" where the portal has one. Absent: the plain box.
+   */
+  pick?: boolean;
+  /** With `pick`: the eMaaptaul (calibration claim) login is one of the choices. */
+  withWemmis?: boolean;
 }
 
 /**

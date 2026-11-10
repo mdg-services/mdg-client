@@ -1316,6 +1316,15 @@ export const messages = {
   // password every few months; MDG has the OTP sent to the mobile registered with
   // SDMS and the owner types it with a new password. "OTP" is the word dealers use.
   'chat.sdmsForgot': { en: 'Forgot password?', hi: 'पासवर्ड भूल गए?' },
+  // "Which password?" — the list MDG posts when an owner asks to reset or change "my
+  // password" without saying which.
+  'chat.pickerBack': { en: 'All passwords', hi: 'सभी पासवर्ड' },
+  'chat.pickerApp': { en: 'Dealer Kavach app', hi: 'डीलर कवच ऐप' },
+  'chat.pickerAppHow': {
+    en: "The app's own password is changed in Settings › Account. Forgot it? Sign out, then tap \"Forgot your password?\" on the sign-in screen.",
+    hi: 'ऐप का अपना पासवर्ड सेटिंग › खाता में बदलता है। भूल गए हों तो लॉग आउट करके साइन-इन पेज पर "पासवर्ड भूल गए?" दबाइए।',
+  },
+  'chat.pickerAppOpen': { en: 'Open Settings', hi: 'सेटिंग खोलें' },
   'chat.sdmsResetIntro': {
     en: 'MDG will ask IndianOil to send an OTP to the mobile registered with SDMS. Keep that phone with you.',
     hi: 'MDG, IndianOil से SDMS में दर्ज मोबाइल पर OTP भिजवाएगा। वो फ़ोन अपने पास रखिए।',

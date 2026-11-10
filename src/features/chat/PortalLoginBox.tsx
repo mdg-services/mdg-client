@@ -1,5 +1,6 @@
-import { Check, ExternalLink, Eye, EyeOff, KeyRound, Lock, Truck } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, ExternalLink, Eye, EyeOff, KeyRound, Lock, Truck } from 'lucide-react';
 import * as React from 'react';
+import { Link } from 'react-router-dom';
 
 import { Spinner } from '@/components/ui';
 import {
@@ -30,6 +31,7 @@ import {
   portalSaveErrorKey,
 } from './portalLoginView';
 import { SdmsResetFlow } from './SdmsResetFlow';
+import { WemmisLoginBox } from './WemmisLoginBox';
 
 /** What the user ID field says under it, for a portal whose ID has a name of its own. */
 const USER_ID_HINT: Partial<Record<PortalId, MessageKey>> = {
@@ -301,6 +303,7 @@ function PortalRow({
   failed,
   onRetry,
   otpReset = null,
+  startOpen = false,
 }: {
   portal: PortalId;
   state: PortalLoginState | undefined;
@@ -310,10 +313,12 @@ function PortalRow({
   onRetry: () => void;
   /** SDMS and the old SDMS: this login's OTP "Forgot password?" reset going now, or just ended. */
   otpReset?: SdmsResetView | null;
+  /** Chosen from "Which password?": opens straight on the form for the new password. */
+  startOpen?: boolean;
 }) {
   const t = useT();
   const lang = useLang();
-  const [changing, setChanging] = React.useState(false);
+  const [changing, setChanging] = React.useState(startOpen);
   // IndianOil Partners "Forgot password?" asked: the user ID typed in the form above, if
   // any (an empty one means the saved ID).
   const [askingReset, setAskingReset] = React.useState<{ userId: string } | null>(null);
@@ -757,6 +762,124 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
   );
 }
 
+type PickerChoice = PortalId | 'wemmis' | 'app';
+
+/** The app's own password: changed in Settings, not here. */
+function AppPasswordChoice() {
+  const t = useT();
+  return (
+    <div data-app-password className="rounded-md bg-wa-row-active px-2.5 py-2">
+      <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+        <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
+        {t('chat.pickerApp')}
+      </p>
+      <p className="mt-1 text-[13px] leading-snug text-wa-bubble-text">{t('chat.pickerAppHow')}</p>
+      <Link
+        to="/settings/account"
+        className="mt-2 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+      >
+        {t('chat.pickerAppOpen')}
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * "Which password?" — every login the outlet has, then eMaaptaul when it has one, then
+ * the app's own password. A tap opens that one login's form, ready for the new password,
+ * with "Forgot password?" where the portal has one; "All passwords" goes back to the list.
+ */
+function PasswordPicker({
+  portals,
+  states,
+  withWemmis,
+  loading,
+  renderRow,
+}: {
+  portals: readonly PortalId[];
+  states: readonly PortalLoginState[];
+  withWemmis: boolean;
+  loading: boolean;
+  renderRow: (portal: PortalId) => React.ReactNode;
+}) {
+  const t = useT();
+  const [chosen, setChosen] = React.useState<PickerChoice | null>(null);
+
+  if (chosen) {
+    return (
+      <div data-password-picker data-chosen={chosen} className="mt-1 flex flex-col gap-1.5">
+        <button
+          type="button"
+          data-no-swipe
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => setChosen(null)}
+          className="flex min-h-11 items-center gap-1 self-start rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+        >
+          <ChevronLeft width={16} strokeWidth={2} className="shrink-0" aria-hidden />
+          {t('chat.pickerBack')}
+        </button>
+        {chosen === 'app' ? <AppPasswordChoice /> : chosen === 'wemmis' ? <WemmisLoginBox /> : renderRow(chosen)}
+      </div>
+    );
+  }
+
+  const choices: Array<{ id: PickerChoice; label: string; note: MessageKey | null }> = [
+    ...portals.map((p) => {
+      const s = states.find((x) => x.portal === p);
+      return {
+        id: p as PickerChoice,
+        label: isCompanyPortal(p) ? PORTAL_NAMES[p] : t('chat.portalTitle', { portal: PORTAL_NAMES[p] }),
+        note: (s?.status === 'refused'
+          ? 'chat.portalRefused'
+          : s?.status === 'saved'
+            ? 'chat.portalSaved'
+            : s
+              ? 'chat.portalNeeded'
+              : null) as MessageKey | null,
+      };
+    }),
+    ...(withWemmis ? [{ id: 'wemmis' as const, label: t('chat.wemmisTitle'), note: null }] : []),
+    { id: 'app' as const, label: t('chat.pickerApp'), note: null },
+  ];
+
+  return (
+    <div
+      data-password-picker
+      data-no-swipe
+      onPointerDown={(e) => e.stopPropagation()}
+      className="mt-1 flex flex-col gap-1.5"
+    >
+      {choices.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          data-choice={c.id}
+          onClick={() => setChosen(c.id)}
+          className="flex min-h-11 w-full items-center gap-2 rounded-md bg-wa-row-active px-2.5 py-2 text-left active:bg-black/10"
+        >
+          <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block break-words text-[14px] font-medium leading-snug">{c.label}</span>
+            {c.note ? (
+              <span
+                className={cn(
+                  'block text-[12px] leading-snug',
+                  c.note === 'chat.portalRefused' ? 'font-medium text-wa-bubble-text' : 'text-wa-meta',
+                )}
+              >
+                {t(c.note)}
+              </span>
+            ) : loading && c.id !== 'app' && c.id !== 'wemmis' ? (
+              <Spinner size={12} />
+            ) : null}
+          </span>
+          <ChevronRight width={16} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /**
  * The login box inside an MDG message (`message.portalLogin`): one block per
  * portal asked for, in the order the message lists them (SDMS and IRAS for an
@@ -766,7 +889,16 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
  * thing in the chat that asks the query for the view, so a chat with no box in
  * it never makes the call.
  */
-export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
+export function PortalLoginBox({
+  portals,
+  pick = false,
+  withWemmis = false,
+}: {
+  portals: readonly PortalId[];
+  /** "Which password?" (`MessagePortalLogin.pick`): a list to choose from first. */
+  pick?: boolean;
+  withWemmis?: boolean;
+}) {
   const q = usePortalLogins();
   const view = q.data;
   const failed = q.isError && !view;
@@ -788,10 +920,10 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
   // The row only once there is something in it: after a yes, a saved login, or a reset.
   const showPartners =
     ioclBox && !!partners && (partners.needed || partners.status === 'saved' || !!partners.reset);
-  if (shown.length === 0 && !showPartners && !tanker) return null;
-  const row = (portal: PortalId) => (
+  const row = (portal: PortalId, startOpen = false) => (
     <PortalRow
       key={portal}
+      startOpen={startOpen}
       portal={portal}
       state={view?.portals.find((p) => p.portal === portal)}
       canEdit={view?.canEdit ?? false}
@@ -803,9 +935,22 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
       }
     />
   );
+  if (pick) {
+    return (
+      <PasswordPicker
+        // A login the outlet no longer has is not offered, whatever the message listed.
+        portals={portals.filter((p) => !view || view.portals.some((s) => s.portal === p))}
+        states={view?.portals ?? []}
+        withWemmis={withWemmis}
+        loading={q.isPending}
+        renderRow={(p) => row(p, true)}
+      />
+    );
+  }
+  if (shown.length === 0 && !showPartners && !tanker) return null;
   return (
     <div data-portal-login className="mt-1 flex flex-col gap-1.5">
-      {shown.map(row)}
+      {shown.map((p) => row(p))}
       {tanker ? <TankerQuestion tanker={tanker} canEdit={view?.canEdit ?? false} /> : null}
       {showPartners ? row(TANKER_PORTAL) : null}
     </div>

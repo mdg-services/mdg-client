@@ -585,7 +585,13 @@ export const MessageBubble = React.memo(function MessageBubble({
             </div>
           ) : null}
 
-          {portalLogin ? <PortalLoginBox portals={portalLogin.portals} /> : null}
+          {portalLogin ? (
+            <PortalLoginBox
+              portals={portalLogin.portals}
+              pick={portalLogin.pick === true}
+              withWemmis={portalLogin.withWemmis === true}
+            />
+          ) : null}
 
           {wemmisLogin ? <WemmisLoginBox /> : null}
 
