@@ -25,9 +25,9 @@ import type { SdmsResetView } from './sdmsPasswordReset';
  * of the chat could leak.
  */
 
-export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl' | 'partners' | 'xtrapower';
+export type PortalId = 'sdms' | 'iras' | 'bpcl' | 'econnect' | 'hpcl' | 'partners' | 'xtrapower' | 'sdmsOld';
 
-export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower'];
+export const PORTAL_IDS: readonly PortalId[] = ['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower', 'sdmsOld'];
 
 /**
  * The company portals: BPCL's two (its dealer portal, and BROMA/eConnect) and HPCL's
@@ -72,15 +72,50 @@ export const XTRAPOWER_PORTAL: PortalId = 'xtrapower';
 /** XtraPower's own "Reset Password" page: user ID, registered mobile, a 6-digit SMS code, a new password. */
 export const XTRAPOWER_RESET_URL = 'https://beta.iocxtrapower.com/account/reset-password';
 
-/** The portals nothing tries on its own: the company portals, IndianOil Partners and IOC XtraPower. */
-export const HAND_WORKED_PORTAL_IDS: readonly PortalId[] = [...COMPANY_PORTAL_IDS, TANKER_PORTAL, XTRAPOWER_PORTAL];
+/**
+ * The old SDMS: IndianOil's older Siebel-based SDMS, signed in to through IndianOil's
+ * "Business Login" page (access.ex.indianoil.in). Its user ID is usually the same as the
+ * outlet's SDMS ID. It is NEVER part of onboarding and no service uses it: MDG's team asks
+ * an owner for it when a piece of work needs it ("Ask for login" in the admin), and only
+ * then does the outlet's box carry its row (`Dealer.sdmsOldAskedAt`). Saved and read back,
+ * never tried automatically — MDG's team works it by hand.
+ *
+ * Its one automated step is the owner's "Forgot password?", done like the SDMS one: IndianOil
+ * sends an OTP to the mobile registered with the login, the owner types it with a new
+ * password, MDG puts them in (`SdmsResetView` with `portal: 'sdmsOld'`).
+ */
+export const OLD_SDMS_PORTAL: PortalId = 'sdmsOld';
+
+/**
+ * The portals MDG asks for only when the team asks — IOC XtraPower and the old SDMS: never
+ * part of onboarding or of what a service needs, and never "owed" by the outlet.
+ */
+export const ON_DEMAND_PORTAL_IDS: readonly PortalId[] = [XTRAPOWER_PORTAL, OLD_SDMS_PORTAL];
+
+/** True for a login asked for only on demand ({@link ON_DEMAND_PORTAL_IDS}). */
+export function isOnDemandPortal(p: PortalId): boolean {
+  return ON_DEMAND_PORTAL_IDS.includes(p);
+}
+
+/** The portals nothing tries on its own: the company portals, IndianOil Partners, IOC XtraPower and the old SDMS. */
+export const HAND_WORKED_PORTAL_IDS: readonly PortalId[] = [
+  ...COMPANY_PORTAL_IDS,
+  TANKER_PORTAL,
+  XTRAPOWER_PORTAL,
+  OLD_SDMS_PORTAL,
+];
 
 /** True for a login that is saved and read back but never tried automatically. */
 export function isHandWorkedPortal(p: PortalId): boolean {
   return HAND_WORKED_PORTAL_IDS.includes(p);
 }
 
-/** True for a portal whose box row offers "Forgot password?" (`POST /me/portal-logins/:portal/reset`). */
+/**
+ * True for a portal whose box row offers the "new password is sent to you" kind of
+ * "Forgot password?" (`POST /me/portal-logins/partners/reset`). SDMS and the old SDMS have
+ * the OTP kind instead ({@link OtpResetPortal}), IOC XtraPower the guided kind
+ * ({@link guidedResetUrl}).
+ */
 export function canResetPortalPassword(p: PortalId): boolean {
   return p === TANKER_PORTAL;
 }
@@ -106,6 +141,7 @@ export const PORTAL_NAMES: Readonly<Record<PortalId, string>> = {
   hpcl: 'HPCL portal',
   partners: 'IndianOil Partners',
   xtrapower: 'IOC XtraPower',
+  sdmsOld: 'Old SDMS',
 };
 
 /**
@@ -147,8 +183,11 @@ export interface PortalLoginState {
   /** The newest "Forgot password?" on this login, while it matters. Only where one can be asked. */
   reset?: PortalResetView;
   /**
-   * SDMS only: the box may offer "Forgot password?" — the outlet's SAP code is on
-   * record, which is what the portal's own reset asks for. See `sdmsPasswordReset.ts`.
+   * SDMS and the old SDMS: the box may offer the OTP "Forgot password?". For SDMS the
+   * outlet's SAP code is on record, which is what the portal's own reset asks for. For
+   * the old SDMS a user ID is on record to reset with (its own saved one, else the SDMS
+   * ID, which is usually the same), so "Forgot password?" works with the ID field left
+   * empty. See `sdmsPasswordReset.ts`.
    */
   resetPossible?: boolean;
 }
@@ -216,6 +255,8 @@ export interface PortalLoginsView {
    * few minutes (so every owner's box shows how it ended). Null when there is none.
    */
   sdmsReset?: SdmsResetView | null;
+  /** The same for the old SDMS's "Forgot password?". Absent from a server that predates it. */
+  sdmsOldReset?: SdmsResetView | null;
 }
 
 /**

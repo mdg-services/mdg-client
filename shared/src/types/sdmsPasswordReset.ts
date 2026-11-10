@@ -55,9 +55,20 @@ export function sdmsResetIsLive(state: SdmsResetState): boolean {
  */
 export type SdmsResetRetry = 'wrong_otp' | 'password_used' | 'password_rule';
 
+/**
+ * The portals whose "Forgot password?" works by an OTP to the owner's phone: SDMS, and the
+ * old SDMS (IndianOil's "Business Login", `portalLogin.ts` `OLD_SDMS_PORTAL`). Both run on
+ * this one record and this one box; what differs is the portal's page and its password rule.
+ */
+export type OtpResetPortal = 'sdms' | 'sdmsOld';
+
+export const OTP_RESET_PORTALS: readonly OtpResetPortal[] = ['sdms', 'sdmsOld'];
+
 /** `GET /me/portal-logins/sdms/reset/:id`, and the reset inside the login box's view. */
 export interface SdmsResetView {
   id: string;
+  /** Which login this reset is setting. Absent from a server that predates the old SDMS: `sdms`. */
+  portal?: OtpResetPortal;
   state: SdmsResetState;
   /**
    * What the portal printed about where the OTP went, in its own words (it
@@ -69,6 +80,11 @@ export interface SdmsResetView {
   expiresAt: string | null;
   /** Set in `otp_sent` after a refused try. */
   retry: SdmsResetRetry | null;
+  /**
+   * The portal's own words about that refused try, clipped, when it gave any. Shown by the
+   * old SDMS's box, whose password rule IndianOil does not print until it refuses one.
+   */
+  retryWords?: string | null;
   /** Plain words for an end state (`failed` mostly), both languages. */
   message: { en: string; hi: string } | null;
   /** Who tapped "Forgot password?", so a second owner reads "Ramesh started this". */
@@ -87,8 +103,29 @@ export const SDMS_NEW_PASSWORD_MIN = 8;
 export const SDMS_NEW_PASSWORD_MAX = 15;
 export const SDMS_NEW_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[\x21-\x7e]{8,15}$/;
 
+/**
+ * The old SDMS's rule for a new password. IndianOil's "Business Login" does not print one
+ * before a try, so this asks for what such logins take (and what its owners' passwords
+ * look like): 8 to 15 characters with a small letter, a capital, a digit and a symbol. A password that passes this passes the SDMS rule too. If the portal still
+ * refuses one, its own words come back to the box (`retryWords`).
+ */
+export const SDMS_OLD_NEW_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])[\x21-\x7e]{8,15}$/;
+
+/** The rule a new password must follow on this portal before it is sent. */
+export function newPasswordRuleFor(portal: OtpResetPortal | null | undefined): RegExp {
+  return portal === 'sdmsOld' ? SDMS_OLD_NEW_PASSWORD_RE : SDMS_NEW_PASSWORD_RE;
+}
+
 /** The OTP the portal sends: digits only. Its length is not printed anywhere, so 4–8. */
 export const SDMS_RESET_OTP_RE = /^\d{4,8}$/;
+
+/**
+ * `POST /me/portal-logins/sdms-old/reset` answers 409 with this when no user ID is on record
+ * (no old SDMS login and no SDMS login saved) and none was typed.
+ */
+export const SDMS_OLD_RESET_NO_USER_ID = 'SDMS_OLD_RESET_NO_USER_ID';
+/** A start of one portal's reset while the other portal's reset is going for the outlet. */
+export const SDMS_RESET_OTHER_GOING = 'SDMS_RESET_OTHER_GOING';
 
 /** `POST /me/portal-logins/sdms/reset` answers 409 with this when no SAP code is on record. */
 export const SDMS_RESET_NO_SAP_CODE = 'SDMS_RESET_NO_SAP_CODE';

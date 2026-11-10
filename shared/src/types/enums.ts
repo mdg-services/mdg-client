@@ -163,6 +163,10 @@ export const AUDIT_ACTIONS = [
   'XTRAPOWER_CREDENTIALS_SET',
   'XTRAPOWER_CREDENTIALS_CLEAR',
   'XTRAPOWER_CREDENTIALS_REVEAL',
+  // The old SDMS — IndianOil's "Business Login" (access.ex.indianoil.in), asked only on demand
+  'SDMS_OLD_CREDENTIALS_SET',
+  'SDMS_OLD_CREDENTIALS_CLEAR',
+  'SDMS_OLD_CREDENTIALS_REVEAL',
   // Bihar weights and measures (eMaaptaul) — the login a calibration subsidy claim uses (ADR 0029)
   'WEMMIS_CREDENTIALS_SET',
   'WEMMIS_CREDENTIALS_CLEAR',

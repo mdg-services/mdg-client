@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
-import { sdmsResetIsLive, type PortalId, type PortalLoginsView, type SdmsResetView } from '@dk/shared/types';
+import {
+  sdmsResetIsLive,
+  type OtpResetPortal,
+  type PortalId,
+  type PortalLoginsView,
+  type SdmsResetView,
+} from '@dk/shared/types';
 
 /**
  * Where the outlet's portal logins stand — SDMS and IRAS for an Indian Oil outlet,
@@ -108,22 +114,36 @@ export function invalidatePortalLogins(qc: QueryClient): void {
 /** How often the box asks where a reset stands while it is going. */
 export const SDMS_RESET_POLL_MS = 1_500;
 
+/** Following and answering a reset is the same for both portals: by its id, under the SDMS path. */
 const RESET_PATH = '/v1/me/portal-logins/sdms/reset';
+/** Starting one is per portal: the old SDMS's start takes the user ID typed in its row. */
+const RESET_START_PATH: Record<OtpResetPortal, string> = {
+  sdms: RESET_PATH,
+  sdmsOld: '/v1/me/portal-logins/sdms-old/reset',
+};
 export const sdmsResetKey = (id: string) => ['portal-logins', 'sdms-reset', id] as const;
+
+/** This portal's reset inside the login box's view. */
+export function otpResetOf(view: PortalLoginsView, portal: OtpResetPortal): SdmsResetView | null {
+  return (portal === 'sdmsOld' ? view.sdmsOldReset : view.sdmsReset) ?? null;
+}
 
 /**
  * "Forgot password?" → "Send OTP". The answer is the login box's view with the
  * reset in it — this owner's new one, or the one another owner already started
- * (the server keeps one per outlet).
+ * (the server keeps one per outlet). The old SDMS's start carries the user ID typed
+ * in its row, when one was.
  */
-export function useStartSdmsReset() {
+export function useStartSdmsReset(portal: OtpResetPortal = 'sdms') {
   const qc = useQueryClient();
   return useMutation({
     retry: false,
-    mutationFn: () => api.post<PortalLoginsView>(RESET_PATH, {}),
+    mutationFn: (username?: string) =>
+      api.post<PortalLoginsView>(RESET_START_PATH[portal], portal === 'sdmsOld' && username ? { username } : {}),
     onSuccess: (view) => {
       qc.setQueryData(portalLoginsKey, view);
-      if (view.sdmsReset) qc.setQueryData(sdmsResetKey(view.sdmsReset.id), view.sdmsReset);
+      const reset = otpResetOf(view, portal);
+      if (reset) qc.setQueryData(sdmsResetKey(reset.id), reset);
     },
   });
 }

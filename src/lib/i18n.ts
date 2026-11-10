@@ -1377,6 +1377,47 @@ export const messages = {
     hi: 'आपकी SDMS ID अभी MDG में सेव नहीं है। ID और पासवर्ड भरिए।',
   },
   'chat.sdmsResetSendFailed': { en: "Couldn't start — try again", hi: 'शुरू नहीं हो पाया, फिर से कोशिश करें' },
+  'chat.sdmsResetOtherGoing': {
+    en: 'A password reset for your other SDMS login is going right now. Finish it first, or try again in a few minutes.',
+    hi: 'आपके दूसरे SDMS लॉगिन का पासवर्ड रीसेट अभी चल रहा है। पहले उसे पूरा कीजिए, या कुछ मिनट बाद फिर कोशिश कीजिए।',
+  },
+
+  // The Old SDMS login (IndianOil's "Business Login", access.ex.indianoil.in): asked only
+  // when MDG's team posts the box. Its "Forgot password?" is the SDMS one's steps — an OTP
+  // to the registered mobile, typed with a new password — on its own portal.
+  'chat.sdmsOldUserIdHint': {
+    en: 'Usually the same as your SDMS ID',
+    hi: 'आमतौर पर आपकी SDMS ID जैसी ही होती है',
+  },
+  'chat.sdmsOldNeedsId': {
+    en: 'Type your Old SDMS user ID above, then tap Forgot password? again.',
+    hi: 'ऊपर पुराने SDMS की यूज़र ID भरिए, फिर से पासवर्ड भूल गए? दबाइए।',
+  },
+  'chat.sdmsOldBadId': {
+    en: "That user ID doesn't look right. Check it (letters, numbers or _) and try again.",
+    hi: 'ये यूज़र ID सही नहीं लग रही। जाँचिए (अक्षर, अंक या _) और फिर कोशिश कीजिए।',
+  },
+  'chat.sdmsOldChangeId': { en: 'Type a different user ID', hi: 'दूसरी यूज़र ID भरें' },
+  'chat.sdmsOldResetTooMany': {
+    en: 'The password has been reset too many times in the last hour. Try again in an hour.',
+    hi: 'पिछले एक घंटे में बहुत बार रीसेट हो चुका। एक घंटे बाद फिर कोशिश कीजिए।',
+  },
+  'chat.sdmsOldResetIntro': {
+    en: 'MDG will ask IndianOil to send an OTP to the mobile registered with your Old SDMS login. Keep that phone with you.',
+    hi: 'MDG, IndianOil से आपके पुराने SDMS लॉगिन में दर्ज मोबाइल पर OTP भिजवाएगा। वो फ़ोन अपने पास रखिए।',
+  },
+  'chat.sdmsOldResetSent': {
+    en: 'OTP sent to the mobile registered with your Old SDMS login',
+    hi: 'पुराने SDMS लॉगिन में दर्ज मोबाइल पर OTP भेजा गया',
+  },
+  'chat.sdmsOldResetRule': {
+    en: '8 to 15 characters, with at least one capital letter, one small letter, one number and one symbol such as @',
+    hi: '8 से 15 अक्षर — कम से कम एक बड़ा अक्षर (A-Z), एक छोटा अक्षर (a-z), एक अंक और @ जैसा एक चिह्न',
+  },
+  'chat.sdmsOldResetDone': {
+    en: 'New password set on IndianOil and saved ✓',
+    hi: 'नया पासवर्ड IndianOil पर बन गया और सेव हो गया ✓',
+  },
 
   // The eMaaptaul login box (ADR 0029): the Bihar weights-and-measures site where
   // the calibration certificate and the fee receipt are downloaded. "eMaaptaul"

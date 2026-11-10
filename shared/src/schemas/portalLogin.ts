@@ -9,16 +9,16 @@ import { SDMS_NEW_PASSWORD_RE, SDMS_RESET_OTP_RE } from '../types/sdmsPasswordRe
  * a login one side accepts the other never refuses.
  */
 
-export const portalIdSchema = z.enum(['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower']);
+export const portalIdSchema = z.enum(['sdms', 'iras', 'bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower', 'sdmsOld']);
 
 /**
  * A login nothing tries on its own: a company portal (BPCL, BROMA/eConnect, HPCL),
- * IndianOil Partners or IOC XtraPower. The admin's own save / read-back routes under
- * `/company-portal-credentials/:portal` take only these.
+ * IndianOil Partners, IOC XtraPower or the old SDMS. The admin's own save / read-back
+ * routes under `/company-portal-credentials/:portal` take only these.
  */
-export const companyPortalIdSchema = z.enum(['bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower']);
+export const companyPortalIdSchema = z.enum(['bpcl', 'econnect', 'hpcl', 'partners', 'xtrapower', 'sdmsOld']);
 
-/** `PUT /dealers/:id/company-portal-credentials/:portal` — an admin types a BPCL, BROMA/eConnect, HPCL, IndianOil Partners or IOC XtraPower login for the outlet. */
+/** `PUT /dealers/:id/company-portal-credentials/:portal` — an admin types a BPCL, BROMA/eConnect, HPCL, IndianOil Partners, IOC XtraPower or old SDMS login for the outlet. */
 export const saveCompanyPortalLoginSchema = z
   .object({
     username: z.string().trim().min(1).max(200),
@@ -48,9 +48,9 @@ export const askPortalLoginSchema = z
 export type AskPortalLoginInput = z.infer<typeof askPortalLoginSchema>;
 
 /**
- * `POST /me/portal-logins/:portal/reset` — the owner's "Forgot password?". The user ID
- * (for IndianOil Partners, the vendor SAP code) is the saved one; an owner with none
- * saved types it here.
+ * `POST /me/portal-logins/partners/reset` and `POST /me/portal-logins/sdms-old/reset` — the
+ * owner's "Forgot password?". The user ID (for IndianOil Partners, the vendor SAP code) is
+ * the saved one; an owner with none saved types it here.
  */
 export const resetPortalPasswordSchema = z
   .object({
@@ -67,7 +67,8 @@ export type SaveTankerAnswerInput = z.infer<typeof saveTankerAnswerSchema>;
  * `PUT /me/portal-logins/sdms/reset/:id` — the OTP from the owner's phone and the
  * new password, together, because the portal takes them in one step. The
  * password is checked against the portal's own rule here, so a shape the portal
- * would refuse never costs the owner their OTP.
+ * would refuse never costs the owner their OTP. (The old SDMS's stricter rule,
+ * `SDMS_OLD_NEW_PASSWORD_RE`, is checked against the reset's portal when it is answered.)
  */
 export const answerSdmsResetSchema = z
   .object({

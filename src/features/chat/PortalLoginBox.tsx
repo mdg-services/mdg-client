@@ -32,7 +32,16 @@ import {
 import { SdmsResetFlow } from './SdmsResetFlow';
 
 /** What the user ID field says under it, for a portal whose ID has a name of its own. */
-const USER_ID_HINT: Partial<Record<PortalId, MessageKey>> = { partners: 'chat.partnersUserIdHint' };
+const USER_ID_HINT: Partial<Record<PortalId, MessageKey>> = {
+  partners: 'chat.partnersUserIdHint',
+  sdmsOld: 'chat.sdmsOldUserIdHint',
+};
+
+/** What "Forgot password?" says when it has no user ID to work with. */
+const NEEDS_ID_KEY: Partial<Record<PortalId, MessageKey>> = {
+  partners: 'chat.portalResetNeedsId',
+  sdmsOld: 'chat.sdmsOldNeedsId',
+};
 
 const INPUT_CLASS =
   'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
@@ -59,8 +68,8 @@ function PortalForm({
   /** Present when the form was reopened over a saved login: a way back out. */
   onCancel?: () => void;
   /**
-   * IndianOil Partners' "Forgot password?", with the user ID typed above (empty: the
-   * saved one). The owner never types the ID twice.
+   * "Forgot password?" (IndianOil Partners', the old SDMS's), with the user ID typed above
+   * (empty: the one the server has). The owner never types the ID twice.
    */
   onForgot?: (typedUserId: string) => void;
   /** A user ID is on record, so "Forgot password?" works with the field left empty. */
@@ -228,7 +237,7 @@ function PortalForm({
           onClick={() => {
             const typed = username.trim();
             if (!typed && !hasSavedId) {
-              setErrorKey('chat.portalResetNeedsId');
+              setErrorKey(NEEDS_ID_KEY[portal] ?? 'chat.portalResetNeedsId');
               return;
             }
             setErrorKey(null);
@@ -291,7 +300,7 @@ function PortalRow({
   loading,
   failed,
   onRetry,
-  sdmsReset = null,
+  otpReset = null,
 }: {
   portal: PortalId;
   state: PortalLoginState | undefined;
@@ -299,8 +308,8 @@ function PortalRow({
   loading: boolean;
   failed: boolean;
   onRetry: () => void;
-  /** SDMS only: the "Forgot password?" reset going now, or just ended. */
-  sdmsReset?: SdmsResetView | null;
+  /** SDMS and the old SDMS: this login's OTP "Forgot password?" reset going now, or just ended. */
+  otpReset?: SdmsResetView | null;
 }) {
   const t = useT();
   const lang = useLang();
@@ -313,16 +322,25 @@ function PortalRow({
   const [guiding, setGuiding] = React.useState(false);
   // The owner closed the "enter the new password" form a finished reset opened.
   const [resetDismissedAt, setResetDismissedAt] = React.useState<string | null>(null);
-  // SDMS "Forgot password?": opened by this owner, or a reset already going
+  // SDMS / old SDMS "Forgot password?": opened by this owner, or a reset already going
   // (another owner's, or this one's from before). Closing it shows the form again.
+  const otpPortal = portal === 'sdms' || portal === 'sdmsOld' ? portal : null;
   const [forgot, setForgot] = React.useState(false);
+  // The old SDMS: the user ID typed in the form when "Forgot password?" was tapped.
+  const [forgotId, setForgotId] = React.useState('');
   const [closedResetId, setClosedResetId] = React.useState<string | null>(null);
-  const reset = portal === 'sdms' && sdmsReset && sdmsReset.id !== closedResetId ? sdmsReset : null;
-  const resetOpen = portal === 'sdms' && canEdit && (forgot || !!reset);
+  const reset = otpPortal && otpReset && otpReset.id !== closedResetId ? otpReset : null;
+  const resetOpen = !!otpPortal && canEdit && (forgot || !!reset);
   const closeReset = React.useCallback(() => {
     setForgot(false);
-    setClosedResetId(sdmsReset?.id ?? null);
-  }, [sdmsReset?.id]);
+    setForgotId('');
+    setClosedResetId(otpReset?.id ?? null);
+  }, [otpReset?.id]);
+  const openOldReset = (typed: string) => {
+    setChanging(false);
+    setForgotId(typed);
+    setForgot(true);
+  };
   const resetDone = React.useCallback(() => {
     setForgot(false);
     setChanging(false);
@@ -459,8 +477,22 @@ function PortalRow({
         </div>
       ) : null}
 
-      {resetOpen ? (
-        <SdmsResetFlow initial={reset} onClose={closeReset} onDone={resetDone} />
+      {resetOpen && otpPortal ? (
+        <SdmsResetFlow
+          portal={otpPortal}
+          username={forgotId}
+          initial={reset}
+          onClose={closeReset}
+          onDone={resetDone}
+          onEditId={
+            otpPortal === 'sdmsOld'
+              ? () => {
+                  closeReset();
+                  setChanging(true);
+                }
+              : undefined
+          }
+        />
       ) : formOpen ? (
         <>
           <PortalForm
@@ -482,10 +514,15 @@ function PortalRow({
                       setChanging(false);
                       setGuiding(true);
                     }
-                  : undefined
+                  : portal === 'sdmsOld'
+                    ? openOldReset
+                    : undefined
             }
-            // The guided reset types the user ID on the portal's own page, not here.
-            hasSavedId={state.status === 'saved' || canGuide}
+            // The guided reset types the user ID on the portal's own page, not here; the old
+            // SDMS's uses the one the server has when none is typed.
+            hasSavedId={
+              state.status === 'saved' || canGuide || (portal === 'sdmsOld' && !!state.resetPossible)
+            }
           />
           {portal === 'sdms' && state.resetPossible ? (
             <button
@@ -499,6 +536,19 @@ function PortalRow({
             </button>
           ) : null}
         </>
+      ) : null}
+
+      {portal === 'sdmsOld' && canEdit && !formOpen && !resetOpen && state?.status === 'saved' ? (
+        <button
+          type="button"
+          data-no-swipe
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={() => openOldReset('')}
+          className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+        >
+          <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
+          {t('chat.portalForgot')}
+        </button>
       ) : null}
 
       {(canForget || canGuide) && !formOpen && state?.status === 'saved' ? (
@@ -748,7 +798,9 @@ export function PortalLoginBox({ portals }: { portals: readonly PortalId[] }) {
       loading={q.isPending}
       failed={failed}
       onRetry={retry}
-      sdmsReset={portal === 'sdms' ? (view?.sdmsReset ?? null) : null}
+      otpReset={
+        portal === 'sdms' ? (view?.sdmsReset ?? null) : portal === 'sdmsOld' ? (view?.sdmsOldReset ?? null) : null
+      }
     />
   );
   return (

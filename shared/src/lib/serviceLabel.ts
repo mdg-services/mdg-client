@@ -92,6 +92,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    * history reads plainly.
    */
   'sdms-password-reset': { en: 'Forgot SDMS password', hi: 'SDMS पासवर्ड भूल गए' },
+  /** The same for the old SDMS login (IndianOil's "Business Login"), asked only on demand. */
+  'sdms-old-password-reset': { en: 'Forgot old SDMS password', hi: 'पुराने SDMS का पासवर्ड भूल गए' },
 };
 
 /**
@@ -168,10 +170,14 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",
     hi: 'इंडियन ऑयल पुराना SDMS पासवर्ड खत्म कर दे तो नया पासवर्ड, मालिक के फ़ोन पर आए OTP से',
   },
+  'sdms-old-password-reset': {
+    en: "a new password for the old SDMS login (IndianOil's Business Login), set with the OTP from the owner's phone",
+    hi: 'पुराने SDMS लॉगिन (IndianOil का Business Login) का नया पासवर्ड, मालिक के फ़ोन पर आए OTP से',
+  },
 };
 
 /**
  * Services MDG runs for the outlet behind the scenes, that are not part of what
  * the owner takes or pays for: never listed on the dealer's Services page.
  */
-export const BACKGROUND_SERVICE_IDS: readonly string[] = ['sdms-password-reset'];
+export const BACKGROUND_SERVICE_IDS: readonly string[] = ['sdms-password-reset', 'sdms-old-password-reset'];

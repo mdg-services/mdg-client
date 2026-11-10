@@ -5,6 +5,7 @@ import * as React from 'react';
 import { Spinner } from '@/components/ui';
 import {
   invalidatePortalLogins,
+  otpResetOf,
   useAnswerSdmsReset,
   useSdmsReset,
   useStartSdmsReset,
@@ -14,10 +15,14 @@ import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
 import {
-  SDMS_NEW_PASSWORD_RE,
+  newPasswordRuleFor,
+  PORTAL_RESET_TOO_MANY,
+  SDMS_OLD_RESET_NO_USER_ID,
   SDMS_RESET_ALREADY_ANSWERED,
   SDMS_RESET_NO_SAP_CODE,
+  SDMS_RESET_OTHER_GOING,
   SDMS_RESET_OTP_RE,
+  type OtpResetPortal,
   type SdmsResetRetry,
   type SdmsResetView,
 } from '@dk/shared/types';
@@ -30,6 +35,26 @@ const TEXT_BUTTON =
   'flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10';
 const NOTICE_CLASS = 'rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text';
 
+/**
+ * The words that differ between the two portals. The old SDMS (IndianOil's "Business
+ * Login") runs none of the owner's services, has its own registered mobile, and a rule
+ * that asks for a symbol too.
+ */
+const WORDS: Record<OtpResetPortal, Record<'intro' | 'sent' | 'rule' | 'done', MessageKey>> = {
+  sdms: {
+    intro: 'chat.sdmsResetIntro',
+    sent: 'chat.sdmsResetSent',
+    rule: 'chat.sdmsResetRule',
+    done: 'chat.sdmsResetDone',
+  },
+  sdmsOld: {
+    intro: 'chat.sdmsOldResetIntro',
+    sent: 'chat.sdmsOldResetSent',
+    rule: 'chat.sdmsOldResetRule',
+    done: 'chat.sdmsOldResetDone',
+  },
+};
+
 const RETRY_KEY: Record<SdmsResetRetry, MessageKey> = {
   wrong_otp: 'chat.sdmsResetWrongOtp',
   password_used: 'chat.sdmsResetUsed',
@@ -37,9 +62,17 @@ const RETRY_KEY: Record<SdmsResetRetry, MessageKey> = {
 };
 
 /** The words under a start or an answer that did not go through. */
-export function sdmsResetErrorKey(err: unknown, step: 'start' | 'answer'): MessageKey {
+export function sdmsResetErrorKey(
+  err: unknown,
+  step: 'start' | 'answer',
+  portal: OtpResetPortal = 'sdms',
+): MessageKey {
   if (err instanceof ApiError) {
     if (err.status === 409 && err.code === SDMS_RESET_NO_SAP_CODE) return 'chat.sdmsResetNoSap';
+    if (err.status === 409 && err.code === SDMS_OLD_RESET_NO_USER_ID) return 'chat.sdmsOldNeedsId';
+    if (err.status === 409 && err.code === SDMS_RESET_OTHER_GOING) return 'chat.sdmsResetOtherGoing';
+    if (err.status === 409 && err.code === PORTAL_RESET_TOO_MANY) return 'chat.sdmsOldResetTooMany';
+    if (err.status === 400 && step === 'start' && portal === 'sdmsOld') return 'chat.sdmsOldBadId';
     if (err.status === 409 && err.code === SDMS_RESET_ALREADY_ANSWERED) return 'chat.sdmsResetTaken';
     if (err.status === 409) return 'chat.sdmsResetOver';
     if (err.status === 429) return 'chat.portalRateLimited';
@@ -77,11 +110,13 @@ function BusyLine({ text }: { text: string }) {
  * is sent, so a password the portal would refuse never costs the owner the OTP.
  */
 function OtpAndPasswordForm({
+  portal,
   reset,
   pending,
   error,
   onSubmit,
 }: {
+  portal: OtpResetPortal;
   reset: SdmsResetView;
   pending: boolean;
   error: MessageKey | null;
@@ -114,7 +149,7 @@ function OtpAndPasswordForm({
     if (pending) return;
     const code = otp.replace(/\D/g, '');
     if (!SDMS_RESET_OTP_RE.test(code)) return setLocalError('chat.sdmsResetOtpBad');
-    if (!SDMS_NEW_PASSWORD_RE.test(password)) return setLocalError('chat.sdmsResetRuleBad');
+    if (!newPasswordRuleFor(portal).test(password)) return setLocalError('chat.sdmsResetRuleBad');
     if (password !== repeat) return setLocalError('chat.sdmsResetMismatch');
     setLocalError(null);
     if (await onSubmit({ otp: code, password })) {
@@ -135,13 +170,19 @@ function OtpAndPasswordForm({
       className="mt-2 flex flex-col gap-2"
     >
       <p className="text-[13px] leading-snug text-wa-bubble-text">
-        {reset.sentTo ?? t('chat.sdmsResetSent')}
+        {reset.sentTo ?? t(WORDS[portal].sent)}
         {timeLeft ? <span className="block text-wa-meta">{t('chat.sdmsResetTimeLeft', { time: timeLeft })}</span> : null}
       </p>
       {reset.retry ? (
-        <p role="alert" className={NOTICE_CLASS}>
-          {t(RETRY_KEY[reset.retry])}
-        </p>
+        <div role="alert" className={NOTICE_CLASS}>
+          <p>{t(RETRY_KEY[reset.retry])}</p>
+          {/* IndianOil's own words, where it gave any: the old SDMS prints its rule only now. */}
+          {reset.retryWords ? (
+            <p className="mt-0.5 break-words text-[12px] text-wa-meta">
+              {t('chat.portalResetSaid', { words: reset.retryWords })}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       <div>
         <label htmlFor={`${ids}-otp`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
@@ -203,7 +244,7 @@ function OtpAndPasswordForm({
           className={INPUT_CLASS}
         />
       </div>
-      <p className="text-[12px] leading-snug text-wa-meta">{t('chat.sdmsResetRule')}</p>
+      <p className="text-[12px] leading-snug text-wa-meta">{t(WORDS[portal].rule)}</p>
       {shown ? (
         <p role="alert" className={NOTICE_CLASS}>
           {t(shown)}
@@ -228,10 +269,22 @@ function OtpAndPasswordForm({
  * is handed the first one's reset, and the box says who started it.
  */
 export function SdmsResetFlow({
+  portal = 'sdms',
+  username,
   initial,
   onClose,
   onDone,
+  onEditId,
 }: {
+  /**
+   * The old SDMS: back to the row's form to type a different user ID — the way out when
+   * IndianOil did not take the one used (the form is hidden while this flow is open).
+   */
+  onEditId?: () => void;
+  /** Which login: SDMS (default), or the old SDMS. */
+  portal?: OtpResetPortal;
+  /** The old SDMS: the user ID typed in its row, when one was. Empty: the server's own. */
+  username?: string;
   initial: SdmsResetView | null;
   onClose: () => void;
   /** The reset set and saved the new password. */
@@ -244,7 +297,7 @@ export function SdmsResetFlow({
   const [resetId, setResetId] = React.useState<string | null>(initial?.id ?? null);
   const [startError, setStartError] = React.useState<MessageKey | null>(null);
   const [answerError, setAnswerError] = React.useState<MessageKey | null>(null);
-  const start = useStartSdmsReset();
+  const start = useStartSdmsReset(portal);
   const resetQuery = useSdmsReset(resetId, initial);
   const answer = useAnswerSdmsReset(resetId);
   const reset = resetQuery.data ?? null;
@@ -263,16 +316,17 @@ export function SdmsResetFlow({
   const sendOtp = async () => {
     setStartError(null);
     try {
-      const view = await start.mutateAsync();
-      if (view.sdmsReset) {
+      const view = await start.mutateAsync(username || undefined);
+      const started = otpResetOf(view, portal);
+      if (started) {
         finished.current = false;
         setAnswerError(null);
-        setResetId(view.sdmsReset.id);
+        setResetId(started.id);
       } else {
         setStartError('chat.sdmsResetSendFailed');
       }
     } catch (err) {
-      setStartError(sdmsResetErrorKey(err, 'start'));
+      setStartError(sdmsResetErrorKey(err, 'start', portal));
     } finally {
       start.reset();
     }
@@ -284,7 +338,7 @@ export function SdmsResetFlow({
       await answer.mutateAsync(vars);
       return true;
     } catch (err) {
-      setAnswerError(sdmsResetErrorKey(err, 'answer'));
+      setAnswerError(sdmsResetErrorKey(err, 'answer', portal));
       if (err instanceof ApiError && err.status === 409) void refetch();
       return false;
     } finally {
@@ -301,7 +355,7 @@ export function SdmsResetFlow({
   if (!resetId) {
     return (
       <div className="mt-2 flex flex-col gap-2" data-no-swipe onPointerDown={(e) => e.stopPropagation()}>
-        <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.sdmsResetIntro')}</p>
+        <p className="text-[13px] leading-snug text-wa-bubble-text">{t(WORDS[portal].intro)}</p>
         {startError ? (
           <p role="alert" className={NOTICE_CLASS}>
             {t(startError)}
@@ -352,6 +406,11 @@ export function SdmsResetFlow({
       >
         {t('chat.sdmsResetSend')}
       </button>
+      {onEditId ? (
+        <button type="button" onClick={onEditId} className={TEXT_BUTTON}>
+          {t('chat.sdmsOldChangeId')}
+        </button>
+      ) : null}
       <button type="button" onClick={onClose} className={TEXT_BUTTON}>
         {t('common.cancel')}
       </button>
@@ -370,7 +429,13 @@ export function SdmsResetFlow({
       return (
         <>
           {startedByOther ? <p className="mt-2 text-[12px] text-wa-meta">{startedByOther}</p> : null}
-          <OtpAndPasswordForm reset={reset} pending={answer.isPending} error={answerError} onSubmit={submitAnswer} />
+          <OtpAndPasswordForm
+            portal={portal}
+            reset={reset}
+            pending={answer.isPending}
+            error={answerError}
+            onSubmit={submitAnswer}
+          />
         </>
       );
     case 'checking':
@@ -387,7 +452,7 @@ export function SdmsResetFlow({
       return (
         <p role="status" className="mt-2 flex items-start gap-2 text-[14px] font-medium leading-snug">
           <Check width={16} strokeWidth={2.5} className="mt-0.5 shrink-0 text-success" aria-hidden />
-          <span className="min-w-0 break-words">{t('chat.sdmsResetDone')}</span>
+          <span className="min-w-0 break-words">{t(WORDS[portal].done)}</span>
         </p>
       );
     case 'failed':
