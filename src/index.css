@@ -219,6 +219,38 @@
   }
 }
 
+/* A tapped screen on its way: the screen on show stays put (navigation is a
+   React transition) and this 2px bar runs along the top until the next one is
+   drawn. Rendered by NavigationProgress. */
+.nav-progress {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  z-index: 70;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.nav-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  background-color: var(--color-brand);
+  animation: nav-progress 1.1s ease-in-out infinite;
+}
+@keyframes nav-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
 /* Jump-to-quoted-message: a 2s background pulse on the landed-on bubble row.
    Applied imperatively (classList) by MessageList so only that row repaints. */
 .flash-highlight {

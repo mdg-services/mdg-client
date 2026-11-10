@@ -97,6 +97,35 @@ describe('apiFetch', () => {
     }
   });
 
+  it('times out a GET whose headers arrived but whose body stalled', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((_url: string, opts: RequestInit) =>
+          Promise.resolve({
+            ok: true,
+            status: 200,
+            statusText: 'OK',
+            headers: new Headers(),
+            json: () =>
+              new Promise((_resolve, reject) => {
+                opts.signal?.addEventListener('abort', () =>
+                  reject(new DOMException('aborted', 'AbortError')),
+                );
+              }),
+          } as unknown as Response),
+        ),
+      );
+      const promise = api.get('/v1/slow-body');
+      const assertion = expect(promise).rejects.toMatchObject({ code: 'TIMEOUT', status: 0 });
+      await vi.advanceTimersByTimeAsync(20_000);
+      await assertion;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('keeps 20 s for the other payment reads', async () => {
     vi.useFakeTimers();
     try {

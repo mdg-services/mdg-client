@@ -4,6 +4,9 @@ interface Props {
   children: React.ReactNode;
   /** Override the reload action — mainly so tests don't hit window.location. */
   onReload?: () => void;
+  /** When this changes (the app passes the address), a caught error is let go
+   * and the children are drawn again. */
+  resetKey?: string;
 }
 
 /**
@@ -20,6 +23,12 @@ export class ChunkErrorBoundary extends React.Component<
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  componentDidUpdate(prev: Props) {
+    if (this.state.failed && prev.resetKey !== this.props.resetKey) {
+      this.setState({ failed: false });
+    }
   }
 
   componentDidCatch(error: unknown) {

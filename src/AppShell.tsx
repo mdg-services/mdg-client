@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
-import { Spinner } from '@/components/ui';
+import { RouteFallback } from '@/components/RouteFallback';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useDuOtpSocket } from '@/features/chat/useDuOtpSocket';
 import { useOutletSetupSocket } from '@/features/setup/useOutletSetupSocket';
@@ -89,14 +89,11 @@ export function AppShell() {
           inConversation ? 'min-h-0 flex-1 overflow-hidden' : 'flex-1',
         )}
       >
-        {/* The shell stays painted while the next page's chunk streams in. */}
-        <React.Suspense
-          fallback={
-            <div className="flex flex-1 items-center justify-center py-20">
-              <Spinner size={22} />
-            </div>
-          }
-        >
+        {/* Seen only when there is no screen to keep showing (the app
+            opening on a screen). A tap from one screen to another keeps the
+            old one up while the next downloads: navigation is a transition
+            (main.tsx), and NavigationProgress (App.tsx) shows it is coming. */}
+        <React.Suspense fallback={<RouteFallback className="flex-1 py-20" />}>
           <Outlet />
         </React.Suspense>
       </main>

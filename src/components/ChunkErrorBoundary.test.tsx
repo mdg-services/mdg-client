@@ -55,4 +55,26 @@ describe('ChunkErrorBoundary', () => {
       true,
     );
   });
+
+  it('draws the children again when the address changes', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    let explode = true;
+    function MaybeBoom() {
+      if (explode) throw new Error('render bug');
+      return <div>recovered</div>;
+    }
+    const { rerender } = render(
+      <ChunkErrorBoundary onReload={() => {}} resetKey="/staff">
+        <MaybeBoom />
+      </ChunkErrorBoundary>,
+    );
+    expect(screen.getByText(/Something didn.t load/i)).toBeInTheDocument();
+    explode = false;
+    rerender(
+      <ChunkErrorBoundary onReload={() => {}} resetKey="/chat">
+        <MaybeBoom />
+      </ChunkErrorBoundary>,
+    );
+    expect(screen.getByText('recovered')).toBeInTheDocument();
+  });
 });

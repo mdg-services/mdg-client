@@ -2,15 +2,14 @@ import * as React from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
-import { Spinner } from '@/components/ui';
+import { NavigationProgress, RouteFallback } from '@/components/RouteFallback';
 import { firstScreen } from '@/features/auth/firstScreen';
 // Imported, not lazy: it is a redirect a few lines long, and a chunk request
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
 import { EmbedStatus } from '@/features/embed/EmbedStatus';
 import { isEmbedded } from '@/lib/embedMode';
-import { useT } from '@/lib/i18n';
-import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { lazyRoute, preloadScreens } from '@/lib/lazyRoute';
 import { setMonitoringUser } from '@/lib/monitoring';
 import { useAuthStore } from '@/store/auth';
 
@@ -18,104 +17,99 @@ import { useAuthStore } from '@/store/auth';
 // chunk, so the login screen no longer downloads chat/settings/staff — or
 // the socket.io realtime stack that the shell pulls in. Pages use named exports,
 // so remap each to a default export for React.lazy.
-const AppShell = lazyWithRetry(() =>
+const AppShell = lazyRoute(() =>
   import('@/AppShell').then((m) => ({ default: m.AppShell })),
 );
-const LoginPage = lazyWithRetry(() =>
+const LoginPage = lazyRoute(() =>
   import('@/pages/LoginPage').then((m) => ({ default: m.LoginPage })),
 );
-const RegisterPage = lazyWithRetry(() =>
+const RegisterPage = lazyRoute(() =>
   import('@/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
 );
-const ChatListPage = lazyWithRetry(() =>
+const ChatListPage = lazyRoute(() =>
   import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
 );
-const ChatPage = lazyWithRetry(() =>
+const ChatPage = lazyRoute(() =>
   import('@/pages/ChatPage').then((m) => ({ default: m.ChatPage })),
 );
-const ChatMediaPage = lazyWithRetry(() =>
+const ChatMediaPage = lazyRoute(() =>
   import('@/pages/ChatMediaPage').then((m) => ({ default: m.ChatMediaPage })),
 );
-const ChatInfoPage = lazyWithRetry(() =>
+const ChatInfoPage = lazyRoute(() =>
   import('@/pages/ChatInfoPage').then((m) => ({ default: m.ChatInfoPage })),
 );
-const ServicesPage = lazyWithRetry(() =>
+const ServicesPage = lazyRoute(() =>
   import('@/pages/ServicesPage').then((m) => ({ default: m.ServicesPage })),
 );
-const StaffPage = lazyWithRetry(() =>
+const StaffPage = lazyRoute(() =>
   import('@/pages/StaffPage').then((m) => ({ default: m.StaffPage })),
 );
-const SettingsPage = lazyWithRetry(() =>
+const SettingsPage = lazyRoute(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
-const SettingsProfilePage = lazyWithRetry(() =>
+const SettingsProfilePage = lazyRoute(() =>
   import('@/pages/settings/ProfileInfoPage').then((m) => ({ default: m.SettingsProfilePage })),
 );
-const SettingsAccountPage = lazyWithRetry(() =>
+const SettingsAccountPage = lazyRoute(() =>
   import('@/pages/settings/AccountPage').then((m) => ({ default: m.SettingsAccountPage })),
 );
-const SettingsTeamPage = lazyWithRetry(() =>
+const SettingsTeamPage = lazyRoute(() =>
   import('@/pages/settings/TeamPage').then((m) => ({ default: m.SettingsTeamPage })),
 );
 // Settings → Help videos: MDG's short videos, played in the app. Its own chunk.
-const HelpVideosPage = lazyWithRetry(() =>
+const HelpVideosPage = lazyRoute(() =>
   import('@/features/help/HelpVideosPage').then((m) => ({ default: m.HelpVideosPage })),
 );
 // Settings → Autopay: shown and stopped, never started, in the app. Its own chunk.
-const AutopayPage = lazyWithRetry(() =>
+const AutopayPage = lazyRoute(() =>
   import('@/features/autopay/AutopayPage').then((m) => ({ default: m.AutopayPage })),
 );
 // Seen once, by a member who signed in with a temporary password: its own chunk,
 // so nobody else downloads it.
-const ForcedPasswordChange = lazyWithRetry(() =>
+const ForcedPasswordChange = lazyRoute(() =>
   import('@/features/auth/ForcedPasswordChange').then((m) => ({
     default: m.ForcedPasswordChange,
   })),
 );
 // Payments (ADR 0022). Their own chunk, so the Razorpay-facing code and its
 // strings never reach a dealer who does not open the screen.
-const PaymentsPage = lazyWithRetry(() =>
+const PaymentsPage = lazyRoute(() =>
   import('@/features/payments/PaymentsPage').then((m) => ({ default: m.PaymentsPage })),
 );
-const PaymentDetailPage = lazyWithRetry(() =>
+const PaymentDetailPage = lazyRoute(() =>
   import('@/features/payments/PaymentDetailPage').then((m) => ({
     default: m.PaymentDetailPage,
   })),
 );
 
 /**
- * What a screen looks like while its code is coming down the wire.
+ * Bring down the screens a member is likely to open next, once the app is up,
+ * so the tap that opens one needs no download. The chat itself comes first:
+ * it is where nearly every session goes. On a 2G link only the first two.
  *
- * A bare spinner is fine for the second or two this takes on wifi. On a 2G
- * forecourt link the first tap on Settings or Staff could sit here for a
- * minute with nothing but a small grey dot on an empty screen — no words, no way to
- * tell it apart from a broken app, and nothing to press. After six seconds it
- * says what is happening and offers the reload, which is the same escape the
- * chunk-error boundary gives when the download fails outright.
+ * It also shields the session from a release made while the app stays open:
+ * a screen already downloaded keeps working when the server's files change.
  */
-function FullScreenSpinner() {
-  const t = useT();
-  const [slow, setSlow] = React.useState(false);
-  React.useEffect(() => {
-    const id = window.setTimeout(() => setSlow(true), 6000);
-    return () => window.clearTimeout(id);
-  }, []);
-  return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-4 px-8">
-      <Spinner size={22} />
-      {slow ? (
-        <>
-          <p className="text-center text-sm text-text-muted">{t('app.stillLoading')}</p>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
-          >
-            {t('common.retry')}
-          </button>
-        </>
-      ) : null}
-    </div>
+function usePreloadScreens() {
+  React.useEffect(
+    () =>
+      preloadScreens(
+        [
+          ChatPage,
+          SettingsPage,
+          ChatInfoPage,
+          ChatMediaPage,
+          ServicesPage,
+          StaffPage,
+          HelpVideosPage,
+          SettingsProfilePage,
+          SettingsAccountPage,
+          SettingsTeamPage,
+          LoginPage,
+        ],
+        [ChatPage, SettingsPage],
+      ),
+    [],
   );
 }
 
@@ -148,6 +142,11 @@ function ProtectedLayout() {
     return <Navigate to={firstScreen()} replace state={{ from: location.pathname }} />;
   }
   if (mustChangePassword) return <ForcedPasswordChange />;
+  return <SignedInShell />;
+}
+
+function SignedInShell() {
+  usePreloadScreens();
   return <AppShell />;
 }
 
@@ -174,10 +173,14 @@ export function App() {
   // The panel has no Sign in and no Register: both addresses go to the chat, which
   // shows the panel's own status screen until the extension has signed it in.
   const embedded = isEmbedded();
+  const location = useLocation();
 
   return (
-    <ChunkErrorBoundary>
-      <React.Suspense fallback={<FullScreenSpinner />}>
+    // Keyed on the address, so a screen that failed does not keep the whole app
+    // on the error page: Back, or any other screen, draws again.
+    <ChunkErrorBoundary resetKey={location.pathname}>
+      <NavigationProgress />
+      <React.Suspense fallback={<RouteFallback className="min-h-full" />}>
         <Routes>
           <Route
             path="/login"

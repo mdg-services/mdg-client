@@ -39,7 +39,10 @@ if (isEmbedded()) {
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      {/* Every screen change runs as a React transition: the screen on show
+          stays up until the next one's code has arrived, instead of the page
+          going blank behind a small spinner on each first visit. */}
+      <BrowserRouter future={{ v7_startTransition: true }}>
         <ToastProvider>
           <App />
         </ToastProvider>

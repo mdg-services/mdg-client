@@ -156,6 +156,7 @@ export async function apiFetch<T>(
       signal: fetchSignal,
     });
   } catch (err) {
+    if (timeoutId) clearTimeout(timeoutId);
     // A timeout surfaces as a retryable error so react-query's retry kicks in.
     if (timedOut) {
       throw new ApiError(0, 'TIMEOUT', 'Request timed out');
@@ -170,8 +171,6 @@ export async function apiFetch<T>(
       'NETWORK_ERROR',
       err instanceof Error ? err.message : 'Network error',
     );
-  } finally {
-    if (timeoutId) clearTimeout(timeoutId);
   }
 
   // THE ROLLING SESSION. Once a token is an hour old the server hands back a
@@ -186,13 +185,22 @@ export async function apiFetch<T>(
     // A header a browser will not expose is not worth a failed request.
   }
 
+  // The time limit runs until the BODY is read, not just the headers. On a weak
+  // link the headers can arrive and the rest stall; with the timer already
+  // cleared, that read had no end, and the screen's spinner stayed for good.
   let payload: ApiResponse<T> | null = null;
-  if (res.status !== 204) {
-    try {
-      payload = (await res.json()) as ApiResponse<T>;
-    } catch {
-      payload = null;
+  try {
+    if (res.status !== 204) {
+      try {
+        payload = (await res.json()) as ApiResponse<T>;
+      } catch (err) {
+        if (timedOut) throw new ApiError(0, 'TIMEOUT', 'Request timed out');
+        if (signal?.aborted) throw err;
+        payload = null;
+      }
     }
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 
   if (!res.ok) {
