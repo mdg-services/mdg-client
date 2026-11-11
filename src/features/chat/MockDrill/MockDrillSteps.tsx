@@ -113,7 +113,8 @@ function ScenarioStep({ view, busy, onAnswer }: StepProps) {
   const { common, more } = splitScenarios(view.scenarios);
   const dependent = dependentOf(view);
   const current = view.open?.dependent?.scenarioId ?? null;
-  const [listOpen, setListOpen] = React.useState(false);
+  // Nothing picked yet: the list is already open, so the owner sees the choices at once.
+  const [listOpen, setListOpen] = React.useState(current == null);
   const [moreOpen, setMoreOpen] = React.useState(() => more.some((s) => s.id === current));
 
   const pick = (scenarioId: string) => {

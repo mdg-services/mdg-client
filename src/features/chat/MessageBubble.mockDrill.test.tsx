@@ -101,7 +101,7 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
   it("reads the outlet's own view, and draws the words first and the box under them", async () => {
     h.get.mockResolvedValue(makeMockDrillView());
     const { container } = box();
-    await screen.findByRole('button', { name: 'Start' });
+    await screen.findByRole('listbox');
     expect(h.get).toHaveBeenCalledWith(VIEW_PATH);
     const words = screen.getByText('Time to record your mock drill.');
     const inner = container.querySelector('[data-mock-drill]')!;
@@ -111,7 +111,7 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
   it('draws for an empty marker, once, as wide as a request, with its time on its own line', async () => {
     h.get.mockResolvedValue(makeMockDrillView());
     const { container } = box();
-    await screen.findByRole('button', { name: 'Start' });
+    await screen.findByRole('listbox');
     expect(container.querySelectorAll('[data-mock-drill]')).toHaveLength(1);
     expect(container.innerHTML).toContain('w-[min(80%,330px)]');
     expect(container.querySelector('span[aria-hidden].inline-block')).toBeNull();
@@ -121,7 +121,7 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
   it('is its own box: no other box is drawn with it, and no other view asked for', async () => {
     h.get.mockResolvedValue(makeMockDrillView());
     const { container } = box();
-    await screen.findByRole('button', { name: 'Start' });
+    await screen.findByRole('listbox');
     expect(container.querySelector('[data-du-otp]')).toBeNull();
     expect(container.querySelector('[data-portal-login]')).toBeNull();
     expect(h.get).toHaveBeenCalledTimes(1);
@@ -130,18 +130,18 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
   it('draws the LIVE view: when the server moves it, an old box follows', async () => {
     h.get.mockResolvedValueOnce(makeMockDrillView());
     const { queryClient } = box();
-    await screen.findByRole('button', { name: 'Start' });
+    await screen.findByRole('listbox');
     h.get.mockResolvedValue(makeMockDrillView({ screen: 'blocked' }));
     await queryClient.invalidateQueries({ queryKey: mockDrillKey });
     expect(await screen.findByText(/still waiting for approval/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
+    expect(screen.queryByRole('listbox')).toBeNull();
   });
 
   it('works for a manager as it does for an owner', async () => {
     signIn({ role: 'dealer-manager', dealerId: 'd1' });
     h.get.mockResolvedValue(makeMockDrillView());
     box();
-    expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument();
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith(VIEW_PATH);
   });
 
@@ -151,10 +151,10 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
     expect(await screen.findByText("Couldn't check this just now")).toBeInTheDocument();
     h.get.mockResolvedValue(makeMockDrillView());
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByRole('button', { name: 'Start' })).toBeInTheDocument();
+    expect(await screen.findByRole('listbox')).toBeInTheDocument();
   });
 
-  // The whole road once, through the real hooks and the real upload path: Start →
+  // The whole road once, through the real hooks and the real upload path: The list →
   // scenario → two photos → today → Send. Each answer's reply is the whole fresh
   // view, which is what moves the box on; the view is never asked for again.
   it('walks the whole road, one answer per step, and posts exactly what the contract says', async () => {
@@ -166,7 +166,6 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
     const one = { ...chosen, photos: withPhotos(1).photos };
     const two = { ...chosen, photos: withPhotos(2).photos };
     replies = [
-      makeCollecting('scenario'),
       makeCollecting('photos', { dependent: chosen }),
       makeCollecting('photos', { dependent: one }),
       makeCollecting('when', { dependent: two }),
@@ -178,10 +177,9 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
     ];
 
     box();
-    fireEvent.click(await screen.findByRole('button', { name: 'Start' }));
 
-    // Scenario: the list opens in the chat; one tap answers.
-    fireEvent.click(await screen.findByRole('button', { name: 'Choose' }));
+    // Scenario: the list is already open in the chat; one tap answers and starts the report.
+    await screen.findByRole('listbox');
     fireEvent.click(screen.getByRole('option', { name: /Fire during TT decantation/ }));
 
     // Photos: each goes through the presigned upload, then is told to the server.
@@ -189,7 +187,7 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
     fireEvent.change(slotInput(1), {
       target: { files: [new File([new Uint8Array([1, 2, 3])], 'one.jpg', { type: 'image/jpeg' })] },
     });
-    await waitFor(() => expect(answers).toHaveLength(3));
+    await waitFor(() => expect(answers).toHaveLength(2));
     fireEvent.change(slotInput(2), {
       target: { files: [new File([new Uint8Array([4, 5, 6])], 'two.png', { type: 'image/png' })] },
     });
@@ -221,7 +219,6 @@ describe('MessageBubble — a Mock Drill box MDG posted', () => {
     ]);
     expect(h.fetch).toHaveBeenCalledTimes(2);
     expect(answers).toEqual([
-      { step: 'start_new' },
       { step: 'scenario', scenarioId: 'e15' },
       { step: 'photo', slot: 1, key: 'mock-drill/d1/uploads/1', filename: 'one.jpg' },
       { step: 'photo', slot: 2, key: 'mock-drill/d1/uploads/2', filename: 'two.png' },

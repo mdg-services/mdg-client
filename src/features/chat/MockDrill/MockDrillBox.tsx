@@ -158,16 +158,15 @@ function Screen({
         <>
           <ReturnedNotice view={view} />
           <Quiet text={t('chat.mockDrillStartLine')} />
-          <button
-            type="button"
-            disabled={busy}
-            aria-busy={busy}
-            onClick={() => onAnswer({ step: 'start_new' })}
-            className={PRIMARY_BUTTON}
-          >
-            {busy ? <Spinner size={16} /> : null}
-            {t('chat.mockDrillStart')}
-          </button>
+          {/* The list is the first thing the owner sees: picking from it starts the report. */}
+          <CollectingStep
+            step="scenario"
+            view={view}
+            busy={busy}
+            uploadingSlot={uploadingSlot}
+            onAnswer={onAnswer}
+            onPhoto={onPhoto}
+          />
         </>
       );
 

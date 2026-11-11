@@ -86,13 +86,15 @@ describe('MockDrillBox — the screens before anything is open', () => {
     expect(h.view.refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('start: one friendly line and one button that begins a new drill', async () => {
+  it('start: one friendly line and the list of emergencies already open; one tap starts the report', async () => {
     show(makeMockDrillView({ screen: 'start' }));
     box();
     expect(screen.getByText(/Did you do a mock drill\?/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    expect(screen.queryByRole('button', { name: 'Start' })).toBeNull();
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('option', { name: /Electrical Fire in DU/ }));
     await waitFor(() => expect(h.answer.mutateAsync).toHaveBeenCalledTimes(1));
-    expect(lastBody()).toEqual({ step: 'start_new' });
+    expect(lastBody()).toEqual({ step: 'scenario', scenarioId: 'e18' });
   });
 
   it('start: says what IndianOil sent back, when it sent the last report back', () => {
@@ -153,9 +155,7 @@ describe('MockDrillBox — the scenario step', () => {
     show(makeCollecting('scenario'));
     box();
     expect(screen.getByText('Which emergency did you practise?')).toBeInTheDocument();
-    expect(screen.queryByRole('option')).toBeNull();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Choose' }));
+    // Nothing picked yet: the list is already open.
     const options = screen.getAllByRole('option').map((o) => o.textContent);
     expect(options[0]).toBe('Electrical Fire in DU');
     expect(options).toContain('Fall from height');
@@ -170,13 +170,11 @@ describe('MockDrillBox — the scenario step', () => {
   it("shows the portal's English label alone in English, with a Hindi gloss under it in Hindi", () => {
     show(makeCollecting('scenario'));
     const { unmount } = box();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose' }));
     expect(screen.queryByText('DU में बिजली से आग')).toBeNull();
     unmount();
 
     useLangStore.setState({ lang: 'hi', explicit: false });
     box();
-    fireEvent.click(screen.getByRole('button', { name: 'चुनिए' }));
     const option = screen.getByRole('option', { name: /Electrical Fire in DU/ });
     expect(within(option).getByText('Electrical Fire in DU')).toBeInTheDocument();
     expect(within(option).getByText('DU में बिजली से आग')).toBeInTheDocument();
@@ -186,7 +184,6 @@ describe('MockDrillBox — the scenario step', () => {
     useLangStore.setState({ lang: 'hi', explicit: false });
     show(makeCollecting('scenario'));
     box();
-    fireEvent.click(screen.getByRole('button', { name: 'चुनिए' }));
     fireEvent.click(screen.getByRole('button', { name: 'और विकल्प' }));
     const option = screen.getByRole('option', { name: /BLEVE/ });
     expect(option.querySelectorAll('span.block')).toHaveLength(1);
@@ -195,7 +192,6 @@ describe('MockDrillBox — the scenario step', () => {
   it('picking one posts the scenario id, from a 44px row', async () => {
     show(makeCollecting('scenario'));
     box();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose' }));
     const row = screen.getByRole('option', { name: /Fire during TT decantation/ });
     expect(row.className).toContain('min-h-11');
     fireEvent.click(row);
@@ -206,7 +202,6 @@ describe('MockDrillBox — the scenario step', () => {
   it('can pick one of the "more options" too', async () => {
     show(makeCollecting('scenario'));
     box();
-    fireEvent.click(screen.getByRole('button', { name: 'Choose' }));
     fireEvent.click(screen.getByRole('button', { name: 'More options' }));
     fireEvent.click(screen.getByRole('option', { name: /Pinhole leakage from Piping/ }));
     await waitFor(() => expect(h.answer.mutateAsync).toHaveBeenCalledTimes(1));
