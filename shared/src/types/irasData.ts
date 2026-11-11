@@ -138,6 +138,34 @@ export interface IrasDataSnapshot {
   shift: IrasShiftAnchor;
   /** Keyed by report code so a consumer can ask for exactly what it needs. */
   datasets: Partial<Record<IrasReportCode, IrasDataset>>;
+  /**
+   * Which portal wrote the rows; see {@link SNAPSHOT_PROVIDERS}. Absent on every
+   * document written before BPCL outlets existed — read a missing value as
+   * `IRAS`. The rows are in IRAS's shape whichever portal they came from, so
+   * nothing downstream of the snapshot needs to ask; this is for the Vault and
+   * the checks that only make sense for one portal.
+   */
+  provider?: SnapshotProvider;
+  /**
+   * Testing litres the PORTAL recorded for the day, per product. Only BPCL's
+   * IoT portal records them; an IRAS day leaves this absent and the DSR applies
+   * its per-pump testing rule. Read by the DSR only when the outlet's config
+   * says `testingSource: 'SNAPSHOT'`.
+   */
+  recordedTesting?: SnapshotRecordedTesting[] | null;
+  /**
+   * What the collector noticed about the day that a person should look at — a
+   * tank gauge still moving after the close, a tanker that delivered short, a
+   * meter that did not chain from yesterday. They NEVER change `status`: a
+   * PARTIAL day blocks the DSR, and none of these makes the figures unusable.
+   * Empty or absent on a clean day.
+   */
+  checks?: SnapshotCheck[] | null;
+  /**
+   * The portal's OWN totals for the same window (BPCL's Sales page), kept only
+   * to compare with our report after it is made. Never an input to any figure.
+   */
+  providerReference?: SnapshotProviderReference | null;
   /** Present when `status !== 'COMPLETE'`; plain language, no stack traces. */
   failureReason?: string | null;
   /** Machine-readable failure category, for dashboards and alerting. */
@@ -466,6 +494,165 @@ export interface IrasDayEditorView {
  * Vault list row — a snapshot without its (potentially large) row payloads, so
  * the cross-dealer list stays small. Row data is fetched on drill-in.
  */
+/**
+ * The portal a snapshot's rows came from. `IRAS` is Indian Oil's; `BPCL_IOT` is
+ * BPCL's IoT automation portal (iothos.bpcl.in), whose Sales page is mapped into
+ * the same TOT / STK / REC rows.
+ */
+export const SNAPSHOT_PROVIDERS = ['IRAS', 'BPCL_IOT'] as const;
+export type SnapshotProvider = (typeof SNAPSHOT_PROVIDERS)[number];
+
+/** One product's portal-recorded testing for the day; see {@link IrasDataSnapshot.recordedTesting}. */
+export interface SnapshotRecordedTesting {
+  /** The product code exactly as the rows carry it in `PRODCODE` (BPCL: `HSD`, `EBMS`, `SPEED`). */
+  prodCode: string;
+  /** Litres pumped for the 5-litre measure checks and poured back. */
+  testingLitres: number;
+  /** Litres of 2T oil mix dispensed through the meters; taken off sales the same way. 0 where none. */
+  twoTOilLitres: number;
+}
+
+/**
+ * The kinds of thing a collector flags on a day; see {@link IrasDataSnapshot.checks}.
+ *
+ * - `METER_CHAIN`: a nozzle's opening today is not yesterday's stored closing.
+ * - `METER_BACKWARDS`: a nozzle's closing is below its opening.
+ * - `GAUGE_MOVING`: a tank moved over 50 L in the 10 minutes after the close
+ *   while under 10 L of its product was sold — a lagging or faulty gauge, or,
+ *   when a tanker was still decanting into it at the close, that tanker (the
+ *   message says which). Severity `INFO`: a note in the Data Vault, never a team
+ *   alert, because it changes no figure.
+ * - `SHORT_DELIVERY`: a tank rose by more than 2% less (or more) than the
+ *   tanker's invoice.
+ * - `DECANT_MISMATCH`: the decant list's invoice litres for a tank do not add up
+ *   to the Sales page's; the Sales page's figure was used.
+ * - `INFERRED_DELIVERY`: BPCL's portal recorded a delivery it worked out from
+ *   the tank's own rise, with no tanker invoice behind it. Alone, it is counted
+ *   (a tanker came and nobody keyed its invoice); on top of an invoiced tanker
+ *   into the same tank at the same time, it is the same fuel counted twice and is
+ *   left out — while BPCL's own Sales page still counts it.
+ * - `TANK_STILL`: a product sold over 100 L but its tanks moved under 5 L.
+ * - `LAYOUT_MISSING`: a configured nozzle or tank is not in the portal's answer.
+ * - `LAYOUT_NEW`: the portal names a nozzle or tank the setup does not have.
+ */
+export const SNAPSHOT_CHECK_CODES = [
+  'METER_CHAIN',
+  'METER_BACKWARDS',
+  'GAUGE_MOVING',
+  'SHORT_DELIVERY',
+  'DECANT_MISMATCH',
+  'INFERRED_DELIVERY',
+  'TANK_STILL',
+  'LAYOUT_MISSING',
+  'LAYOUT_NEW',
+] as const;
+export type SnapshotCheckCode = (typeof SNAPSHOT_CHECK_CODES)[number];
+
+/** One thing a collector flagged on a day. */
+export interface SnapshotCheck {
+  code: SnapshotCheckCode;
+  /** `WARN` wants a person's eye before the report goes out; `INFO` is for the record. */
+  severity: 'WARN' | 'INFO';
+  /** One plain sentence with the real figures, for the Vault and the team alert. */
+  message: string;
+  tankNo?: number | null;
+  nozzleNo?: number | null;
+  prodCode?: string | null;
+  /** The size of the thing flagged (litres), when it has one. */
+  litres?: number | null;
+}
+
+/**
+ * The portal's own day totals per product, for the comparison only. Each is
+ * either a figure the portal printed or one worked from its raw fields the way
+ * its page works it, as noted.
+ */
+export interface SnapshotProviderReferenceProduct {
+  prodCode: string;
+  /** NET NOZZLE SALE (M): Σ(current − previous totaliser) over the product's nozzles. */
+  meterSaleLitres: number;
+  /** TESTING (O) + 2T OIL (N). */
+  testingLitres: number;
+  /** NET TRANSACTION SALE: counted from transactions, not meters. Shown, never compared strictly. */
+  transactionSaleLitres: number | null;
+  /** TANK OPENING STOCK (A): the first gauge reading AFTER the open — not yesterday's closing. */
+  tankOpeningLitres: number | null;
+  /** INVOICE RECEIPT VOLUME (B). */
+  receiptLitres: number;
+  /** Closing stock (C), the same reading our STK rows carry. */
+  tankClosingLitres: number | null;
+  /** TOTAL SALE BASED ON TANK: A + B − C. */
+  tankSaleLitres: number | null;
+  /** DIFFERENCE: (M − O) − (A + B − C). Negative is short. */
+  differenceLitres: number | null;
+  /** Rupees the portal totals for the product, when it gives them. */
+  amount: number | null;
+}
+
+/** See {@link IrasDataSnapshot.providerReference}. */
+export interface SnapshotProviderReference {
+  provider: SnapshotProvider;
+  /** The window the figures cover, ISO-8601. */
+  window: { from: string; to: string };
+  products: SnapshotProviderReferenceProduct[];
+}
+
+/**
+ * One line of the comparison between our report and the portal's own page
+ * for the same day — see {@link ProviderCrossCheck}.
+ *
+ * - `METER_SALE`: litres sold by the meters, before testing. Must agree.
+ * - `TESTING`: testing + 2T oil. Must agree.
+ * - `RECEIPT`: tanker litres. Must agree.
+ * - `DAY_DIFFERENCE`: the day's stock difference. Ours starts from yesterday's
+ *   closing stock and BPCL's from its first gauge reading after the open, so the
+ *   two differ by exactly that opening gap; the line agrees when what is left
+ *   after allowing for it is within tolerance.
+ */
+export const PROVIDER_CROSS_CHECK_ITEMS = [
+  'METER_SALE',
+  'TESTING',
+  'RECEIPT',
+  'DAY_DIFFERENCE',
+] as const;
+export type ProviderCrossCheckItem = (typeof PROVIDER_CROSS_CHECK_ITEMS)[number];
+
+export interface ProviderCrossCheckLine {
+  item: ProviderCrossCheckItem;
+  /** The DSR product key (`HSD`, `MS`, `SPEED`). */
+  productKey: string;
+  ours: number | null;
+  theirs: number | null;
+  /** `ours − theirs`, after any allowance the item explains in `note`. */
+  gap: number | null;
+  /** Litres the gap may be either way: 1 L or 0.1%, whichever is larger. */
+  tolerance: number;
+  agrees: boolean;
+  /** One plain sentence, with the figures. */
+  note: string;
+}
+
+/**
+ * Our report for a day checked against the portal's own page for the same day.
+ * Worked after the report exists, from the report and the stored
+ * {@link SnapshotProviderReference}; it never changes a figure on the report.
+ *
+ * The report for business day R covers the window that ends at the close ON
+ * R + 1, which is the window snapshot R + 1 was collected for — so its
+ * reference figures are snapshot R + 1's, not snapshot R's.
+ */
+export interface ProviderCrossCheck {
+  dealerId: string;
+  /** The report's business day. */
+  businessDate: string;
+  provider: SnapshotProvider;
+  /** False when any line disagrees. */
+  agrees: boolean;
+  lines: ProviderCrossCheckLine[];
+  /** Why there is nothing to compare, when there is not (no reference stored, no report yet). */
+  unavailableReason?: string | null;
+}
+
 export interface IrasDataSnapshotSummary {
   id: string;
   dealerId: string;
@@ -476,6 +663,10 @@ export interface IrasDataSnapshotSummary {
   status: IrasSnapshotStatus;
   /** See {@link IrasDataSnapshot.source}; a missing value means `PORTAL`. */
   source?: IrasSnapshotSource;
+  /** See {@link IrasDataSnapshot.provider}; a missing value means `IRAS`. */
+  provider?: SnapshotProvider;
+  /** How many `WARN` checks the day carries; see {@link IrasDataSnapshot.checks}. */
+  checkWarnings?: number;
   selectedShiftTime: string;
   failureReason?: string | null;
   /**

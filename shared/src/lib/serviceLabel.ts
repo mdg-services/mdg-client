@@ -62,6 +62,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'inspection-reports': { en: 'Inspection Reports', hi: 'इंस्पेक्शन रिपोर्ट' },
   /** IRAS is the portal WE log into. What the dealer recognises is the shift's readings coming off their own pumps. */
   'iras-shift-data': { en: 'IRAS shift data', hi: 'शिफ्ट की रीडिंग' },
+  /** BPCL's IoT portal is the portal WE read; the dealer recognises the day's readings off their own pumps, as for IRAS. */
+  'bpcl-iot-data': { en: 'BPCL day readings', hi: 'दिन की रीडिंग' },
   /** The book on the desk, per docs/specs/tt-density-ux.md §2. */
   'tt-density': { en: 'TT Density', hi: 'डेंसिटी रजिस्टर' },
   /** "Ingress" is an inspection form's word. The dealer's word is water in the tank. */
@@ -153,6 +155,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'iras-shift-data': {
     en: 'the readings of every shift, which the daily sales report is built from',
     hi: 'हर शिफ्ट की रीडिंग, जिससे रोज़ की बिक्री रिपोर्ट बनती है',
+  },
+  'bpcl-iot-data': {
+    en: "the day's meter and tank readings, which the daily sales report is built from",
+    hi: 'दिन की मीटर और टैंक की रीडिंग, जिससे रोज़ की बिक्री रिपोर्ट बनती है',
   },
   'custom-request': {
     en: 'any other piece of work the owner asks MDG for',

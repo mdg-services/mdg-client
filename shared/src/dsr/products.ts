@@ -111,6 +111,32 @@ const CATALOG: Record<string, Omit<DsrProductProfile, 'prodCode' | 'provisional'
     family: 'DIESEL',
     leakagePct: DSR_LEAKAGE_PCT_BY_FAMILY.DIESEL,
   },
+  // BPCL's codes, as its IoT portal's Sales page names them (seen Oct 2026).
+  // HSD is diesel; EBMS is its ethanol-blended petrol, MS on every
+  // other report; SPEED is its branded petrol, carrying the petrol allowance as
+  // BPCL's own page applies it (0.75% on 27 Oct). They key apart from Indian
+  // Oil's codes above because an outlet only ever carries one company's set.
+  HSD: {
+    key: 'HSD',
+    labelEn: 'HIGH SPEED DIESEL',
+    labelHi: 'हाई स्पीड डीजल',
+    family: 'DIESEL',
+    leakagePct: DSR_LEAKAGE_PCT_BY_FAMILY.DIESEL,
+  },
+  EBMS: {
+    key: 'MS',
+    labelEn: 'MOTOR SPIRIT',
+    labelHi: 'मोटर स्पिरीट',
+    family: 'PETROL',
+    leakagePct: DSR_LEAKAGE_PCT_BY_FAMILY.PETROL,
+  },
+  SPEED: {
+    key: 'SPEED',
+    labelEn: 'SPEED',
+    labelHi: 'स्पीड',
+    family: 'PETROL',
+    leakagePct: DSR_LEAKAGE_PCT_BY_FAMILY.PETROL,
+  },
 };
 
 /** Every product code this table knows, for display and validation. */

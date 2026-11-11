@@ -177,6 +177,14 @@ export interface ServicePlugin {
    * while existing attachments are never disturbed.
    */
   dependsOn?: string[];
+  /**
+   * Groups of service ids where AT LEAST ONE of each group must already be
+   * attached — the "any of" form of {@link dependsOn}, for a service that can be
+   * fed by more than one collector. The DSR reads its day data from Indian Oil's
+   * IRAS or from BPCL's IoT portal, whichever the outlet has:
+   * `[['iras-shift-data', 'bpcl-iot-data']]`. Enforced where `dependsOn` is.
+   */
+  dependsOnAnyOf?: string[][];
   run(ctx: ServiceRunContext): Promise<ServiceRunResult>;
 }
 
@@ -193,4 +201,6 @@ export interface ServicePluginCatalogEntry {
   defaultConfigSchema: Record<string, unknown>;
   /** Prerequisite service ids that must be attached first; see {@link ServicePlugin.dependsOn}. */
   dependsOn?: string[];
+  /** "At least one of each group" prerequisites; see {@link ServicePlugin.dependsOnAnyOf}. */
+  dependsOnAnyOf?: string[][];
 }

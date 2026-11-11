@@ -280,10 +280,25 @@ export interface DsrVariationSummary {
     actualDipStock: number;
     /** `totalStockSinceInspection − actualDipStock`. */
     dipSales: number;
-    /** Leakage allowance = afterTesting × leakage%. */
+    /** Leakage allowance = afterTesting × leakage% (or the two tiers' sum; see below). */
     leakage: number;
     /** Base band = actualDipStock × permissible%. */
     permissible: number;
+    /**
+     * Present only when the product uses {@link DsrLossTiers}: the litres the
+     * first rate applied to, the threshold they were capped at, and each tier's
+     * allowance (`leakage` = `leakageTier1` + `leakageTier2`). A renderer prints
+     * the two rates from these instead of one blended percent.
+     */
+    lossTiers?: {
+      firstPct: number;
+      restPct: number;
+      /** `annualThresholdLitres ÷ 365 × days`. */
+      thresholdLitres: number;
+      days: number;
+      leakageTier1: number;
+      leakageTier2: number;
+    };
   };
 }
 
@@ -530,6 +545,13 @@ export interface DsrProductConfig {
   addedNozzles?: Record<string, DsrAddedNozzle>;
   /** Evaporation/leakage allowance as a percent of throughput, e.g. 0.25. */
   leakagePct: number;
+  /**
+   * The MDG 2024 §5.1.11 two-tier loss allowance — see {@link DsrLossTiers}.
+   * Absent = the flat {@link leakagePct} on every litre, which is what every
+   * Indian Oil outlet's book does and must keep doing: switching it on moves
+   * their variation sheet. Set for BPCL outlets, whose own page applies the tiers.
+   */
+  lossTiers?: DsrLossTiers;
   /** Permissible band as a percent of current stock, e.g. 4. */
   permissiblePct: number;
   /**
@@ -585,10 +607,56 @@ export interface DsrProductConfig {
  */
 export type DsrReceiptBasis = 'DECANTED' | 'INVOICE';
 
+/**
+ * The loss allowance in two tiers, as MDG 2024 §5.1.11 words it: MS 0.75% on
+ * the quantity sold up to an annual average of 600 KL and 0.60% beyond; HSD
+ * 0.25% and 0.20%.
+ *
+ * The annual threshold is spread per day (600,000 ÷ 365 = 1,643.84 L) and
+ * multiplied by the days the variation covers — the days since the inspection,
+ * `daysBetweenIsoDays(sinceDate, businessDate)`, at least 1 — because our
+ * variation is measured from the inspection, not over one day. On a one-day
+ * span this is exactly what BPCL's own Sales page prints: 7,000 L of diesel in a
+ * day → 1,643.84 × 0.25% + 5,356.16 × 0.20% = 4.11 + 10.71.
+ *
+ * The base is the same litres the flat rule uses (meter sales after testing).
+ * BPCL's page uses meter sales BEFORE testing; on a day with 2 L of testing the
+ * two differ by about 0.01 L.
+ */
+export interface DsrLossTiers {
+  /** Percent on the litres up to the threshold, e.g. 0.25 (HSD) or 0.75 (MS). */
+  firstPct: number;
+  /** Percent on the litres beyond it, e.g. 0.20 (HSD) or 0.60 (MS). */
+  restPct: number;
+  /** The yearly threshold in litres; MDG's 600 KL. */
+  annualThresholdLitres: number;
+}
+
+/** The MDG 2024 tiers per fuel family, and the threshold, for a set-up to copy. */
+export const DSR_MDG_LOSS_TIERS = {
+  DIESEL: { firstPct: 0.25, restPct: 0.2, annualThresholdLitres: 600_000 },
+  PETROL: { firstPct: 0.75, restPct: 0.6, annualThresholdLitres: 600_000 },
+} as const satisfies Record<string, DsrLossTiers>;
+
+/**
+ * Where a day's testing litres come from.
+ *
+ * `RULE` (the default, and every Indian Oil outlet): a fixed litres per pump
+ * that moved, as the dealer's own book charges it.
+ *
+ * `SNAPSHOT`: the litres the portal recorded for the day
+ * (`IrasDataSnapshot.recordedTesting`, testing plus 2T oil, summed over the
+ * product's `prodCodes`). Only BPCL's IoT portal records them. A day whose
+ * snapshot has no figure for the product falls back to the rule, and says so.
+ */
+export type DsrTestingSource = 'RULE' | 'SNAPSHOT';
+
 /** Per-dealer DSR configuration (stored on the DealerService `config`). */
 export interface DsrConfig {
   /** Which delivery figure feeds the reconciliation; see {@link DsrReceiptBasis}. */
   receiptBasis?: DsrReceiptBasis;
+  /** Where testing litres come from; see {@link DsrTestingSource}. Absent = `RULE`. */
+  testingSource?: DsrTestingSource;
   /** Last physical inspection date the variation is measured from, `YYYY-MM-DD`. */
   sinceDate: string;
   /** Litres of testing recorded per pump that moved during the day. */

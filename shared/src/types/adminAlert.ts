@@ -34,6 +34,12 @@ export const ADMIN_ALERT_KINDS = [
   'report_held',
   /** An outlet's RO supply status reads blocked. */
   'supply_blocked',
+  /**
+   * A BPCL outlet's day readings need a person's eye before its report goes out:
+   * a tank gauge still moving after the close, a tanker that delivered short, a
+   * meter that did not chain, or our figures and BPCL's own page disagreeing.
+   */
+  'bpcl_data_check',
   /** Ledger Watch found a charge that is not routine buying and paying. */
   'ledger_charge',
   /** A dealer holds a report or credit card that has since been corrected. */
@@ -181,6 +187,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   report_held: {
     label: 'Report held back',
     clearsWhen: 'Clears when the report passes, is released by hand, or is sent.',
+    superAdminOnly: false,
+  },
+  bpcl_data_check: {
+    label: 'BPCL readings to check',
+    clearsWhen: 'Clears when the day is corrected, or after the next day reads clean.',
     superAdminOnly: false,
   },
   supply_blocked: {

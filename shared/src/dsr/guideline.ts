@@ -25,7 +25,10 @@
  *
  * The engine (see `compute.ts`) applies the rates the dealer's config carries,
  * and adds the evaporation allowance to the band only when the variation is
- * negative — an excess cannot be explained away by evaporation.
+ * negative — an excess cannot be explained away by evaporation. A product on
+ * `lossTiers` (BPCL outlets) gets both tiers of the clause, the first rate up to
+ * the 600 KL yearly figure spread over the days since the inspection and the
+ * second beyond it; every other product keeps the one flat rate.
  */
 import type { DsrVariationSummary } from '../types/dsrReport';
 
@@ -48,6 +51,34 @@ export interface BandParts {
    * allowed band legitimately shrinks when stock is over rather than short.
    */
   leakageApplies: boolean;
+  /**
+   * Present only when the product's allowance was worked out in two tiers (its
+   * breakdown carries `lossTiers`). `leakagePct` above is then a BLENDED rate —
+   * the whole allowance over all the litres, say 0.22% — that matches neither of
+   * the clause's two rates, so a screen that wants to say where the litres came
+   * from reads these instead. Absent for every flat-rate product.
+   */
+  tiers?: BandTiers;
+}
+
+/** The two tiers of the loss allowance, as the report's own figures recover them. */
+export interface BandTiers {
+  /** Percent on the litres up to the threshold, e.g. 0.25. */
+  firstPct: number;
+  /** Percent on the litres beyond it, e.g. 0.20. */
+  restPct: number;
+  /** The litres the first rate covers over this span: the yearly figure ÷ 365 × days. */
+  thresholdLitres: number;
+  /** Days of sales the threshold was scaled by (at least 1). */
+  days: number;
+  /** The litres the first rate was applied to — the sales, up to the threshold. */
+  tier1Litres: number;
+  /** The litres the second rate was applied to — the sales beyond the threshold, else 0. */
+  tier2Litres: number;
+  /** The first tier's allowance, in litres. */
+  leakageTier1: number;
+  /** The second tier's allowance, in litres. */
+  leakageTier2: number;
 }
 
 /**
@@ -62,13 +93,32 @@ export interface BandParts {
  */
 export function bandParts(v: DsrVariationSummary): BandParts {
   const b = v.breakdown;
-  return {
+  const parts: BandParts = {
     stockPct: b.actualDipStock ? (b.permissible / b.actualDipStock) * 100 : null,
     stockLitres: b.permissible,
     leakagePct: b.afterTesting ? (b.leakage / b.afterTesting) * 100 : null,
     leakageLitres: b.leakage,
     leakageApplies: v.variation < 0,
   };
+  const t = b.lossTiers;
+  if (t) {
+    // The litres each rate saw, recovered from the sales and the threshold the
+    // engine stored: the first rate takes the sales up to the threshold, the
+    // second takes what is beyond it. A zero or negative base has nothing to
+    // split — the engine charges all of it at the first rate — and so does this.
+    const sold = b.afterTesting;
+    parts.tiers = {
+      firstPct: t.firstPct,
+      restPct: t.restPct,
+      thresholdLitres: t.thresholdLitres,
+      days: t.days,
+      tier1Litres: sold > 0 ? Math.min(sold, t.thresholdLitres) : sold,
+      tier2Litres: sold > 0 ? Math.max(sold - t.thresholdLitres, 0) : 0,
+      leakageTier1: t.leakageTier1,
+      leakageTier2: t.leakageTier2,
+    };
+  }
+  return parts;
 }
 
 /** What the guideline does about a variation outside the band. */
