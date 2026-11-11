@@ -88,6 +88,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    * from the sales officer; "पावती" says what MDG does with it.
    */
   'du-otp-acknowledgement': { en: 'DU OTP acknowledgement', hi: 'DU OTP की पावती' },
+  /** The portal's own name for it, and the one the sales officer uses. */
+  'mock-drill': { en: 'Mock drill report', hi: 'मॉक ड्रिल रिपोर्ट' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -171,6 +173,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'du-otp-acknowledgement': {
     en: "IndianOil's DU OTP acknowledgements, spotted and filed for the owner so supply is not stopped",
     hi: 'इंडियन ऑयल पोर्टल पर DU OTP की पावती — समय पर पकड़ना और मालिक की ओर से जमा करना, ताकि सप्लाई न रुके',
+  },
+  'mock-drill': {
+    en: "the emergency mock drill report filed on IndianOil's portal for the owner, from two photos and the kind of emergency practised",
+    hi: 'आपातकालीन मॉक ड्रिल की रिपोर्ट, दो फ़ोटो और ड्रिल के प्रकार से इंडियन ऑयल पोर्टल पर मालिक की ओर से जमा',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

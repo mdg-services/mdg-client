@@ -114,6 +114,8 @@ export const ADMIN_ALERT_KINDS = [
   'calibration_claim',
   /** A DU OTP event waits on IndianOil's portal to be acknowledged, or MDG's submit of one failed. */
   'du_otp_ack',
+  /** An outlet's mock drill report needs a person (photos to check), or IndianOil refused it. */
+  'mock_drill',
   // ── A dealer we served before the app signs in to it for the first time ──
   'old_outlet_joined',
   // ── Khata Kavach ──
@@ -386,6 +388,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   du_otp_ack: {
     label: 'DU OTP acknowledgement pending',
     clearsWhen: 'Clears when IndianOil has the acknowledgement, or the event leaves the portal’s list.',
+    superAdminOnly: false,
+  },
+  mock_drill: {
+    label: 'Mock drill needs you',
+    clearsWhen: 'Clears when the photos are checked and the report is filed, or the drill is cancelled.',
     superAdminOnly: false,
   },
   old_outlet_joined: {

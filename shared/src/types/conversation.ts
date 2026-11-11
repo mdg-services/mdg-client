@@ -3,6 +3,7 @@ import type { MessageAsk } from './chatAsk';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
+import type { MessageMockDrill } from './mockDrill';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -341,6 +342,13 @@ export interface Message {
    * state now. See `duOtpAck.ts`.
    */
   duOtpAck?: MessageDuOtpAck;
+  /**
+   * Set on an MDG message that carries the Mock Drill box (ADR 0034): the owner
+   * picks which emergency was practised, sends two photos and says which day;
+   * the app draws it from `GET /me/mock-drill` — the outlet's state NOW. See
+   * `mockDrill.ts`.
+   */
+  mockDrill?: MessageMockDrill;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

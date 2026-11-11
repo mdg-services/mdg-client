@@ -28,4 +28,5 @@ export * from './autopay';
 export * from './lead';
 export * from './calibrationClaim';
 export * from './duOtpAck';
+export * from './mockDrill';
 export * from './extension';

@@ -1713,6 +1713,105 @@ export const messages = {
     hi: 'यह फ़ाइल 10 MB से बड़ी है। छोटी फ़ाइल चुनिए।',
   },
 
+  // The Mock Drill box (ADR 0034). The owner tells us which emergency was
+  // practised, sends two photos and says which day it was; the long form on
+  // IndianOil's website is filled in by MDG. "इंडियन ऑयल की वेबसाइट" is how the owner
+  // says the portal. Tapping "today"/"yesterday" is the owner's word that the drill
+  // really happened, and the line above those buttons says so.
+  'chat.mockDrillTitle': { en: 'Mock drill report', hi: 'मॉक ड्रिल रिपोर्ट' },
+  'chat.mockDrillOff': {
+    en: 'Mock drill reports are not switched on for your pump.',
+    hi: 'आपके पंप पर मॉक ड्रिल रिपोर्ट अभी चालू नहीं है।',
+  },
+  'chat.mockDrillStartLine': {
+    en: 'Did you do a mock drill? We fill in the long form on the IndianOil website. You only tell us which drill it was and send two photos.',
+    hi: 'क्या आपने मॉक ड्रिल की? इंडियन ऑयल की वेबसाइट का लंबा फ़ॉर्म हम भर देंगे। आप बस बताइए कौन-सी ड्रिल थी और दो फ़ोटो भेजिए।',
+  },
+  'chat.mockDrillStart': { en: 'Start', hi: 'शुरू करें' },
+  'chat.mockDrillChooseTitle': { en: 'Which drill was it this time?', hi: 'इस बार कौन-सी ड्रिल थी?' },
+  'chat.mockDrillSame': { en: 'Same as last time', hi: 'पिछली बार जैसा' },
+  'chat.mockDrillNew': { en: 'A new kind of drill', hi: 'नई तरह की ड्रिल' },
+  'chat.mockDrillStepScenario': {
+    en: 'Which emergency did you practise?',
+    hi: 'आपने किस तरह की इमरजेंसी की ड्रिल की?',
+  },
+  'chat.mockDrillStepPhotos': { en: 'Two photos of the drill', hi: 'ड्रिल की दो फ़ोटो' },
+  'chat.mockDrillStepWhen': { en: 'Which day was the drill?', hi: 'ड्रिल किस दिन की थी?' },
+  'chat.mockDrillStepReview': { en: 'Check and send', hi: 'देखिए और भेजिए' },
+  'chat.mockDrillPick': { en: 'Choose', hi: 'चुनिए' },
+  'chat.mockDrillListLabel': { en: 'Kinds of emergency', hi: 'इमरजेंसी के प्रकार' },
+  'chat.mockDrillMore': { en: 'More options', hi: 'और विकल्प' },
+  'chat.mockDrillFewer': { en: 'Fewer options', hi: 'कम विकल्प' },
+  'chat.mockDrillPhotosHint': {
+    en: 'Photos taken during the drill. Each one up to 5 MB.',
+    hi: 'ड्रिल के समय की फ़ोटो चुनिए। हर फ़ोटो 5 MB तक।',
+  },
+  'chat.mockDrillPhotoN': { en: 'Photo {n}', hi: 'फ़ोटो {n}' },
+  'chat.mockDrillPhotoTake': { en: 'Take or choose a photo', hi: 'फ़ोटो लीजिए या चुनिए' },
+  'chat.mockDrillPhotoReplace': { en: 'Replace', hi: 'बदलें' },
+  'chat.mockDrillPhotoFirst': { en: 'Add photo 1 first.', hi: 'पहले फ़ोटो 1 डालिए।' },
+  'chat.mockDrillPhotoAdded': { en: 'Added', hi: 'डाल दी' },
+  'chat.mockDrillUploading': { en: 'Uploading…', hi: 'अपलोड हो रहा है…' },
+  'chat.mockDrillBadType': {
+    en: 'That is not a photo. Choose a JPEG, PNG or WebP photo.',
+    hi: 'यह फ़ोटो नहीं है। JPEG, PNG या WebP फ़ोटो चुनिए।',
+  },
+  'chat.mockDrillTooBig': {
+    en: 'That photo is over 5 MB. Choose a smaller one.',
+    hi: 'यह फ़ोटो 5 MB से बड़ी है। छोटी फ़ोटो चुनिए।',
+  },
+  'chat.mockDrillWhenHint': {
+    en: 'Send this only if the drill really happened. Pressing a button means the drill was really done.',
+    hi: 'ड्रिल सचमुच की गई हो, तभी भेजें। बटन दबाने का मतलब है कि ड्रिल सच में हुई थी।',
+  },
+  'chat.mockDrillToday': { en: 'Drill done today', hi: 'आज की ड्रिल' },
+  'chat.mockDrillYesterday': { en: 'Drill done yesterday', hi: 'कल की ड्रिल' },
+  'chat.mockDrillLblScenario': { en: 'Emergency', hi: 'इमरजेंसी' },
+  'chat.mockDrillLblPhotos': { en: 'Photos', hi: 'फ़ोटो' },
+  'chat.mockDrillLblDay': { en: 'Day of the drill', hi: 'ड्रिल का दिन' },
+  'chat.mockDrillSend': { en: 'Send', hi: 'भेजें' },
+  'chat.mockDrillSendChecked': {
+    en: 'The MDG team will look at the photos first. Then the report goes on the IndianOil website.',
+    hi: 'पहले MDG टीम फ़ोटो देखेगी। फिर रिपोर्ट इंडियन ऑयल की वेबसाइट पर डाली जाएगी।',
+  },
+  'chat.mockDrillSendDirect': {
+    en: 'The report will go on the IndianOil website.',
+    hi: 'रिपोर्ट इंडियन ऑयल की वेबसाइट पर डाल दी जाएगी।',
+  },
+  'chat.mockDrillSentBack': {
+    en: 'The MDG team sent this back: {reason}',
+    hi: 'MDG टीम ने इसे वापस भेजा है: {reason}',
+  },
+  'chat.mockDrillReturned': {
+    en: 'IndianOil sent your last report back: {remark}',
+    hi: 'इंडियन ऑयल ने आपकी पिछली रिपोर्ट वापस भेजी है: {remark}',
+  },
+  'chat.mockDrillWaitingCheck': {
+    en: 'The MDG team is looking at your photos. Then the report goes on the IndianOil website.',
+    hi: 'MDG टीम आपकी फ़ोटो देख रही है। फिर रिपोर्ट इंडियन ऑयल की वेबसाइट पर डाली जाएगी।',
+  },
+  'chat.mockDrillWaitingFiling': {
+    en: 'Putting your report on the IndianOil website…',
+    hi: 'आपकी रिपोर्ट इंडियन ऑयल की वेबसाइट पर डाली जा रही है…',
+  },
+  'chat.mockDrillDone': {
+    en: 'Done. Your report went on the IndianOil website on {date}. Their officer will approve it next.',
+    hi: 'हो गया। आपकी रिपोर्ट {date} को इंडियन ऑयल की वेबसाइट पर डाल दी गई। अब उनके अफ़सर इसे मंज़ूर करेंगे।',
+  },
+  'chat.mockDrillDoneNoDate': {
+    en: 'Done. Your report went on the IndianOil website. Their officer will approve it next.',
+    hi: 'हो गया। आपकी रिपोर्ट इंडियन ऑयल की वेबसाइट पर डाल दी गई। अब उनके अफ़सर इसे मंज़ूर करेंगे।',
+  },
+  'chat.mockDrillBlocked': {
+    en: 'Your last mock drill report is still waiting for approval on the IndianOil website. A new one can go only after that.',
+    hi: 'आपकी पिछली मॉक ड्रिल की रिपोर्ट इंडियन ऑयल की वेबसाइट पर अभी मंज़ूरी का इंतज़ार कर रही है। मंज़ूरी के बाद ही नई रिपोर्ट जा सकती है।',
+  },
+  // Only when the server sent no words of its own for a failed filing.
+  'chat.mockDrillFailedFallback': {
+    en: 'The report did not go through.',
+    hi: 'रिपोर्ट नहीं जा पाई।',
+  },
+
   // The signed letter (ADR 0029): MDG posts a letter as a PDF and asks the owner
   // to print it, sign it, stamp it and send a photo back. Three short steps sit
   // above the buttons, in a dealer's own words: "लेटर", "साइन", "मोहर", "फ़ोटो".

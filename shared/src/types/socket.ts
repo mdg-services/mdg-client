@@ -62,6 +62,11 @@ export interface ServerToClientEvents {
    */
   'duOtp:changed': (payload: { dealerId: string }) => void;
   /**
+   * An outlet's Mock Drill state moved (an answer, an admin's check, a run).
+   * Carries only the outlet's id: each side reads its own scoped view.
+   */
+  'mockDrill:changed': (payload: { dealerId: string }) => void;
+  /**
    * The watch-period review queue changed: a message was held, sent, dropped or
    * expired. Admin sockets only; the queue refetches its own list.
    */

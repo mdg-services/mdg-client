@@ -134,11 +134,11 @@ export const presignUploadSchema = z.object({
     .positive()
     .max(25 * 1024 * 1024),
   scope: z
-    .enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask', 'calibration', 'du-otp'])
+    .enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask', 'calibration', 'du-otp', 'mock-drill'])
     .default('chat'),
   conversationId: z.string().optional(),
   /**
-   * Required for the `staff`, `tt-density`, `kavach`, `slip`, `ask` and `du-otp` scopes:
+   * Required for the `staff`, `tt-density`, `kavach`, `slip`, `ask`, `du-otp` and `mock-drill` scopes:
    * the dealer the photo belongs to.
    */
   dealerId: z.string().optional(),

@@ -15,6 +15,7 @@ import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { DuOtpAckBox } from './DuOtpAckBox';
+import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { SignLetterOpen } from './SignLetterAsk';
@@ -425,6 +426,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   // outlet's live view and the message carries nothing else. Wide and timed on its
   // own line, like the boxes above.
   const duOtpAck = message.duOtpAck;
+  // THE MOCK DRILL BOX (`message.mockDrill`, ADR 0034): which emergency was
+  // practised, two photos and the day. Like the box above, an empty object means
+  // "draw it": it reads the outlet's live view. Wide and timed on its own line.
+  const mockDrill = message.mockDrill;
   // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
@@ -438,6 +443,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!portalLogin ||
     !!wemmisLogin ||
     !!duOtpAck ||
+    !!mockDrill ||
     hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
@@ -457,6 +463,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!portalLogin ||
       !!wemmisLogin ||
       !!duOtpAck ||
+      !!mockDrill ||
       hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
@@ -596,6 +603,8 @@ export const MessageBubble = React.memo(function MessageBubble({
           {wemmisLogin ? <WemmisLoginBox /> : null}
 
           {duOtpAck ? <DuOtpAckBox /> : null}
+
+          {mockDrill ? <MockDrillBox /> : null}
 
           {setupCard ? <SetupCard card={setupCard.card} /> : null}
 

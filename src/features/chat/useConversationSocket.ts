@@ -4,6 +4,7 @@ import * as React from 'react';
 import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
 import { invalidateDuOtp } from '@/hooks/api/useDuOtp';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
+import { invalidateMockDrill } from '@/hooks/api/useMockDrill';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { invalidateWemmisLogin } from '@/hooks/api/useWemmisLogin';
@@ -262,6 +263,8 @@ export function useConversationSocket(
       // stand NOW, and an event can have moved since the cache last heard (another
       // phone answered a step). Cheap when no box is on screen.
       if (!alreadyPresent && payload.message.duOtpAck) invalidateDuOtp(qc);
+      // THE MOCK DRILL BOX ARRIVED: the same reasoning, for its own view.
+      if (!alreadyPresent && payload.message.mockDrill) invalidateMockDrill(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {

@@ -41,7 +41,9 @@ export type UploadTarget =
    * A paper for a DU OTP acknowledgement (calibration certificate, DU service
    * report, other document): a PDF, or a photo the server turns into one.
    */
-  | { scope: 'du-otp'; dealerId: string };
+  | { scope: 'du-otp'; dealerId: string }
+  /** One of the two photos of a mock drill (ADR 0034): images only, 5 MB at most. */
+  | { scope: 'mock-drill'; dealerId: string };
 
 /**
  * A photograph, ready to go: the bytes that will actually be PUT, and the three
