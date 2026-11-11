@@ -8,6 +8,7 @@ import { ToastProvider } from './components/ui';
 import { loadEmbedBridge } from './features/embed/loadEmbedBridge';
 import { isEmbedded } from './lib/embedMode';
 import { initMonitoring } from './lib/monitoring';
+import { installPerfReport } from './lib/perfReport';
 import { queryClient } from './lib/queryClient';
 import { clearRetiredStorage } from './lib/retiredStorage';
 import { installTouchGuards } from './lib/touchGuards';
@@ -28,6 +29,10 @@ initMonitoring();
 
 // Drop what an older version stored for a feature this one no longer has.
 clearRetiredStorage();
+
+// Time what dealers wait for on their own phones and send it to our server
+// (lib/perfReport). Timings only — never a message or anything typed.
+installPerfReport();
 
 // Inside the Dealer Kavach extension's side panel (`?embed=extension`, ADR 0032 §6) the
 // panel hands this app its sign-in. Its own chunk, so the web app and the phone shell

@@ -3,10 +3,12 @@ import * as React from 'react';
 import { Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
+import { recordSlowNote } from '@/lib/perfReport';
 import { useNavigationPending } from '@/lib/useNavigationPending';
 
 function SlowNote() {
   const t = useT();
+  React.useEffect(() => recordSlowNote(), []);
   return (
     <>
       <p className="text-center text-sm text-text-muted">{t('app.stillLoading')}</p>

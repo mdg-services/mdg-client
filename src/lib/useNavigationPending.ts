@@ -1,6 +1,8 @@
 import * as React from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { recordNavigation } from './perfReport';
+
 const HISTORY_EVENT = 'dk:history-change';
 let historyEventsInstalled = false;
 
@@ -46,9 +48,20 @@ export function useNavigationPending({
   const [state, setState] = React.useState<NavigationPending>('idle');
   const timers = React.useRef<number[]>([]);
 
-  const settle = React.useCallback(() => {
+  // When the address last changed to a screen not yet drawn: the start of the
+  // screen change the speed report times (perfReport.ts).
+  const startedAt = React.useRef<number | null>(null);
+
+  // `drawn`: the screen asked for is now on show (timed). Otherwise the address
+  // went back to the one already on show before anything new was drawn — a
+  // change that never finished, which is not timed.
+  const settle = React.useCallback((drawn: boolean) => {
     timers.current.forEach((id) => window.clearTimeout(id));
     timers.current = [];
+    if (drawn && startedAt.current !== null) {
+      recordNavigation(window.location.pathname, performance.now() - startedAt.current);
+    }
+    startedAt.current = null;
     setState('idle');
   }, []);
 
@@ -57,8 +70,9 @@ export function useNavigationPending({
   // in-memory router, say, never touches the address bar).
   const onAddressChange = React.useCallback(() => {
     const asked = window.location.pathname + window.location.search;
-    if (asked === drawnRef.current) return settle();
+    if (asked === drawnRef.current) return settle(false);
     if (timers.current.length) return;
+    startedAt.current = performance.now();
     timers.current = [
       window.setTimeout(() => setState((s) => (s === 'idle' ? 'pending' : s)), showAfterMs),
       window.setTimeout(() => setState('slow'), slowAfterMs),
@@ -79,7 +93,7 @@ export function useNavigationPending({
 
   // A new screen is drawn: settle, if it is the one asked for.
   React.useEffect(() => {
-    if (window.location.pathname + window.location.search === drawn) settle();
+    if (window.location.pathname + window.location.search === drawn) settle(true);
   }, [drawn, settle]);
 
   return state;

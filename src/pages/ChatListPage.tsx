@@ -21,6 +21,7 @@ import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
+import { markFirstScreen } from '@/lib/perfReport';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useAuthStore } from '@/store/auth';
 import type { Conversation } from '@dk/shared/types';
@@ -54,6 +55,12 @@ function ChatList() {
   const navigate = useNavigate();
   const myId = useAuthStore((s) => s.user?.id);
   const q = useMyConversations();
+  // The app's first real screen is this list with its chats: the moment the
+  // speed report counts "opening the app" up to (lib/perfReport).
+  const listShown = !!q.data;
+  React.useEffect(() => {
+    if (listShown) markFirstScreen();
+  }, [listShown]);
 
   const [searching, setSearching] = React.useState(false);
   const [query, setQuery] = React.useState('');

@@ -7,6 +7,8 @@ import {
 } from '@/store/auth';
 import type { ApiError as ApiErrorEnvelope, ApiResponse } from '@dk/shared/types';
 
+import { recordApiCall } from './perfReport';
+
 
 const BASE_URL: string =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
@@ -107,10 +109,29 @@ export function getApiBaseUrl(): string {
   return BASE_URL;
 }
 
+/**
+ * Make one call to our server. Each call's time goes into the app's own speed
+ * report (`perfReport.ts`) — except one the caller cancelled itself (a screen
+ * closed before its answer came), which says nothing about the link.
+ */
 export async function apiFetch<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  const started = performance.now();
+  let ok = false;
+  try {
+    const result = await request<T>(path, options);
+    ok = true;
+    return result;
+  } finally {
+    if (!options.signal?.aborted) {
+      recordApiCall(options.method ?? 'GET', path, performance.now() - started, ok);
+    }
+  }
+}
+
+async function request<T>(path: string, options: RequestOptions): Promise<T> {
   const {
     method = 'GET',
     body,
