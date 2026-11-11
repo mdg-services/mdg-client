@@ -1303,6 +1303,87 @@ export const messages = {
     hi: 'हो गया? नीचे अपनी User ID और नया पासवर्ड भरिए।',
   },
   'chat.xtrapowerPortalTitle': { en: 'XtraPower password reset', hi: 'XtraPower पासवर्ड रीसेट' },
+  // In the phone app the reset is FILLED IN for the owner (`openPortalAssist`): they type
+  // these four things once, the app does XtraPower's screens, and only the "I'm not a
+  // robot" tick and the Continue under it are theirs.
+  'chat.xtrapowerAssistIntro': {
+    en: "Fill these in and the app does XtraPower's steps for you. You only type the SMS code, tick I'm not a robot and tap Continue.",
+    hi: "ये भरिए, XtraPower के स्टेप ऐप खुद कर देगा। आपको बस SMS कोड भरना है, I'm not a robot पर टिक करना है और Continue दबाना है।",
+  },
+  'chat.xtrapowerMobile': {
+    en: 'Mobile number registered with XtraPower',
+    hi: 'XtraPower में रजिस्टर्ड मोबाइल नंबर',
+  },
+  'chat.xtrapowerPan': {
+    en: 'PAN or TAN (only if XtraPower asks for it)',
+    hi: 'PAN या TAN (सिर्फ़ अगर XtraPower माँगे)',
+  },
+  'chat.xtrapowerNewPassword': { en: 'New password', hi: 'नया पासवर्ड' },
+  'chat.xtrapowerRule': {
+    en: 'At least 8 characters, starting with a letter, with a capital letter, a small letter, a number and one of @ # $ % & * _. Only letters, numbers and those symbols: no other symbols, no spaces.',
+    hi: 'कम से कम 8 अक्षर, शुरुआत किसी अक्षर से, जिसमें एक बड़ा अक्षर, एक छोटा अक्षर, एक अंक और @ # $ % & * _ में से एक हो। सिर्फ़ अक्षर, अंक और यही चिह्न: कोई दूसरा चिह्न या स्पेस नहीं।',
+  },
+  'chat.xtrapowerStart': { en: 'Start reset', hi: 'रीसेट शुरू करें' },
+  'chat.xtrapowerNeedsId': {
+    en: 'Type your XtraPower User ID.',
+    hi: 'अपनी XtraPower User ID भरिए।',
+  },
+  'chat.xtrapowerBadMobile': {
+    en: 'Type the 10-digit mobile number registered with XtraPower.',
+    hi: 'XtraPower में रजिस्टर्ड 10 अंकों का मोबाइल नंबर भरिए।',
+  },
+  'chat.xtrapowerBadPan': {
+    en: 'A PAN or TAN has 10 letters and numbers.',
+    hi: 'PAN या TAN में 10 अक्षर और अंक होते हैं।',
+  },
+  'chat.xtrapowerBadPassword': {
+    en: "This password doesn't follow XtraPower's rule above.",
+    hi: 'यह पासवर्ड ऊपर लिखे XtraPower के नियम के हिसाब से नहीं है।',
+  },
+  'chat.xtrapowerOpenNow': {
+    en: "XtraPower is open. Finish there: type the SMS code, tick I'm not a robot and tap Continue.",
+    hi: "XtraPower खुला है। वहीं पूरा कीजिए: SMS कोड भरिए, I'm not a robot पर टिक करके Continue दबाइए।",
+  },
+  'chat.xtrapowerOpenAgain': { en: 'Open again', hi: 'फिर से खोलें' },
+  'chat.xtrapowerClosedAsk': {
+    en: 'Did XtraPower say your password was changed?',
+    hi: 'क्या XtraPower ने बताया कि आपका पासवर्ड बदल गया?',
+  },
+  'chat.xtrapowerYesSave': { en: 'Yes, save it', hi: 'हाँ, सेव करें' },
+  'chat.xtrapowerTryAgain': { en: 'Try again', hi: 'फिर से कोशिश करें' },
+  // The panel above XtraPower's page in the phone app.
+  'chat.xpaWorking': { en: "Filling in XtraPower's steps…", hi: 'XtraPower के स्टेप भरे जा रहे हैं…' },
+  'chat.xpaOtp': {
+    en: 'Type the 6-digit code XtraPower sent by SMS.',
+    hi: 'XtraPower ने SMS से जो 6 अंकों का कोड भेजा है, वह भरिए।',
+  },
+  'chat.xpaOtpPlaceholder': { en: '6-digit code', hi: '6 अंकों का कोड' },
+  'chat.xpaOtpButton': { en: 'Fill code', hi: 'कोड भरें' },
+  'chat.xpaPan': {
+    en: 'XtraPower is asking for your PAN or TAN. Type it on the page below and tap Generate OTP.',
+    hi: 'XtraPower आपका PAN या TAN माँग रहा है। नीचे पेज पर भरकर Generate OTP दबाइए।',
+  },
+  'chat.xpaCaptcha': {
+    en: "Last step is yours: tick I'm not a robot below, then tap Continue.",
+    hi: "आख़िरी स्टेप आपका है: नीचे I'm not a robot पर टिक करके Continue दबाइए।",
+  },
+  'chat.xpaTapVerify': {
+    en: 'Code filled in. Now tap Verify & Change Password below.',
+    hi: 'कोड भर दिया। अब नीचे Verify & Change Password दबाइए।',
+  },
+  'chat.xpaError': {
+    en: 'XtraPower said no. Check the page below and carry on there:',
+    hi: 'XtraPower ने मना किया। नीचे पेज देखिए और वहीं आगे बढ़िए:',
+  },
+  'chat.xpaStuck': {
+    en: 'Please carry on yourself on the page below.',
+    hi: 'नीचे पेज पर खुद आगे बढ़िए।',
+  },
+  'chat.xpaDone': {
+    en: 'Password changed. Saving it in Dealer Kavach…',
+    hi: 'पासवर्ड बदल गया। Dealer Kavach में सेव हो रहा है…',
+  },
+  'chat.xpaClose': { en: 'Close', hi: 'बंद करें' },
   'chat.portalResetOff': {
     en: "Password reset isn't available right now. Try again later.",
     hi: 'पासवर्ड रीसेट अभी उपलब्ध नहीं है। बाद में कोशिश करें।',

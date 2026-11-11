@@ -36,6 +36,8 @@ declare global {
     'native-push-status': CustomEvent<NativePushStatusDetail>;
     /** The phone put the app in the background or brought it back. */
     'native-app-state': CustomEvent<NativeAppState>;
+    /** How an assisted portal reset ended (`openPortalAssist`). */
+    'native-portal-assist': CustomEvent<NativePortalAssistResult>;
   }
 }
 
@@ -51,6 +53,16 @@ export interface NativePushStatusDetail {
   status: NativePushStatus;
   /** False once the phone will never show the prompt again (iOS after one refusal). */
   canAskAgain: boolean;
+}
+
+/**
+ * How an assisted portal reset ended: `done` once the portal confirmed the change (its
+ * page went back to sign-in after the owner's own Continue), `closed` when the owner
+ * closed the screen before that.
+ */
+export interface NativePortalAssistResult {
+  id: string;
+  result: 'done' | 'closed';
 }
 
 /** What the phone is doing with the app (`native-app-state`). */
@@ -502,4 +514,41 @@ export function openPortalPage(req: PortalPageRequest): 'app' | 'browser' {
   }
   window.open(req.url, '_blank', 'noopener,noreferrer');
   return 'browser';
+}
+
+/** What the owner typed for an assisted reset, and the panel's words in their language. */
+export interface PortalAssistRequest {
+  /** Matches the `native-portal-assist` answer to this request. */
+  id: string;
+  url: string;
+  title: string;
+  fill: { userId: string; mobile: string; pan: string; password: string };
+  texts: {
+    working: string;
+    otp: string;
+    otpPlaceholder: string;
+    otpButton: string;
+    pan: string;
+    captcha: string;
+    tapverify: string;
+    error: string;
+    stuck: string;
+    done: string;
+    close: string;
+  };
+}
+
+/**
+ * IOC XtraPower's reset, filled in by the phone app (`portal-assist` feature): it opens
+ * XtraPower's own page in its own screen and fills each step with what the owner typed,
+ * up to Google's "I'm not a robot" tick, which stays the owner's. The answer comes back as
+ * `native-portal-assist`. False, and nothing sent, where the shell cannot (a browser, an
+ * older app): the row then shows the guided steps instead.
+ *
+ * The password crosses to the shell only to be typed into XtraPower's page.
+ */
+export function openPortalAssist(req: PortalAssistRequest): boolean {
+  if (!nativeHas('portal-assist')) return false;
+  postToNative({ type: 'portal:assist', ...req });
+  return true;
 }

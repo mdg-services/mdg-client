@@ -11,10 +11,16 @@ import {
 } from '@/hooks/api/usePortalLogins';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
-import { openPortalPage } from '@/lib/nativeBridge';
+import {
+  nativeHas,
+  openPortalAssist,
+  openPortalPage,
+  type NativePortalAssistResult,
+} from '@/lib/nativeBridge';
 import {
   PORTAL_NAMES,
   TANKER_PORTAL,
+  XTRAPOWER_PORTAL,
   canResetPortalPassword,
   guidedResetUrl,
   isCompanyPortal,
@@ -443,18 +449,30 @@ function PortalRow({
       ) : null}
 
       {guiding && guideUrl && state && canEdit ? (
-        <>
-          <PortalResetGuide url={guideUrl} />
-          <PortalForm
-            portal={portal}
-            lead="chat.xtrapowerGuideBack"
+        // A phone app that can fills XtraPower's steps in; anywhere else, the steps to follow.
+        nativeHas('portal-assist') ? (
+          <XtraPowerAssist
+            url={guideUrl}
             onSaved={() => {
               setGuiding(false);
               setChanging(false);
             }}
             onCancel={() => setGuiding(false)}
           />
-        </>
+        ) : (
+          <>
+            <PortalResetGuide url={guideUrl} />
+            <PortalForm
+              portal={portal}
+              lead="chat.xtrapowerGuideBack"
+              onSaved={() => {
+                setGuiding(false);
+                setChanging(false);
+              }}
+              onCancel={() => setGuiding(false)}
+            />
+          </>
+        )
       ) : null}
 
       {state && state.status === 'saved' && !formOpen && !askingReset && !guiding ? (
@@ -616,6 +634,277 @@ function PortalResetGuide({ url }: { url: string }) {
         <ExternalLink width={16} strokeWidth={2} className="shrink-0" aria-hidden />
         {t('chat.xtrapowerGuideOpen')}
       </button>
+    </div>
+  );
+}
+
+/** XtraPower's own password rule, from its page: the app checks it before anything opens. */
+const XTRAPOWER_PASSWORD_RULE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@#$%&*_])[A-Za-z][A-Za-z0-9@#$%&*_]{7,}$/;
+/** A mobile number XtraPower's page accepts. */
+const XTRAPOWER_MOBILE = /^[6-9]\d{9}$/;
+
+/**
+ * The 10-digit number in what was typed or pasted: "+91 98765 43210" and "098765 43210"
+ * are 9876543210, never their first ten digits.
+ */
+function tenDigitMobile(raw: string): string {
+  let d = raw.replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return d.slice(0, 10);
+}
+
+/**
+ * IOC XtraPower's "Forgot password?" in a phone app that can fill it in (`openPortalAssist`):
+ * the owner types the User ID, the registered mobile, PAN/TAN if XtraPower asks, and the
+ * new password, once. The app opens XtraPower's page and does its screens; the SMS code is
+ * typed into the app's panel; Google's "I'm not a robot" tick and the Continue under it are
+ * the owner's own. When XtraPower confirms, the new password is saved here.
+ *
+ * What is typed stays in this component and goes only to the phone app (to type into
+ * XtraPower's page) and, once XtraPower took it, to the outlet's record.
+ */
+function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () => void; onCancel: () => void }) {
+  const t = useT();
+  const save = useSavePortalLogin();
+  const ids = React.useId();
+  const [userId, setUserId] = React.useState('');
+  const [mobile, setMobile] = React.useState('');
+  const [pan, setPan] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [show, setShow] = React.useState(false);
+  const [errorKey, setErrorKey] = React.useState<MessageKey | null>(null);
+  // form → open (XtraPower on screen) → saved; or closed (shut before XtraPower confirmed).
+  const [phase, setPhase] = React.useState<'form' | 'open' | 'closed'>('form');
+  const requestId = React.useRef('');
+
+  const keep = React.useCallback(async () => {
+    setErrorKey(null);
+    try {
+      await save.mutateAsync({ portal: XTRAPOWER_PORTAL, username: userId.trim(), password });
+      setPassword('');
+      onSaved();
+    } catch (err) {
+      setErrorKey(portalSaveErrorKey(err));
+      setPhase('closed');
+    } finally {
+      save.reset();
+    }
+  }, [save, userId, password, onSaved]);
+
+  React.useEffect(() => {
+    const onResult = (e: CustomEvent<NativePortalAssistResult>) => {
+      if (!e.detail || e.detail.id !== requestId.current) return;
+      requestId.current = '';
+      if (e.detail.result === 'done') void keep();
+      else setPhase('closed');
+    };
+    window.addEventListener('native-portal-assist', onResult);
+    return () => window.removeEventListener('native-portal-assist', onResult);
+  }, [keep]);
+
+  const start = () => {
+    const panClean = pan.trim().toUpperCase();
+    if (!userId.trim()) return setErrorKey('chat.xtrapowerNeedsId');
+    if (!XTRAPOWER_MOBILE.test(mobile.trim())) return setErrorKey('chat.xtrapowerBadMobile');
+    if (panClean && !/^[A-Z0-9]{10}$/.test(panClean)) return setErrorKey('chat.xtrapowerBadPan');
+    if (!XTRAPOWER_PASSWORD_RULE.test(password)) return setErrorKey('chat.xtrapowerBadPassword');
+    setErrorKey(null);
+    requestId.current = `xp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+    const opened = openPortalAssist({
+      id: requestId.current,
+      url,
+      title: t('chat.xtrapowerPortalTitle'),
+      fill: { userId: userId.trim(), mobile: mobile.trim(), pan: panClean, password },
+      texts: {
+        working: t('chat.xpaWorking'),
+        otp: t('chat.xpaOtp'),
+        otpPlaceholder: t('chat.xpaOtpPlaceholder'),
+        otpButton: t('chat.xpaOtpButton'),
+        pan: t('chat.xpaPan'),
+        captcha: t('chat.xpaCaptcha'),
+        tapverify: t('chat.xpaTapVerify'),
+        error: t('chat.xpaError'),
+        stuck: t('chat.xpaStuck'),
+        done: t('chat.xpaDone'),
+        close: t('chat.xpaClose'),
+      },
+    });
+    if (opened) setPhase('open');
+  };
+
+  const field = (id: string, label: MessageKey, input: React.ReactNode) => (
+    <div>
+      <label htmlFor={id} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        {t(label)}
+      </label>
+      {input}
+    </div>
+  );
+  const busy = save.isPending;
+
+  return (
+    <div
+      data-no-swipe
+      data-reset-assist={phase}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="mt-2 flex flex-col gap-2"
+    >
+      {phase === 'form' ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+          autoComplete="off"
+          noValidate
+          className="flex flex-col gap-2"
+        >
+          <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.xtrapowerAssistIntro')}</p>
+          {field(
+            `${ids}-id`,
+            'chat.portalUserId',
+            <input
+              id={`${ids}-id`}
+              type="text"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={100}
+              className={INPUT_CLASS}
+            />,
+          )}
+          {field(
+            `${ids}-mobile`,
+            'chat.xtrapowerMobile',
+            <input
+              id={`${ids}-mobile`}
+              type="tel"
+              inputMode="numeric"
+              value={mobile}
+              onChange={(e) => setMobile(tenDigitMobile(e.target.value))}
+              autoComplete="off"
+              maxLength={10}
+              className={INPUT_CLASS}
+            />,
+          )}
+          {field(
+            `${ids}-pan`,
+            'chat.xtrapowerPan',
+            <input
+              id={`${ids}-pan`}
+              type="text"
+              value={pan}
+              onChange={(e) => setPan(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10))}
+              autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              maxLength={10}
+              className={INPUT_CLASS}
+            />,
+          )}
+          {field(
+            `${ids}-pass`,
+            'chat.xtrapowerNewPassword',
+            <div className="relative">
+              <input
+                id={`${ids}-pass`}
+                type={show ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                maxLength={100}
+                className={cn(INPUT_CLASS, 'pr-11')}
+              />
+              <button
+                type="button"
+                onClick={() => setShow((v) => !v)}
+                aria-label={show ? t('chat.portalHidePassword') : t('chat.portalShowPassword')}
+                aria-pressed={show}
+                className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md text-wa-meta active:bg-black/10"
+              >
+                {show ? (
+                  <EyeOff width={18} strokeWidth={1.75} aria-hidden />
+                ) : (
+                  <Eye width={18} strokeWidth={1.75} aria-hidden />
+                )}
+              </button>
+            </div>,
+          )}
+          <p className="text-[12px] leading-snug text-wa-meta">{t('chat.xtrapowerRule')}</p>
+          {errorKey ? (
+            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text">
+              {t(errorKey)}
+            </p>
+          ) : null}
+          <button
+            type="submit"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+          >
+            <ExternalLink width={16} strokeWidth={2} className="shrink-0" aria-hidden />
+            {t('chat.xtrapowerStart')}
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          >
+            {t('common.cancel')}
+          </button>
+        </form>
+      ) : phase === 'open' ? (
+        <div role="status" className="flex flex-col gap-2">
+          <p className="flex items-start gap-1.5 text-[13px] leading-snug text-wa-bubble-text">
+            {busy ? <Spinner size={14} /> : null}
+            <span className="min-w-0 break-words">{busy ? t('chat.xpaDone') : t('chat.xtrapowerOpenNow')}</span>
+          </p>
+          {!busy ? (
+            <button
+              type="button"
+              onClick={start}
+              className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            >
+              {t('chat.xtrapowerOpenAgain')}
+            </button>
+          ) : null}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] font-medium leading-snug text-wa-bubble-text">{t('chat.xtrapowerClosedAsk')}</p>
+          {errorKey ? (
+            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text">
+              {t(errorKey)}
+            </p>
+          ) : null}
+          <button
+            type="button"
+            disabled={busy}
+            aria-busy={busy}
+            onClick={() => void keep()}
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+          >
+            {busy ? <Spinner size={16} /> : <Lock width={16} strokeWidth={2} className="shrink-0" aria-hidden />}
+            {t('chat.xtrapowerYesSave')}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setErrorKey(null);
+              setPhase('form');
+            }}
+            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          >
+            {t('chat.xtrapowerTryAgain')}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

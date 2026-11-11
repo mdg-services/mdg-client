@@ -139,6 +139,97 @@ describe('MessageBubble — the IOC XtraPower login, asked on demand', () => {
     expect(open).not.toHaveBeenCalled();
   });
 
+  describe('in a phone app that fills the reset in', () => {
+    type Sent = { type: string; id?: string; url?: string; fill?: Record<string, string>; texts?: Record<string, string> };
+    const sent = (postMessage: ReturnType<typeof vi.fn>) =>
+      postMessage.mock.calls.map(([m]) => JSON.parse(m as string) as Sent).filter((m) => m.type === 'portal:assist');
+    const answer = (id: string, result: 'done' | 'closed') =>
+      window.dispatchEvent(new CustomEvent('native-portal-assist', { detail: { id, result } }));
+
+    async function openAssist() {
+      const postMessage = vi.fn();
+      window.ReactNativeWebView = { postMessage };
+      window.__DK_NATIVE_FEATURES__ = ['portal', 'portal-assist'];
+      box(view([...IOCL, XP_SAVED]));
+      const xp = await loadedRow();
+      fireEvent.click(within(xp).getByRole('button', { name: 'Forgot password?' }));
+      const assist = xp.querySelector<HTMLElement>('[data-reset-assist]')!;
+      const fill = (label: string, value: string) =>
+        fireEvent.change(within(assist).getByLabelText(label), { target: { value } });
+      return { xp, assist, fill, postMessage };
+    }
+
+    it('asks once for what XtraPower needs, checks its rule, and hands it to the app', async () => {
+      const { xp, assist, fill, postMessage } = await openAssist();
+      expect(xp.querySelector('[data-reset-guide]')).toBeNull();
+      fill('User ID', '3212000103');
+      fill('Mobile number registered with XtraPower', '+91 98765 43210');
+      fill('New password', 'abcd1234');
+      fireEvent.click(within(assist).getByRole('button', { name: 'Start reset' }));
+      expect(within(assist).getByRole('alert')).toHaveTextContent("doesn't follow XtraPower's rule");
+      expect(sent(postMessage)).toHaveLength(0);
+
+      fill('New password', 'Abcd@1234x');
+      fireEvent.click(within(assist).getByRole('button', { name: 'Start reset' }));
+      const [req] = sent(postMessage);
+      expect(req.url).toBe(XTRAPOWER_RESET_URL);
+      expect(req.fill).toEqual({ userId: '3212000103', mobile: '9876543210', pan: '', password: 'Abcd@1234x' });
+      expect(req.texts?.captcha).toMatch(/tick I'm not a robot/);
+      expect(req.texts?.otp).toMatch(/6-digit code/);
+      expect(req.texts?.tapverify).toMatch(/Verify & Change Password/);
+      expect(xp.querySelector('[data-reset-assist="open"]')).not.toBeNull();
+      // Nothing reaches MDG's server until XtraPower took the password.
+      expect(h.put).not.toHaveBeenCalled();
+    });
+
+    it('saves the new password once XtraPower confirms, and ignores any other answer', async () => {
+      const { xp, assist, fill, postMessage } = await openAssist();
+      fill('User ID', '3212000103');
+      fill('Mobile number registered with XtraPower', '9876543210');
+      fill('New password', 'Abcd@1234x');
+      fireEvent.click(within(assist).getByRole('button', { name: 'Start reset' }));
+      const [req] = sent(postMessage);
+      h.put.mockResolvedValue(view([...IOCL, XP_SAVED]));
+      answer('someone-else', 'done');
+      expect(h.put).not.toHaveBeenCalled();
+      answer(req.id!, 'done');
+      await waitFor(() =>
+        expect(h.put).toHaveBeenCalledWith('/v1/me/portal-logins/xtrapower', {
+          username: '3212000103',
+          password: 'Abcd@1234x',
+        }),
+      );
+      await waitFor(() => expect(xp.querySelector('[data-reset-assist]')).toBeNull());
+    });
+
+    it('closed before XtraPower confirmed: the owner says whether it changed', async () => {
+      const { xp, assist, fill, postMessage } = await openAssist();
+      fill('User ID', '3212000103');
+      fill('Mobile number registered with XtraPower', '9876543210');
+      fill('PAN or TAN (only if XtraPower asks for it)', 'abcde1234f');
+      fill('New password', 'Abcd@1234x');
+      fireEvent.click(within(assist).getByRole('button', { name: 'Start reset' }));
+      const [req] = sent(postMessage);
+      expect(req.fill?.pan).toBe('ABCDE1234F');
+      answer(req.id!, 'closed');
+      const closed = await waitFor(() => {
+        const el = xp.querySelector<HTMLElement>('[data-reset-assist="closed"]');
+        if (!el) throw new Error('not closed yet');
+        return el;
+      });
+      expect(within(closed).getByText('Did XtraPower say your password was changed?')).toBeInTheDocument();
+      expect(h.put).not.toHaveBeenCalled();
+      h.put.mockResolvedValue(view([...IOCL, XP_SAVED]));
+      fireEvent.click(within(closed).getByRole('button', { name: 'Yes, save it' }));
+      await waitFor(() =>
+        expect(h.put).toHaveBeenCalledWith('/v1/me/portal-logins/xtrapower', {
+          username: '3212000103',
+          password: 'Abcd@1234x',
+        }),
+      );
+    });
+  });
+
   it('a manager reads the row but gets no form and no reset', async () => {
     box(view([...IOCL, XP_MISSING], false));
     const xp = await loadedRow();
