@@ -16,6 +16,7 @@ import { WAVEFORM_BARS, pseudoPeaks } from '@/lib/waveform';
 import { useAuthStore } from '@/store/auth';
 import { isVideoAttachment, type Attachment, type AttachmentKind } from '@dk/shared/types';
 
+import { AttachmentPdfViewer, isPdfAttachment } from './AttachmentPdfViewer';
 import { fileTypeLabel } from './fileKind';
 import { FileTypeBadge } from './FileTypeBadge';
 import { VoiceTranscript, transcriptOf } from './VoiceTranscript';
@@ -865,14 +866,13 @@ export function VideoMessage({
  * A document in a bubble: the coloured type badge, the name over two lines, and
  * "PDF · 1.2 MB" under it.
  *
- * A button rather than a link, and the same download path the action sheet and
- * the Docs tab use. As an `<a href={attachment.url}>` it pointed at the same
- * 900-second signature the picture above does: tapping a PDF that had been in
- * the thread for a quarter of an hour left the app and landed the dealer on an
- * S3 page reading "Request has expired" — while the identical file, opened from
- * the Docs tab two taps away, downloaded fine. Presigning at tap time removes
- * the difference, and hands the native shell its gallery/browser split and its
- * failure toast for nothing.
+ * A PDF opens in the app's own reader (`AttachmentPdfViewer`); anything else
+ * takes the same download path the action sheet and the Docs tab use. Never an
+ * `<a href={attachment.url}>`: that pointed at the 900-second signature the
+ * picture above does, so a PDF that had been in the thread a quarter of an hour
+ * left the app and landed the dealer on an S3 page reading "Request has
+ * expired". And inside the Android app any link to the storage went to Chrome,
+ * which is why a PDF now opens here rather than as a download at all.
  */
 function DocumentAttachment({
   attachment,
@@ -882,25 +882,40 @@ function DocumentAttachment({
   source?: AttachmentSource;
 }) {
   const download = useAttachmentDownload();
+  const [reading, setReading] = React.useState(false);
   const unsent = !source || source.messageId.startsWith('temp-');
+  const pdf = isPdfAttachment(attachment);
   return (
-    <button
-      type="button"
-      disabled={unsent}
-      onClick={() => source && void download(attachment, source)}
-      className="flex w-full items-center gap-3 rounded-md bg-black/[0.06] px-2.5 py-2 text-left active:bg-black/10 disabled:opacity-70"
-    >
-      <FileTypeBadge filename={attachment.filename} contentType={attachment.contentType} />
-      <span className="min-w-0 flex-1">
-        <span className="line-clamp-2 break-words text-[14px] leading-snug text-wa-bubble-text">
-          {attachment.filename}
+    <>
+      <button
+        type="button"
+        disabled={unsent}
+        onClick={() => {
+          if (!source) return;
+          if (pdf) setReading(true);
+          else void download(attachment, source);
+        }}
+        className="flex w-full items-center gap-3 rounded-md bg-black/[0.06] px-2.5 py-2 text-left active:bg-black/10 disabled:opacity-70"
+      >
+        <FileTypeBadge filename={attachment.filename} contentType={attachment.contentType} />
+        <span className="min-w-0 flex-1">
+          <span className="line-clamp-2 break-words text-[14px] leading-snug text-wa-bubble-text">
+            {attachment.filename}
+          </span>
+          <span className="block text-[12px] text-wa-meta">
+            {fileTypeLabel(attachment.filename, attachment.contentType)} ·{' '}
+            {formatBytes(attachment.size)}
+          </span>
         </span>
-        <span className="block text-[12px] text-wa-meta">
-          {fileTypeLabel(attachment.filename, attachment.contentType)} ·{' '}
-          {formatBytes(attachment.size)}
-        </span>
-      </span>
-    </button>
+      </button>
+      {reading && source ? (
+        <AttachmentPdfViewer
+          attachment={attachment}
+          source={source}
+          onClose={() => setReading(false)}
+        />
+      ) : null}
+    </>
   );
 }
 

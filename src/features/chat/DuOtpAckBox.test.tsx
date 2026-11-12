@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError } from '@/lib/api';
@@ -31,6 +32,35 @@ const h = vi.hoisted(() => ({
   paper: { mutateAsync: vi.fn(), isPending: false },
   deliver: vi.fn(),
 }));
+// The PDF reader draws with pdf.js, which jsdom cannot run: a stand-in that
+// fetches what it is given and offers its Save.
+const reader = vi.hoisted(() => ({ bytes: vi.fn() }));
+vi.mock('@/lib/pdf', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  fetchPdfBytes: reader.bytes,
+}));
+vi.mock('@/components/PdfViewer', () => ({
+  PdfViewer: ({
+    title,
+    load,
+    onSave,
+  }: {
+    title: string;
+    load: () => Promise<ArrayBuffer>;
+    onSave?: () => void;
+  }) => {
+    React.useEffect(() => {
+      void load();
+    }, []);
+    return (
+      <div role="dialog" aria-label={title}>
+        <button type="button" onClick={onSave}>
+          Save
+        </button>
+      </div>
+    );
+  },
+}));
 vi.mock('@/lib/downloadAttachment', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   deliverDownload: h.deliver,
@@ -49,6 +79,8 @@ beforeEach(() => {
   h.view.isError = false;
   h.view.refetch.mockReset();
   h.deliver.mockReset();
+  reader.bytes.mockReset();
+  reader.bytes.mockResolvedValue(new ArrayBuffer(8));
   h.deliver.mockResolvedValue('browser');
   for (const m of [h.answer, h.paper]) {
     m.mutateAsync.mockReset();
@@ -470,6 +502,12 @@ describe('DuOtpAckBox — step 2, the calibration certificate', () => {
     // Not a new-tab link: inside the phone app that left the app for the browser.
     expect(screen.queryByRole('link')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /certificate\.pdf/ }));
+    // Read in the app's own reader, from the paper's link.
+    const viewer = screen.getByRole('dialog', { name: 'certificate.pdf' });
+    expect(reader.bytes).toHaveBeenCalledWith('https://files.example.test/certificate.pdf');
+    expect(h.deliver).not.toHaveBeenCalled();
+    // Save takes the road every chat file takes.
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Save' }));
     expect(h.deliver).toHaveBeenCalledWith(
       expect.objectContaining({
         url: 'https://files.example.test/certificate.pdf',
@@ -715,14 +753,13 @@ describe('DuOtpAckBox — the review', () => {
     expect(screen.getByText('22-10-2026, 25-10-2026')).toBeInTheDocument();
   });
 
-  it('opens a paper the way chat opens a PDF, not as a new-tab link', () => {
+  it('opens a paper in the app, the way chat opens a PDF, not as a new-tab link', () => {
     show(full());
     box();
     expect(screen.queryByRole('link')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /service-report\.pdf/ }));
-    expect(h.deliver).toHaveBeenCalledWith(
-      expect.objectContaining({ url: 'https://files.example.test/service-report.pdf' }),
-    );
+    expect(screen.getByRole('dialog', { name: 'service-report.pdf' })).toBeInTheDocument();
+    expect(reader.bytes).toHaveBeenCalledWith('https://files.example.test/service-report.pdf');
   });
 
   it('shows a paper whose link has not come as plain words, not a dead link', () => {

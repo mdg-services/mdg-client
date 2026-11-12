@@ -1,10 +1,12 @@
 import { Check, FileText, Send, Upload } from 'lucide-react';
 import * as React from 'react';
 
+import { PdfViewer } from '@/components/PdfViewer';
 import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { deliverDownload } from '@/lib/downloadAttachment';
 import { useT, type MessageKey } from '@/lib/i18n';
+import { fetchPdfBytes } from '@/lib/pdf';
 import {
   DU_OTP_REMARKS_MAX,
   type DuOtpAnswerInput,
@@ -71,16 +73,15 @@ export function Notice({ text }: { text: string }) {
 }
 
 /**
- * A paper, openable through its short-lived link — by the road every PDF in chat
- * takes (`deliverDownload`), never as an `<a target="_blank">`. Inside the phone
- * app a link to the storage address is handed to the phone's browser, which took
- * the owner out of the app; the shared road shows it in the app's own sheet on an
- * iPhone and hands it to the phone's downloader on Android (there is no PDF reader
- * inside the app), and in a plain browser opens it in a tab, as before.
+ * A paper, read inside the app (`PdfViewer`) — never an `<a target="_blank">`:
+ * inside the phone app a link to the storage address is handed to the phone's
+ * browser, which took the owner out of the app to read their own certificate.
+ * Save takes the road every chat file takes (`deliverDownload`).
  */
 function FileLink({ file }: { file: DuOtpFileView }) {
   const t = useT();
   const toast = useToast();
+  const [reading, setReading] = React.useState(false);
   const body = (
     <>
       <FileText width={16} strokeWidth={1.75} className="shrink-0 text-wa-meta" aria-hidden />
@@ -92,20 +93,30 @@ function FileLink({ file }: { file: DuOtpFileView }) {
   }
   const url = file.url;
   return (
-    <button
-      type="button"
-      onClick={() => {
-        deliverDownload({
-          url,
-          filename: file.filename,
-          contentType: 'application/pdf',
-          kind: 'file',
-        }).catch(() => toast.error(t('chat.downloadFailed')));
-      }}
-      className="inline-flex min-h-11 items-center gap-1.5 text-left text-[14px] leading-snug text-wa-accent-strong underline"
-    >
-      {body}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setReading(true)}
+        className="inline-flex min-h-11 items-center gap-1.5 text-left text-[14px] leading-snug text-wa-accent-strong underline"
+      >
+        {body}
+      </button>
+      {reading ? (
+        <PdfViewer
+          title={file.filename}
+          load={() => fetchPdfBytes(url)}
+          onSave={() => {
+            deliverDownload({
+              url,
+              filename: file.filename,
+              contentType: 'application/pdf',
+              kind: 'file',
+            }).catch(() => toast.error(t('chat.downloadFailed')));
+          }}
+          onClose={() => setReading(false)}
+        />
+      ) : null}
+    </>
   );
 }
 

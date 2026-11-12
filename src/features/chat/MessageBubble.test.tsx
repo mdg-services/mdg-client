@@ -18,6 +18,17 @@ vi.mock('@/lib/downloadAttachment', () => ({
   useAttachmentDownload: () => h.download,
   fetchFreshInlineUrl: (...args: unknown[]) => h.fresh(...args),
 }));
+// The PDF reader draws with pdf.js, which jsdom cannot run: a stand-in that shows
+// its title and its Save is enough to see what the bubble hands it.
+vi.mock('@/components/PdfViewer', () => ({
+  PdfViewer: ({ title, onSave }: { title: string; onSave?: () => void }) => (
+    <div role="dialog" aria-label={title}>
+      <button type="button" onClick={onSave}>
+        Save
+      </button>
+    </div>
+  ),
+}));
 
 // Assert against English copy (the store defaults to Hindi).
 beforeEach(() => {
@@ -1260,13 +1271,31 @@ describe('MessageBubble — documents', () => {
     );
   });
 
-  it('downloads on tap, through the message', () => {
+  it('opens a PDF in the app on tap; its Save downloads through the message', () => {
     const attachment = doc('rate-list.pdf', 'application/pdf');
     renderBubble(makeMessage({ id: 'm-doc', body: undefined, attachments: [attachment] }));
     fireEvent.click(screen.getByRole('button', { name: /rate-list\.pdf/ }));
+    // Read here: inside the Android app a download is a trip to Chrome.
+    const reader = screen.getByRole('dialog', { name: 'rate-list.pdf' });
+    expect(h.download).not.toHaveBeenCalled();
+    fireEvent.click(within(reader).getByRole('button', { name: 'Save' }));
     expect(h.download).toHaveBeenCalledWith(attachment, {
       conversationId: 'c1',
       messageId: 'm-doc',
+    });
+  });
+
+  it('downloads any other file on tap, through the message', () => {
+    const attachment = doc(
+      'sales.xlsx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    renderBubble(makeMessage({ id: 'm-xls', body: undefined, attachments: [attachment] }));
+    fireEvent.click(screen.getByRole('button', { name: /sales\.xlsx/ }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(h.download).toHaveBeenCalledWith(attachment, {
+      conversationId: 'c1',
+      messageId: 'm-xls',
     });
   });
 

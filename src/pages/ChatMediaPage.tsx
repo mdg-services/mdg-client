@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import { AppBar } from '@/components/AppBar';
 import { EmptyState, Spinner } from '@/components/ui';
+import { AttachmentPdfViewer, isPdfAttachment } from '@/features/chat/AttachmentPdfViewer';
 import { FileTypeBadge } from '@/features/chat/FileTypeBadge';
 import { monthHeading, monthKey, shortDate } from '@/features/chat/mediaFormat';
 import { MediaViewer, type MediaViewerItem } from '@/features/chat/MediaViewer';
@@ -190,6 +191,10 @@ export function ChatMediaPage() {
   const query = useConversationMedia(conversationId, tab);
   const download = useAttachmentDownload();
   const [viewerKey, setViewerKey] = React.useState<string | null>(null);
+  /** A PDF from the Docs tab, open in the app's own reader. */
+  const [reading, setReading] = React.useState<{ attachment: Attachment; messageId: string } | null>(
+    null,
+  );
 
   const items = React.useMemo(
     () => (query.data?.pages ?? []).flat(),
@@ -372,12 +377,18 @@ export function ChatMediaPage() {
               <li key={itemKey(item)}>
                 <button
                   type="button"
-                  onClick={() =>
-                    void download(item.attachment!, {
-                      conversationId: conversationId!,
-                      messageId: item.messageId,
-                    })
-                  }
+                  onClick={() => {
+                    const attachment = item.attachment!;
+                    // A PDF is read here; anything else is saved.
+                    if (isPdfAttachment(attachment)) {
+                      setReading({ attachment, messageId: item.messageId });
+                    } else {
+                      void download(attachment, {
+                        conversationId: conversationId!,
+                        messageId: item.messageId,
+                      });
+                    }
+                  }}
                   className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-wa-row-active"
                 >
                   <FileTypeBadge
@@ -479,6 +490,13 @@ export function ChatMediaPage() {
           loadingOlder={query.isFetchingNextPage}
           onNeedOlder={fetchNext}
           onShowInChat={showInChat}
+        />
+      ) : null}
+      {reading && conversationId ? (
+        <AttachmentPdfViewer
+          attachment={reading.attachment}
+          source={{ conversationId, messageId: reading.messageId }}
+          onClose={() => setReading(null)}
         />
       ) : null}
     </div>

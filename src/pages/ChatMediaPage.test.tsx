@@ -16,6 +16,22 @@ afterEach(() => cleanup());
 const api = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api }));
 
+// The PDF reader draws with pdf.js, which jsdom cannot run: here it fetches what
+// it is given and shows its title, which is what this page decides.
+const pdf = vi.hoisted(() => ({ bytes: vi.fn() }));
+vi.mock('@/lib/pdf', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  fetchPdfBytes: pdf.bytes,
+}));
+vi.mock('@/components/PdfViewer', () => ({
+  PdfViewer: ({ title, load }: { title: string; load: () => Promise<ArrayBuffer> }) => {
+    React.useEffect(() => {
+      void load();
+    }, []);
+    return <div role="dialog" aria-label={title} />;
+  },
+}));
+
 function item(overrides: Partial<ConversationMediaItem>): ConversationMediaItem {
   return {
     messageId: 'm1',
@@ -258,23 +274,61 @@ describe('ChatMediaPage — docs', () => {
     expect(screen.getAllByText(/1\.0 MB · /)).toHaveLength(4);
   });
 
-  it('tapping a paper downloads it', async () => {
+  it('tapping a PDF opens it in the app, through a link signed now', async () => {
     mockByTab();
     renderPage();
     fireEvent.click(await screen.findByRole('tab', { name: 'Docs' }));
     const row = (await screen.findByText('report.pdf')).closest('button')!;
-    // The download path presigns through the message, then opens it.
-    api.get.mockResolvedValue({ url: 'https://s3.test/dl' });
+    api.get.mockResolvedValue({ url: 'https://s3.test/view' });
+    pdf.bytes.mockResolvedValue(new ArrayBuffer(8));
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    fireEvent.click(row);
+    // Read here, never handed to the browser.
+    expect(await screen.findByRole('dialog', { name: 'report.pdf' })).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/v1/conversations/c1/messages/m-doc/download-url', {
+        key: 'chat/c1/b-report.pdf',
+      }),
+    );
+    await waitFor(() => expect(pdf.bytes).toHaveBeenCalledWith('https://s3.test/view'));
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it('tapping any other paper downloads it', async () => {
+    api.get.mockImplementation((path: string, query?: { tab?: string }) => {
+      if (path.endsWith('/download-url')) return Promise.resolve({ url: 'https://s3.test/dl' });
+      if (query?.tab === 'docs') {
+        return Promise.resolve([
+          item({
+            messageId: 'm-xls',
+            attachment: {
+              storageKey: 'chat/c1/sales.xlsx',
+              filename: 'sales.xlsx',
+              contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              size: 2048,
+              kind: 'file',
+              url: 'https://s3.test/sales.xlsx',
+            },
+          }),
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Docs' }));
+    const row = (await screen.findByText('sales.xlsx')).closest('button')!;
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(row);
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith(
-        '/v1/conversations/c1/messages/m-doc/download-url',
-        expect.objectContaining({ key: 'chat/c1/b-report.pdf', disposition: 'attachment' }),
+        '/v1/conversations/c1/messages/m-xls/download-url',
+        expect.objectContaining({ key: 'chat/c1/sales.xlsx', disposition: 'attachment' }),
       ),
     );
     await waitFor(() => expect(open).toHaveBeenCalled());
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
+
 });
 
 describe('ChatMediaPage — loading more', () => {
