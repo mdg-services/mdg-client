@@ -25,6 +25,12 @@ export const declarationsAnswerSchema = z.discriminatedUnion('step', [
       filename: z.string().trim().min(1).max(255),
     })
     .strict(),
+  /**
+   * "Use the same photos as last time": the last filing's two photos go into this week's
+   * box (replacing what the slots hold). The owner still presses Send, and still gives
+   * their word, so IndianOil is told what the owner said and not more.
+   */
+  z.object({ step: z.literal('reuse') }).strict(),
   /** Take a photo out of its slot (the owner wants to retake it). */
   z.object({ step: z.literal('remove'), slot: z.enum(WASHROOM_PHOTO_SLOTS) }).strict(),
   /**

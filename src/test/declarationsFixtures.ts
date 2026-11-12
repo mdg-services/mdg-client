@@ -48,8 +48,22 @@ export function makeDeclarationsView(over: Partial<DeclarationsView> = {}): Decl
     lastWashroomFiledDay: null,
     nextWashroomDueDay: null,
     maxPhotoBytes: WASHROOM_PHOTO_MAX_BYTES,
+    lastPhotos: [],
     ...over,
   };
+}
+
+/** The last filing's two photos (outside, inside), as the view offers them for "use the same photos". */
+export function makeLastPhotos(over: Partial<WashroomPhotoView> = {}): WashroomPhotoView[] {
+  return (['outside', 'inside'] as const).map((slot) =>
+    makeWashroomPhoto(slot, {
+      key: `declarations/d1/files/last-${slot}.jpg`,
+      filename: `last-${slot}.jpg`,
+      at: '2026-11-05T05:00:00.000Z',
+      url: `https://files.example.test/last-${slot}.jpg`,
+      ...over,
+    }),
+  );
 }
 
 /** A view on the owner's own screen: `collect`, with 0, 1 (outside) or 2 photos in. */

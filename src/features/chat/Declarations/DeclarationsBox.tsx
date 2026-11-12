@@ -7,6 +7,7 @@ import {
   useAnswerDeclarationsPhoto,
   useDeclarations,
   useDeclarationsBusy,
+  useReuseDeclarationsPhotos,
 } from '@/hooks/api/useDeclarations';
 import { useT } from '@/lib/i18n';
 import type { DeclarationsView, WashroomPhotoSlot } from '@dk/shared/types';
@@ -27,7 +28,8 @@ function Quiet({ text }: { text: string }) {
  * IndianOil wants two photos of the outlet's washroom every week, with a declaration
  * that the toilet is kept clean. MDG fills in the declaration on IndianOil's portal;
  * it asks the owner (or the manager) only for what nobody else has: the two photos,
- * and their word that they were taken today of their own washroom.
+ * and their word that they were taken today of their own washroom. If the outlet has filed
+ * before, last time's two photos can be put back with one tap instead.
  *
  * THE BOX DRAWS THE OUTLET'S STATE NOW, never what was true when it was posted: it
  * is a message, and a message cannot be edited, so it reads the live view and
@@ -37,6 +39,8 @@ function Quiet({ text }: { text: string }) {
  * It shows only what the owner may see: the view it reads is the owner's own, with
  * nothing of the admin's pane in it, and a failed filing is always the same two
  * sentences, never the portal's words.
+ *
+ * A photo opens full size inside the app (`PhotoThumb`), never as a link out of it.
  *
  * It is the only thing in the chat that asks for this view, so a chat with no box
  * in it never makes the call.
@@ -50,10 +54,11 @@ export function DeclarationsBox() {
 
   const answer = useAnswerDeclarations();
   const photo = useAnswerDeclarationsPhoto();
+  const reuse = useReuseDeclarationsPhotos();
   const [error, setError] = React.useState<string | null>(null);
   // Shared by every box in the thread: they draw one outlet's one view, so a photo on its
   // way from one box must hold the others still (see `useDeclarationsBusy`).
-  const { busy, uploadingSlot } = useDeclarationsBusy();
+  const { busy, uploadingSlot, reusing } = useDeclarationsBusy();
 
   // A refusal belongs to the screen it was given on.
   const where = view ? view.screen : '';
@@ -63,6 +68,17 @@ export function DeclarationsBox() {
     setError(null);
     try {
       await answer.mutateAsync({ step: 'send', confirmFresh: true });
+    } catch (err) {
+      setError(declarationsErrorText(err, t, 'answer'));
+    }
+  };
+
+  // "Use the same photos as last time". The server answers with the whole fresh view, so the
+  // slots fill by themselves; a refusal (the old photos are gone) is shown in its own words.
+  const reusePhotos = async () => {
+    setError(null);
+    try {
+      await reuse.mutateAsync();
     } catch (err) {
       setError(declarationsErrorText(err, t, 'answer'));
     }
@@ -121,7 +137,9 @@ export function DeclarationsBox() {
               view={view}
               busy={busy}
               uploadingSlot={uploadingSlot}
+              reusing={reusing}
               onPhoto={(slot, file) => void sendPhoto(slot, file)}
+              onReuse={() => void reusePhotos()}
               onSend={() => void send()}
             />
             {error ? <Notice text={error} /> : null}
@@ -147,13 +165,17 @@ function Screen({
   view,
   busy,
   uploadingSlot,
+  reusing,
   onPhoto,
+  onReuse,
   onSend,
 }: {
   view: DeclarationsView;
   busy: boolean;
   uploadingSlot: WashroomPhotoSlot | null;
+  reusing: boolean;
   onPhoto: (slot: WashroomPhotoSlot, file: File) => void;
+  onReuse: () => void;
   onSend: () => void;
 }) {
   const t = useT();
@@ -170,7 +192,9 @@ function Screen({
           view={view}
           busy={busy}
           uploadingSlot={uploadingSlot}
+          reusing={reusing}
           onPhoto={onPhoto}
+          onReuse={onReuse}
           onSend={onSend}
         />
       );

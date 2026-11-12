@@ -1,5 +1,5 @@
 /**
- * The standard package: the nine services every Indian Oil outlet gets, set up
+ * The standard package: the ten services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -16,7 +16,7 @@
  * resumes from that step.
  */
 
-/** The nine services, in the order they are attached. */
+/** The ten services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -25,6 +25,7 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   'ro-supply-status',
   'du-otp-acknowledgement',
   'tt-density',
+  'dealer-declarations',
   'dsr-report',
   'load-planner',
 ] as const;

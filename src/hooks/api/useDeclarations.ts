@@ -69,6 +69,7 @@ export function invalidateDeclarations(qc: QueryClient): void {
  */
 const ANSWER_KEY = ['declarations', 'answer'] as const;
 const PHOTO_KEY = ['declarations', 'photo'] as const;
+const REUSE_KEY = ['declarations', 'reuse'] as const;
 
 /**
  * An answer that did not go through leaves the box guessing: the request may or may not
@@ -102,6 +103,31 @@ export function useAnswerDeclarations() {
     retry: false,
     networkMode: 'always',
     mutationFn: (body: DeclarationsAnswer) => api.post<DeclarationsView>(ANSWER_PATH, body),
+    onSuccess: (view) => {
+      qc.setQueryData(declarationsKey, view);
+    },
+    onError: (err) => reread(qc, err),
+  });
+}
+
+/**
+ * "Use the same photos as last time": the server puts last filing's two photos in the box,
+ * replacing what the slots hold, and answers with the whole fresh view. No upload: the files
+ * are already there. Its own mutation, so the box can show which button is on its way; it
+ * counts as busy for every box in the thread like any other answer ({@link useDeclarationsBusy}).
+ * Never retried, and on the same footing as {@link useAnswerDeclarations}: not parked while
+ * the phone says it is offline, and any error asks the server where things stand (the photos
+ * may be gone, or the cycle may have moved).
+ */
+export function useReuseDeclarationsPhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: REUSE_KEY,
+    gcTime: 0,
+    retry: false,
+    networkMode: 'always',
+    mutationFn: () =>
+      api.post<DeclarationsView>(ANSWER_PATH, { step: 'reuse' } satisfies DeclarationsAnswer),
     onSuccess: (view) => {
       qc.setQueryData(declarationsKey, view);
     },
@@ -148,18 +174,27 @@ export function useAnswerDeclarationsPhoto() {
 }
 
 /**
- * Whether an answer is on its way, for ANY Declarations box on screen, and which photo
- * slot is uploading. A reminder posts the box again, so a thread can hold several; each
+ * Whether an answer is on its way, for ANY Declarations box on screen, which photo
+ * slot is uploading, and whether the same-photos answer is. A reminder posts the box again, so a thread can hold several; each
  * draws the same live view and is fully interactive. If busy belonged to one box, a photo
  * could be uploading in one while the owner picks another in a second, and whichever reply
  * landed last would win the cache. Read here from the mutations themselves, it is the same
  * in every box.
  */
-export function useDeclarationsBusy(): { busy: boolean; uploadingSlot: WashroomPhotoSlot | null } {
+export function useDeclarationsBusy(): {
+  busy: boolean;
+  uploadingSlot: WashroomPhotoSlot | null;
+  reusing: boolean;
+} {
   const onTheWay = useIsMutating({ mutationKey: ['declarations'] });
+  const reusing = useIsMutating({ mutationKey: REUSE_KEY });
   const photos = useMutationState({
     filters: { mutationKey: PHOTO_KEY, status: 'pending' },
     select: (m) => (m.state.variables as AnswerDeclarationsPhotoVars | undefined)?.slot ?? null,
   });
-  return { busy: onTheWay > 0, uploadingSlot: photos.find((slot) => slot !== null) ?? null };
+  return {
+    busy: onTheWay > 0,
+    uploadingSlot: photos.find((slot) => slot !== null) ?? null,
+    reusing: reusing > 0,
+  };
 }

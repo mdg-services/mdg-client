@@ -6,21 +6,27 @@ import { ImageRejected } from '@/lib/squeezeImage';
 import {
   makeCollect,
   makeDeclarationsView,
+  makeLastPhotos,
   makeWashroomCycle,
   makeWashroomPhoto,
 } from '@/test/declarationsFixtures';
 
 import {
+  anyPhotoReused,
+  boxHoldsNewPhoto,
+  canOfferReuse,
   canSend,
   declarationsErrorText,
   freshPhotoInSlot,
   istDay,
   istToday,
   lastFiledDay,
+  lastPhotoPair,
   nextDueDay,
   photoInSlot,
   photoIsFromToday,
   photosSignature,
+  sendHint,
 } from './declarationsView';
 
 describe('photoInSlot', () => {
@@ -132,6 +138,174 @@ describe('photosSignature', () => {
   });
 });
 
+/** The box holds these photos, each put back from last time unless `over` says otherwise. */
+const holding = (
+  slots: Array<'outside' | 'inside'>,
+  over: Parameters<typeof makeWashroomPhoto>[1] = {},
+) =>
+  makeCollect(0, {
+    lastPhotos: makeLastPhotos(),
+    washroom: makeWashroomCycle({
+      state: 'collecting',
+      photos: slots.map((slot) => makeWashroomPhoto(slot, { reused: true, ...over })),
+    }),
+  });
+
+/** One put-back photo and one new one, the new one in `fresh`'s slot. */
+const mixed = (fresh: 'outside' | 'inside') =>
+  makeDeclarationsView({
+    washroom: makeWashroomCycle({
+      photos: [
+        makeWashroomPhoto('outside', { reused: fresh === 'outside' ? undefined : true }),
+        makeWashroomPhoto('inside', { reused: fresh === 'inside' ? undefined : true }),
+      ],
+    }),
+  });
+
+describe('anyPhotoReused', () => {
+  it('is true when every photo in the box was put back from last time', () => {
+    expect(anyPhotoReused(holding(['outside', 'inside']))).toBe(true);
+    expect(anyPhotoReused(holding(['inside']))).toBe(true);
+  });
+
+  it('is STILL true when only one photo was put back and the other is new, in either slot', () => {
+    // The owner put both back, then retook only the outside photo (or only the inside one):
+    // the box still holds a put-back photo, so "taken today" would be false of it.
+    expect(anyPhotoReused(mixed('outside'))).toBe(true);
+    expect(anyPhotoReused(mixed('inside'))).toBe(true);
+  });
+
+  it('is false for new photos only, and for an empty box', () => {
+    expect(anyPhotoReused(makeCollect(2))).toBe(false);
+    expect(anyPhotoReused(makeCollect(1))).toBe(false);
+    expect(anyPhotoReused(makeCollect(0))).toBe(false);
+  });
+
+  it('takes `reused: false` for a new photo', () => {
+    expect(anyPhotoReused(holding(['outside', 'inside'], { reused: false }))).toBe(false);
+  });
+});
+
+describe('boxHoldsNewPhoto', () => {
+  it('is true for any photo that was not put back, however many are put back beside it', () => {
+    expect(boxHoldsNewPhoto(makeCollect(1))).toBe(true);
+    expect(boxHoldsNewPhoto(makeCollect(2))).toBe(true);
+    expect(boxHoldsNewPhoto(mixed('outside'))).toBe(true);
+    expect(boxHoldsNewPhoto(mixed('inside'))).toBe(true);
+    expect(boxHoldsNewPhoto(holding(['outside', 'inside'], { reused: false }))).toBe(true);
+  });
+
+  it('is false for an empty box and for a box of put-back photos only', () => {
+    expect(boxHoldsNewPhoto(makeCollect(0))).toBe(false);
+    expect(boxHoldsNewPhoto(holding(['outside', 'inside']))).toBe(false);
+    expect(boxHoldsNewPhoto(holding(['inside']))).toBe(false);
+  });
+});
+
+describe('a photo put back from last time', () => {
+  it('counts as present for Send (it is dated the day it was put back), and an old put-back does not', () => {
+    const view = holding(['outside', 'inside']);
+    expect(canSend(view, true)).toBe(true);
+    expect(canSend(view, false)).toBe(false);
+    const yesterday = holding(['outside', 'inside'], { at: '2026-11-11T05:00:00.000Z' });
+    expect(canSend(yesterday, true, '2026-11-12')).toBe(false);
+  });
+
+  it('changes the photos’ signature, so the owner’s tick is asked for again', () => {
+    expect(photosSignature(holding(['outside', 'inside']))).not.toBe(
+      photosSignature(makeCollect(2)),
+    );
+    const sameKeysNew = makeCollect(2);
+    const sameKeysReused = holding(['outside', 'inside']);
+    // Same keys, only the mark differs: still a different word to give.
+    expect(photosSignature(sameKeysNew)).not.toBe(photosSignature(sameKeysReused));
+  });
+});
+
+describe('lastPhotoPair and canOfferReuse', () => {
+  it('is the two photos by slot, whatever order they came in', () => {
+    const view = makeCollect(0, { lastPhotos: makeLastPhotos().reverse() });
+    expect(lastPhotoPair(view)).toMatchObject({
+      outside: { slot: 'outside' },
+      inside: { slot: 'inside' },
+    });
+  });
+
+  it('is null with none, with one, or with two for the same slot', () => {
+    expect(lastPhotoPair(makeCollect(0))).toBeNull();
+    expect(lastPhotoPair(makeCollect(0, { lastPhotos: makeLastPhotos().slice(0, 1) }))).toBeNull();
+    const [outside] = makeLastPhotos();
+    expect(lastPhotoPair(makeCollect(0, { lastPhotos: [outside!, { ...outside! }] }))).toBeNull();
+  });
+
+  it('offers the same photos only when both of last time’s are there', () => {
+    expect(canOfferReuse(makeCollect(0))).toBe(false);
+    expect(canOfferReuse(makeCollect(0, { lastPhotos: makeLastPhotos().slice(1) }))).toBe(false);
+    expect(canOfferReuse(makeCollect(0, { lastPhotos: makeLastPhotos() }))).toBe(true);
+  });
+
+  it('stops offering them the moment the box holds a new photo: the tap would throw it away', () => {
+    expect(canOfferReuse(makeCollect(1, { lastPhotos: makeLastPhotos() }))).toBe(false);
+    expect(canOfferReuse(makeCollect(2, { lastPhotos: makeLastPhotos() }))).toBe(false);
+  });
+
+  it('stops offering them when one slot was put back and the other retaken', () => {
+    for (const fresh of ['outside', 'inside'] as const) {
+      expect(canOfferReuse({ ...mixed(fresh), lastPhotos: makeLastPhotos() })).toBe(false);
+    }
+  });
+
+  it('stops offering them once both slots hold them, put back today', () => {
+    expect(canOfferReuse(holding(['outside', 'inside']))).toBe(false);
+  });
+
+  it('keeps offering them when the put-back photos are from an earlier day: the tap dates them today again', () => {
+    const yesterday = holding(['outside', 'inside'], { at: '2026-11-11T05:00:00.000Z' });
+    expect(canOfferReuse(yesterday, '2026-11-12')).toBe(true);
+  });
+
+  it('keeps offering them when only one slot holds a put-back photo', () => {
+    expect(canOfferReuse(holding(['outside']))).toBe(true);
+  });
+});
+
+describe('sendHint', () => {
+  it('asks for both photos until both are in and from today', () => {
+    expect(sendHint(makeCollect(0), false)).toBe('photos');
+    expect(sendHint(makeCollect(1), true)).toBe('photos');
+    // Monday's photo in one slot is not a photo that is in.
+    const old = makeDeclarationsView({
+      washroom: makeWashroomCycle({
+        photos: [
+          makeWashroomPhoto('outside', { at: '2026-11-09T05:00:00.000Z' }),
+          makeWashroomPhoto('inside', { at: '2026-11-12T05:00:00.000Z' }),
+        ],
+      }),
+    });
+    expect(sendHint(old, true, '2026-11-12')).toBe('photos');
+  });
+
+  it('says "tick the box" once both photos are in and the box is not ticked', () => {
+    expect(sendHint(makeCollect(2), false)).toBe('tick');
+    // Right after the same-photos tap fills both slots.
+    expect(sendHint(holding(['outside', 'inside']), false)).toBe('tick');
+  });
+
+  it('says nothing once both photos are in and the box is ticked', () => {
+    expect(sendHint(makeCollect(2), true)).toBe('ready');
+    expect(sendHint(holding(['outside', 'inside']), true)).toBe('ready');
+  });
+
+  it('agrees with canSend, so the button and the line never disagree', () => {
+    for (const view of [makeCollect(0), makeCollect(1), makeCollect(2), mixed('inside')]) {
+      for (const fresh of [true, false]) {
+        expect(sendHint(view, fresh) === 'ready').toBe(canSend(view, fresh));
+      }
+    }
+  });
+});
+
+
 describe('the dates', () => {
   it('reads the last filing and the next due day as dd-mm-yyyy', () => {
     const view = makeDeclarationsView({
@@ -150,6 +324,19 @@ describe('the dates', () => {
 
 describe('declarationsErrorText', () => {
   const t: TFunction = (key, vars) => translate('en', key, vars);
+
+  it("shows the server's refusal of the same photos as it is, Hindi first, and never the English alone", () => {
+    const gone =
+      'पिछली बार की फ़ोटो अब हमारे पास नहीं हैं। कृपया नई फ़ोटो भेजिए। (The photos from last time are gone. Please send new photos.)';
+    expect(declarationsErrorText(new ApiError(400, 'BAD', gone), t, 'answer')).toBe(gone);
+    // An English-only 409 the box does not know still means the cycle moved.
+    expect(declarationsErrorText(new ApiError(409, 'X', 'Not now.'), t, 'answer')).toBe(
+      'Something just changed. Look at the box again, then try once more.',
+    );
+    expect(declarationsErrorText(new Error('network'), t, 'answer')).toBe(
+      "Couldn't save — try again",
+    );
+  });
 
   it('says what to do about a photo turned away on the phone', () => {
     expect(declarationsErrorText(new ImageRejected('size'), t, 'photo')).toBe(

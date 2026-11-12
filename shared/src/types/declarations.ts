@@ -174,6 +174,11 @@ export interface WashroomPhotoRef {
   size: number;
   mime: string;
   at: string;
+  /**
+   * The owner chose "use the same photos as last time": this photo is one of the
+   * last filing's, put back into this week's box. Its `at` is the day it was put back.
+   */
+  reused?: boolean;
 }
 export interface WashroomPhotoView extends WashroomPhotoRef {
   /** Short-lived link to open it. */
@@ -221,7 +226,16 @@ export interface DeclarationsView {
   nextWashroomDueDay: string | null;
   /** Each photo's size limit, bytes. */
   maxPhotoBytes: number;
+  /**
+   * The two photos of the last washroom filing (outside, inside), with links, so the owner
+   * can send the same ones again. Empty before the first filing, or when one is gone.
+   */
+  lastPhotos: WashroomPhotoView[];
 }
+
+/** The two declarations MDG tells the owners about with a card each time it files them. */
+export const DECLARATION_CARD_KINDS = ['safety', 'washroom'] as const;
+export type DeclarationCardKind = (typeof DECLARATION_CARD_KINDS)[number];
 
 /* ───────────────────────────── the admin's pane ───────────────────────────── */
 

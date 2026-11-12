@@ -84,11 +84,96 @@ export function canSend(
 /**
  * A short fingerprint of the photos held now. When it changes the owner's tick is
  * taken back: the word "these photos were taken today" covers the photos as they
- * stood when it was given, not a retake made after.
+ * stood when it was given, not a retake made after. Whether a photo is one put back from
+ * last time is part of it: the owner says a different sentence for those.
  */
 export function photosSignature(view: Pick<DeclarationsView, 'washroom'>): string {
-  return view.washroom.photos.map((p) => `${p.slot}:${p.key}`).join('|');
+  return view.washroom.photos.map((p) => `${p.slot}:${p.key}${p.reused ? ':same' : ''}`).join('|');
 }
+
+/**
+ * Is ANY photo in the box one put back from last time ("use the same photos")? An empty box
+ * is not, and neither is a box of only new photos. The owner's tick says a different sentence
+ * for this case: that the washroom still looks like it does in these photos, not that the
+ * photos were taken today. It is "any", not "every": a box with one put-back photo and one new
+ * one (the owner put both back, then retook only the outside photo) must not say "taken
+ * today" about the put-back one. The "still looks like it does" sentence is true of a photo
+ * taken today as well, so it is safe for the mixed box.
+ */
+export function anyPhotoReused(view: Pick<DeclarationsView, 'washroom'>): boolean {
+  return view.washroom.photos.some((p) => p.reused === true);
+}
+
+/**
+ * Is there a photo in the box that is NEW (not put back from last time)? A photo the server
+ * did not mark as put back counts as new, whatever its day.
+ */
+export function boxHoldsNewPhoto(view: Pick<DeclarationsView, 'washroom'>): boolean {
+  return view.washroom.photos.some((p) => p.reused !== true);
+}
+
+/** Last time's two photos, by slot, when both are there; null when there are none or only one. */
+export function lastPhotoPair(
+  view: Pick<DeclarationsView, 'lastPhotos'>,
+): Record<WashroomPhotoSlot, WashroomPhotoView> | null {
+  const find = (slot: WashroomPhotoSlot) => (view.lastPhotos ?? []).find((p) => p.slot === slot);
+  const outside = find('outside');
+  const inside = find('inside');
+  return outside && inside ? { outside, inside } : null;
+}
+
+/**
+ * Whether to offer "use the same photos": both of last time's photos are there, the box holds
+ * NO new photo (it is empty, or every photo in it was put back from last time), and it does not
+ * already hold them as of today.
+ *
+ * The tap replaces BOTH slots, with no way back. So the offer goes away the moment the owner
+ * takes a photo of their own: one careless tap on a big green button would otherwise throw
+ * that new photo away for the old one. It also keeps the screen to one big button (Send) once
+ * the owner is choosing photos themselves. Photos put back on an earlier day are still all
+ * "put back", so the offer stays for them: the tap is how they are dated today again.
+ */
+export function canOfferReuse(
+  view: Pick<DeclarationsView, 'washroom' | 'lastPhotos'>,
+  today: string = istToday(),
+): boolean {
+  if (!lastPhotoPair(view)) return false;
+  if (boxHoldsNewPhoto(view)) return false;
+  const putBackToday = WASHROOM_PHOTO_SLOTS.every(
+    (slot) => freshPhotoInSlot(view, slot, today)?.reused === true,
+  );
+  return !putBackToday;
+}
+
+/** What the grey line under Send says: nothing, "tick the box", or "add both photos first". */
+export type SendHint = 'ready' | 'tick' | 'photos';
+
+/**
+ * Which line goes under the Send button. Both photos in (and from today) but the box not
+ * ticked is its own state: the photos are done, so the line must not say "add both photos" (it
+ * did, right after "use the same photos" put both in, and read as if the tap had failed). It
+ * tells the owner that the tap only filled the slots and that Send is still theirs to press.
+ */
+export function sendHint(
+  view: Pick<DeclarationsView, 'washroom'>,
+  fresh: boolean,
+  today: string = istToday(),
+): SendHint {
+  if (!canSend(view, true, today)) return 'photos';
+  return fresh ? 'ready' : 'tick';
+}
+
+/** The label of each slot, as the owner's own slot names it ("1. From outside"). */
+export const SLOT_LABEL_KEY = {
+  outside: 'chat.declSlotOutside',
+  inside: 'chat.declSlotInside',
+} as const satisfies Record<WashroomPhotoSlot, MessageKey>;
+
+/** The short word under each of last time's photos. */
+export const LAST_LABEL_KEY = {
+  outside: 'chat.declLastOutside',
+  inside: 'chat.declLastInside',
+} as const satisfies Record<WashroomPhotoSlot, MessageKey>;
 
 /** dd-mm-yyyy of the day the washroom declaration was last filed. */
 export function lastFiledDay(view: DeclarationsView): string | null {

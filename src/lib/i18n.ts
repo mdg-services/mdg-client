@@ -1893,6 +1893,35 @@ export const messages = {
     en: 'Added on {date}. Please take it again today.',
     hi: '{date} को डाली थी। आज दोबारा खींचिए।',
   },
+  // "Use the same photos as last time": the washroom looks the same week to week, so the
+  // owner can put last filing's two photos back instead of taking them again. The tick then
+  // says the washroom still looks like those photos, not that they were taken today.
+  'chat.declLastTitle': { en: "Last time's photos", hi: 'पिछली बार की फ़ोटो' },
+  'chat.declLastWhen': { en: 'Sent on {date}', hi: '{date} को भेजी थीं' },
+  'chat.declLastOutside': { en: 'Outside', hi: 'बाहर से' },
+  'chat.declLastInside': { en: 'Inside', hi: 'अंदर से' },
+  'chat.declReuse': { en: 'Use the same photos', hi: 'यही फ़ोटो फिर से लगाइए' },
+  'chat.declOrNew': { en: 'Or take new photos', hi: 'या नई फ़ोटो लीजिए' },
+  'chat.declPhotoReused': { en: 'Same as last time', hi: 'पिछली बार वाली' },
+  // Said when ANY photo in the box is one put back from last time, whatever the other holds:
+  // it is true of a photo taken today as well, so a box with one put-back and one new photo
+  // never says "taken today" about the put-back one.
+  'chat.declFreshSame': {
+    en: 'My washroom still looks like it does in these photos',
+    hi: 'मेरा वॉशरूम अभी भी वैसा ही है जैसा इन फ़ोटो में दिख रहा है',
+  },
+  // Under Send once both photos are in and only the tick is missing. The one tap that puts
+  // last time's photos back fills the slots and nothing more: Send is still the owner's.
+  'chat.declSendTick': {
+    en: 'Done. Now tick the box and press Send.',
+    hi: 'हो गया। अब डिब्बा टिक करके भेजें दबाइए।',
+  },
+  // A photo put back on an earlier day and still held today: the same-photos button dates
+  // both of them today again. {button} is that button's own label.
+  'chat.declPhotoOldReused': {
+    en: 'Put back on {date}. Tap "{button}" again, or take a new photo.',
+    hi: '{date} को लगाई थी। "{button}" फिर से दबाइए, या नई फ़ोटो लीजिए।',
+  },
   // What the server says when it turns an answer away, in the box's own words. The server
   // answers these in English only; the box speaks Hindi first.
   'chat.declChanged': {
