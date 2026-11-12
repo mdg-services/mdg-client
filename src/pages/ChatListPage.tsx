@@ -16,6 +16,7 @@ import {
 } from '@/features/chat/conversationLabel';
 import { OutletChip } from '@/features/outlets/OutletChip';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
+import { BatteryGuideCard } from '@/features/push/BatteryGuide';
 import { PushNotice } from '@/features/push/PushNotice';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
@@ -208,6 +209,8 @@ function ChatList() {
         {/* Nothing here unless the phone has never been asked about
             notifications, or has said no — and then one quiet line, not a wall. */}
         <PushNotice />
+        {/* Xiaomi, Oppo, Vivo, Realme, OnePlus, Samsung: once, the battery-saver steps. */}
+        <BatteryGuideCard />
         <FilterChips
           active={activeChip}
           showGroups={showGroups}

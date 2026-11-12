@@ -272,3 +272,43 @@ describe('socket.ts — waking the connection after the app was away', () => {
     expect(io).not.toHaveBeenCalled();
   });
 });
+
+describe('a connection the server refused (ADR 0040 review)', () => {
+  beforeEach(() => {
+    resetStores();
+    disconnectSocket();
+    vi.mocked(io).mockClear();
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    disconnectSocket();
+    resetStores();
+  });
+
+  type Handlers = Record<string, () => void>;
+  function handlersOf(s: unknown): Handlers {
+    const on = (s as { on: ReturnType<typeof vi.fn> }).on;
+    return Object.fromEntries(on.mock.calls.map(([ev, fn]) => [ev as string, fn as () => void]));
+  }
+
+  it('is tried again after a wait, because socket.io never retries a refusal itself', () => {
+    signIn();
+    const s = getSocket() as unknown as WithConnection & { active?: boolean };
+    expect(vi.mocked(io).mock.calls.at(-1)![1]).toMatchObject({ tryAllTransports: true });
+    s.active = false; // refused by the server's sign-in check
+    handlersOf(s).connect_error!();
+    expect(s.connect).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(2_000);
+    expect(s.connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves a socket that is still retrying on its own alone', () => {
+    signIn();
+    const s = getSocket() as unknown as WithConnection & { active?: boolean };
+    s.active = true; // a network error: socket.io is already backing off
+    handlersOf(s).connect_error!();
+    vi.advanceTimersByTime(60_000);
+    expect(s.connect).not.toHaveBeenCalled();
+  });
+});

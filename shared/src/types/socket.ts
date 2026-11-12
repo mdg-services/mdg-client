@@ -96,6 +96,8 @@ export interface ServerToClientEvents {
   'whatsapp:incoming': (payload: WhatsAppIncomingEvent) => void;
   typing: (payload: { conversationId: string; userId: string; userName: string }) => void;
   delivered: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
+  /** A notification for these messages reached this person's phone's push service (ADR 0040 §2). */
+  notified: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
   read: (payload: { conversationId: string; userId: string; messageIds: string[] }) => void;
 }
 

@@ -30,6 +30,8 @@ declare global {
      * from a shell built before the list existed.
      */
     __DK_NATIVE_FEATURES__?: readonly string[];
+    /** The phone's maker as the app shell reads it from Android ("Xiaomi"); "Apple" on iPhone. */
+    __DK_PHONE_MAKER__?: string;
   }
   interface WindowEventMap {
     /** The shell's answer to `push:status`, or its own news that the state changed. */
@@ -551,4 +553,20 @@ export function openPortalAssist(req: PortalAssistRequest): boolean {
   if (!nativeHas('portal-assist')) return false;
   postToNative({ type: 'portal:assist', ...req });
   return true;
+}
+
+/** The phone's maker as the app shell reports it ("Xiaomi", "samsung"), or null. */
+export function nativePhoneMaker(): string | null {
+  if (typeof window === 'undefined') return null;
+  const said = window.__DK_PHONE_MAKER__;
+  return typeof said === 'string' && said.trim() ? said.trim() : null;
+}
+
+/**
+ * The Android notification channel this shell has made for chat messages, the one
+ * that pops up (ADR 0040 §3), or null for a shell that predates it — the server must
+ * never name a channel the phone has not made, or the notification is not shown.
+ */
+export function nativePushChannel(): string | null {
+  return detectPlatform() === 'android' && nativeHas('push-channel:messages') ? 'messages' : null;
 }

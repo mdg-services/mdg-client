@@ -7,6 +7,7 @@ import {
   detectPlatform,
   getInjectedPushToken,
   isNativeShell,
+  nativePushChannel,
   requestNativePushStatus,
   requestNativePushToken,
   type NativePlatform,
@@ -36,7 +37,14 @@ async function registerToken(
 ): Promise<void> {
   if (!token) return;
   try {
-    await api.post<{ registered: boolean }>('/v1/devices', { token, platform });
+    // The pop-up channel, when this shell has made it (ADR 0040 §3): the server
+    // names it on every push to this phone so MDG's messages pop up on screen.
+    const channelId = nativePushChannel();
+    await api.post<{ registered: boolean }>('/v1/devices', {
+      token,
+      platform,
+      ...(channelId ? { channelId } : {}),
+    });
     registeredPushToken = token;
   } catch (error) {
     // Best-effort: push registration must never break the app. It is REPORTED

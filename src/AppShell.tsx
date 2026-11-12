@@ -11,6 +11,7 @@ import { useMe } from '@/hooks/api/useMe';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
 import { usePushBridge } from '@/hooks/usePushBridge';
+import { useReachReport } from '@/hooks/useReachReport';
 import { cn } from '@/lib/cn';
 import { useKeyboardViewport } from '@/lib/useKeyboardViewport';
 import { useAuthStore } from '@/store/auth';
@@ -50,6 +51,7 @@ export function AppShell() {
   useMyConversations();
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // learn where notifications stand, register the push token, handle deep links from native
+  useReachReport(); // tell the server where notifications stand on this phone (the team's reach line)
   // Called for its side effect. It publishes `--vvh` / `--kb` on <html>, which is
   // what keeps the composer above the keyboard; nothing in this frame reads the
   // returned flag now that there is no bottom bar to slide out of its way.

@@ -42,6 +42,7 @@ import { postChatClose, postChatOpen } from '@/lib/nativeBridge';
 import type { OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useGoBack } from '@/lib/useGoBack';
+import { usePageVisible } from '@/lib/usePageVisible';
 import { useAuthStore } from '@/store/auth';
 import type { Message } from '@dk/shared/types';
 
@@ -382,8 +383,10 @@ export function ChatPage() {
 
   // Mark the other party's messages read once they're on screen. Covers
   // messages loaded over HTTP (history) as well as anything realtime missed.
+  // Only while the page is actually visible — and again the moment it is shown.
+  const pageVisible = usePageVisible();
   React.useEffect(() => {
-    if (!userId) return;
+    if (!userId || !pageVisible) return;
     const unreadIds = messages
       .filter(
         (m) =>
@@ -393,7 +396,7 @@ export function ChatPage() {
       )
       .map((m) => m.id);
     if (unreadIds.length > 0) markRead(unreadIds);
-  }, [messages, userId, markRead]);
+  }, [messages, userId, markRead, pageVisible]);
 
   const handleSend = async (text: string, files: OutgoingAttachment[]) => {
     if (!conversationId) {

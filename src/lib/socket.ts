@@ -44,6 +44,9 @@ export function getSocket(): TypedSocket | null {
   socket = io(socketOrigin(), {
     auth: { token },
     transports: ['websocket', 'polling'],
+    // A network that blocks WebSockets (some office and mobile proxies) still gets
+    // live updates over plain requests, instead of none at all.
+    tryAllTransports: true,
     reconnection: true,
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
@@ -54,7 +57,44 @@ export function getSocket(): TypedSocket | null {
     autoConnect: true,
   }) as TypedSocket;
   connectedToken = token;
+  watchRefusals(socket);
   return socket;
+}
+
+/**
+ * A connection the SERVER refused is never retried by socket.io on its own.
+ *
+ * The server checks the sign-in when a connection opens, and refuses on any
+ * database hiccup as well as on a real sign-in problem. socket.io treats any
+ * such refusal as final (`socket.active` false): the phone kept its screens but
+ * had no live connection — no new messages, no ticks — until the app went to the
+ * background and came back. So a refused connection is tried again here, waiting
+ * a little longer each time (2 s, 5 s, 15 s, then every 30 s), and the waits
+ * start over once one succeeds. A sign-in that is really over is ended by the
+ * next API call, which signs the app out and closes this socket with it.
+ */
+const REFUSED_RETRY_MS = [2_000, 5_000, 15_000, 30_000];
+
+function watchRefusals(target: TypedSocket): void {
+  let attempt = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  target.on('connect', () => {
+    attempt = 0;
+    if (timer) clearTimeout(timer);
+    timer = null;
+  });
+  target.on('connect_error', () => {
+    // Still retrying by itself (a network error, not a refusal): leave it be.
+    if (target.active || timer) return;
+    const wait = REFUSED_RETRY_MS[Math.min(attempt, REFUSED_RETRY_MS.length - 1)]!;
+    attempt += 1;
+    timer = setTimeout(() => {
+      timer = null;
+      // Replaced or signed out meanwhile: this socket is nobody's now.
+      if (socket !== target || target.connected) return;
+      target.connect();
+    }, wait);
+  });
 }
 
 export function disconnectSocket(): void {

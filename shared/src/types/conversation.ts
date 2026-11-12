@@ -313,6 +313,12 @@ export interface Message {
   system?: boolean;
   /** User ids that have received the message on a device (drives the ✓✓ "delivered" tick). */
   deliveredTo?: string[];
+  /**
+   * User ids whose phone was sent a notification for it that Google or Apple
+   * took (ADR 0040 §2): told, but the app not opened since. The admin's ticks
+   * show it between "sent" and "delivered". Absent when nobody was notified.
+   */
+  notifiedTo?: string[];
   /** User ids that have read the message (drives the blue ✓✓ "seen" tick). Includes the sender. */
   readBy: string[];
   /**

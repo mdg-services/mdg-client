@@ -11,6 +11,7 @@ import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { invalidateWemmisLogin } from '@/hooks/api/useWemmisLogin';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
+import { isPageVisible } from '@/lib/usePageVisible';
 import { useAuthStore } from '@/store/auth';
 import type {
   Conversation,
@@ -270,7 +271,9 @@ export function useConversationSocket(
       if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
-      if (!alreadyPresent && payload.message.senderId !== currentUserId) {
+      // NOT while the page is hidden (app in the background, phone locked): "seen"
+      // must mean a person looked. The chat screen marks it read when it is shown.
+      if (!alreadyPresent && payload.message.senderId !== currentUserId && isPageVisible()) {
         socket.emit('read', { conversationId, messageIds: [payload.message.id] });
       }
       // A MESSAGE IS PROOF THEY HAVE STOPPED WRITING, so the dots come down with

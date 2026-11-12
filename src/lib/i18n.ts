@@ -995,6 +995,71 @@ export const messages = {
   },
   'push.openSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
 
+  // The battery-saver guide (ADR 0040 §7): phones that put apps to sleep and hide their notifications.
+  'battery.title': { en: "Make sure MDG's messages reach you", hi: 'MDG के मैसेज समय पर पाने के लिए' },
+  'battery.why': {
+    en: '{maker} phones put apps to sleep to save battery, and then their notifications do not show. Two minutes in settings fixes it.',
+    hi: '{maker} फ़ोन बैटरी बचाने के लिए ऐप को सुला देते हैं, फिर उसके नोटिफ़िकेशन नहीं दिखते। सेटिंग में दो मिनट लगेंगे।',
+  },
+  'battery.whyAny': {
+    en: 'Some phones put apps to sleep to save battery, and then their notifications do not show. These steps stop that.',
+    hi: 'कुछ फ़ोन बैटरी बचाने के लिए ऐप को सुला देते हैं, फिर उसके नोटिफ़िकेशन नहीं दिखते। ये कदम उसे रोकते हैं।',
+  },
+  'battery.show': { en: 'Show me how', hi: 'कैसे करें, दिखाएँ' },
+  'battery.later': { en: 'Not now', hi: 'अभी नहीं' },
+  'battery.done': { en: 'Done', hi: 'हो गया' },
+  'battery.openSettings': { en: 'Open app settings', hi: 'ऐप की सेटिंग खोलें' },
+  'battery.step.openSettings': {
+    en: 'Tap "Open app settings" below. It opens Dealer Kavach\'s page in your phone\'s settings.',
+    hi: 'नीचे "ऐप की सेटिंग खोलें" दबाइए। फ़ोन की सेटिंग में Dealer Kavach का पेज खुलेगा।',
+  },
+  'battery.step.xiaomiAutostart': { en: 'Turn on "Autostart".', hi: '"Autostart" चालू कीजिए।' },
+  'battery.step.xiaomiSaver': {
+    en: 'Tap "Battery saver" and choose "No restrictions".',
+    hi: '"Battery saver" दबाइए और "No restrictions" चुनिए।',
+  },
+  'battery.step.colorosBackground': {
+    en: 'Tap "Battery usage" (or "Battery") and turn on "Allow background activity".',
+    hi: '"Battery usage" (या "Battery") दबाइए और "Allow background activity" चालू कीजिए।',
+  },
+  'battery.step.colorosAutoLaunch': {
+    en: 'On the same screen, turn on "Allow auto launch" if you see it.',
+    hi: 'उसी स्क्रीन पर "Allow auto launch" दिखे तो उसे भी चालू कीजिए।',
+  },
+  'battery.step.vivoBackground': {
+    en: 'Tap "Battery" and choose "Allow background power consumption" (or "Unrestricted").',
+    hi: '"Battery" दबाइए और "Allow background power consumption" (या "Unrestricted") चुनिए।',
+  },
+  'battery.step.vivoAutostart': {
+    en: 'If you see "Autostart" or "Auto-start", turn it on for Dealer Kavach.',
+    hi: '"Autostart" या "Auto-start" दिखे तो Dealer Kavach के लिए चालू कीजिए।',
+  },
+  'battery.step.samsungUnrestricted': {
+    en: 'Tap "Battery" and choose "Unrestricted".',
+    hi: '"Battery" दबाइए और "Unrestricted" चुनिए।',
+  },
+  'battery.step.samsungSleeping': {
+    en: 'In your phone\'s Settings → Battery → Background usage limits, make sure Dealer Kavach is not in "Sleeping apps" or "Deep sleeping apps".',
+    hi: 'फ़ोन की Settings → Battery → Background usage limits में देखिए कि Dealer Kavach "Sleeping apps" या "Deep sleeping apps" में न हो।',
+  },
+  'battery.step.genericUnrestricted': {
+    en: 'Tap "Battery" and choose "Unrestricted" (or "Don\'t optimise").',
+    hi: '"Battery" दबाइए और "Unrestricted" (या "Don\'t optimise") चुनिए।',
+  },
+  'battery.step.popUp': {
+    en: 'Tap "Notifications", open "Messages from MDG", and turn on pop-up (or "Floating") notifications.',
+    hi: '"Notifications" दबाइए, "Messages from MDG" खोलिए और pop-up (या "Floating") नोटिफ़िकेशन चालू कीजिए।',
+  },
+  'battery.step.lockRecent': {
+    en: 'Do not swipe Dealer Kavach away from your recent apps — that stops its notifications on this phone.',
+    hi: 'हाल के ऐप्स (recent apps) से Dealer Kavach को हटाइए (swipe) मत — इस फ़ोन पर उससे नोटिफ़िकेशन रुक जाते हैं।',
+  },
+  'settings.batteryGuide': { en: 'Messages not arriving?', hi: 'मैसेज नहीं आ रहे?' },
+  'settings.batteryGuideDesc': {
+    en: 'Stop your phone from hiding notifications',
+    hi: 'फ़ोन को नोटिफ़िकेशन छिपाने से रोकें',
+  },
+
   // Settings and what hangs off it.
   'settings.title': { en: 'Settings', hi: 'सेटिंग' },
   'settings.profileTitle': { en: 'Profile', hi: 'प्रोफ़ाइल' },

@@ -60,6 +60,8 @@ export * from './lib/ticketView';
 // app or not), read from its browser signature: the Onboarding page's "App ·
 // Android". Shared so the backend and the admin name devices the same way.
 export * from './lib/device';
+// Can a dealer member be reached on their phone (ADR 0040 §4)
+export * from './lib/reach';
 // Search over the video library (the admin's Videos page and "Send a video"):
 // both languages, romanised Hindi, chapters. Shared so the backend tests it.
 export * from './lib/videoSearch';

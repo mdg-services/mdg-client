@@ -1,3 +1,5 @@
+import type { MemberReach } from '../lib/reach';
+
 export type UserRole = 'admin' | 'dealer-owner' | 'dealer-staff';
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 
@@ -83,4 +85,8 @@ export interface OutletsView {
 }
 
 /** A dealer member as an admin's Members tab gets it: the person's other outlets ride along. */
-export type DealerMemberRow = User & { alsoRuns?: string[] };
+/**
+ * `reach`: the team's "can we reach them?" facts for a dealer member (ADR 0040 §4),
+ * admin lists only; `reachLine` in shared turns it into the sentence shown.
+ */
+export type DealerMemberRow = User & { alsoRuns?: string[]; reach?: MemberReach };

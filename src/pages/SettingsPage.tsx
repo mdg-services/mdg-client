@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  BatteryWarning,
   Bell,
   FileText,
   Globe,
@@ -21,6 +22,7 @@ import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, EmptyState } from '@/components/ui';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
+import { BatteryGuideSheet, batteryGuideMaker } from '@/features/push/BatteryGuide';
 import { requestPushPermission } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
@@ -72,6 +74,10 @@ export function SettingsPage() {
   const pushState = usePushStore((s) => s.pushState);
   const canAskAgain = usePushStore((s) => s.canAskAgain);
   const showNotifications = isNativeShell() && pushState !== 'unavailable';
+  // Phones whose battery saver hides notifications get the steps here too (ADR 0040 §7).
+  const showBatteryGuide = showNotifications && batteryGuideMaker() !== null;
+  const [batteryOpen, setBatteryOpen] = React.useState(false);
+  const closeBattery = React.useCallback(() => setBatteryOpen(false), []);
 
   const bar = <AppBar title={t('settings.title')} onBack={goBack} />;
 
@@ -167,6 +173,14 @@ export function SettingsPage() {
               onClick={onNotifications}
             />
           ) : null}
+          {showBatteryGuide ? (
+            <Row
+              icon={BatteryWarning}
+              title={t('settings.batteryGuide')}
+              subtitle={t('settings.batteryGuideDesc')}
+              onClick={() => setBatteryOpen(true)}
+            />
+          ) : null}
           {isOwner ? (
             <Row
               icon={UsersRound}
@@ -231,6 +245,7 @@ export function SettingsPage() {
 
       {languageOpen ? <LanguageSheet onClose={closeLanguage} /> : null}
       {outletsOpen ? <OutletSheet onClose={closeOutlets} /> : null}
+      {batteryOpen ? <BatteryGuideSheet onClose={closeBattery} /> : null}
       {confirmingLogout ? (
         <LogoutConfirm onCancel={closeLogout} onConfirm={onLogout} />
       ) : null}
