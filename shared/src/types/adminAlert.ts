@@ -32,6 +32,10 @@ export const ADMIN_ALERT_KINDS = [
   'kavach_to_verify',
   /** A daily report failed its correctness check and is being held back. */
   'report_held',
+  /** The AI found a problem in a Daily Sales Report an admin had already sent, while its check was still running. */
+  'sent_report_problem',
+  /** An outlet's Daily Sales Report for its latest closed day has not been made, and no retry is pending. */
+  'report_missing',
   /** An outlet's RO supply status reads blocked. */
   'supply_blocked',
   /**
@@ -189,6 +193,16 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   report_held: {
     label: 'Report held back',
     clearsWhen: 'Clears when the report passes, is released by hand, or is sent.',
+    superAdminOnly: false,
+  },
+  sent_report_problem: {
+    label: 'Problem in a sent report',
+    clearsWhen: 'Clears when each problem is ticked as checked, or the report is corrected and sent again.',
+    superAdminOnly: false,
+  },
+  report_missing: {
+    label: 'Report missing',
+    clearsWhen: 'Clears when the report for that day is made.',
     superAdminOnly: false,
   },
   bpcl_data_check: {

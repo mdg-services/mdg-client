@@ -156,6 +156,23 @@ export const AI_SENDABLE_STATES: ReadonlySet<AiSendState> = new Set<AiSendState>
   'REVIEWED',
 ]);
 
+/**
+ * May a PERSON send this report, as far as the AI check is concerned?
+ *
+ * A Daily Sales Report an admin shares goes out while its check is still
+ * running or has not started (owner, 12 Nov 2026): the check carries on beside
+ * the send, and a problem it finds afterwards reaches the admins as an alert
+ * about a report that has already gone. Once the check has FINISHED, nothing
+ * changes — problems still wait for a tick, and a check that could not run still
+ * asks for the admin's own look. Credit cards keep the old rule: a dealer plans
+ * payments on them. Automatic sends are never covered by this; they wait for
+ * {@link AI_SENDABLE_STATES}.
+ */
+export function aiPersonMaySend(kind: AiCheckKind, state: AiSendState): boolean {
+  if (AI_SENDABLE_STATES.has(state)) return true;
+  return kind === 'dsr' && (state === 'CHECKING' || state === 'NOT_CHECKED');
+}
+
 export interface AiCheckView {
   kind: AiCheckKind;
   reportId: string;
