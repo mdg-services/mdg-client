@@ -1,4 +1,4 @@
-import { Camera, Check, CheckCheck, Clock, FileText, Mic, Video, Zap } from 'lucide-react';
+import { Camera, Check, CheckCheck, Clock, FileText, Megaphone, Mic, Video, Zap } from 'lucide-react';
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
@@ -6,11 +6,17 @@ import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setu
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
-import { linkify } from '@/lib/linkify';
+import { linkify, richText } from '@/lib/linkify';
 import { detectPlatform } from '@/lib/nativeBridge';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
-import type { Attachment, Message, MessageReaction } from '@dk/shared/types';
+import {
+  ANNOUNCEMENT_TONE_LABELS,
+  type Attachment,
+  type AnnouncementTone,
+  type Message,
+  type MessageReaction,
+} from '@dk/shared/types';
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
@@ -23,6 +29,35 @@ import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
 import { WemmisLoginBox } from './WemmisLoginBox';
+
+/**
+ * The coloured strip across the top of an announcement. Strong colours on
+ * purpose: a report and an announcement are both MDG's, and the dealer has to be
+ * able to tell them apart from across the room. Not a button, nothing to press.
+ */
+const ANNOUNCEMENT_STRIP: Record<AnnouncementTone, string> = {
+  new: 'bg-emerald-600 text-white',
+  notice: 'bg-sky-600 text-white',
+  important: 'bg-amber-500 text-amber-950',
+};
+
+function AnnouncementStrip({ tone, softCorner }: { tone: AnnouncementTone; softCorner: boolean }) {
+  return (
+    <div
+      data-testid="announcement-strip"
+      className={cn(
+        'flex items-center gap-1.5 rounded-t-md px-[10px] py-[5px] text-[11px] font-bold uppercase tracking-wider',
+        // The bubble's own pointed corner, where its tail is.
+        softCorner && 'rounded-tl-none',
+        ANNOUNCEMENT_STRIP[tone],
+      )}
+    >
+      <Megaphone width={14} strokeWidth={2.4} className="shrink-0" aria-hidden />
+      <span>{ANNOUNCEMENT_TONE_LABELS[tone]}</span>
+      <span className="ml-auto normal-case tracking-normal opacity-90">MDG</span>
+    </div>
+  );
+}
 
 const TIME_FORMATS = new Map<Lang, Intl.DateTimeFormat>();
 
@@ -440,6 +475,11 @@ export const MessageBubble = React.memo(function MessageBubble({
   // never from what was true when the message was posted. Wide, like the login
   // box; a card that is only words (the welcome) leaves the bubble as it was.
   const setupCard = message.setupCard;
+  // AN ANNOUNCEMENT MDG posted (`message.announcement`, ADR 0039): a coloured strip,
+  // a bold title, then the words with their `*bold*` marks. Wide, timed on its own
+  // line, and no button: a dealer answers it by writing in the chat. An app that
+  // predates the field draws the words as an ordinary bubble, which still reads.
+  const announcement = message.announcement;
   const hasSetupBody = !!setupCard && setupCardHasBody(setupCard.card);
   const wide =
     hasMedia ||
@@ -450,6 +490,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!duOtpAck ||
     !!mockDrill ||
     !!declarations ||
+    !!announcement ||
     hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
@@ -471,6 +512,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!duOtpAck ||
       !!mockDrill ||
       !!declarations ||
+      !!announcement ||
       hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
@@ -489,7 +531,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   // A notice (a shared report, a daily line) is MDG's — the bubble says "MDG",
   // as the viewer does, not the name of the account that posted it.
   const senderLabel = message.system ? t('chat.senderMdg') : message.senderName;
-  const showName = !!showSender && !mine && first && !!senderLabel;
+  const showName = !!showSender && !mine && first && !!senderLabel && !announcement;
 
   return (
     <div className={cn('flex w-full', mine ? 'justify-end' : 'justify-start')}>
@@ -509,10 +551,28 @@ export const MessageBubble = React.memo(function MessageBubble({
             wide && 'w-full',
             mine ? 'bg-wa-out' : 'bg-wa-in',
             first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
-            hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
+            announcement
+              ? 'pb-[5px]'
+              : hasMedia || hasOther
+                ? 'p-[3px]'
+                : 'px-[9px] pb-[7px] pt-[6px]',
           )}
         >
           {first ? <Tail mine={mine} /> : null}
+
+          {announcement ? (
+            <AnnouncementStrip tone={announcement.tone} softCorner={first && !mine} />
+          ) : null}
+          {announcement ? (
+            <div data-testid="announcement-card" className="px-[10px] pb-0.5 pt-2">
+              <p className="break-words text-[17px] font-bold leading-snug">{announcement.title}</p>
+              {hasBody ? (
+                <div className="mt-1.5 whitespace-pre-wrap break-words text-[15px] leading-[1.4] [&_a]:text-wa-accent-strong">
+                  {richText(message.body!, { highlight })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {showName ? (
             <span
@@ -572,7 +632,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             </div>
           ) : null}
 
-          {hasBody ? (
+          {hasBody && !announcement ? (
             <div
               className={cn(
                 // NOT selectable: long-press selects the message (Copy lives in
@@ -629,7 +689,12 @@ export const MessageBubble = React.memo(function MessageBubble({
           ) : null}
 
           {metaInFlow ? (
-            <div className="flex items-center justify-between gap-3 px-1.5 pb-0.5 pt-0.5">
+            <div
+              className={cn(
+                'flex items-center justify-between gap-3 pb-0.5 pt-0.5',
+                announcement ? 'px-[10px]' : 'px-1.5',
+              )}
+            >
               {showAiBadge ? (
                 // On the time's own row rather than a line of its own, because a
                 // footnote that gets its own row starts reading as a banner. A

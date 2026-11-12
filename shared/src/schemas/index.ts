@@ -31,3 +31,4 @@ export * from './duOtpAck';
 export * from './mockDrill';
 export * from './declarations';
 export * from './extension';
+export * from './announcement';

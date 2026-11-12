@@ -90,3 +90,42 @@ export function linkify(text: string, opts?: LinkifyOptions): React.ReactNode {
   pushText(text.slice(last), last);
   return nodes;
 }
+
+/**
+ * WhatsApp's own bold: `*word*` where the stars hug the words (`* not bold *`
+ * and `2 * 3 * 4` stay as typed) and sit at the edge of a word, not inside one.
+ * No look-behind: older iPhones' WebViews do not have it, so the character before
+ * the opening star is part of the match and put back.
+ */
+const BOLD_RE = /(^|[\s(])\*(\S(?:[^*\n]*?\S)?)\*(?=$|[\s.,!?;:)])/g;
+
+/**
+ * `linkify`, plus `*bold*`. Used for an announcement's words, which an admin
+ * writes by hand and may want to stress. Still nothing but React text, `<strong>`
+ * and links comes out, so a body stays inert.
+ */
+export function richText(text: string, opts?: LinkifyOptions): React.ReactNode {
+  BOLD_RE.lastIndex = 0;
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  while ((match = BOLD_RE.exec(text)) !== null) {
+    const star = match.index + (match[1] ?? '').length;
+    if (star > last) {
+      out.push(
+        <React.Fragment key={`t${last}`}>{linkify(text.slice(last, star), opts)}</React.Fragment>,
+      );
+    }
+    out.push(
+      <strong key={`b${star}`} className="font-bold">
+        {linkify(match[2] ?? '', opts)}
+      </strong>,
+    );
+    last = match.index + match[0].length;
+  }
+  if (last === 0) return linkify(text, opts);
+  if (last < text.length) {
+    out.push(<React.Fragment key={`t${last}`}>{linkify(text.slice(last), opts)}</React.Fragment>);
+  }
+  return out;
+}

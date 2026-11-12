@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import * as React from 'react';
 import { describe, expect, it } from 'vitest';
 
-import { linkify } from './linkify';
+import { linkify, richText } from './linkify';
 
 const renderBody = (text: string) => render(<p>{linkify(text)}</p>);
 
@@ -110,3 +110,36 @@ describe('linkify — highlighting a search', () => {
   });
 });
 
+describe('richText', () => {
+  const html = (text: string) => render(<p>{richText(text)}</p>).container.innerHTML;
+
+  it('makes *words* bold and keeps the rest as it was', () => {
+    expect(html('Hum *raat ko* mark karenge')).toBe(
+      '<p>Hum <strong class="font-bold">raat ko</strong> mark karenge</p>',
+    );
+  });
+
+  it('does not treat a lone star, spaced stars or stars inside a word as bold', () => {
+    expect(html('2 * 3 * 4')).toBe('<p>2 * 3 * 4</p>');
+    expect(html('* not bold *')).toBe('<p>* not bold *</p>');
+    expect(html('a*b*c')).toBe('<p>a*b*c</p>');
+  });
+
+  it('bolds at the start and end, next to punctuation, and several times', () => {
+    expect(html('*Zaroori:* dekhiye. *Dhanyavaad*')).toBe(
+      '<p><strong class="font-bold">Zaroori:</strong> dekhiye. <strong class="font-bold">Dhanyavaad</strong></p>',
+    );
+  });
+
+  it('still turns a link into a link, bold or not', () => {
+    const out = render(<p>{richText('Dekhein https://mdgservices.in aur *yeh*')}</p>).container;
+    expect(out.querySelector('a')?.getAttribute('href')).toBe('https://mdgservices.in');
+    expect(out.querySelector('strong')?.textContent).toBe('yeh');
+  });
+
+  it('emits no markup it was not given: a tag typed in the words stays text', () => {
+    const out = render(<p>{richText('*<b>x</b>* <script>1</script>')}</p>).container;
+    expect(out.querySelector('script')).toBeNull();
+    expect(out.querySelectorAll('b')).toHaveLength(0);
+  });
+});

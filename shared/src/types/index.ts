@@ -46,6 +46,7 @@ export * from './whatsappResults';
 export * from './loadPlan';
 export * from './depotHoliday';
 export * from './share';
+export * from './announcement';
 export * from './ticket';
 export * from './websiteIntake';
 export * from './payment';

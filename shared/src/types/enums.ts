@@ -221,6 +221,8 @@ export const AUDIT_ACTIONS = [
   'DEALER_RESTORE',
   // Festival greeting band on dealer-facing report images
   'FESTIVAL_UPDATE',
+  // An announcement posted into many outlets' chats (ADR 0039)
+  'ANNOUNCEMENT_SEND',
   // Landing-page assistant (ADR 0009)
   'ASSIST_BLOCK',
   'ASSIST_UNBLOCK',

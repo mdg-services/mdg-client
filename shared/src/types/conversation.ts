@@ -1,5 +1,6 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
+import type { MessageAnnouncement } from './announcement';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
@@ -364,6 +365,12 @@ export interface Message {
    * `outletSetup.ts`.
    */
   setupCard?: MessageSetupCard;
+  /**
+   * Set on an MDG announcement (ADR 0039): the title and tone the app draws the
+   * card with. The words are in `body`. A message cannot be edited, so nothing
+   * about the card is ever read from anywhere but here.
+   */
+  announcement?: MessageAnnouncement;
   /**
    * Set on a DEALER's message that answered one of those requests — the
    * request's ref (`doc:…`, `reg:…`, `kv:…`). It is what lets the admin inbox
