@@ -2,6 +2,7 @@ import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
+import { invalidateDeclarations } from '@/hooks/api/useDeclarations';
 import { invalidateDuOtp } from '@/hooks/api/useDuOtp';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
 import { invalidateMockDrill } from '@/hooks/api/useMockDrill';
@@ -265,6 +266,8 @@ export function useConversationSocket(
       if (!alreadyPresent && payload.message.duOtpAck) invalidateDuOtp(qc);
       // THE MOCK DRILL BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.mockDrill) invalidateMockDrill(qc);
+      // THE DECLARATIONS BOX ARRIVED: the same reasoning, for its own view.
+      if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       if (!alreadyPresent && payload.message.senderId !== currentUserId) {

@@ -3,6 +3,7 @@ import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskStates';
+import { declarationsKey } from '@/hooks/api/useDeclarations';
 import { duOtpKey } from '@/hooks/api/useDuOtp';
 import { messagesQueryKey, renderKey } from '@/hooks/api/useMessages';
 import { portalLoginsKey } from '@/hooks/api/usePortalLogins';
@@ -938,6 +939,57 @@ describe('useConversationSocket — a DU OTP box arriving', () => {
     const { qc } = mount([]);
     const spy = vi.spyOn(qc, 'invalidateQueries');
     const message = makeMessage({ id: 'du-2', senderId: OTHER, duOtpAck: {} });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
+    expect(asked(spy)).toHaveLength(1);
+  });
+});
+
+/**
+ * The Declarations box (ADR 0037) is drawn from the outlet's live view, like the
+ * DU OTP box above, so a message carrying one asks again. The reconnect and the
+ * `declarations:changed` event are the app frame's (see `useDeclarationsSocket`).
+ */
+describe('useConversationSocket — a Declarations box arriving', () => {
+  afterEach(() => resetStores());
+  const VIEW = { queryKey: declarationsKey };
+  const asked = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(VIEW));
+
+  it('asks where the outlet stands when a box arrives', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'decl-1', senderId: OTHER, declarations: {} }),
+        conversation: {},
+      });
+    });
+    expect(spy).toHaveBeenCalledWith(VIEW);
+  });
+
+  it('does not ask for an ordinary message or another box', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'plain-decl', senderId: OTHER }),
+        conversation: {},
+      });
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'du-decl', senderId: OTHER, duOtpAck: {} }),
+        conversation: {},
+      });
+    });
+    expect(asked(spy)).toHaveLength(0);
+  });
+
+  it('asks once for a box the server echoes twice', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'decl-2', senderId: OTHER, declarations: {} });
     act(() => {
       h.socket.server('message:new', { message, conversation: {} });
       h.socket.server('message:new', { message, conversation: {} });

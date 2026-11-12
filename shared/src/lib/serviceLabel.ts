@@ -90,6 +90,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'du-otp-acknowledgement': { en: 'DU OTP acknowledgement', hi: 'DU OTP की पावती' },
   /** The portal's own name for it, and the one the sales officer uses. */
   'mock-drill': { en: 'Mock drill report', hi: 'मॉक ड्रिल रिपोर्ट' },
+  /** The portal's own group name: "Dealer Declarations". */
+  'dealer-declarations': { en: 'IndianOil declarations', hi: 'इंडियन ऑयल डिक्लेरेशन' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -177,6 +179,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'mock-drill': {
     en: "the emergency mock drill report filed on IndianOil's portal for the owner, from two photos and the kind of emergency practised",
     hi: 'आपातकालीन मॉक ड्रिल की रिपोर्ट, दो फ़ोटो और ड्रिल के प्रकार से इंडियन ऑयल पोर्टल पर मालिक की ओर से जमा',
+  },
+  'dealer-declarations': {
+    en: "IndianOil's dealer declarations kept up to date for the owner: the daily safety declaration, the weekly washroom cleanliness declaration from two photos, and the one-time standard form; MDG's team is told if the one-time Branded Fuels form is still empty",
+    hi: 'इंडियन ऑयल पोर्टल के डीलर डिक्लेरेशन मालिक की ओर से समय पर भरना — रोज़ का सेफ्टी डिक्लेरेशन, हर हफ़्ते दो फ़ोटो से वॉशरूम की सफ़ाई का डिक्लेरेशन और एक बार का स्टैंडर्ड फ़ॉर्म; ब्रांडेड फ्यूल का फ़ॉर्म खाली हो तो MDG की टीम को बताना',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

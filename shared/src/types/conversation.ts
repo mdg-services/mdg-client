@@ -3,6 +3,7 @@ import type { MessageAsk } from './chatAsk';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
+import type { MessageDeclarations } from './declarations';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
@@ -349,6 +350,12 @@ export interface Message {
    * `mockDrill.ts`.
    */
   mockDrill?: MessageMockDrill;
+  /**
+   * Set on an MDG message that carries the Declarations box (ADR 0037): the two
+   * washroom photos IndianOil's weekly declaration needs. The app draws it from
+   * `GET /me/declarations` — the outlet's state NOW. See `declarations.ts`.
+   */
+  declarations?: MessageDeclarations;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

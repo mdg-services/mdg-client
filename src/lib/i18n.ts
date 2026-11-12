@@ -1812,6 +1812,110 @@ export const messages = {
     hi: 'रिपोर्ट नहीं जा पाई।',
   },
 
+  // The Declarations box (ADR 0037). IndianOil wants two photos of the outlet's
+  // washroom every week; MDG files the rest. The owner only sends the photos and
+  // says they are today's and of their own washroom, and the tick is that word.
+  // English says "IndianOil's portal"; Hindi says "इंडियन ऑयल की वेबसाइट", the way
+  // the owner says it everywhere else in the app. The Hindi here has not been read
+  // by a Hindi reader yet: it is kept to the plainest words.
+  'chat.declTitle': { en: 'Washroom cleanliness', hi: 'वॉशरूम की सफ़ाई' },
+  'chat.declOff': {
+    en: 'Washroom photos are not switched on for your pump.',
+    hi: 'आपके पंप पर वॉशरूम की फ़ोटो भेजना अभी चालू नहीं है।',
+  },
+  'chat.declIdleBoth': {
+    en: 'Nothing needed now. Washroom photos last sent {last}; next due {next}.',
+    hi: 'अभी कुछ करना नहीं है। वॉशरूम की फ़ोटो पिछली बार {last} को भेजी थी; अगली {next} को चाहिए।',
+  },
+  'chat.declIdleLast': {
+    en: 'Nothing needed now. Washroom photos last sent {last}.',
+    hi: 'अभी कुछ करना नहीं है। वॉशरूम की फ़ोटो पिछली बार {last} को भेजी थी।',
+  },
+  'chat.declIdleNext': {
+    en: 'Nothing needed now. Washroom photos are next due {next}.',
+    hi: 'अभी कुछ करना नहीं है। वॉशरूम की अगली फ़ोटो {next} को चाहिए।',
+  },
+  'chat.declIdleNone': { en: 'Nothing needed now.', hi: 'अभी कुछ करना नहीं है।' },
+  'chat.declCollectLine': {
+    en: 'IndianOil needs 2 photos of your washroom this week:',
+    hi: 'इंडियन ऑयल को इस हफ़्ते आपके वॉशरूम की 2 फ़ोटो चाहिए:',
+  },
+  'chat.declSlotOutside': { en: '1. From outside', hi: '1. वॉशरूम के बाहर से' },
+  'chat.declSlotInside': { en: '2. From inside', hi: '2. वॉशरूम के अंदर से' },
+  'chat.declPhotoTake': { en: 'Take or choose a photo', hi: 'फ़ोटो लीजिए या चुनिए' },
+  'chat.declPhotoRetake': { en: 'Retake', hi: 'दोबारा लीजिए' },
+  'chat.declPhotoAdded': { en: 'Added', hi: 'डाल दी' },
+  'chat.declUploading': { en: 'Uploading…', hi: 'अपलोड हो रहा है…' },
+  'chat.declFresh': {
+    en: 'These photos were taken today of my own washroom',
+    hi: 'ये फ़ोटो आज मेरे अपने वॉशरूम की खींची गई हैं',
+  },
+  'chat.declSend': { en: 'Send', hi: 'भेजें' },
+  'chat.declSendNeeds': {
+    en: 'To send, add both photos and tick the box above.',
+    hi: 'भेजने के लिए दोनों फ़ोटो डालिए और ऊपर का डिब्बा टिक कीजिए।',
+  },
+  'chat.declWaiting': {
+    en: "Photos received. MDG is filing it on IndianOil's portal.",
+    hi: 'फ़ोटो मिल गईं। MDG इसे इंडियन ऑयल की वेबसाइट पर भर रहा है।',
+  },
+  'chat.declDone': {
+    en: "Filed on IndianOil's portal on {date}.",
+    hi: '{date} को इंडियन ऑयल की वेबसाइट पर भर दिया गया।',
+  },
+  'chat.declDoneNoDate': {
+    en: "Filed on IndianOil's portal.",
+    hi: 'इंडियन ऑयल की वेबसाइट पर भर दिया गया।',
+  },
+  'chat.declFailed': {
+    en: 'MDG could not file it. Our team is looking into it.',
+    hi: 'MDG इसे भर नहीं पाया। हमारी टीम इसे देख रही है।',
+  },
+  // A photo turned away on the phone, before anything was sent.
+  'chat.declTooBig': {
+    en: 'This photo is too big. Take it again from a little further away.',
+    hi: 'यह फ़ोटो बहुत बड़ी है। थोड़ा दूर से दोबारा खींचिए।',
+  },
+  'chat.declBadType': {
+    en: 'That is not a photo. Take a new one, or choose one from your gallery.',
+    hi: 'यह फ़ोटो नहीं है। नई फ़ोटो खींचिए या गैलरी से चुनिए।',
+  },
+  'chat.declHeic': {
+    en: 'This kind of photo cannot be opened here. Take a new photo with the camera.',
+    hi: 'इस तरह की फ़ोटो यहाँ खुल नहीं सकती। कैमरे से नई फ़ोटो खींचिए।',
+  },
+  'chat.declUnreadable': {
+    en: 'This photo could not be read. Take it again, or choose another one.',
+    hi: 'यह फ़ोटो पढ़ी नहीं जा सकी। दोबारा खींचिए या दूसरी चुनिए।',
+  },
+  // A photo held from an earlier day: it must be taken again today before it can be sent.
+  'chat.declPhotoOld': {
+    en: 'Added on {date}. Please take it again today.',
+    hi: '{date} को डाली थी। आज दोबारा खींचिए।',
+  },
+  // What the server says when it turns an answer away, in the box's own words. The server
+  // answers these in English only; the box speaks Hindi first.
+  'chat.declChanged': {
+    en: 'Something just changed. Look at the box again, then try once more.',
+    hi: 'अभी कुछ बदल गया है। डिब्बा फिर से देखिए और एक बार फिर कोशिश कीजिए।',
+  },
+  'chat.declSendBoth': {
+    en: 'Send both photos first, one from outside and one from inside the washroom.',
+    hi: 'पहले दोनों फ़ोटो भेजिए, एक वॉशरूम के बाहर से और एक अंदर से।',
+  },
+  'chat.declSayFresh': {
+    en: 'Tick the box to say the photos were taken today of your own washroom, then send.',
+    hi: 'डिब्बा टिक करके बताइए कि फ़ोटो आज आपके अपने वॉशरूम की हैं, फिर भेजिए।',
+  },
+  'chat.declAlreadySent': {
+    en: 'The photos are already sent. MDG is filing it.',
+    hi: 'फ़ोटो भेजी जा चुकी हैं। MDG इसे भर रहा है।',
+  },
+  'chat.declNotWanted': {
+    en: 'MDG is not asking for washroom photos right now.',
+    hi: 'अभी MDG वॉशरूम की फ़ोटो नहीं माँग रहा है।',
+  },
+
   // The signed letter (ADR 0029): MDG posts a letter as a PDF and asks the owner
   // to print it, sign it, stamp it and send a photo back. Three short steps sit
   // above the buttons, in a dealer's own words: "लेटर", "साइन", "मोहर", "फ़ोटो".

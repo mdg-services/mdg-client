@@ -120,6 +120,8 @@ export const ADMIN_ALERT_KINDS = [
   'du_otp_ack',
   /** An outlet's mock drill report needs a person (photos to check), or IndianOil refused it. */
   'mock_drill',
+  /** An outlet's Dealer Declarations need a person: Branded Fuels not filled, a filing refused, photos not sent, a daily one missing. */
+  'declarations',
   // ── A dealer we served before the app signs in to it for the first time ──
   'old_outlet_joined',
   // ── Khata Kavach ──
@@ -407,6 +409,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   mock_drill: {
     label: 'Mock drill needs you',
     clearsWhen: 'Clears when the photos are checked and the report is filed, or the drill is cancelled.',
+    superAdminOnly: false,
+  },
+  declarations: {
+    label: 'Declarations need you',
+    clearsWhen: 'Clears when the declaration is filled on IndianOil’s portal (read again), the photos arrive, or the task is marked done.',
     superAdminOnly: false,
   },
   old_outlet_joined: {
