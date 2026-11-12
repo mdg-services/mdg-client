@@ -222,11 +222,17 @@ describe('DeclarationsBox — collect: the two photos', () => {
     );
     expect(within(outside).getByText('Retake')).toBeInTheDocument();
     expect(within(outside).getByText('Added')).toBeInTheDocument();
-    // The preview opens the full photo.
-    expect(within(outside).getByRole('link')).toHaveAttribute(
-      'href',
+    // The preview opens the full photo inside the app — never a new-tab link,
+    // which the phone app hands to the browser.
+    expect(within(outside).queryByRole('link')).toBeNull();
+    fireEvent.click(within(outside).getByRole('button', { name: '1. From outside' }));
+    const viewer = screen.getByRole('dialog', { name: '1. From outside' });
+    expect(within(viewer).getByRole('img')).toHaveAttribute(
+      'src',
       'https://files.example.test/outside.jpg',
     );
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
     const inside = slotBox('inside');
     expect(within(inside).getByText('Take or choose a photo')).toBeInTheDocument();
     expect(within(inside).queryByText('Added')).toBeNull();

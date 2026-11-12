@@ -1,6 +1,7 @@
-import { Camera, Check, Image as ImageIcon, Send } from 'lucide-react';
+import { Camera, Check, Send } from 'lucide-react';
 import * as React from 'react';
 
+import { PhotoThumb } from '@/components/PhotoViewer';
 import { Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
@@ -45,24 +46,6 @@ const SLOT_LABEL_KEY = {
   inside: 'chat.declSlotInside',
 } as const satisfies Record<WashroomPhotoSlot, string>;
 
-/** A photo's thumbnail, openable full size through its short-lived link. */
-function PhotoThumb({ photo, label }: { photo: WashroomPhotoView | null; label: string }) {
-  const box =
-    'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md bg-wa-chip';
-  if (photo?.url) {
-    return (
-      <a href={photo.url} target="_blank" rel="noopener noreferrer" className={box}>
-        <img src={photo.url} alt={label} loading="lazy" className="h-full w-full object-cover" />
-      </a>
-    );
-  }
-  return (
-    <span className={box} role="img" aria-label={label}>
-      <ImageIcon width={22} strokeWidth={1.5} className="text-wa-meta" aria-hidden />
-    </span>
-  );
-}
-
 /**
  * One photo slot. The file input sits inside its label, so the phone's own chooser
  * (camera, gallery) opens from the owner's tap on the label, which an Android
@@ -94,7 +77,7 @@ function PhotoSlot({
       data-photo-stale={stale ? '' : undefined}
       className="flex items-center gap-2.5"
     >
-      <PhotoThumb photo={photo} label={label} />
+      <PhotoThumb url={photo?.url} label={label} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium leading-snug">
           {label}

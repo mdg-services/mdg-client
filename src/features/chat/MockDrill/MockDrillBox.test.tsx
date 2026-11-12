@@ -278,6 +278,22 @@ describe('MockDrillBox — the photos step', () => {
     expect(within(slot2).getByText('Take or choose a photo')).toBeInTheDocument();
   });
 
+  it('opens a photo full screen inside the app, not as a new-tab link', () => {
+    show(makeCollecting('photos', { dependent: dependent(1) }));
+    box();
+    const slot1 = document.querySelector('[data-photo-slot="1"]') as HTMLElement;
+    // Inside the phone app a link to the photo's storage address went to the browser.
+    expect(within(slot1).queryByRole('link')).toBeNull();
+    fireEvent.click(within(slot1).getByRole('button', { name: 'Photo 1' }));
+    const viewer = screen.getByRole('dialog', { name: 'Photo 1' });
+    expect(within(viewer).getByRole('img')).toHaveAttribute(
+      'src',
+      'https://files.example.test/photo-1.jpg',
+    );
+    fireEvent.click(within(viewer).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('lets the owner replace a photo: the same slot is posted again', async () => {
     show(makeCollecting('photos', { dependent: dependent(2) }));
     box();

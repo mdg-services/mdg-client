@@ -29,6 +29,11 @@ const h = vi.hoisted(() => ({
   },
   answer: { mutateAsync: vi.fn(), isPending: false },
   paper: { mutateAsync: vi.fn(), isPending: false },
+  deliver: vi.fn(),
+}));
+vi.mock('@/lib/downloadAttachment', async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  deliverDownload: h.deliver,
 }));
 vi.mock('@/hooks/api/useDuOtp', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
@@ -43,6 +48,8 @@ beforeEach(() => {
   h.view.isPending = false;
   h.view.isError = false;
   h.view.refetch.mockReset();
+  h.deliver.mockReset();
+  h.deliver.mockResolvedValue('browser');
   for (const m of [h.answer, h.paper]) {
     m.mutateAsync.mockReset();
     m.mutateAsync.mockResolvedValue(undefined);
@@ -460,10 +467,16 @@ describe('DuOtpAckBox — step 2, the calibration certificate', () => {
     show(collecting('certificate', { inputs: makeDuOtpInputs({ certificate: makeDuOtpFile() }) }));
     box();
     expect(screen.getByText('Added')).toBeInTheDocument();
-    const link = screen.getByRole('link', { name: /certificate\.pdf/ });
-    expect(link).toHaveAttribute('href', 'https://files.example.test/certificate.pdf');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link.getAttribute('rel')).toContain('noopener');
+    // Not a new-tab link: inside the phone app that left the app for the browser.
+    expect(screen.queryByRole('link')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /certificate\.pdf/ }));
+    expect(h.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://files.example.test/certificate.pdf',
+        filename: 'certificate.pdf',
+        kind: 'file',
+      }),
+    );
   });
 
   it('says "Uploading…" while the file is on its way, and turns upload off', () => {
@@ -702,12 +715,14 @@ describe('DuOtpAckBox — the review', () => {
     expect(screen.getByText('22-10-2026, 25-10-2026')).toBeInTheDocument();
   });
 
-  it('opens a paper through its link, in a new tab', () => {
+  it('opens a paper the way chat opens a PDF, not as a new-tab link', () => {
     show(full());
     box();
-    const link = screen.getByRole('link', { name: /service-report\.pdf/ });
-    expect(link).toHaveAttribute('href', 'https://files.example.test/service-report.pdf');
-    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.queryByRole('link')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /service-report\.pdf/ }));
+    expect(h.deliver).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://files.example.test/service-report.pdf' }),
+    );
   });
 
   it('shows a paper whose link has not come as plain words, not a dead link', () => {
@@ -722,7 +737,7 @@ describe('DuOtpAckBox — the review', () => {
       }),
     );
     box();
-    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByRole('button', { name: /certificate\.pdf/ })).toBeNull();
     expect(screen.getByText('certificate.pdf')).toBeInTheDocument();
   });
 

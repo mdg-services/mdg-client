@@ -8,15 +8,14 @@ import {
   RotateCcw,
   Trophy,
   UserPlus,
-  X,
 } from 'lucide-react';
 import * as React from 'react';
 
 
 
+import { PhotoViewer } from '@/components/PhotoViewer';
 import { SubPage } from '@/components/SubPage';
 import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
-import { ZoomableImage } from '@/components/ZoomableImage';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
 import { EditWorkerDialog } from '@/features/staff/EditWorkerDialog';
@@ -33,7 +32,6 @@ import { useStaffDraftSync } from '@/hooks/api/useStaffDraftSync';
 import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { fmtPoints } from '@/lib/staff';
-import { useBackToClose } from '@/lib/useBackToClose';
 import { useAuthStore } from '@/store/auth';
 import { useStaffDraftStore } from '@/store/staffDraft';
 import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
@@ -294,36 +292,12 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
       {lightbox ? (
         // Zoomable, because a hardcopy is a photographed sheet of handwriting:
         // fit to a phone screen it is legible only to whoever wrote it.
-        <HardcopyViewer src={lightbox} onClose={() => setLightbox(null)} />
+        <PhotoViewer
+          src={lightbox}
+          alt={t('staff.viewHardcopy')}
+          onClose={() => setLightbox(null)}
+        />
       ) : null}
-    </div>
-  );
-}
-
-/**
- * The hardcopy of a submitted points sheet, full screen and zoomable — it is a
- * photograph of handwriting, and fit to a phone it is legible only to whoever
- * wrote it. A component of its own so it can own the Back button like every
- * other overlay in the app.
- */
-function HardcopyViewer({ src, onClose }: { src: string; onClose: () => void }) {
-  const t = useT();
-  useBackToClose(onClose);
-  return (
-    <div
-      role="dialog"
-      aria-label={t('staff.viewHardcopy')}
-      className="fixed inset-0 z-50 flex flex-col bg-black/85"
-    >
-      <button
-        type="button"
-        aria-label={t('common.cancel')}
-        onClick={onClose}
-        className="safe-top absolute right-4 top-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white active:bg-white/20"
-      >
-        <X width={22} strokeWidth={2} />
-      </button>
-      <ZoomableImage src={src} alt={t('staff.viewHardcopy')} onDismiss={onClose} />
     </div>
   );
 }

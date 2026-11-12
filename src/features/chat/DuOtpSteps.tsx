@@ -1,8 +1,9 @@
 import { Check, FileText, Send, Upload } from 'lucide-react';
 import * as React from 'react';
 
-import { Spinner } from '@/components/ui';
+import { Spinner, useToast } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { deliverDownload } from '@/lib/downloadAttachment';
 import { useT, type MessageKey } from '@/lib/i18n';
 import {
   DU_OTP_REMARKS_MAX,
@@ -69,8 +70,17 @@ export function Notice({ text }: { text: string }) {
   );
 }
 
-/** A paper, openable in a new tab through its short-lived link. */
+/**
+ * A paper, openable through its short-lived link — by the road every PDF in chat
+ * takes (`deliverDownload`), never as an `<a target="_blank">`. Inside the phone
+ * app a link to the storage address is handed to the phone's browser, which took
+ * the owner out of the app; the shared road shows it in the app's own sheet on an
+ * iPhone and hands it to the phone's downloader on Android (there is no PDF reader
+ * inside the app), and in a plain browser opens it in a tab, as before.
+ */
 function FileLink({ file }: { file: DuOtpFileView }) {
+  const t = useT();
+  const toast = useToast();
   const body = (
     <>
       <FileText width={16} strokeWidth={1.75} className="shrink-0 text-wa-meta" aria-hidden />
@@ -80,15 +90,22 @@ function FileLink({ file }: { file: DuOtpFileView }) {
   if (!file.url) {
     return <span className="inline-flex items-center gap-1.5 text-[14px] leading-snug">{body}</span>;
   }
+  const url = file.url;
   return (
-    <a
-      href={file.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex min-h-11 items-center gap-1.5 text-[14px] leading-snug text-wa-accent-strong underline"
+    <button
+      type="button"
+      onClick={() => {
+        deliverDownload({
+          url,
+          filename: file.filename,
+          contentType: 'application/pdf',
+          kind: 'file',
+        }).catch(() => toast.error(t('chat.downloadFailed')));
+      }}
+      className="inline-flex min-h-11 items-center gap-1.5 text-left text-[14px] leading-snug text-wa-accent-strong underline"
     >
       {body}
-    </a>
+    </button>
   );
 }
 
@@ -367,7 +384,7 @@ function ReviewRow({
   );
 }
 
-/** A paper in the review: its name (openable), and where it came from when MDG supplied it. */
+/** A paper in the review: its name (tap to open), and where it came from when MDG supplied it. */
 function PaperValue({ file }: { file: DuOtpFileView }) {
   const t = useT();
   const sourceKey: MessageKey | undefined = SOURCE_KEY[file.source];
