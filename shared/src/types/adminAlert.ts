@@ -127,6 +127,8 @@ export const ADMIN_ALERT_KINDS = [
   // ── Khata Kavach ──
   /** A WhatsApp sign-in code for a Khata Kavach pump was sent and has not reached the phone (or Meta refused it). */
   'kk_code_not_delivered',
+  /** A state's bank holidays could not be downloaded from RBI for days, or a Credit & DOD outlet has no state recorded. */
+  'bank_holidays',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -426,6 +428,14 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   kk_code_not_delivered: {
     label: 'Khata Kavach code',
     clearsWhen: 'Clears when a later code for that number arrives, or the person gets in.',
+    superAdminOnly: true,
+  },
+  // Super-admin only: the holiday list and the outlet's state are fixed on
+  // super-admin screens, and a stale list is server health, not a dealer's matter.
+  bank_holidays: {
+    label: 'Bank holidays',
+    clearsWhen:
+      "Clears once the state's holiday list downloads again, or the outlet has its state.",
     superAdminOnly: true,
   },
 };

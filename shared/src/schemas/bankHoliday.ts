@@ -22,8 +22,15 @@ export const bankHolidayDateSchema = z
 
 export const bankHolidaySourceSchema = z.enum(BANK_HOLIDAY_SOURCES);
 
-/** Query for GET /super-admin/bank-holidays/month?year=&month= */
+/** A GST state code, e.g. '10' (Bihar). Bank holidays are kept per state. */
+export const bankHolidayStateSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{2}$/, 'State must be a two-digit GST state code');
+
+/** Query for GET /super-admin/bank-holidays/month?state=&year=&month= */
 export const bankHolidayMonthQuerySchema = z.object({
+  state: bankHolidayStateSchema,
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
 });
@@ -40,12 +47,14 @@ export const bankHolidayInputSchema = z.object({
 export type BankHolidayInput = z.infer<typeof bankHolidayInputSchema>;
 
 /**
- * Body for PUT /super-admin/bank-holidays/month — confirm (replace) the whole
- * month at once. The backend upserts every listed date and removes any persisted
- * holiday in that month that is absent from the list. Every date must fall inside
- * the given {year, month}; the backend rejects the payload otherwise.
+ * Body for PUT /super-admin/bank-holidays/month — save (replace) one state's whole
+ * month at once. The backend upserts every listed date for that state and removes
+ * any of the state's holidays in that month that are absent from the list. Every
+ * date must fall inside the given {year, month}; the backend rejects it otherwise.
+ * Other states are never touched.
  */
 export const confirmBankHolidayMonthSchema = z.object({
+  state: bankHolidayStateSchema,
   year: z.coerce.number().int().min(2000).max(2100),
   month: z.coerce.number().int().min(1).max(12),
   holidays: z.array(bankHolidayInputSchema).max(60),
