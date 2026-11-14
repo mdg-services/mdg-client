@@ -90,6 +90,9 @@ export const SETUP_SERVICE_IDS = [
   'tt-density',
   'load-planner',
   'ro-supply-status',
+  // ADR 0041, live 14 Nov 2026. Here so the Fuel Orders guide video can say which
+  // service it explains; this list is read by nothing else today.
+  'fuel-indent',
 ] as const;
 export type SetupServiceId = (typeof SETUP_SERVICE_IDS)[number];
 
