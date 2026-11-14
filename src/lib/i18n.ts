@@ -533,6 +533,21 @@ export const messages = {
     en: "Couldn't download. Please check your network and try again.",
     hi: 'डाउनलोड नहीं हो पाया। कृपया अपना नेटवर्क जांचें और फिर कोशिश करें।',
   },
+  // The in-app PDF reader (components/PdfViewer).
+  'pdf.loading': { en: 'Opening the file…', hi: 'फ़ाइल खुल रही है…' },
+  'pdf.failed': {
+    en: "This file couldn't be opened here. Check your network and try again, or save it.",
+    hi: 'यह फ़ाइल यहाँ नहीं खुल सकी। नेटवर्क जांचकर फिर कोशिश करें, या इसे सेव कर लें।',
+  },
+  'pdf.save': { en: 'Save', hi: 'सेव करें' },
+  'pdf.pageCount': { en: '{n} pages', hi: '{n} पेज' },
+  'pdf.pageN': { en: 'Page {n}', hi: 'पेज {n}' },
+  'pdf.zoomIn': { en: 'Zoom in', hi: 'बड़ा करें' },
+  'pdf.zoomOut': { en: 'Zoom out', hi: 'छोटा करें' },
+  'pdf.firstPagesOnly': {
+    en: 'Showing the first {n} pages. Save the file to read the rest.',
+    hi: 'पहले {n} पेज दिख रहे हैं। बाकी पढ़ने के लिए फ़ाइल सेव करें।',
+  },
   'chat.messageInfo': { en: 'Message info', hi: 'संदेश की जानकारी' },
   'chat.readBy': { en: 'Read by', hi: 'इन्होंने पढ़ा' },
   'chat.deliveredTo': { en: 'Delivered to', hi: 'इन तक पहुंचा' },

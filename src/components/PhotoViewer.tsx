@@ -17,7 +17,7 @@ import { useBackToClose } from '@/lib/useBackToClose';
  * to the phone's browser (that is how a web link in chat opens), so an
  * `<a href={photo.url} target="_blank">` threw the owner out of the app into
  * Chrome or Safari to look at their own drill photo — and on the web it opened a
- * stray tab. Show it here instead. `lib/leavingTheApp.guard.test.ts` keeps it that way.
+ * stray tab. Show it here instead. `scripts/leavingTheApp.check.mjs` keeps it that way.
  *
  * Mounted on `document.body`: a chat bubble may sit inside a transformed parent
  * (swipe-to-reply), and a `fixed` overlay inside one is pinned to the bubble,

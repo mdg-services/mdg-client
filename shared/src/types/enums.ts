@@ -459,8 +459,9 @@ export type AuditEntity = (typeof AUDIT_ENTITIES)[number];
 
 /**
  * Where a bank/national holiday row came from: `library` = suggested by the
- * date-holidays calendar; `manual` = added by an admin (e.g. a state bank holiday
- * the national calendar doesn't carry).
+ * date-holidays calendar; `manual` = added by an admin; `rbi` = downloaded from
+ * the Reserve Bank's holiday list for the state (the bank holidays under the
+ * Negotiable Instruments Act, which every bank in the state, SBI included, keeps).
  */
-export const BANK_HOLIDAY_SOURCES = ['library', 'manual'] as const;
+export const BANK_HOLIDAY_SOURCES = ['library', 'manual', 'rbi'] as const;
 export type BankHolidaySource = (typeof BANK_HOLIDAY_SOURCES)[number];

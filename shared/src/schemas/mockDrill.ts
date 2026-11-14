@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import {
+  MOCK_DRILL_EVENT_ROWS,
   MOCK_DRILL_LIMITS,
   MOCK_DRILL_PHOTO_COUNT,
   MOCK_DRILL_SCENARIOS,
@@ -71,11 +72,44 @@ export const mockDrillDependentEditSchema = z
   .strict();
 export type MockDrillDependentEdit = z.infer<typeof mockDrillDependentEditSchema>;
 
+/**
+ * The fields the system wrote for the drill (its day and time, the response table,
+ * the text), which an admin may also correct while checking. Everything optional;
+ * the all-clear time is never sent, it is always the start plus the duration.
+ */
+const eventEdit = z
+  .object({
+    expected: z.number().int().min(0).max(3600),
+    actual: z.number().int().min(0).max(3600),
+    remark: z.string().trim().max(MOCK_DRILL_LIMITS.eventRemark),
+  })
+  .strict();
+
+export const mockDrillGeneratedEditSchema = z
+  .object({
+    /** YYYY-MM-DD (IST); not in the future. */
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    /** HH:mm. */
+    time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    durationMinutes: z.number().int().min(1).max(240).optional(),
+    initiation: z.string().trim().min(3).max(MOCK_DRILL_LIMITS.initiation).optional(),
+    description: z.string().trim().min(3).max(MOCK_DRILL_LIMITS.description).optional(),
+    /** All nine rows, in the portal's order. */
+    events: z.array(eventEdit).length(MOCK_DRILL_EVENT_ROWS.length).optional(),
+    headCountAction: z.string().trim().min(1).max(MOCK_DRILL_LIMITS.headCountAction).optional(),
+  })
+  .strict();
+export type MockDrillGeneratedEdit = z.infer<typeof mockDrillGeneratedEditSchema>;
+
 /** An admin's decision on a submission in `review`. */
 export const mockDrillReviewSchema = z.discriminatedUnion('decision', [
   /** Approve (with any corrections); it becomes the outlet's reusable setup and is filed. */
   z
-    .object({ decision: z.literal('approve'), edits: mockDrillDependentEditSchema.optional() })
+    .object({
+      decision: z.literal('approve'),
+      edits: mockDrillDependentEditSchema.optional(),
+      generated: mockDrillGeneratedEditSchema.optional(),
+    })
     .strict(),
   /** Send it back to the owner: they are told why and asked again. */
   z

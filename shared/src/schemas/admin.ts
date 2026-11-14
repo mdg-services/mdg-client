@@ -24,9 +24,10 @@ export const updateAdminSchema = z
 export type UpdateAdminInput = z.infer<typeof updateAdminSchema>;
 
 /**
- * Super-admin edit of ANY user (admin or dealer member): change the login email,
- * reset the password, suspend/reactivate, switch a dealer member's role, or
- * grant/revoke the super-admin tier. At least one field must be provided. Backs
+ * Super-admin edit of ANY user (admin or dealer member): change the personal
+ * details (name, title, phone, language), the login email, reset the password,
+ * suspend/reactivate, switch a dealer member's role, or grant/revoke the
+ * super-admin tier. At least one field must be provided. Backs
  * the centralized "All users" console, which is super-admin only.
  */
 export const superAdminUpdateUserSchema = z
@@ -43,6 +44,18 @@ export const superAdminUpdateUserSchema = z
     role: z.enum(['dealer-owner', 'dealer-staff']).optional(),
     /** Grant or revoke the elevated admin tier (platform admins only). */
     isSuperAdmin: z.boolean().optional(),
+    /** The person's display name (shown in chats, the roster and reports). */
+    name: z.string().trim().min(2, 'Name is required').max(120).optional(),
+    /** Display label such as "Owner" or "Manager". Blank clears it. */
+    title: z.string().trim().max(60).optional(),
+    /** Mobile number. Blank clears it; otherwise the same shape a dealer's phone takes. */
+    phone: z
+      .string()
+      .trim()
+      .refine((v) => v === '' || /^\+?[0-9\-\s]{7,20}$/.test(v), 'Invalid phone')
+      .optional(),
+    /** Language the dealer apps open in. */
+    lang: z.enum(['en', 'hi']).optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: 'Provide at least one field to update',

@@ -147,9 +147,8 @@ export const ROSTER_SERVICES: readonly RosterServiceSpec[] = [
     id: 'tt-density',
     label: 'TT Density',
     shortLabel: 'Density',
-    // Nothing is sent to the dealer: the run either read the window or it did
-    // not. The daily register photo is deliberately NOT what this column
-    // reports — see ADR 0010 §13.
+    // No admin sends anything: each new tanker's density card goes to the dealer
+    // by itself, so the run either read the window or it did not.
     delivers: false,
   },
 ] as const;
