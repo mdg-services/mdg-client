@@ -2,6 +2,7 @@ import { type InfiniteData } from '@tanstack/react-query';
 import { act } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { outletDetailsKey } from '@/features/outletDetails/useOutletDetails';
 import { chatAskStatesKey, chatAskStatesPrefix } from '@/hooks/api/useChatAskStates';
 import { declarationsKey } from '@/hooks/api/useDeclarations';
 import { duOtpKey } from '@/hooks/api/useDuOtp';
@@ -995,5 +996,39 @@ describe('useConversationSocket — a Declarations box arriving', () => {
       h.socket.server('message:new', { message, conversation: {} });
     });
     expect(asked(spy)).toHaveLength(1);
+  });
+});
+
+/**
+ * The Pump details form is drawn from the outlet's answers as they stand now, so a
+ * message carrying one asks again when it arrives.
+ */
+describe('useConversationSocket — a Pump details form arriving', () => {
+  afterEach(() => resetStores());
+  const VIEW = { queryKey: outletDetailsKey };
+  const asked = (spy: { mock: { calls: unknown[][] } }) =>
+    spy.mock.calls.filter(([f]) => JSON.stringify(f) === JSON.stringify(VIEW));
+
+  it('asks where the answers stand when a form arrives, once even if echoed twice', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    const message = makeMessage({ id: 'details-1', senderId: OTHER, outletDetails: {} });
+    act(() => {
+      h.socket.server('message:new', { message, conversation: {} });
+      h.socket.server('message:new', { message, conversation: {} });
+    });
+    expect(asked(spy)).toHaveLength(1);
+  });
+
+  it('does not ask for an ordinary message', () => {
+    const { qc } = mount([]);
+    const spy = vi.spyOn(qc, 'invalidateQueries');
+    act(() => {
+      h.socket.server('message:new', {
+        message: makeMessage({ id: 'plain-details', senderId: OTHER }),
+        conversation: {},
+      });
+    });
+    expect(asked(spy)).toHaveLength(0);
   });
 });

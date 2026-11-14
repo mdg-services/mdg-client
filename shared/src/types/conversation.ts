@@ -6,6 +6,7 @@ import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
 import type { MessageDeclarations } from './declarations';
 import type { MessageMockDrill } from './mockDrill';
+import type { MessageOutletDetails } from './outletDetails';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -363,6 +364,13 @@ export interface Message {
    * `GET /me/declarations` — the outlet's state NOW. See `declarations.ts`.
    */
   declarations?: MessageDeclarations;
+  /**
+   * Set on an MDG message that carries the Pump details form (पंप की जानकारी):
+   * which state the pump is in, and whatever else the server's question list
+   * asks. The app draws the form from `GET /me/outlet-details` — the outlet's
+   * answers NOW. See `outletDetails.ts`.
+   */
+  outletDetails?: MessageOutletDetails;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

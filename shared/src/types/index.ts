@@ -58,5 +58,6 @@ export * from './calibrationClaim';
 export * from './duOtpAck';
 export * from './mockDrill';
 export * from './declarations';
+export * from './outletDetails';
 export * from './laptopBridge';
 export * from './extension';
