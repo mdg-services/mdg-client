@@ -1,6 +1,7 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
+import { invalidateOutletDetails } from '@/features/outletDetails/useOutletDetails';
 import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
 import { invalidateDeclarations } from '@/hooks/api/useDeclarations';
 import { invalidateDuOtp } from '@/hooks/api/useDuOtp';
@@ -269,6 +270,9 @@ export function useConversationSocket(
       if (!alreadyPresent && payload.message.mockDrill) invalidateMockDrill(qc);
       // THE DECLARATIONS BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);
+      // THE PUMP DETAILS FORM ARRIVED: it draws the outlet's answers NOW, and another
+      // owner (or MDG's team) may have answered since the cache last heard.
+      if (!alreadyPresent && payload.message.outletDetails) invalidateOutletDetails(qc);
       // The chat is open, so a message from the other party is read on arrival —
       // but only ack the first delivery (not the duplicate room echo).
       // NOT while the page is hidden (app in the background, phone locked): "seen"

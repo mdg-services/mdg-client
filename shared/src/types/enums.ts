@@ -159,6 +159,8 @@ export const AUDIT_ACTIONS = [
   'PARTNERS_PASSWORD_RESET',
   /** The owner (or the team for them) answered "do you also own a tanker?". */
   'TANKER_ANSWER_SAVED',
+  /** The owner (or the team for them) saved answers in the Pump details form; `after.changed` lists the question ids. */
+  'OUTLET_DETAILS_SAVED',
   // IOC XtraPower — IndianOil's fleet-card portal, asked of an outlet on demand
   'XTRAPOWER_CREDENTIALS_SET',
   'XTRAPOWER_CREDENTIALS_CLEAR',

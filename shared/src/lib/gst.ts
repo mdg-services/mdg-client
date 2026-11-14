@@ -71,6 +71,55 @@ export const GST_STATES: Record<string, string> = {
   '99': 'Centre Jurisdiction',
 };
 
+/**
+ * Each GST state's name in Hindi. The server sends these with the Pump details
+ * form's state list, so the app needs no list of its own (the dealer app and the
+ * admin each keep an older copy, `GST_STATE_HI`, for the bill-to card).
+ */
+export const GST_STATE_NAMES_HI: Readonly<Record<string, string>> = {
+  '01': 'जम्मू और कश्मीर',
+  '02': 'हिमाचल प्रदेश',
+  '03': 'पंजाब',
+  '04': 'चंडीगढ़',
+  '05': 'उत्तराखंड',
+  '06': 'हरियाणा',
+  '07': 'दिल्ली',
+  '08': 'राजस्थान',
+  '09': 'उत्तर प्रदेश',
+  '10': 'बिहार',
+  '11': 'सिक्किम',
+  '12': 'अरुणाचल प्रदेश',
+  '13': 'नागालैंड',
+  '14': 'मणिपुर',
+  '15': 'मिज़ोरम',
+  '16': 'त्रिपुरा',
+  '17': 'मेघालय',
+  '18': 'असम',
+  '19': 'पश्चिम बंगाल',
+  '20': 'झारखंड',
+  '21': 'ओडिशा',
+  '22': 'छत्तीसगढ़',
+  '23': 'मध्य प्रदेश',
+  '24': 'गुजरात',
+  // 25 and 28 are old codes (before the 2020 merger, before the 2014 split) that older GSTINs still carry.
+  '25': 'दमन और दीव',
+  '26': 'दादरा और नगर हवेली और दमन और दीव',
+  '27': 'महाराष्ट्र',
+  '28': 'आंध्र प्रदेश (पुराना)',
+  '29': 'कर्नाटक',
+  '30': 'गोवा',
+  '31': 'लक्षद्वीप',
+  '32': 'केरल',
+  '33': 'तमिल नाडु',
+  '34': 'पुदुचेरी',
+  '35': 'अंडमान और निकोबार द्वीप समूह',
+  '36': 'तेलंगाना',
+  '37': 'आंध्र प्रदेश',
+  '38': 'लद्दाख',
+  '97': 'अन्य क्षेत्र',
+  '99': 'केंद्र अधिकार क्षेत्र',
+};
+
 const GSTIN_SHAPE = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 const GSTIN_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 

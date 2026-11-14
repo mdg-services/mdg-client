@@ -2,6 +2,7 @@ import { Camera, Check, CheckCheck, Clock, FileText, Megaphone, Mic, Video, Zap 
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
+import { OutletDetailsCard } from '@/features/outletDetails/OutletDetailsCard';
 import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
@@ -470,6 +471,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   // photos IndianOil's weekly declaration needs. Again an empty object means "draw
   // it": it reads the outlet's live view. Wide and timed on its own line.
   const declarations = message.declarations;
+  // THE PUMP DETAILS FORM (`message.outletDetails`): the questions MDG asks about the
+  // pump (its state first). An empty object means "draw it": the card reads the outlet's
+  // live view and the message carries nothing else. Wide and timed on its own line.
+  const outletDetails = message.outletDetails;
   // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
@@ -490,6 +495,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!duOtpAck ||
     !!mockDrill ||
     !!declarations ||
+    !!outletDetails ||
     !!announcement ||
     hasSetupBody;
 
@@ -512,6 +518,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!duOtpAck ||
       !!mockDrill ||
       !!declarations ||
+      !!outletDetails ||
       !!announcement ||
       hasSetupBody);
 
@@ -674,6 +681,8 @@ export const MessageBubble = React.memo(function MessageBubble({
           {mockDrill ? <MockDrillBox /> : null}
 
           {declarations ? <DeclarationsBox /> : null}
+
+          {outletDetails ? <OutletDetailsCard /> : null}
 
           {setupCard ? <SetupCard card={setupCard.card} /> : null}
 

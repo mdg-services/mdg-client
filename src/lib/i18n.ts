@@ -2260,6 +2260,25 @@ export const messages = {
   'setup.billOverdue': { en: 'The due date has passed', hi: 'आख़िरी तारीख़ निकल चुकी है' },
   'setup.viewReceipt': { en: 'View receipt', hi: 'रसीद देखें' },
   'setup.started': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
+  /* ── Pump details form (पंप की जानकारी) ─────────────────────────────── */
+  // ONLY the form's own buttons and notes live here. The title, the intro, every
+  // question, its help line, its options and its placeholder come from the server
+  // (they travel with each read), so a new question is a server change and needs
+  // no release of this app.
+  'outletDetails.save': { en: 'Save', hi: 'सेव करें' },
+  'outletDetails.saving': { en: 'Saving…', hi: 'सेव हो रहा है…' },
+  'outletDetails.saved': { en: 'Saved', hi: 'सेव हो गया' },
+  'outletDetails.change': { en: 'Change', hi: 'बदलें' },
+  'outletDetails.ownerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },
+  'outletDetails.suggested': {
+    en: 'Suggested — press Save to confirm',
+    hi: 'सुझाया गया — पक्का करने के लिए सेव दबाएँ',
+  },
+  'outletDetails.saveFailed': { en: 'Could not save', hi: 'सेव नहीं हो सका' },
+  'outletDetails.yes': { en: 'Yes', hi: 'हाँ' },
+  'outletDetails.no': { en: 'No', hi: 'नहीं' },
+  'outletDetails.pick': { en: 'Choose', hi: 'चुनिए' },
+  'outletDetails.notAnswered': { en: 'Not answered', hi: 'अभी भरा नहीं है' },
   /* ── payments (ADR 0022) ─────────────────────────────────────────────── */
   // What MDG has asked this pump to pay, and what it has paid. Written to be
   // true wherever the screen runs: the same words are shown inside the Android
