@@ -220,6 +220,24 @@ const PLAYBACK_RATES = [1, 1.5, 2] as const;
  * the rule. The second note to start silences the first.
  */
 let playingElement: HTMLAudioElement | null = null;
+/**
+ * Pause whichever voice note is playing. Returns true if one was.
+ *
+ * Called before the mic opens: a note left playing ran on into the new
+ * recording through the phone's speaker, and on some phones held the audio
+ * system in playback while the mic was asked to start.
+ */
+export function pauseAllVoiceNotes(): boolean {
+  const el = playingElement;
+  if (!el || el.paused) return false;
+  try {
+    el.pause();
+  } catch {
+    /* an element already torn down has nothing to pause */
+  }
+  return true;
+}
+
 /** The speed the dealer last chose sticks to the next note, as it does there. */
 let chosenRate: (typeof PLAYBACK_RATES)[number] = 1;
 /** Notes started during this session — the mic on a received one turns blue. */

@@ -1,7 +1,8 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useVoiceRecorder, voiceMimeCandidates } from './useVoiceRecorder';
+import { reportIssue } from './monitoring';
+import { STOP_FINISH_MS, useVoiceRecorder, voiceMimeCandidates } from './useVoiceRecorder';
 
 /**
  * The recorder hook, which until now had no tests at all.
@@ -31,8 +32,10 @@ vi.mock('./micDiagnostics', () => ({
   })),
 }));
 
-class FakeTrack {
+/** An event target, like a real track, so the recorder can hear `ended` and `mute`. */
+class FakeTrack extends EventTarget {
   stopped = false;
+  muted = false;
   stop() {
     this.stopped = true;
   }
@@ -56,14 +59,18 @@ class FakeRecorder {
   static isTypeSupported(type: string) {
     return FakeRecorder.supports(type);
   }
+  /** When the constructor throws; a test sets it to model a picky engine. */
+  static throwsWhen: (options?: { mimeType?: string }) => boolean = () => false;
   state: 'inactive' | 'recording' = 'inactive';
   mimeType = 'audio/webm';
   ondataavailable: ((e: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
+  onerror: (() => void) | null = null;
   constructor(
     public stream: FakeStream,
     public options?: { mimeType?: string },
   ) {
+    if (FakeRecorder.throwsWhen(options)) throw new Error('NotSupportedError');
     recorders.push(this);
   }
   start() {
@@ -84,12 +91,21 @@ let pending: Array<{
   stream: FakeStream;
 }> = [];
 
-function settleNext(): FakeStream {
-  const next = pending.shift();
-  if (!next) throw new Error('no pending getUserMedia');
+/**
+ * Answer the next getUserMedia once it has been asked. Async, because a press
+ * straight after another waits out the short release gap before it asks.
+ */
+async function settleNext(): Promise<FakeStream> {
+  await vi.waitFor(() => {
+    if (pending.length === 0) throw new Error('no pending getUserMedia yet');
+  });
+  const next = pending.shift()!;
   next.resolve(next.stream);
   return next.stream;
 }
+
+const gum = () => navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>;
+const domError = (name: string, message = '') => ({ name, message });
 
 beforeEach(() => {
   pending = [];
@@ -113,8 +129,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   FakeRecorder.supports = () => true;
+  FakeRecorder.throwsWhen = () => false;
   delete (window as unknown as { __DK_NATIVE_PLATFORM__?: string }).__DK_NATIVE_PLATFORM__;
 });
 
@@ -125,7 +143,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     let started: Awaited<ReturnType<typeof result.current.start>> | undefined;
     await act(async () => {
       const p = result.current.start();
-      settleNext();
+      await settleNext();
       started = await p;
     });
     expect(started).toEqual({ ok: true, session: expect.any(Number) });
@@ -152,7 +170,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     await act(async () => {
       const p = result.current.start();
       result.current.cancel();
-      settleNext();
+      await settleNext();
       outcome = await p;
     });
 
@@ -167,7 +185,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     await act(async () => {
       const p = result.current.start();
       result.current.cancel();
-      stream = settleNext();
+      stream = await settleNext();
       await p;
     });
 
@@ -186,14 +204,14 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     let first: FakeStream | undefined;
     await act(async () => {
       const p = result.current.start();
-      first = settleNext();
+      first = await settleNext();
       await p;
     });
     expect(first!.stopped).toBe(false);
 
     await act(async () => {
       const p = result.current.start();
-      settleNext();
+      await settleNext();
       await p;
     });
 
@@ -210,7 +228,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
 
     await act(async () => {
       const p = result.current.start();
-      settleNext();
+      await settleNext();
       await p;
     });
     const stale = recorders[0];
@@ -218,7 +236,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     let second: FakeStream | undefined;
     await act(async () => {
       const p = result.current.start();
-      second = settleNext();
+      second = await settleNext();
       await p;
     });
 
@@ -241,7 +259,7 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
 
     await act(async () => {
       const p = result.current.start();
-      settleNext();
+      await settleNext();
       await p;
     });
 
@@ -270,17 +288,20 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
    */
   it('keeps the failure name, even from a thrown object that is not an Error', async () => {
     const { result } = renderHook(() => useVoiceRecorder());
-    (navigator.mediaDevices.getUserMedia as ReturnType<typeof vi.fn>).mockRejectedValueOnce({
-      name: 'NotReadableError',
-      message: 'device in use',
-    });
+    gum().mockRejectedValueOnce(domError('NotFoundError', 'no device'));
 
     let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
     await act(async () => {
       outcome = await result.current.start();
     });
 
-    expect(outcome).toEqual({ ok: false, cause: 'error', name: 'NotReadableError' });
+    expect(outcome).toEqual({
+      ok: false,
+      cause: 'error',
+      name: 'NotFoundError',
+      message: 'no device',
+      attempts: 1,
+    });
   });
 
   it('releases the microphone when the screen goes away mid-recording', async () => {
@@ -289,12 +310,475 @@ describe('useVoiceRecorder — one attempt cannot damage another', () => {
     let stream: FakeStream | undefined;
     await act(async () => {
       const p = result.current.start();
-      stream = settleNext();
+      stream = await settleNext();
       await p;
     });
 
     unmount();
     expect(stream!.stopped).toBe(true);
+  });
+});
+
+/**
+ * THE QUIET SECOND CHANCE. A start that fails because the phone could not start
+ * the mic for a moment (pressed as the app came back to the screen, the phone
+ * still letting go of a call) gets one retry before the dealer hears anything.
+ * A refusal, a missing mic or a hang never does: trying again changes nothing.
+ */
+describe('useVoiceRecorder — one quiet retry', () => {
+  function setVisibility(state: 'visible' | 'hidden') {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+  }
+  afterEach(() => {
+    setVisibility('visible');
+  });
+
+  it('retries once on NotReadableError and records', async () => {
+    vi.useFakeTimers();
+    gum().mockRejectedValueOnce(domError('NotReadableError', 'Could not start audio source'));
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(400);
+      await settleNext();
+      outcome = await p;
+    });
+
+    expect(gum()).toHaveBeenCalledTimes(2);
+    expect(outcome).toEqual({ ok: true, session: expect.any(Number) });
+    expect(result.current.status).toBe('recording');
+  });
+
+  it('retries an AbortError the same way', async () => {
+    vi.useFakeTimers();
+    gum().mockRejectedValueOnce(domError('AbortError'));
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(400);
+      await settleNext();
+      await p;
+    });
+    expect(gum()).toHaveBeenCalledTimes(2);
+  });
+
+  it('never retries a refusal', async () => {
+    vi.useFakeTimers();
+    gum().mockRejectedValueOnce(domError('NotAllowedError'));
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(5000);
+      outcome = await p;
+    });
+
+    expect(gum()).toHaveBeenCalledTimes(1);
+    expect(outcome).toMatchObject({ ok: false, cause: 'error', name: 'NotAllowedError', attempts: 1 });
+  });
+
+  it('waits for the app to be back on screen before retrying', async () => {
+    vi.useFakeTimers();
+    setVisibility('hidden');
+    gum().mockRejectedValueOnce(domError('NotReadableError'));
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let p: ReturnType<typeof result.current.start> | undefined;
+    await act(async () => {
+      p = result.current.start();
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    // Still hidden: no second ask yet.
+    expect(gum()).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      setVisibility('visible');
+      document.dispatchEvent(new Event('visibilitychange'));
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(gum()).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      await settleNext();
+      await p;
+    });
+  });
+
+  it('a cancel during the wait means no second ask at all', async () => {
+    vi.useFakeTimers();
+    gum().mockRejectedValueOnce(domError('NotReadableError'));
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(100);
+      result.current.cancel();
+      await vi.advanceTimersByTimeAsync(4000);
+      outcome = await p;
+    });
+
+    expect(gum()).toHaveBeenCalledTimes(1);
+    expect(outcome).toEqual({ ok: false, cause: 'superseded' });
+  });
+
+  it('sends ONE report per press, saying a retry ran and how it ended', async () => {
+    vi.useFakeTimers();
+    gum()
+      .mockRejectedValueOnce(domError('NotReadableError', 'Could not start audio source'))
+      .mockRejectedValueOnce(domError('NotReadableError', 'Could not start audio source'));
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(400);
+      outcome = await p;
+    });
+    await vi.waitFor(() => expect(reportIssue).toHaveBeenCalled());
+
+    expect(outcome).toMatchObject({ ok: false, name: 'NotReadableError', attempts: 2 });
+    const blocked = vi.mocked(reportIssue).mock.calls.filter(([i]) => i.name === 'mic.blocked');
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0][0].tags).toMatchObject({
+      'mic.error': 'NotReadableError',
+      'mic.message': 'Could not start audio source',
+      'mic.retries': 1,
+      'mic.retryOutcome': 'failed-again',
+    });
+  });
+});
+
+describe('useVoiceRecorder — nothing left live, nothing lost', () => {
+  it('a recorder that will not take the format starts with the phone\'s own default', async () => {
+    FakeRecorder.throwsWhen = (options) => !!options?.mimeType;
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await settleNext();
+      outcome = await p;
+    });
+
+    expect(outcome).toEqual({ ok: true, session: expect.any(Number) });
+    expect(recorders.at(-1)!.options).toBeUndefined();
+  });
+
+  it('lets go of the microphone when no recorder will start at all', async () => {
+    FakeRecorder.throwsWhen = () => true;
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let stream: FakeStream | undefined;
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      stream = await settleNext();
+      outcome = await p;
+    });
+
+    expect(outcome).toMatchObject({ ok: false, cause: 'error', name: 'RecorderStartError' });
+    expect(stream!.stopped).toBe(true);
+  });
+
+  /**
+   * A recording the phone stopped (the track ended) used to drop the clip: the
+   * bar sat at 0:00 and Send said "too short". Now the clip is kept, and the
+   * next stop() hands it over for review.
+   */
+  it('keeps a clip the phone stopped, and stop() hands it back', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+    let stream: FakeStream | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      stream = await settleNext();
+      await p;
+    });
+
+    await act(async () => {
+      stream!.tracks[0].dispatchEvent(new Event('ended'));
+    });
+    expect(result.current.status).toBe('interrupted');
+    expect(result.current.interruptReason).toBe('ended');
+
+    let clip: Awaited<ReturnType<typeof result.current.stop>> = null;
+    await act(async () => {
+      clip = await result.current.stop();
+    });
+    expect(clip).not.toBeNull();
+    expect(clip!.endedBy).toBe('ended');
+    expect(clip!.blob.size).toBeGreaterThan(0);
+    expect(result.current.status).toBe('idle');
+  });
+
+  it('a recorder error followed by its stop is handled once', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      await settleNext();
+      await p;
+    });
+    const rec = recorders[0];
+
+    await act(async () => {
+      rec.onerror?.(); // stops the recorder, which fires onstop
+      rec.onstop?.(); // a second, late onstop
+    });
+    expect(result.current.interruptReason).toBe('error');
+
+    let first: Awaited<ReturnType<typeof result.current.stop>> = null;
+    let second: Awaited<ReturnType<typeof result.current.stop>> = null;
+    await act(async () => {
+      first = await result.current.stop();
+      second = await result.current.stop();
+    });
+    expect(first!.endedBy).toBe('error');
+    expect(second).toBeNull();
+  });
+
+  it('says so when the phone mutes the track', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+    let stream: FakeStream | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      stream = await settleNext();
+      await p;
+    });
+    await act(async () => {
+      stream!.tracks[0].dispatchEvent(new Event('mute'));
+    });
+    expect(result.current.muted).toBe(true);
+  });
+
+  /**
+   * When the phone ends the track, the recorder is often already inactive but
+   * its last chunk (on most phones all of the audio) is still on its way. The
+   * clip used to be built at once, empty, and the note was lost.
+   */
+  it('a track that ends after the recorder went quiet still keeps the whole note', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+    let stream: FakeStream | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      stream = await settleNext();
+      await p;
+    });
+    const rec = recorders[0]!;
+    rec.state = 'inactive';
+
+    await act(async () => {
+      stream!.tracks[0]!.dispatchEvent(new Event('ended'));
+    });
+    // The audio has not arrived yet, so nothing has been built from it.
+    expect(result.current.status).toBe('recording');
+
+    await act(async () => {
+      await Promise.resolve();
+      rec.ondataavailable?.({ data: new Blob(['audio'], { type: rec.mimeType }) });
+      rec.onstop?.();
+    });
+    expect(result.current.status).toBe('interrupted');
+
+    let clip: Awaited<ReturnType<typeof result.current.stop>> = null;
+    await act(async () => {
+      clip = await result.current.stop();
+    });
+    expect(clip!.endedBy).toBe('ended');
+    expect(clip!.blob.size).toBeGreaterThan(0);
+  });
+
+  it('stop() on a recorder already inactive waits for its last chunk', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      await settleNext();
+      await p;
+    });
+    const rec = recorders[0]!;
+    rec.state = 'inactive';
+
+    let clip: Awaited<ReturnType<typeof result.current.stop>> = null;
+    await act(async () => {
+      const stopping = result.current.stop();
+      await Promise.resolve();
+      rec.ondataavailable?.({ data: new Blob(['audio'], { type: rec.mimeType }) });
+      rec.onstop?.();
+      clip = await stopping;
+    });
+    expect(clip).not.toBeNull();
+    expect(clip!.blob.size).toBeGreaterThan(0);
+  });
+
+  /**
+   * A press while the last note is still flushing must not touch that note:
+   * not tear down its microphone, not settle its stop() early. The note that
+   * was just sent still arrives in full.
+   */
+  it('a press while the last note is still being finished waits, gives up quietly, and the note survives', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVoiceRecorder());
+    let first: FakeStream | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      first = await settleNext();
+      await p;
+    });
+    const rec = recorders[0]!;
+    rec.stop = function slowFlush() {
+      this.state = 'inactive';
+      setTimeout(() => {
+        this.ondataavailable?.({ data: new Blob(['audio'], { type: this.mimeType }) });
+        this.onstop?.();
+      }, 2000);
+    };
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    let clip: Awaited<ReturnType<typeof result.current.stop>> | undefined;
+    let stopping: Promise<unknown> | undefined;
+    await act(async () => {
+      stopping = result.current.stop().then((c) => {
+        clip = c;
+      });
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(1500);
+      outcome = await p;
+    });
+
+    expect(outcome).toEqual({ ok: false, cause: 'busy-self' });
+    expect(gum()).toHaveBeenCalledTimes(1);
+    expect(first!.stopped).toBe(false);
+    expect(clip).toBeUndefined();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+      await stopping;
+    });
+    expect(clip!.blob.size).toBeGreaterThan(0);
+  });
+
+  /** A recorder that never fires `stop` used to leave the mic on and every later press waiting. */
+  it('a recorder that never finishes is finished for it, and the next press works', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVoiceRecorder());
+    let first: FakeStream | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      first = await settleNext();
+      await p;
+    });
+    const rec = recorders[0]!;
+    rec.stop = function noFlush() {
+      this.state = 'inactive';
+    };
+
+    let settled = false;
+    await act(async () => {
+      void result.current.stop().then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(STOP_FINISH_MS);
+    });
+    expect(settled).toBe(true);
+    expect(first!.stopped).toBe(true);
+
+    let outcome: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      const p = result.current.start();
+      await vi.advanceTimersByTimeAsync(300);
+      expect(gum()).toHaveBeenCalledTimes(2);
+      await settleNext();
+      outcome = await p;
+    });
+    expect(outcome).toEqual({ ok: true, session: expect.any(Number) });
+  });
+
+  /**
+   * Two presses waiting on the same note: the composer watches only the newest
+   * press, so the newest must be the one that gets the mic.
+   */
+  it('two presses waiting on a note being finished: the newer one gets the mic', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      await settleNext();
+      await p;
+    });
+    const rec = recorders[0]!;
+    rec.stop = function slowFlush() {
+      this.state = 'inactive';
+      setTimeout(() => {
+        this.ondataavailable?.({ data: new Blob(['audio'], { type: this.mimeType }) });
+        this.onstop?.();
+      }, 500);
+    };
+
+    let older: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    let newer: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    await act(async () => {
+      void result.current.stop();
+      const p1 = result.current.start();
+      const p2 = result.current.start();
+      await vi.advanceTimersByTimeAsync(500);
+      older = await p1;
+      await vi.advanceTimersByTimeAsync(300);
+      await settleNext();
+      newer = await p2;
+    });
+
+    expect(older).toEqual({ ok: false, cause: 'superseded' });
+    expect(newer).toEqual({ ok: true, session: expect.any(Number) });
+    expect(gum()).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * Press, let go before the mic opens, press again. Two asks at once used to
+   * overwrite each other in the Android WebView's single permission slot, and
+   * the press hung. The second press now joins the first ask.
+   */
+  it('two quick presses make ONE getUserMedia, and the newest press gets the mic', async () => {
+    const { result } = renderHook(() => useVoiceRecorder());
+
+    let first: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    let second: Awaited<ReturnType<typeof result.current.start>> | undefined;
+    let stream: FakeStream | undefined;
+    await act(async () => {
+      const p1 = result.current.start();
+      const p2 = result.current.start();
+      stream = await settleNext();
+      first = await p1;
+      second = await p2;
+    });
+
+    expect(gum()).toHaveBeenCalledTimes(1);
+    expect(first).toEqual({ ok: false, cause: 'superseded' });
+    expect(second).toEqual({ ok: true, session: expect.any(Number) });
+    expect(stream!.stopped).toBe(false);
+  });
+
+  it('waits a moment after letting go of one mic before asking for the next', async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useVoiceRecorder());
+    await act(async () => {
+      const p = result.current.start();
+      await settleNext();
+      await p;
+    });
+    await act(async () => {
+      await result.current.stop();
+    });
+
+    await act(async () => {
+      void result.current.start();
+      await vi.advanceTimersByTimeAsync(200);
+    });
+    expect(gum()).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    expect(gum()).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -309,7 +793,7 @@ describe('useVoiceRecorder — what to record as', () => {
     const { result } = renderHook(() => useVoiceRecorder());
     await act(async () => {
       const p = result.current.start();
-      settleNext();
+      await settleNext();
       await p;
     });
     return recorders.at(-1)!.options?.mimeType;

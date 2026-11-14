@@ -3,9 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectPlatform,
   haptic,
+  openAppStore,
   postChatClose,
   postChatOpen,
   requestNativeMicPermission,
+  requestNativeMicStatus,
   requestNativePushStatus,
 } from './nativeBridge';
 
@@ -273,5 +275,98 @@ describe('haptic', () => {
 
   it('does nothing in a plain browser with no vibrate', () => {
     expect(() => haptic()).not.toThrow();
+  });
+});
+
+describe('haptic — the voice-note styles', () => {
+  afterEach(() => {
+    delete shellWindow().ReactNativeWebView;
+    delete (navigator as unknown as { vibrate?: unknown }).vibrate;
+  });
+
+  it('sends the phone app only the three taps it knows', () => {
+    const spy = enterShell();
+    haptic('success');
+    haptic('warning');
+    haptic('error');
+    expect(posted(spy)).toEqual([
+      { type: 'haptic', style: 'light' },
+      { type: 'haptic', style: 'medium' },
+      { type: 'haptic', style: 'medium' },
+    ]);
+  });
+
+  it('buzzes twice on Android for a warning or an error', () => {
+    const vibrate = vi.fn(() => true);
+    Object.defineProperty(navigator, 'vibrate', { value: vibrate, configurable: true });
+    haptic('error');
+    expect(vibrate).toHaveBeenCalledWith([30, 50, 30]);
+  });
+});
+
+/**
+ * Where the mic permission stands, read WITHOUT a dialog. It is what lets the
+ * chat offer "Allow" only when the phone will still ask, instead of putting a
+ * second permission dialog on screen straight after the WebView's own.
+ */
+describe('requestNativeMicStatus', () => {
+  type FeatureWindow = ShellWindow & { __DK_NATIVE_FEATURES__?: string[] };
+  afterEach(() => {
+    vi.useRealTimers();
+    delete shellWindow().ReactNativeWebView;
+    delete (window as unknown as FeatureWindow).__DK_NATIVE_FEATURES__;
+  });
+
+  it('asks a phone app that can answer, and passes on its answer', async () => {
+    const spy = enterShell();
+    (window as unknown as FeatureWindow).__DK_NATIVE_FEATURES__ = ['mic-status'];
+    const answer = requestNativeMicStatus();
+    expect(posted(spy)).toEqual([{ type: 'permission:micStatus' }]);
+    window.dispatchEvent(
+      new CustomEvent('native-mic-status', { detail: { granted: false, canAsk: true } }),
+    );
+    await expect(answer).resolves.toEqual({ granted: false, canAsk: true });
+  });
+
+  it('does not ask a phone app that cannot answer, and says "unknown"', async () => {
+    const spy = enterShell();
+    await expect(requestNativeMicStatus()).resolves.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting after 800 ms', async () => {
+    vi.useFakeTimers();
+    enterShell();
+    (window as unknown as FeatureWindow).__DK_NATIVE_FEATURES__ = ['mic-status'];
+    const answer = requestNativeMicStatus();
+    vi.advanceTimersByTime(800);
+    await expect(answer).resolves.toBeNull();
+  });
+});
+
+describe('openAppStore', () => {
+  type FeatureWindow = ShellWindow & { __DK_NATIVE_FEATURES__?: string[] };
+  afterEach(() => {
+    delete shellWindow().ReactNativeWebView;
+    delete (window as unknown as FeatureWindow).__DK_NATIVE_FEATURES__;
+  });
+
+  it('a phone app that can opens the store itself', () => {
+    const spy = enterShell();
+    (window as unknown as FeatureWindow).__DK_NATIVE_FEATURES__ = ['open-store'];
+    expect(openAppStore('https://play.google.com/store/apps/details?id=x')).toBe('app');
+    expect(posted(spy)).toEqual([{ type: 'app:openStore' }]);
+  });
+
+  it('an older one gets the store page through the website road', () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const spy = enterShell();
+    expect(openAppStore('https://play.google.com/store/apps/details?id=x')).toBe('browser');
+    expect(spy).not.toHaveBeenCalled();
+    expect(open).toHaveBeenCalledWith(
+      'https://play.google.com/store/apps/details?id=x',
+      '_blank',
+      'noopener',
+    );
   });
 });

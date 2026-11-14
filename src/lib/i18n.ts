@@ -359,14 +359,6 @@ export const messages = {
     en: 'Allow microphone access for Dealer Kavach in your phone Settings, then try again.',
     hi: 'फ़ोन की सेटिंग में Dealer Kavach को माइक्रोफ़ोन की अनुमति दें, फिर दोबारा कोशिश करें।',
   },
-  'chat.micBusy': {
-    en: 'The microphone is being used by another app',
-    hi: 'माइक्रोफ़ोन किसी दूसरे ऐप में चल रहा है',
-  },
-  'chat.micBusyHint': {
-    en: 'Close any call or recording app, then try again.',
-    hi: 'कॉल या रिकॉर्डिंग वाला ऐप बंद कीजिए, फिर दोबारा कोशिश करें।',
-  },
   'chat.micMissing': {
     en: 'No microphone found on this phone',
     hi: 'इस फ़ोन में माइक्रोफ़ोन नहीं मिला',
@@ -375,19 +367,7 @@ export const messages = {
     en: 'You can still type your message, or send a photo.',
     hi: 'आप संदेश टाइप कर सकते हैं, या फोटो भेज सकते हैं।',
   },
-  // The request never came back at all — no refusal, no busy mic, no answer.
-  // Sending someone to Settings for this is the wrong advice: there is nothing
-  // there to change. Trying again genuinely does work, because the usual cause
-  // is a permission dialog whose result never reached the page.
   'chat.micOpenSettings': { en: 'Open settings', hi: 'सेटिंग खोलें' },
-  'chat.micTimeout': {
-    en: "The microphone didn't open",
-    hi: 'माइक्रोफ़ोन चालू नहीं हो पाया',
-  },
-  'chat.micTimeoutHint': {
-    en: 'Press and hold the mic again. If it keeps happening, type your message.',
-    hi: 'माइक को दोबारा दबाकर रखिए। फिर भी न हो तो संदेश टाइप कीजिए।',
-  },
   'chat.micUnavailable': {
     en: "Voice notes don't work on this phone",
     hi: 'इस फ़ोन में वॉइस नोट नहीं चलते',
@@ -401,8 +381,115 @@ export const messages = {
     hi: 'छोड़ें, रद्द हो जाएगा',
   },
   'chat.recordingLocked': {
-    en: 'Recording — tap send when done',
-    hi: 'रिकॉर्ड हो रहा है — हो जाए तो भेजें दबाएं',
+    en: 'Recording… tap Send when done',
+    hi: 'रिकॉर्ड हो रहा है… हो जाए तो भेजें दबाएं',
+  },
+
+  /* ── the voice-note bar: starting, failing, and the review step ─────────
+     WHAT THE MIC FAILURE SAYS, AND WHAT IT NO LONGER SAYS. "The microphone is
+     being used by another app" was shown for every start that failed, and on
+     the Android app that was nearly every press — the real cause was the app
+     itself (see lib/micPolicy). We never knew another app had the mic, so we
+     no longer say so. Only `micMutedMid` names a call, and only because the
+     phone itself told us it took the mic away mid-recording. */
+  'chat.micStarting': { en: 'Starting mic…', hi: 'माइक चालू हो रहा है…' },
+  'chat.slideToLock': { en: 'Slide up to lock', hi: 'ऊपर खिसकाएं — लॉक' },
+  'chat.micFailedTitle': { en: "The mic didn't start", hi: 'माइक चालू नहीं हो पाया' },
+  'chat.micFailedHint': {
+    en: "Try again. If you're on a call, finish it first.",
+    hi: 'फिर से कोशिश कीजिए। फ़ोन पर कॉल चल रही हो तो पहले उसे खत्म कीजिए।',
+  },
+  'chat.micTryAgain': { en: 'Try again', hi: 'फिर से कोशिश करें' },
+  'chat.micTypeInstead': { en: 'Type instead', hi: 'टाइप करके भेजें' },
+  // The phone handed over a mic it was already using — the track arrived muted.
+  // Certain, so it may name the likely cause.
+  'chat.micMutedTitle': {
+    en: 'The phone is using the mic right now (a call?)',
+    hi: 'फ़ोन अभी माइक इस्तेमाल कर रहा है (कॉल?)',
+  },
+  'chat.micMutedHint': {
+    en: 'Finish the call, then try again.',
+    hi: 'कॉल खत्म कीजिए, फिर से कोशिश कीजिए।',
+  },
+  'chat.micMutedMid': {
+    en: 'The phone took the mic (a call?) — recording paused. Send what was recorded, or delete it.',
+    hi: 'फ़ोन माइक इस्तेमाल कर रहा है (कॉल?) — रिकॉर्डिंग रोक दी। जो रिकॉर्ड हुआ वो भेजें या मिटाएं।',
+  },
+  // An Android app built before the mic fix. Two versions: before the new app is
+  // on the Play Store (nothing to update to yet) and after.
+  'chat.micUpdateLaterTitle': {
+    en: 'Voice messages will work after the next app update',
+    hi: 'आवाज़ वाले संदेश ऐप के अगले अपडेट के बाद चलेंगे',
+  },
+  'chat.micUpdateLaterHint': {
+    en: 'Until then, please type your message.',
+    hi: 'तब तक संदेश टाइप करके भेजिए।',
+  },
+  'chat.micUpdateTitle': {
+    en: 'Voice messages need the latest Dealer Kavach.',
+    hi: 'आवाज़ वाले संदेश के लिए Dealer Kavach का नया वर्शन चाहिए।',
+  },
+  'chat.micUpdateButton': { en: 'Update from Play Store', hi: 'Play Store से अपडेट करें' },
+  'chat.micRefusedTitle': { en: 'Microphone permission is off', hi: 'माइक की अनुमति बंद है' },
+  'chat.micRefusedHint': {
+    en: 'Tap Allow, then choose “Allow” on the next screen.',
+    hi: '“अनुमति दें” दबाइए, फिर अगली स्क्रीन पर “Allow” चुनिए।',
+  },
+  // Android 11 and later has no "Allow" button for the mic, only "While using
+  // the app". The Hindi names both, because many phones are set to English
+  // while the dealer reads this app in Hindi.
+  'chat.micRefusedHintAndroid': {
+    en: 'Tap Allow, then choose “While using the app” on the next screen.',
+    hi: '“अनुमति दें” दबाइए, फिर अगली स्क्रीन पर “While using the app / ऐप इस्तेमाल करते समय” चुनिए।',
+  },
+  'chat.micAllow': { en: 'Allow', hi: 'अनुमति दें' },
+  'chat.micSettingsTitle': {
+    en: 'Turn on the microphone in Settings',
+    hi: 'सेटिंग में माइक चालू कीजिए',
+  },
+  'chat.micSettingsHint': {
+    en: 'Open Settings, turn on Microphone for Dealer Kavach, then come back and press the mic.',
+    hi: 'सेटिंग खोलिए, Dealer Kavach के लिए माइक्रोफ़ोन चालू कीजिए, फिर वापस आकर माइक दबाइए।',
+  },
+  'chat.micExplainer': {
+    en: 'To send voice messages, Dealer Kavach needs the microphone. On the next screen, tap Allow.',
+    hi: 'आवाज़ से संदेश भेजने के लिए Dealer Kavach को माइक चाहिए। अगली स्क्रीन पर “Allow / अनुमति दें” दबाइए।',
+  },
+  'chat.micExplainerAndroid': {
+    en: 'To send voice messages, Dealer Kavach needs the microphone. On the next screen, tap “While using the app”.',
+    hi: 'आवाज़ से संदेश भेजने के लिए Dealer Kavach को माइक चाहिए। अगली स्क्रीन पर “While using the app / ऐप इस्तेमाल करते समय” दबाइए।',
+  },
+  'chat.micExplainerOk': { en: 'OK', hi: 'ठीक है' },
+  // The phone says the mic is allowed, yet it still refuses to open it. Asking
+  // again cannot help; on an iPhone in particular, only a fresh start of the
+  // app clears it.
+  'chat.micRestartTitle': {
+    en: "The mic is allowed, but it won't start",
+    hi: 'माइक की अनुमति है, फिर भी चालू नहीं हो रहा',
+  },
+  'chat.micRestartHint': {
+    en: 'Close the app completely, open it again, then press the mic.',
+    hi: 'ऐप पूरी तरह बंद करके फिर से खोलिए, फिर माइक दबाइए।',
+  },
+  // A press while the last note is still being saved. That note is kept and
+  // still goes; the press just has to come again a moment later.
+  'chat.voiceStillSaving': {
+    en: 'The last voice message is still being saved. Press the mic again in a moment.',
+    hi: 'पिछला आवाज़ वाला संदेश अभी सेव हो रहा है। एक पल बाद माइक फिर से दबाइए।',
+  },
+  'chat.voiceReviewStopped': {
+    en: 'Recording stopped. Send what was recorded, or delete it.',
+    hi: 'रिकॉर्डिंग रुक गई। जो रिकॉर्ड हुआ वो भेजें या मिटाएं।',
+  },
+  'chat.voiceSilent': {
+    en: 'No sound was recorded — is the mic covered? Try again.',
+    hi: 'आवाज़ रिकॉर्ड नहीं हुई — माइक ढका तो नहीं? फिर से बोलिए।',
+  },
+  'chat.voiceRecordAgain': { en: 'Record again', hi: 'फिर से रिकॉर्ड करें' },
+  'chat.voiceSendAnyway': { en: 'Send anyway', hi: 'फिर भी भेजें' },
+  'chat.voiceLost': {
+    en: 'The recording was lost. Please record it again.',
+    hi: 'रिकॉर्डिंग खो गई। कृपया फिर से रिकॉर्ड कीजिए।',
   },
   'chat.stillConnecting': {
     en: 'Still connecting. Please wait a moment and try again.',
@@ -475,8 +562,8 @@ export const messages = {
     hi: 'यह चैट लोड नहीं हो सकी',
   },
   'chat.voiceTooShort': {
-    en: 'Nothing was recorded. Hold the mic a little longer.',
-    hi: 'कुछ रिकॉर्ड नहीं हुआ। माइक थोड़ी देर और दबाए रखें।',
+    en: 'Too short to send. Hold the mic a little longer.',
+    hi: 'बहुत छोटा था, भेजा नहीं गया। माइक थोड़ी देर और दबाए रखें।',
   },
   'chat.voiceMaxReached': {
     en: 'Ten minutes is the limit — sending what you recorded.',

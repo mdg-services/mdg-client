@@ -7,6 +7,8 @@
  * undefined.
  */
 
+import { openWebPage } from './legalLinks';
+
 export type NativePlatform = 'ios' | 'android' | 'web';
 
 declare global {
@@ -40,6 +42,8 @@ declare global {
     'native-app-state': CustomEvent<NativeAppState>;
     /** How an assisted portal reset ended (`openPortalAssist`). */
     'native-portal-assist': CustomEvent<NativePortalAssistResult>;
+    /** The shell's answer to `permission:micStatus` (never a prompt). */
+    'native-mic-status': CustomEvent<NativeMicStatus>;
   }
 }
 
@@ -69,6 +73,31 @@ export interface NativePortalAssistResult {
 
 /** What the phone is doing with the app (`native-app-state`). */
 export type NativeAppState = 'active' | 'background';
+
+/** The last `native-app-state` the shell sent, and when (ms since epoch). */
+let lastAppState: { state: NativeAppState | null; at: number } = { state: null, at: 0 };
+let appStateTracked = false;
+
+/**
+ * Start remembering what the shell says about the app being in the foreground.
+ *
+ * The voice recorder needs it to know whether a mic that failed to open failed
+ * because the phone had the app in the background (wait until it is back, then
+ * try again) or with the app on screen. Safe to call many times; one listener.
+ */
+export function trackNativeAppState(): void {
+  if (appStateTracked || typeof window === 'undefined') return;
+  appStateTracked = true;
+  window.addEventListener('native-app-state', (e) => {
+    const state = (e as CustomEvent<NativeAppState>).detail;
+    if (state === 'active' || state === 'background') lastAppState = { state, at: Date.now() };
+  });
+}
+
+/** The last app state the shell reported (`state: null` if it never has). */
+export function nativeAppState(): { state: NativeAppState | null; at: number } {
+  return lastAppState;
+}
 
 /**
  * Send a structured message to the native shell. No-op in a normal browser.
@@ -173,8 +202,40 @@ export function postChatClose(): void {
   postToNative({ type: 'chat:close' });
 }
 
-/** How hard the tap feels. `selection` is the light tick of a picker. */
-export type HapticStyle = 'light' | 'medium' | 'selection';
+/**
+ * How hard the tap feels. `selection` is the light tick of a picker. `success`,
+ * `warning` and `error` are what the voice-note bar says without words: sent,
+ * stopped by the phone, and did not start.
+ */
+export type HapticStyle = 'light' | 'medium' | 'selection' | 'success' | 'warning' | 'error';
+
+/**
+ * What the phone app's haptic handler understands. It knows three taps and plays
+ * anything else as the lightest one, so the three newer names are turned into the
+ * nearest of those here rather than relying on that fallback.
+ */
+const SHELL_HAPTIC: Record<HapticStyle, 'light' | 'medium' | 'selection'> = {
+  light: 'light',
+  medium: 'medium',
+  selection: 'selection',
+  success: 'light',
+  warning: 'medium',
+  error: 'medium',
+};
+
+/**
+ * Android's vibration for each style, in milliseconds (a list is buzz, gap, buzz).
+ * A warning and an error buzz twice so they can be told apart from a plain tap
+ * with the phone in a pocket.
+ */
+const VIBRATION: Record<HapticStyle, number | number[]> = {
+  light: 10,
+  medium: 10,
+  selection: 10,
+  success: 10,
+  warning: [20, 60, 20],
+  error: [30, 50, 30],
+};
 
 /**
  * A small tick under the finger, for a long-press that took or a swipe that
@@ -183,11 +244,15 @@ export type HapticStyle = 'light' | 'medium' | 'selection';
  * A plain desktop browser gets neither, and nothing happens.
  */
 export function haptic(style: HapticStyle = 'light'): void {
-  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
-    navigator.vibrate(10);
-    return;
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(VIBRATION[style] ?? 10);
+      return;
+    }
+  } catch {
+    // Some WebViews throw on vibrate when the page has not been touched yet.
   }
-  if (isNativeShell()) postToNative({ type: 'haptic', style });
+  if (isNativeShell()) postToNative({ type: 'haptic', style: SHELL_HAPTIC[style] ?? 'light' });
 }
 
 /** Why the shell could not hand over a push token. */
@@ -288,6 +353,71 @@ export function requestNativeMicPermission(
     );
   });
   return micRequestInFlight;
+}
+
+/** Where the phone's microphone permission stands, as the shell reads it. */
+export interface NativeMicStatus {
+  granted: boolean;
+  /**
+   * The phone would still show its permission dialog. False once Android has
+   * stopped asking (refused twice, or "Don't ask again"), or once an iPhone has
+   * been refused: from then on only the phone's Settings can turn it on.
+   */
+  canAsk: boolean;
+}
+
+/**
+ * Ask the shell where the microphone permission stands, WITHOUT showing any
+ * dialog (`permission:micStatus`).
+ *
+ * This is what lets the chat pick the right button after a refusal. The Android
+ * WebView shows its own permission dialog the moment the page asks for the mic;
+ * asking the shell to request it AGAIN straight after a "Don't allow" put a
+ * second dialog on screen, and on Android 11 and later two refusals make the
+ * refusal permanent. Reading the status first means we only offer "Allow" when
+ * the phone will still ask, and "Open Settings" when it will not.
+ *
+ * Resolves `null` when this shell cannot answer (a plain browser, a shell built
+ * before the message existed, or no answer within `timeoutMs`). The caller reads
+ * `null` as "we don't know" and must not wait any longer for it.
+ */
+export function requestNativeMicStatus(timeoutMs = 800): Promise<NativeMicStatus | null> {
+  if (!nativeHas('mic-status') || typeof window === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const timer: { id?: ReturnType<typeof window.setTimeout> } = {};
+    const finish = (result: NativeMicStatus | null) => {
+      if (timer.id !== undefined) window.clearTimeout(timer.id);
+      window.removeEventListener('native-mic-status', onStatus);
+      resolve(result);
+    };
+    const onStatus = (e: Event) => {
+      const detail = (e as CustomEvent<Partial<NativeMicStatus>>).detail;
+      if (!detail || typeof detail.granted !== 'boolean') return;
+      finish({ granted: detail.granted, canAsk: detail.canAsk !== false && !detail.granted });
+    };
+    // Listening first, THEN asking: a shell that answers in the same tick must
+    // not find nobody there.
+    window.addEventListener('native-mic-status', onStatus);
+    postToNative({ type: 'permission:micStatus' });
+    timer.id = window.setTimeout(() => finish(null), timeoutMs);
+  });
+}
+
+/**
+ * Send the dealer to this app's page in the phone's app store, to update it.
+ *
+ * A shell that can (`open-store`) opens the Play Store app straight on the page.
+ * Anything older gets `fallbackUrl` (the store's web address) through the one
+ * road the app has for a website page; on Android the phone offers to open that
+ * address in the Play Store app too. Decided inside the tap, so nothing blocks it.
+ */
+export function openAppStore(fallbackUrl: string): 'app' | 'browser' {
+  if (nativeHas('open-store')) {
+    postToNative({ type: 'app:openStore' });
+    return 'app';
+  }
+  openWebPage(fallbackUrl);
+  return 'browser';
 }
 
 /**

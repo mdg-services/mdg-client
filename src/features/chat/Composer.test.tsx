@@ -10,6 +10,15 @@ import { Composer, type ComposerHandle } from './Composer';
 // Unmount BEFORE the shared teardown resets the language store: that reset runs
 // first otherwise, and re-renders a still-mounted component outside `act`.
 afterEach(() => cleanup());
+// The composer remembers in browser storage that the mic has worked (which
+// shortens the watchdog) and that the explainer was shown. Every test starts new.
+beforeEach(() => {
+  try {
+    window.localStorage.clear();
+  } catch {
+    /* no storage */
+  }
+});
 
 /**
  * The recorder stub MODELS SESSIONS, because sessions are the contract.
@@ -22,8 +31,10 @@ afterEach(() => cleanup());
  */
 const recorder = vi.hoisted(() => ({
   supported: true,
-  status: 'idle' as 'idle' | 'recording' | 'error',
+  status: 'idle' as 'idle' | 'recording' | 'interrupted' | 'error',
   elapsedMs: 0,
+  muted: false,
+  interruptReason: null as null | 'ended' | 'error',
   session: 0,
   start: vi.fn(),
   stop: vi.fn(),
@@ -71,8 +82,31 @@ const bridge = vi.hoisted(() => ({
   detectPlatform: vi.fn(() => 'android'),
   getInjectedPushToken: vi.fn(() => null),
   requestNativeDownload: vi.fn(),
+  // A phone app new enough to record (0.2.0+) unless a test says otherwise.
+  nativeHas: vi.fn((feature: string) => feature === 'mic-ready'),
+  requestNativeMicStatus: vi.fn(
+    async (): Promise<{ granted: boolean; canAsk: boolean } | null> => null,
+  ),
+  openAppStore: vi.fn(),
+  haptic: vi.fn(),
 }));
-vi.mock('@/lib/nativeBridge', () => bridge);
+vi.mock('@/lib/nativeBridge', async (orig) => ({
+  ...(await orig<typeof import('@/lib/nativeBridge')>()),
+  ...bridge,
+}));
+
+/** Whether the new Android app is live on Play (lib/micPolicy's switch). */
+const policy = vi.hoisted(() => ({ live: false }));
+vi.mock('@/lib/micPolicy', async (orig) => ({
+  ...(await orig<typeof import('@/lib/micPolicy')>()),
+  androidMicUpdateLive: () => policy.live,
+}));
+
+const playback = vi.hoisted(() => ({ pauseAllVoiceNotes: vi.fn(() => false) }));
+vi.mock('./AttachmentPreview', async (orig) => ({
+  ...(await orig<typeof import('./AttachmentPreview')>()),
+  pauseAllVoiceNotes: playback.pauseAllVoiceNotes,
+}));
 
 /**
  * Regression: the first voice note opens the Android mic prompt, which is a
@@ -126,7 +160,7 @@ describe('Composer voice recording — a mic that never opens', () => {
     // never the problem — and that request, racing the WebView's own, is the
     // chain that could wedge the microphone for the life of the screen.
     expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
-    expect(await screen.findByText("The microphone didn't open")).toBeInTheDocument();
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -316,7 +350,7 @@ describe('Composer voice recording — a mic that never opens', () => {
     expect(recorder.start).toHaveBeenCalled();
   });
 
-  it('starts recording once the native shell grants the mic', async () => {
+  it('starts recording once the dealer taps Allow and the phone grants the mic', async () => {
     let call = 0;
     recorder.start.mockImplementation(() => {
       call += 1;
@@ -333,6 +367,13 @@ describe('Composer voice recording — a mic that never opens', () => {
 
     renderWithProviders(<Composer onSend={vi.fn()} />);
     pressMic();
+
+    // Nothing pops up by itself: the strip offers Allow.
+    const allow = await screen.findByRole('button', { name: 'Allow' });
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(allow);
+    });
 
     // Granting must actually record — not just announce that the mic now works.
     await waitFor(() => {
@@ -484,7 +525,7 @@ describe('Composer voice recording — the system microphone alert (an iPhone)',
       vi.advanceTimersByTime(18_000);
     });
     await waitFor(() => expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument());
-    expect(await screen.findByText("The microphone didn't open")).toBeInTheDocument();
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
     vi.useRealTimers();
   });
 });
@@ -602,6 +643,7 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     bridge.isNativeShell.mockReturnValue(true);
     bridge.requestNativeMicPermission.mockReset();
     bridge.openNativeAppSettings.mockReset();
+    policy.live = false;
   });
 
   /** Hold the mic, let start() fail, release. */
@@ -617,19 +659,25 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     });
   }
 
-  it('a BUSY mic is not sent to Settings — the permission is already granted', async () => {
-    // NotReadableError: allowed and present, but another app has it open.
-    await failWith('NotReadableError');
+  /**
+   * A START THAT FAILED IS NOT "ANOTHER APP". This used to say "the microphone is
+   * being used by another app" for every NotReadableError and AbortError — and on
+   * the Android app that was nearly every press, caused by the app itself.
+   */
+  it.each(['NotReadableError', 'AbortError', 'RecorderStartError'])(
+    '%s gets the neutral strip, never "another app", and is not sent to Settings',
+    async (name) => {
+      await failWith(name);
 
-    expect(
-      await screen.findByText('The microphone is being used by another app'),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/Close any call or recording app/)).toBeInTheDocument();
-    // The old, useless advice must be gone.
-    expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
-    // And we must not re-prompt: the permission was never the problem.
-    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
-  });
+      expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
+      expect(screen.getByText("Try again. If you're on a call, finish it first.")).toBeInTheDocument();
+      expect(screen.queryByText(/another app/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
+      // And we must not re-prompt: the permission was never the problem.
+      expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+      expect(bridge.haptic).toHaveBeenCalledWith('error');
+    },
+  );
 
   it('a MISSING mic says so, and points at typing instead', async () => {
     await failWith('NotFoundError');
@@ -648,7 +696,7 @@ describe('Composer — the mic failure message matches the actual cause', () => 
     expect(screen.queryByText(/in your phone Settings/)).not.toBeInTheDocument();
   });
 
-  it('a REFUSED mic — the one case Settings actually fixes — still says Settings', async () => {
+  it('a REFUSED mic that the phone will still ask about offers Allow — and asks only on the tap', async () => {
     startFails('NotAllowedError');
     // The native re-prompt is offered, and refused again.
     bridge.requestNativeMicPermission.mockResolvedValue({
@@ -656,20 +704,37 @@ describe('Composer — the mic failure message matches the actual cause', () => 
       permanentlyDenied: false,
     });
 
-    renderWithProviders(<Composer onSend={vi.fn()} />);
-    const mic = screen.getByRole('button', { name: 'Record voice message' });
-    await act(async () => {
-      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
-    });
-    await act(async () => {
-      fireEvent.pointerUp(window, { pointerId: 1 });
-    });
+    await failWith('NotAllowedError');
 
-    // Only here is it right to re-ask, and only here is Settings the answer.
-    await waitFor(() => expect(bridge.requestNativeMicPermission).toHaveBeenCalled());
-    expect(await screen.findByText(/in your phone Settings/)).toBeInTheDocument();
-    // Android will still ask, so there is nothing for a Settings button to fix.
+    expect(await screen.findByText('Microphone permission is off')).toBeInTheDocument();
+    // Straight after the WebView's own dialog: no second dialog by itself.
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Allow' }));
+    });
+    await waitFor(() => expect(bridge.requestNativeMicPermission).toHaveBeenCalledTimes(1));
+    // Refused again, but Android will still ask: Allow stays, Settings is not offered.
+    expect(await screen.findByRole('button', { name: 'Allow' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Open settings' })).not.toBeInTheDocument();
+  });
+
+  it('a phone app that can say where the permission stands picks the button without asking', async () => {
+    bridge.requestNativeMicStatus.mockResolvedValue({ granted: false, canAsk: false });
+    await failWith('NotAllowedError');
+
+    const open = await screen.findByRole('button', { name: 'Open settings' });
+    expect(screen.getByText('Turn on the microphone in Settings')).toBeInTheDocument();
+    expect(bridge.requestNativeMicPermission).not.toHaveBeenCalled();
+    fireEvent.click(open);
+    expect(bridge.openNativeAppSettings).toHaveBeenCalled();
+  });
+
+  it('a plain browser that refused says to allow it there, with no phone buttons', async () => {
+    bridge.isNativeShell.mockReturnValue(false);
+    await failWith('NotAllowedError');
+
+    expect(await screen.findByText("Can't access the microphone")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Allow' })).not.toBeInTheDocument();
   });
 
   /**
@@ -678,24 +743,549 @@ describe('Composer — the mic failure message matches the actual cause', () => 
    * find it themselves on a forecourt is where this trail goes cold.
    */
   it('offers a way in when Android has stopped asking', async () => {
-    startFails('NotAllowedError');
     bridge.requestNativeMicPermission.mockResolvedValue({
       granted: false,
       permanentlyDenied: true,
     });
 
-    renderWithProviders(<Composer onSend={vi.fn()} />);
-    const mic = screen.getByRole('button', { name: 'Record voice message' });
+    await failWith('NotAllowedError');
     await act(async () => {
-      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
-    });
-    await act(async () => {
-      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.click(await screen.findByRole('button', { name: 'Allow' }));
     });
 
     const open = await screen.findByRole('button', { name: 'Open settings' });
     fireEvent.click(open);
     expect(bridge.openNativeAppSettings).toHaveBeenCalled();
+  });
+});
+
+/**
+ * The voice-note bar, start to finish: what it shows while the mic opens, the
+ * strip when it does not, the old Android app, leaving the app mid-recording,
+ * silent takes, and the taps under the finger.
+ */
+describe('Composer — the voice-note bar', () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+    useLangStore.setState({ lang: 'en', explicit: true });
+    recorder.start.mockReset();
+    recorder.stop.mockReset();
+    recorder.cancel.mockReset();
+    recorder.currentSession.mockClear();
+    recorder.session = 0;
+    recorder.status = 'idle';
+    recorder.muted = false;
+    recorder.elapsedMs = 0;
+    recorder.supported = true;
+    cancelBumpsSession();
+    bridge.isNativeShell.mockReturnValue(true);
+    bridge.detectPlatform.mockReturnValue('android');
+    policy.live = false;
+    // jsdom has no object URLs; the review step makes one for its preview player.
+    URL.createObjectURL = vi.fn(() => 'blob:review');
+    URL.revokeObjectURL = vi.fn();
+  });
+
+  const clip = (over: Partial<{ durationMs: number; maxPeak: number | null; size: number }> = {}) => ({
+    blob: new Blob([over.size === 0 ? '' : 'audio'], { type: 'audio/webm' }),
+    durationMs: over.durationMs ?? 2000,
+    mimeType: 'audio/webm',
+    peaks: [],
+    maxPeak: over.maxPeak === undefined ? 0.4 : over.maxPeak,
+    wasMuted: false,
+    endedBy: 'stop' as const,
+  });
+
+  function micButton() {
+    return screen.getByRole('button', { name: 'Record voice message' });
+  }
+
+  async function holdFor(ms: number) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const mic = micButton();
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(ms);
+    });
+    await act(async () => {
+      fireEvent.pointerUp(mic, { pointerId: 1 });
+    });
+    return mic;
+  }
+
+  /** Fail the press, release, and show the strip. */
+  async function failPress(name: string) {
+    startFails(name);
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    await act(async () => {
+      fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await act(async () => {
+      fireEvent.pointerUp(window, { pointerId: 1 });
+    });
+  }
+
+  it('shows "Starting mic…" and no clock until the mic is really open', async () => {
+    let open: () => void = () => {};
+    recorder.start.mockImplementation(() => {
+      recorder.session += 1;
+      const session = recorder.session;
+      return new Promise((resolve) => {
+        open = () => resolve({ ok: true, session });
+      });
+    });
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+
+    expect(screen.getByText('Starting mic…')).toBeInTheDocument();
+    expect(screen.queryByText('0:00')).not.toBeInTheDocument();
+    // Slide to cancel already works while it opens.
+    expect(screen.getByText('Slide to cancel')).toBeInTheDocument();
+
+    await act(async () => {
+      open();
+    });
+    expect(screen.queryByText('Starting mic…')).not.toBeInTheDocument();
+    expect(screen.getByText('0:00')).toBeInTheDocument();
+    expect(bridge.haptic).toHaveBeenCalledWith('medium');
+  });
+
+  it('pauses a voice note that is playing before the mic opens', async () => {
+    startSucceeds();
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    await act(async () => {
+      fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    expect(playback.pauseAllVoiceNotes).toHaveBeenCalled();
+    expect(playback.pauseAllVoiceNotes.mock.invocationCallOrder[0]).toBeLessThan(
+      recorder.start.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('Try again records hands-free; a second failure adds "Type instead"', async () => {
+    await failPress('NotReadableError');
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Type instead' })).not.toBeInTheDocument();
+
+    // Fails again from Try again…
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(await screen.findByRole('button', { name: 'Type instead' })).toBeInTheDocument();
+
+    // …then works: hands-free (a tap), and the strip is gone.
+    startSucceeds();
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(await screen.findByRole('button', { name: 'Send voice message' })).toBeInTheDocument();
+    expect(screen.getByText('Recording… tap Send when done')).toBeInTheDocument();
+    expect(screen.queryByText("The mic didn't start")).not.toBeInTheDocument();
+  });
+
+  it('"Type instead" puts the keyboard on the text box', async () => {
+    await failPress('NotReadableError');
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Type instead' }));
+    });
+    expect(screen.getByPlaceholderText('Message')).toHaveFocus();
+    expect(screen.queryByText("The mic didn't start")).not.toBeInTheDocument();
+  });
+
+  it('typing clears the strip', async () => {
+    await failPress('AbortError');
+    await screen.findByText("The mic didn't start");
+    fireEvent.change(screen.getByPlaceholderText('Message'), { target: { value: 'h' } });
+    expect(screen.queryByText("The mic didn't start")).not.toBeInTheDocument();
+  });
+
+  describe('an Android phone app built without the mic fix', () => {
+    beforeEach(() => {
+      bridge.nativeHas.mockReturnValue(false);
+    });
+
+    it('before the new app is on Play: says the fix comes with the next update, offers typing', async () => {
+      await failPress('NotReadableError');
+      expect(
+        await screen.findByText('Voice messages will work after the next app update'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Type instead' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Update from Play Store' })).not.toBeInTheDocument();
+    });
+
+    it('once it is: the card sends the dealer to the Play Store', async () => {
+      policy.live = true;
+      await failPress('NotReadableError');
+      const update = await screen.findByRole('button', { name: 'Update from Play Store' });
+      expect(screen.getByText('Voice messages need the latest Dealer Kavach.')).toBeInTheDocument();
+      fireEvent.click(update);
+      expect(bridge.openAppStore).toHaveBeenCalledWith(
+        'https://play.google.com/store/apps/details?id=in.mdgservices.dealerkavach',
+      );
+    });
+
+    it('never blocks a press: the mic is always tried first', async () => {
+      startSucceeds();
+      renderWithProviders(<Composer onSend={vi.fn()} />);
+      await act(async () => {
+        fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+      });
+      expect(recorder.start).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/app update/)).not.toBeInTheDocument();
+    });
+
+    it('a refusal on the old app is still a refusal, not an update', async () => {
+      await failPress('NotAllowedError');
+      expect(await screen.findByText('Microphone permission is off')).toBeInTheDocument();
+    });
+  });
+
+  it('a phone app WITH the fix gets the neutral strip for the same failure', async () => {
+    await failPress('NotReadableError');
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
+    expect(screen.queryByText(/app update/)).not.toBeInTheDocument();
+  });
+
+  it('leaving the app during a hands-free recording stops it for review, and sends nothing', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip());
+    const onSend = vi.fn();
+    renderWithProviders(<Composer onSend={onSend} />);
+    // A tap → hands-free.
+    await act(async () => {
+      fireEvent.click(micButton());
+    });
+    expect(await screen.findByRole('button', { name: 'Send voice message' })).toBeInTheDocument();
+
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('native-app-state', { detail: 'background' }));
+    });
+
+    expect(
+      await screen.findByText('Recording stopped. Send what was recorded, or delete it.'),
+    ).toBeInTheDocument();
+    expect(recorder.stop).toHaveBeenCalled();
+    expect(onSend).not.toHaveBeenCalled();
+
+    // The dealer decides: send it.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send voice message' }));
+    });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    window.dispatchEvent(new CustomEvent('native-app-state', { detail: 'active' }));
+  });
+
+  it('the phone taking the mic mid-recording says so and holds the take for review', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip());
+    const onSend = vi.fn();
+    const { rerender } = renderWithProviders(<Composer onSend={onSend} />);
+    await act(async () => {
+      fireEvent.click(micButton());
+    });
+    await screen.findByRole('button', { name: 'Send voice message' });
+
+    recorder.muted = true;
+    await act(async () => {
+      rerender(<Composer onSend={onSend} />);
+    });
+    expect(await screen.findByText(/The phone took the mic \(a call\?\)/)).toBeInTheDocument();
+    expect(onSend).not.toHaveBeenCalled();
+    expect(bridge.haptic).toHaveBeenCalledWith('warning');
+  });
+
+  it('a silent take goes to review instead of out', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip({ maxPeak: 0.005, durationMs: 3000 }));
+    const onSend = vi.fn();
+    renderWithProviders(<Composer onSend={onSend} />);
+    await holdFor(900);
+
+    expect(
+      await screen.findByText('No sound was recorded — is the mic covered? Try again.'),
+    ).toBeInTheDocument();
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Record again' })).toBeInTheDocument();
+
+    // A real tap, with its own finger-down. A click without one is the ghost
+    // the hold leaves behind, and the review buttons now spend it.
+    const sendAnyway = screen.getByRole('button', { name: 'Send anyway' });
+    await act(async () => {
+      fireEvent.pointerDown(sendAnyway, { pointerId: 2 });
+      fireEvent.click(sendAnyway);
+    });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    vi.useRealTimers();
+  });
+
+  it('"too short" is said only under 700 ms', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip({ durationMs: 500 }));
+    const onSend = vi.fn();
+    renderWithProviders(<Composer onSend={onSend} />);
+    await holdFor(500);
+    expect(await screen.findByText('Too short to send. Hold the mic a little longer.')).toBeInTheDocument();
+    expect(onSend).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it('a clip that came back missing says it was lost, not "too short"', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(null);
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    await holdFor(2000);
+    expect(await screen.findByText('The recording was lost. Please record it again.')).toBeInTheDocument();
+    expect(screen.queryByText(/Too short/)).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it('the click after a hold-to-send does not start a second recording', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip({ durationMs: 900 }));
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    renderWithProviders(<Composer onSend={onSend} />);
+    const mic = await holdFor(900);
+    // The browser's click that follows the finger-up, on the same button.
+    await act(async () => {
+      fireEvent.click(mic);
+    });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+    expect(recorder.start).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('taps under the finger: start, lock, cancel, send', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip());
+    renderWithProviders(<Composer onSend={vi.fn().mockResolvedValue(undefined)} />);
+    const mic = micButton();
+    await act(async () => {
+      fireEvent.pointerDown(mic, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    expect(bridge.haptic).toHaveBeenCalledWith('medium');
+    await act(async () => {
+      fireEvent.pointerMove(mic, { pointerId: 1, clientX: 0, clientY: -120 });
+    });
+    expect(bridge.haptic).toHaveBeenCalledWith('selection');
+    const bin = await screen.findByRole('button', { name: 'Cancel recording' });
+    await act(async () => {
+      fireEvent.pointerDown(bin, { pointerId: 2 });
+      fireEvent.click(bin);
+    });
+    expect(bridge.haptic).toHaveBeenCalledWith('light');
+
+    await act(async () => {
+      fireEvent.click(await screen.findByRole('button', { name: 'Record voice message' }));
+    });
+    const send = await screen.findByRole('button', { name: 'Send voice message' });
+    await act(async () => {
+      fireEvent.pointerDown(send, { pointerId: 3 });
+      fireEvent.click(send);
+    });
+    await waitFor(() => expect(bridge.haptic).toHaveBeenCalledWith('success'));
+  });
+
+  /**
+   * The phone mutes the mic while the finger is still holding it. The review
+   * bar takes the mic button's place under that finger, and the click the
+   * browser makes from the lift used to land on the review's Send: the note
+   * went out without the dealer choosing to send it.
+   */
+  it('a hold the phone mutes: the lift is not a tap on the review Send', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip());
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    const { rerender } = renderWithProviders(<Composer onSend={onSend} />);
+    await act(async () => {
+      fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    await screen.findByText('0:00');
+
+    recorder.muted = true;
+    await act(async () => {
+      rerender(<Composer onSend={onSend} />);
+    });
+    const send = await screen.findByRole('button', { name: 'Send voice message' });
+
+    // The finger lifts, and the browser clicks what is now under it.
+    await act(async () => {
+      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.click(send);
+    });
+    expect(onSend).not.toHaveBeenCalled();
+    expect(screen.getByText(/The phone took the mic \(a call\?\)/)).toBeInTheDocument();
+
+    // A real tap, with its own finger-down, sends it.
+    await act(async () => {
+      fireEvent.pointerDown(send, { pointerId: 2 });
+      fireEvent.click(send);
+    });
+    await waitFor(() => expect(onSend).toHaveBeenCalledTimes(1));
+  });
+
+  /**
+   * The mic fails while the finger is still on it. The lift then clicks the mic
+   * button, and that click used to start a second, hands-free attempt straight
+   * after the failure.
+   */
+  it('a press that fails while held does not start again when the finger lifts', async () => {
+    startFails('NotReadableError');
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    await act(async () => {
+      fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.pointerUp(micButton(), { pointerId: 1 });
+      fireEvent.click(micButton());
+    });
+    expect(recorder.start).toHaveBeenCalledTimes(1);
+    expect(bridge.haptic.mock.calls.filter(([kind]) => kind === 'error')).toHaveLength(1);
+  });
+
+  /**
+   * A press while the last note is still being saved. Putting the bar back used
+   * to cancel the recorder, which threw away the note that was being sent.
+   */
+  it('a press while the last note is still saving keeps that note and says to press again', async () => {
+    recorder.start.mockImplementation(() =>
+      Promise.resolve({ ok: false as const, cause: 'busy-self' as const }),
+    );
+    renderWithProviders(<Composer onSend={vi.fn()} />);
+    await act(async () => {
+      fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+
+    expect(
+      await screen.findByText(
+        'The last voice message is still being saved. Press the mic again in a moment.',
+      ),
+    ).toBeInTheDocument();
+    expect(recorder.cancel).not.toHaveBeenCalled();
+    expect(screen.queryByText('Slide to cancel')).not.toBeInTheDocument();
+    expect(micButton()).toBeInTheDocument();
+  });
+
+  it('an iPhone that allows the mic yet refuses it says to restart the app, not Try again', async () => {
+    bridge.detectPlatform.mockReturnValue('ios');
+    bridge.requestNativeMicStatus.mockResolvedValue({ granted: true, canAsk: false });
+    await failPress('NotAllowedError');
+
+    expect(await screen.findByText("The mic is allowed, but it won't start")).toBeInTheDocument();
+    expect(
+      screen.getByText('Close the app completely, open it again, then press the mic.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Type instead' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
+  });
+
+  it('on Android the same refusal offers Try again once, then says to restart', async () => {
+    bridge.requestNativeMicStatus.mockResolvedValue({ granted: true, canAsk: false });
+    await failPress('NotAllowedError');
+    expect(await screen.findByText("The mic didn't start")).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    });
+    expect(await screen.findByText("The mic is allowed, but it won't start")).toBeInTheDocument();
+  });
+
+  it('on Android 11 and later the refused strip names "While using the app"', async () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue(
+      'Mozilla/5.0 (Linux; Android 13; SM-A135F; wv) AppleWebKit/537.36 Chrome/131 Mobile',
+    );
+    await failPress('NotAllowedError');
+    expect(await screen.findByText('Microphone permission is off')).toBeInTheDocument();
+    expect(
+      screen.getByText('Tap Allow, then choose “While using the app” on the next screen.'),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * An iPhone mutes the mic as the app goes to the back. That is the dealer
+   * leaving, not a call, so the review says the recording stopped and does not
+   * guess "a call?".
+   */
+  it('a mute while the app is leaving the screen reads as leaving, not as a call', async () => {
+    startSucceeds();
+    recorder.stop.mockResolvedValue(clip());
+    const onSend = vi.fn();
+    const { rerender } = renderWithProviders(<Composer onSend={onSend} />);
+    await act(async () => {
+      fireEvent.click(micButton());
+    });
+    await screen.findByRole('button', { name: 'Send voice message' });
+
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    try {
+      recorder.muted = true;
+      await act(async () => {
+        rerender(<Composer onSend={onSend} />);
+      });
+      expect(
+        await screen.findByText('Recording stopped. Send what was recorded, or delete it.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/The phone took the mic/)).not.toBeInTheDocument();
+      expect(onSend).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'visible',
+      });
+    }
+  });
+
+  describe('the first press ever, on a phone app that can say where the permission stands', () => {
+    beforeEach(() => {
+      bridge.nativeHas.mockImplementation((f: string) => f === 'mic-ready' || f === 'mic-status');
+    });
+
+    it('explains once before the phone asks, then records on OK', async () => {
+      bridge.requestNativeMicStatus.mockResolvedValue({ granted: false, canAsk: true });
+      startSucceeds();
+      renderWithProviders(<Composer onSend={vi.fn()} />);
+      await act(async () => {
+        fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+      });
+      const ok = await screen.findByRole('button', { name: 'OK' });
+      expect(
+        screen.getByText(/Dealer Kavach needs the microphone/),
+      ).toBeInTheDocument();
+      expect(recorder.start).not.toHaveBeenCalled();
+
+      await act(async () => {
+        fireEvent.click(ok);
+      });
+      expect(recorder.start).toHaveBeenCalledTimes(1);
+      expect(await screen.findByRole('button', { name: 'Send voice message' })).toBeInTheDocument();
+    });
+
+    it('skips the sheet when the mic is already allowed', async () => {
+      bridge.requestNativeMicStatus.mockResolvedValue({ granted: true, canAsk: false });
+      startSucceeds();
+      renderWithProviders(<Composer onSend={vi.fn()} />);
+      await act(async () => {
+        fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+      });
+      await waitFor(() => expect(recorder.start).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('button', { name: 'OK' })).not.toBeInTheDocument();
+    });
+
+    it('skips the sheet when the phone app does not answer', async () => {
+      bridge.requestNativeMicStatus.mockResolvedValue(null);
+      startSucceeds();
+      renderWithProviders(<Composer onSend={vi.fn()} />);
+      await act(async () => {
+        fireEvent.pointerDown(micButton(), { pointerId: 1, clientX: 0, clientY: 0 });
+      });
+      await waitFor(() => expect(recorder.start).toHaveBeenCalledTimes(1));
+    });
   });
 });
 

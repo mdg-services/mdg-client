@@ -82,30 +82,84 @@ and are completely different problems:
 | `error.name` | What is actually wrong | Does "allow it in Settings" help? |
 | --- | --- | --- |
 | `NotAllowedError` | permission refused | **yes** — this is the only one |
-| `NotReadableError` | mic is allowed, but a call/another app has it | no — it is already granted |
+| `NotReadableError` | the mic is allowed but would not **start**. On Android this is almost never another app (since Android 10 a second app gets silence, not a failure). In the Android phone app up to 0.1.x it is the missing `MODIFY_AUDIO_SETTINGS` permission, on every press — see below. On an iPhone it can be a real call or Siri | no — it is already granted |
+| `AbortError` | the browser engine gave up on the start: a timeout, a page being shut down, or (WebKit) an unnamed capture failure. **Not** a busy mic, in either engine | no |
 | `NotFoundError` | the device has no microphone | no |
 | `SecurityError` / `TypeError` | not a secure context, or no `mediaDevices` | no |
+| `RecorderStartError` | the mic opened, but the phone's recorder would not start (ours, not getUserMedia's) | no |
 | *(never settles)* | the request hangs and never resolves | no |
 
 The recorder used to swallow every one of these with a bare `catch {}` and show the
-same "allow microphone access in Settings" message. A dealer whose mic was busy went
-to Settings, found the permission already on, and reported the mic as broken again.
+same "allow microphone access in Settings" message. After that it showed "the
+microphone is being used by another app" for every `NotReadableError` and
+`AbortError` — which, on Android, was nearly every press, for a reason that had
+nothing to do with another app.
 
-Now each cause gets its own message, and each failure is reported with
-`lib/micDiagnostics` attached: the error name, the permission state, whether we are
-in the WebView, whether the context is secure, how many audio inputs exist, which
-MIME types the device can record, and the user agent (which carries the Android and
-WebView versions).
+### Why the Android phone app could never record (Nov 2026)
+
+Every Android build of the Dealer Kavach phone app up to 0.1.x was made without the
+permission `android.permission.MODIFY_AUDIO_SETTINGS` (checked in the real `.aab` and
+`.apk` files). Chromium inside the WebView checks it on every input stream it opens
+and refuses to open the mic without it, so getUserMedia rejects with
+`NotReadableError` "Could not start audio source" on every press. No page-side change
+can avoid it; only the new store build (0.2.0, which declares the permission) fixes
+it. In about three weeks of server logs before the fix, no voice note had ever been
+sent from an Android phone.
+
+Builds from 0.2.0 say so with the shell feature `mic-ready`. When an Android phone app
+**without** it fails to start the mic, the chat shows an "app update needed" card
+instead of the general strip (`src/lib/micPolicy.ts`). Until the 0.2.0 Android build is
+live on Play, `ANDROID_MIC_UPDATE_ON_PLAY` stays `false` and the card only says the fix
+comes with the next update; flip it to `true` in a one-line deploy once the build is
+live, and the card shows "Update from Play Store".
+
+### What the chat does on a failed start
+
+1. The recorder tries once more, quietly, on `NotReadableError` or `AbortError`: it
+   waits until the app is on screen (up to 3 s), pauses 400 ms, and asks again — only
+   if the press is still wanted. Refusals, a missing mic and hangs are never retried.
+2. If that fails too, the composer shows an inline strip (not a toast) with one button
+   that helps: Try again, Allow, Open settings, or Update. "Another app or a call" is
+   named only when the phone itself told us — a track that went muted.
+3. A refused mic never fires a second permission dialog by itself. The page asks the
+   phone app where the permission stands (`permission:micStatus`, no prompt) and offers
+   "Allow" or "Open settings" accordingly.
+
+Each failure is reported with `lib/micDiagnostics` attached: the error name and message,
+the permission state, the platform, the browser engine version, whether the page was
+visible, the last app state the phone app sent and how long ago it became active,
+whether a voice note was playing, the shell's feature list, how many audio inputs
+exist, which MIME types the device can record, and the user agent.
 
 **Issues to watch for, in Sentry:**
 
-- `mic.blocked` — tagged `mic.error`, `mic.permission`, `audioInputs`. Group by
-  `mic.error` first; that single tag says which of the table rows above we are in.
+- `mic.blocked` — **one per press**, after the quiet retry. Tags:
+  - `mic.error` — the DOMException name; group by this first.
+  - `mic.message` — the engine's message. "Could not start audio source" is Android;
+    "Failed starting capture of a audio track" is an iPhone.
+  - `mic.retries` — 0 or 1. `mic.retryOutcome` — `none` (not retryable),
+    `failed-again`, or `superseded` (the dealer moved on during the wait).
+  - `mic.needsAppUpdate` — `true` on an Android phone app without `mic-ready`.
+    **Count old-build failures with this tag**: it says how many dealers still need
+    the Play update. It should fall to zero as 0.2.0 rolls out.
+  - `mic.platform`, `mic.permission`, `audioInputs`, `nativeShell`.
+- `mic.retry-recovered` (info) — the first try failed and the quiet retry worked.
+  Tagged with the first error. Tells us how often the retry is what saved a note.
 - `mic.never-settled` — `getUserMedia` never resolved or rejected, in the
-  foreground, for 12 seconds. No error name will ever explain this one.
-- `mic.granted-but-unopenable` — the OS granted RECORD_AUDIO and the mic still would
-  not open. If this appears, the permission was never the problem.
+  foreground, for the whole watchdog (6 s when the mic has worked on this phone
+  before and no dialog can be up; 12 s, 30 s on an iPhone, otherwise). No error
+  name will ever explain this one.
+- `mic.granted-but-unopenable` — the dealer tapped Allow, the phone granted the
+  permission, and the mic still would not open. The permission was never the problem.
+- `mic.recorder-failed` — the mic opened but MediaRecorder would not start, even
+  with the phone's default format.
+- `mic.muted-mid-recording` (info) — the phone took the mic during a recording
+  (a call, Siri). The take goes to review.
+- `mic.silent-recording` (info) — a take longer than a second with no sound in it
+  (loudest moment under 0.02). The dealer is asked before it is sent.
 - `mic.unsupported` — the mic button was reachable on a device that cannot record.
+
+The free Sentry plan keeps only a few events per issue, so counts understate.
 
 ## Push notifications
 
