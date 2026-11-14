@@ -497,9 +497,11 @@ export interface IrasDayEditorView {
 /**
  * The portal a snapshot's rows came from. `IRAS` is Indian Oil's; `BPCL_IOT` is
  * BPCL's IoT automation portal (iothos.bpcl.in), whose Sales page is mapped into
- * the same TOT / STK / REC rows.
+ * the same TOT / STK / REC rows; `HPCL_CRIS` is HPCL's Centralized Retail
+ * Information System (cris.hpcl.co.in), whose transactions, tank readings and tanker
+ * receipts are mapped the same way.
  */
-export const SNAPSHOT_PROVIDERS = ['IRAS', 'BPCL_IOT'] as const;
+export const SNAPSHOT_PROVIDERS = ['IRAS', 'BPCL_IOT', 'HPCL_CRIS'] as const;
 export type SnapshotProvider = (typeof SNAPSHOT_PROVIDERS)[number];
 
 /** One product's portal-recorded testing for the day; see {@link IrasDataSnapshot.recordedTesting}. */
