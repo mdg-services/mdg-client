@@ -72,6 +72,9 @@ export const XTRAPOWER_PORTAL: PortalId = 'xtrapower';
 /** XtraPower's own "Reset Password" page: user ID, registered mobile, a 6-digit SMS code, a new password. */
 export const XTRAPOWER_RESET_URL = 'https://beta.iocxtrapower.com/account/reset-password';
 
+/** The IndianOil Partners (Transporter App) sign-in page. The worker opens this (ADR 0044). */
+export const PARTNERS_LOGIN_URL = 'https://pwa.indianoil.in/Partners/index.jsp';
+
 /**
  * The old SDMS: IndianOil's older Siebel-based SDMS, signed in to through IndianOil's
  * "Business Login" page (access.ex.indianoil.in). Its user ID is usually the same as the

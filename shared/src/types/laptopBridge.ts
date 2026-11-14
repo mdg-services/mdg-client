@@ -42,13 +42,14 @@ export interface LaptopBridgeStatus {
 }
 
 /** The portals Summon can sign a super-admin in to. */
-export const SUMMON_PORTALS = ['sdms', 'iras', 'wemmis'] as const;
+export const SUMMON_PORTALS = ['sdms', 'iras', 'wemmis', 'partners'] as const;
 export type SummonPortal = (typeof SUMMON_PORTALS)[number];
 
 export const SUMMON_PORTAL_LABEL: Record<SummonPortal, string> = {
   sdms: 'SDMS',
   iras: 'IRAS',
   wemmis: 'eMaaptaul',
+  partners: 'IndianOil Partners',
 };
 
 /**

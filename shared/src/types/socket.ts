@@ -45,6 +45,10 @@ export interface ServerToClientEvents {
    * its own scoped list rather than trusting a count meant for someone else.
    */
   'alerts:changed': () => void;
+  /** The admin 'action needed' queue changed (ADR 0043). Active admins refetch. */
+  'adminActions:changed': () => void;
+  /** The browser-worker run queue changed (ADR 0044). The worker panel refetches. */
+  'browserRuns:changed': () => void;
   /**
    * An outlet's onboarding setup moved: services chosen, billing saved, a bill
    * sent or paid, a login saved, services started (types/outletSetup.ts).
