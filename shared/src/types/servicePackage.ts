@@ -1,5 +1,5 @@
 /**
- * The standard package: the ten services every Indian Oil outlet gets, set up
+ * The standard package: the eleven services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -16,7 +16,7 @@
  * resumes from that step.
  */
 
-/** The ten services, in the order they are attached. */
+/** The eleven services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -28,6 +28,9 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   'dealer-declarations',
   'dsr-report',
   'load-planner',
+  // ADR 0041: tracks every fuel order and places the ones an owner confirms in the
+  // chat. Held: it messages the dealer and (on an owner's yes) writes to the portal.
+  'fuel-indent',
 ] as const;
 export type StandardPackageServiceId = (typeof STANDARD_PACKAGE_SERVICE_IDS)[number];
 

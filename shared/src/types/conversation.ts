@@ -5,6 +5,7 @@ import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
 import type { MessageDeclarations } from './declarations';
+import type { MessageFuelIndent } from './fuelIndent';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
@@ -363,6 +364,12 @@ export interface Message {
    * `GET /me/declarations` — the outlet's state NOW. See `declarations.ts`.
    */
   declarations?: MessageDeclarations;
+  /**
+   * Set on every MDG message about a fuel order (ADR 0041). The app draws nothing
+   * from it; it keeps the message out of the WhatsApp backup — fuel-order news
+   * goes in the app with a push, never on WhatsApp (owner, 13 Nov 2026).
+   */
+  fuelIndent?: MessageFuelIndent;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

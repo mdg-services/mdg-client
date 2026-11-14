@@ -73,6 +73,7 @@ export const TICKET_TOPIC_LABEL: Record<TicketTopic, string> = {
   app: 'The app',
   complaint: 'Complaint',
   other: 'Other',
+  fuel_order: 'Fuel order',
 };
 
 export const TICKET_STATE_LABEL: Record<TicketState, string> = {

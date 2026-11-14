@@ -64,10 +64,12 @@ export type AiFirstLineLang = (typeof AI_FIRSTLINE_LANGS)[number];
  * `router` is the v2 pipeline: a model picks closed labels, code runs the
  * lookups those labels name, a second model phrases the result. `brief` reads a
  * whole briefing of the dealer's records — filtered for who can read the thread
- * — and answers from it in one call. Recorded per turn so the two can be
+ * — and answers from it in one call. `agent` is the owners'-chat agent with
+ * tools (ADR 0041 §6): it looks things up and acts through tools, a few calls a
+ * turn, and its words pass the same fence. Recorded per turn so they can be
  * compared on the same screen.
  */
-export const AI_FIRSTLINE_ENGINES = ['router', 'brief'] as const;
+export const AI_FIRSTLINE_ENGINES = ['router', 'brief', 'agent'] as const;
 export type AiFirstLineEngine = (typeof AI_FIRSTLINE_ENGINES)[number];
 
 /**
@@ -920,4 +922,38 @@ export interface AiTurn {
     action: 'handoff' | 'fallback' | 'advisory';
     at: string;
   };
+  /**
+   * The agent's turn (engine `agent`, ADR 0041 §6): its skill, how many model calls
+   * it made, and every tool call in order. Absent on every other engine's turn.
+   */
+  agent?: { skill: string; steps: number; calls: AiAgentCall[] };
+}
+
+/** One tool call the agent made, as the turn log shows it. Admin-only, like the question. */
+export interface AiAgentCall {
+  name: string;
+  /** Plain words: "Looked at the pump's fuel orders". */
+  label?: string;
+  /** The model's arguments, as it gave them. */
+  args?: Record<string, unknown>;
+  /** False when the tool refused or failed. */
+  ok: boolean;
+  ms?: number;
+  /**
+   * What the call came to, trimmed (ADR 0041 robustness pass): the error or the
+   * refusal's reason, and the ids it touched or the message it posted. Absent on
+   * turns logged before it existed.
+   */
+  outcome?: AiAgentCallOutcome;
+}
+
+/** A tool call's result as the trail keeps it: never the full facts, only what explains the turn. */
+export interface AiAgentCallOutcome {
+  ok: boolean;
+  /** Clipped to 200 characters. */
+  error?: string;
+  reason?: string;
+  /** The message id the call posted, when it posted one. */
+  posted?: string;
+  [k: string]: unknown;
 }

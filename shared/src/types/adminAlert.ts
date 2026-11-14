@@ -127,6 +127,13 @@ export const ADMIN_ALERT_KINDS = [
   // ── Khata Kavach ──
   /** A WhatsApp sign-in code for a Khata Kavach pump was sent and has not reached the phone (or Meta refused it). */
   'kk_code_not_delivered',
+  // ── Fuel orders (ADR 0041) ──
+  /**
+   * A fuel order an owner said yes to needs a person: the portal refused it for a
+   * reason MDG does not know, the robot could not place it after the yes, it was
+   * linked to a portal order on a loose match, or it waits on a summoned window.
+   */
+  'fuel_order_attention',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -427,6 +434,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     label: 'Khata Kavach code',
     clearsWhen: 'Clears when a later code for that number arrives, or the person gets in.',
     superAdminOnly: true,
+  },
+  fuel_order_attention: {
+    label: 'Fuel order',
+    clearsWhen: 'Closes once marked seen, or after a day.',
+    superAdminOnly: false,
   },
 };
 

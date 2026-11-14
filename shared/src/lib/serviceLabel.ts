@@ -97,6 +97,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    * "पावती" says what MDG does with it, as for the DU OTP.
    */
   'tt-acknowledgement': { en: 'TT acknowledgement', hi: 'टैंकर की पावती' },
+  /** ADR 0041. "लोड" is the dealer's own word for a tanker order ("load lagana"). */
+  'fuel-indent': { en: 'Fuel orders', hi: 'लोड ऑर्डर' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -192,6 +194,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'tt-acknowledgement': {
     en: "the day's tanker receipts acknowledged on IndianOil's portal for the owner, with the vehicle condition entered as excellent and not inspected by MDG, and the portal's confirmation sent to your chat",
     hi: 'दिन के टैंकरों की पावती इंडियन ऑयल पोर्टल पर मालिक की ओर से, गाड़ी की हालत Excellent भरकर (MDG गाड़ी की जाँच नहीं करता), और पोर्टल की पुष्टि आपकी चैट में',
+  },
+  'fuel-indent': {
+    en: "fuel orders (indents) placed on IndianOil's portal for the owner after the owner says yes to the order read back in the chat, every order tracked, and the owners and manager told in the chat the moment a tanker is assigned, with its number and shipment time",
+    hi: 'इंडियन ऑयल पोर्टल पर लोड ऑर्डर (इंडेंट) — चैट में ऑर्डर पढ़कर सुनाने के बाद मालिक की "हाँ" पर मालिक की ओर से लगाना, हर ऑर्डर पर नज़र रखना, और टैंकर लगते ही उसका नंबर और शिपमेंट का समय मालिकों और मैनेजर को चैट में बताना',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

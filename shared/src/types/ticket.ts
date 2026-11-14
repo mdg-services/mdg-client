@@ -80,6 +80,8 @@ export const TICKET_TOPICS = [
   'app',
   'complaint',
   'other',
+  /** A fuel order (ADR 0041): placing, tracking or cancelling an indent, raised by the agent. */
+  'fuel_order',
 ] as const;
 export type TicketTopic = (typeof TICKET_TOPICS)[number];
 
