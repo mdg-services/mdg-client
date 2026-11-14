@@ -79,7 +79,7 @@ describe('an MDG announcement', () => {
     expect(screen.queryByText('MDG System')).toBeNull();
   });
 
-  it('leaves an ordinary message alone', () => {
+  it('an ordinary message gets no announcement strip, and its *stars* are bold like WhatsApp', () => {
     render(
       <MessageBubble
         message={makeMessage({
@@ -93,6 +93,8 @@ describe('an MDG announcement', () => {
     );
     expect(screen.queryByTestId('announcement-strip')).toBeNull();
     // Stars in an everyday message are the sender's own: nothing is turned bold.
-    expect(screen.getByText('Namaste *ji*')).toBeInTheDocument();
+    // Bold is no longer announcement-only: MDG stresses the figure that matters in
+    // an ordinary message too — the KL, the day, the tanker number (owner, 14 Nov 2026).
+    expect(screen.getByText('ji').tagName).toBe('STRONG');
   });
 });

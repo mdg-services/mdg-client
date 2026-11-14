@@ -7,7 +7,7 @@ import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setu
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
-import { linkify, richText } from '@/lib/linkify';
+import { richText } from '@/lib/linkify';
 import { detectPlatform } from '@/lib/nativeBridge';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
@@ -649,7 +649,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 hasMedia || hasOther ? 'px-[6px] pb-0.5 pt-1' : '',
               )}
             >
-              {linkify(message.body!, { highlight })}
+              {richText(message.body!, { highlight })}
               {/* The trailing spacer: as wide as the time and ticks that sit in
                   the bubble's bottom-right corner, so the last line of words
                   stops short of them — or wraps to a line of its own when it
