@@ -19,7 +19,9 @@
  * pipeline ingests one kind per run (`INSPECTION` by default — the first row);
  * the others are modelled so a second kind can be added without a migration.
  */
-export const INSPECTION_REPORT_KINDS = ['INSPECTION', 'SBA', 'SAFETY', 'DSO_SAFETY'] as const;
+export const INSPECTION_REPORT_KINDS = ['INSPECTION', 'SBA', 'SAFETY', 'DSO_SAFETY', 'HPCL_QA'] as const;
+/** The kinds read off Indian Oil's SDMS; `HPCL_QA` comes from HPCL's Business Portal (`hpcl-inspection-reports`). */
+export const SDMS_INSPECTION_REPORT_KINDS = ['INSPECTION', 'SBA', 'SAFETY', 'DSO_SAFETY'] as const;
 export type InspectionReportKind = (typeof INSPECTION_REPORT_KINDS)[number];
 
 /** Human labels for each kind, matching the portal dropdown wording. */
@@ -28,6 +30,7 @@ export const INSPECTION_REPORT_KIND_LABELS: Record<InspectionReportKind, string>
   SBA: 'SBA Inspection',
   SAFETY: 'Safety Inspection',
   DSO_SAFETY: 'DSO Safety Inspection',
+  HPCL_QA: 'HPCL QA Inspection',
 };
 
 /**

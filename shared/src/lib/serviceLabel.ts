@@ -66,6 +66,10 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'bpcl-iot-data': { en: 'BPCL day readings', hi: 'दिन की रीडिंग' },
   /** HPCL's twin of the BPCL one: the day's readings off the dealer's own pumps, whoever reads them. */
   'hpcl-portal-data': { en: 'HPCL day readings', hi: 'HPCL पंप की दिन की रीडिंग' },
+  /** What the dealer wants from it: what is owed to HPCL, and where the load orders stand. */
+  'hpcl-account': { en: 'HPCL account and orders', hi: 'HPCL का बकाया और लोड ऑर्डर' },
+  /** The QA cell's visit to an HPCL pump; dealers say "इंस्पेक्शन", as for Indian Oil. */
+  'hpcl-inspection-reports': { en: 'HPCL inspection reports', hi: 'HPCL इंस्पेक्शन रिपोर्ट' },
   /** The book on the desk, per docs/specs/tt-density-ux.md §2. */
   'tt-density': { en: 'TT Density', hi: 'डेंसिटी रजिस्टर' },
   /** "Ingress" is an inspection form's word. The dealer's word is water in the tank. */
@@ -174,8 +178,16 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     hi: 'दिन की मीटर और टैंक की रीडिंग, जिससे रोज़ की बिक्री रिपोर्ट बनती है',
   },
   'hpcl-portal-data': {
-    en: "an HPCL pump's day of meter and tank readings, opened for MDG's team to fill in, which the daily sales report is built from",
-    hi: 'HPCL पंप के दिन की मीटर और टैंक की रीडिंग, जो MDG की टीम भरती है, और जिससे रोज़ की बिक्री रिपोर्ट बनती है',
+    en: "an HPCL pump's day of meter and tank readings, which the daily sales report is built from",
+    hi: 'HPCL पंप के दिन की मीटर और टैंक की रीडिंग, जिससे रोज़ की बिक्री रिपोर्ट बनती है',
+  },
+  'hpcl-account': {
+    en: 'what the pump owes HPCL, the interest HPCL charged on it, the payments HPCL received, and where each fuel order stands',
+    hi: 'पंप का HPCL को बकाया, उस पर HPCL का लगाया ब्याज, HPCL को मिले पैसे, और हर लोड ऑर्डर की स्थिति',
+  },
+  'hpcl-inspection-reports': {
+    en: "an HPCL pump's QA inspection reports, kept in one place",
+    hi: 'HPCL पंप की QA इंस्पेक्शन रिपोर्ट, एक जगह',
   },
   'custom-request': {
     en: 'any other piece of work the owner asks MDG for',
@@ -219,4 +231,9 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
  * Services MDG runs for the outlet behind the scenes, that are not part of what
  * the owner takes or pays for: never listed on the dealer's Services page.
  */
-export const BACKGROUND_SERVICE_IDS: readonly string[] = ['sdms-password-reset', 'sdms-old-password-reset'];
+export const BACKGROUND_SERVICE_IDS: readonly string[] = [
+  'sdms-password-reset',
+  'sdms-old-password-reset',
+  // Kept for the team until the owner approves a dealer-facing card (hpcl-decisions D24).
+  'hpcl-account',
+];
