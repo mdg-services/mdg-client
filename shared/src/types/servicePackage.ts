@@ -66,6 +66,42 @@ export const SERVICE_PACKAGE_STEP_LABELS: Record<ServicePackageStepKey, string> 
 };
 
 /**
+ * An HPCL pump's steps, in the order they run (ADR 0045). The same eleven keys as Indian
+ * Oil's, so the admin's screen reads the same way, but the inspection comes straight after
+ * the login: HPCL's portals do not hold the inspection report's figures, so the setup asks
+ * the owner for a photo of their copy, and nothing is attached until a person has typed its
+ * date and time in (owner, 15 Nov 2026).
+ */
+export const HPCL_PACKAGE_STEPS: readonly ServicePackageStepKey[] = [
+  'logins',
+  'inspection',
+  'basic',
+  'shift_time',
+  'credit',
+  'shift_days',
+  'invoices',
+  'ledger_check',
+  'dsr',
+  'planner',
+  'first_runs',
+];
+
+/** What each step is called on an HPCL pump's screen. */
+export const HPCL_PACKAGE_STEP_LABELS: Record<ServicePackageStepKey, string> = {
+  logins: 'Check the HPCL portal login',
+  inspection: "Get the last inspection's date and time from the owner's report",
+  basic: 'Attach HPCL account and QA inspection reports',
+  shift_time: 'Attach HPCL day readings at the day close',
+  credit: 'Set up credit and dues',
+  shift_days: 'Collect the recent days of shift data',
+  invoices: 'Read every tanker invoice since the inspection',
+  ledger_check: 'Check the invoices against the credit ledger',
+  dsr: 'Work out the DSR starting figures from HPCL CRIS',
+  planner: 'Set up the load planner',
+  first_runs: 'Check every service has run once',
+};
+
+/**
  * - `pending`  not reached yet
  * - `running`  working now
  * - `waiting`  waiting on something outside the server (a login not saved yet); checked again by itself
@@ -128,16 +164,41 @@ export interface ServicePackageView {
   found: Array<{ label: string; value: string }>;
 }
 
+/**
+ * An HPCL pump's last inspection, as a person typed it from the owner's copy of the
+ * officer's report. The DSR's starting figures are read from HPCL CRIS at this moment.
+ */
+export interface HpclInspectionEntry {
+  /** `YYYY-MM-DD`, India time; null until typed. */
+  date: string | null;
+  /** `HH:mm`, India time; null until typed. */
+  time: string | null;
+  enteredBy: string | null;
+  enteredAt: string | null;
+  /** True while it can be typed, or typed again: the setup has started and Start services has not been pressed. */
+  canEnter: boolean;
+}
+
+/** POST /dealers/:id/service-package/inspection — the inspection's date and time, India time. */
+export interface HpclInspectionInput {
+  date: string;
+  time: string;
+}
+
 /** GET /dealers/:id/service-package */
 export interface ServicePackageState {
+  /** Whose package this outlet gets: Indian Oil's eleven services, or HPCL's own. */
+  company: 'iocl' | 'hpcl';
   /** Null until the package has been started for this outlet. */
   setup: ServicePackageView | null;
-  /** The eight services and whether each is attached now. */
+  /** The package's services and whether each is attached now. */
   services: Array<{
-    serviceId: StandardPackageServiceId;
+    serviceId: string;
     attached: boolean;
     status: string | null;
   }>;
   /** Why the button cannot be pressed now; null when it can. */
   cannotStart: string | null;
+  /** HPCL only: the last inspection typed from the owner's report. Null for Indian Oil. */
+  inspection: HpclInspectionEntry | null;
 }
