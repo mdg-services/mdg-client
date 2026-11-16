@@ -224,6 +224,13 @@ export interface OutletSetupView {
    * `GET /me/portal-logins`.
    */
   loginsNeeded: PortalId[];
+  /**
+   * An HPCL pump at "setting up" whose owner still owes the last inspection report: the
+   * setup asked for it in the chat and it is the owner's turn (not sent, or sent back).
+   * The strip then asks for the report instead of saying MDG's team is getting the
+   * services ready. False everywhere else.
+   */
+  inspectionReportOwed: boolean;
   /** Only an owner may save or type; a manager sees the same cards read-only. */
   canEdit: boolean;
 }

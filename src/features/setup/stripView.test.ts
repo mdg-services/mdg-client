@@ -45,6 +45,8 @@ describe('the strip', () => {
     ).toBe('setup.nowBillSent');
     expect(key({ stage: 'logins' })).toBe('setup.nowLogins');
     expect(key({ stage: 'setup' })).toBe('setup.nowSetup');
+    // An HPCL pump whose owner still owes the last inspection report: the owner's turn.
+    expect(key({ stage: 'setup', inspectionReportOwed: true })).toBe('setup.nowInspectionReport');
     expect(key({ stage: 'watch' })).toBe('setup.nowWatch');
     expect(key({ stage: 'sign_in' })).toBeNull();
   });

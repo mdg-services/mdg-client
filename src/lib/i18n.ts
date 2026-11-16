@@ -2282,6 +2282,10 @@ export const messages = {
     en: "MDG's team is getting your services ready",
     hi: 'MDG की टीम आपकी सेवाएँ तैयार कर रही है',
   },
+  'setup.nowInspectionReport': {
+    en: 'Send a photo of your last inspection report in this chat',
+    hi: 'अपनी पिछली इंस्पेक्शन रिपोर्ट की फ़ोटो इस चैट में भेजिए',
+  },
   'setup.nowWatch': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
   'setup.loadFailed': { en: "Couldn't load this just now", hi: 'अभी यह लोड नहीं हो सका' },
   'setup.ownerFills': { en: 'The owner fills this', hi: 'मालिक भरेंगे' },

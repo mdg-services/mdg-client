@@ -46,7 +46,9 @@ export function stripCaptionKey(view: OutletSetupView): MessageKey | null {
     case 'logins':
       return 'setup.nowLogins';
     case 'setup':
-      return 'setup.nowSetup';
+      // An HPCL pump whose owner still owes the last inspection report: it is the
+      // owner's turn, so the line asks for it rather than saying MDG is at work.
+      return view.inspectionReportOwed ? 'setup.nowInspectionReport' : 'setup.nowSetup';
     case 'watch':
       return 'setup.nowWatch';
     default:

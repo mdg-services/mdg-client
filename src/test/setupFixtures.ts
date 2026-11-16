@@ -22,6 +22,7 @@ export function makeSetupView(over: Partial<OutletSetupView> = {}): OutletSetupV
     billingPrefill: { name: 'Sai Petroleums', stateCode: null, gstin: null },
     payment: { state: 'not_sent', amountPaise: null, dueOn: null, paidOn: null, paymentId: null },
     loginsNeeded: ['sdms', 'iras'],
+    inspectionReportOwed: false,
     canEdit: true,
     ...over,
   };
