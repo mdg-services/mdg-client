@@ -8,7 +8,7 @@ import type { LoginVersion } from './types';
  * tested without a screen.
  */
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-IN' };
+const LOCALES: Record<Lang, string> = { hi: 'hi-IN', hl: 'en-IN', en: 'en-IN' };
 
 /**
  * "18 Nov 2026, 3:40 pm" — the moment a login changed, in the reader's language. Always

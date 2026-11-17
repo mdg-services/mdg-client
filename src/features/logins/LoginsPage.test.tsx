@@ -75,7 +75,7 @@ afterEach(() => {
   resetStores();
 });
 
-function renderPage(opts: { lang?: 'en' | 'hi' } = {}) {
+function renderPage(opts: { lang?: 'en' | 'hi' | 'hl' } = {}) {
   signIn({ id: 'u1', role: 'dealer-owner', dealerId: 'd1' });
   useLangStore.setState({ lang: opts.lang ?? 'en', explicit: true });
   return renderWithProviders(
@@ -115,6 +115,14 @@ describe('IDs & passwords page — what it shows', () => {
     expect(sdms.getByText('मिल गया')).toBeInTheDocument();
     expect(sdms.getByText('बदलें')).toBeInTheDocument();
     expect(screen.getAllByText('आईडी और पासवर्ड').length).toBeGreaterThan(0);
+  });
+
+  it('shows the page in Hinglish', async () => {
+    renderPage({ lang: 'hl' });
+    const sdms = await card('sdms');
+    expect(sdms.getByText('Mil gaya')).toBeInTheDocument();
+    expect(sdms.getByText('Badlein')).toBeInTheDocument();
+    expect(sdms.getByText(/Save kiya: .*2026/)).toBeInTheDocument();
   });
 
   it('says so when the list could not be loaded, and tries again on request', async () => {
