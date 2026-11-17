@@ -65,3 +65,4 @@ export * from './outletDetails';
 export * from './laptopBridge';
 export * from './extension';
 export * from './fuelIndent';
+export * from './dealerLanguage';

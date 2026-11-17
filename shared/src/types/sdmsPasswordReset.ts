@@ -86,7 +86,7 @@ export interface SdmsResetView {
    */
   retryWords?: string | null;
   /** Plain words for an end state (`failed` mostly), both languages. */
-  message: { en: string; hi: string } | null;
+  message: { en: string; hi: string; hl?: string } | null;
   /** Who tapped "Forgot password?", so a second owner reads "Ramesh started this". */
   startedByName: string | null;
   /** Who typed the OTP, while it is being tried and after. */

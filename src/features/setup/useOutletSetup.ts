@@ -4,7 +4,7 @@ import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { SaveSetupCompanyInput } from '@dk/shared/schemas';
-import type { OutletSetupView, SetupBilling } from '@dk/shared/types';
+import type { OutletSetupView, SetupBillResendResult, SetupBilling } from '@dk/shared/types';
 
 /**
  * Where the signed-in dealer's outlet stands on the way to live service — the
@@ -98,5 +98,19 @@ export function useSaveSetupCompany() {
       return takeAnswer(qc, data);
     },
     onError: () => invalidateOutletSetup(qc),
+  });
+}
+
+/**
+ * "Send again" on the bill banner: the same bill goes again on WhatsApp, SMS and
+ * email. The answer says only where it went (never a link: ADR 0022 §1). The view
+ * is asked again afterwards so the button knows when the next press is allowed.
+ */
+export function useResendBill() {
+  const qc = useQueryClient();
+  return useMutation({
+    retry: false,
+    mutationFn: () => api.post<SetupBillResendResult>('/v1/me/setup/bill/resend'),
+    onSettled: () => invalidateOutletSetup(qc),
   });
 }

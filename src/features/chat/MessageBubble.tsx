@@ -11,6 +11,7 @@ import { richText } from '@/lib/linkify';
 import { detectPlatform } from '@/lib/nativeBridge';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
+import { sayIn } from '@dk/shared/types';
 import {
   ANNOUNCEMENT_TONE_LABELS,
   type Attachment,
@@ -428,7 +429,9 @@ export const MessageBubble = React.memo(function MessageBubble({
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
   const { images, voices, videos, docs } = splitAttachments(message.attachments);
-  const hasBody = !!message.body;
+  // MDG's notices carry every language; each reader sees their own (co-owners may differ).
+  const body = message.bodyByLang ? sayIn(message.bodyByLang, lang) || message.body : message.body;
+  const hasBody = !!body;
   const hasMedia = images.length > 0;
   const hasOther = voices.length > 0 || videos.length > 0 || docs.length > 0;
   // A picture with no caption carries its time ON the picture, on a soft dark
@@ -575,7 +578,7 @@ export const MessageBubble = React.memo(function MessageBubble({
               <p className="break-words text-[17px] font-bold leading-snug">{announcement.title}</p>
               {hasBody ? (
                 <div className="mt-1.5 whitespace-pre-wrap break-words text-[15px] leading-[1.4] [&_a]:text-wa-accent-strong">
-                  {richText(message.body!, { highlight })}
+                  {richText(body!, { highlight })}
                 </div>
               ) : null}
             </div>
@@ -607,9 +610,13 @@ export const MessageBubble = React.memo(function MessageBubble({
               data-ask-ref={ask.ref}
               className="mb-1 rounded-md bg-wa-row-active px-2.5 py-2"
             >
-              <p className="break-words text-[14px] font-medium leading-snug">{ask.title}</p>
+              <p className="break-words text-[14px] font-medium leading-snug">
+                {ask.titleByLang ? sayIn(ask.titleByLang, lang) || ask.title : ask.title}
+              </p>
               {ask.periodLabel ? (
-                <p className="text-[13px] leading-snug text-wa-meta">{ask.periodLabel}</p>
+                <p className="text-[13px] leading-snug text-wa-meta">
+                  {ask.periodLabelByLang ? sayIn(ask.periodLabelByLang, lang) || ask.periodLabel : ask.periodLabel}
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -649,7 +656,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 hasMedia || hasOther ? 'px-[6px] pb-0.5 pt-1' : '',
               )}
             >
-              {richText(message.body!, { highlight })}
+              {richText(body!, { highlight })}
               {/* The trailing spacer: as wide as the time and ticks that sit in
                   the bubble's bottom-right corner, so the last line of words
                   stops short of them — or wraps to a line of its own when it

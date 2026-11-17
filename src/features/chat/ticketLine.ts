@@ -1,4 +1,3 @@
-import { pick } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import {
   TICKET_DEALER_STATUS_TEXT,
@@ -98,7 +97,7 @@ export function ticketLineText(
   now: Date = new Date(),
 ): string {
   const words = TICKET_DEALER_STATUS_TEXT[status];
-  const line = `${ticketRef(number)} · ${pick(lang, words.en, words.hi)}`;
+  const line = `${ticketRef(number)} · ${words[lang]}`;
   // `ticketDealerUpdateBy` answers "update by " for a time it cannot read, so the
   // time is checked here rather than the text it returns.
   if (status !== 'working' || !until || !Number.isFinite(new Date(until).getTime())) return line;

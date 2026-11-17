@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-import type { User } from '@dk/shared/types';
+import { DEFAULT_DEALER_LANG, isDealerLang, type DealerLang, type User } from '@dk/shared/types';
 
-/** The two languages the dealer app speaks (ADR 0008). Hindi is the default. */
-export type Lang = 'en' | 'hi';
+/**
+ * The languages the dealer app speaks — one list for the whole system,
+ * `shared/types/dealerLanguage.ts`. Hindi is the default (ADR 0008).
+ */
+export type Lang = DealerLang;
 
 interface LangState {
   lang: Lang;
@@ -28,13 +31,13 @@ export const useLangStore = create<LangState>()(
   persist(
     (set, get) => ({
       // Hindi-first: the dealer audience reads Hindi more comfortably (ADR 0008).
-      lang: 'hi',
+      lang: DEFAULT_DEALER_LANG,
       explicit: false,
       setLang: (lang) => set({ lang, explicit: true }),
       setLangFromUser: (user) => {
         if (get().explicit) return;
         const serverLang = user?.lang;
-        if (serverLang === 'en' || serverLang === 'hi') {
+        if (isDealerLang(serverLang)) {
           // Adopt without marking explicit — it's the account default, not a
           // deliberate on-device pick.
           set({ lang: serverLang });

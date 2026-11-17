@@ -27,6 +27,7 @@ import {
 import { TicketBar } from '@/features/chat/TicketBar';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
+import { BillDueBanner } from '@/features/setup/BillDueBanner';
 import { SetupStrip } from '@/features/setup/SetupStrip';
 import { useChatAskStates } from '@/hooks/api/useChatAskStates';
 import { messagesQueryKey, useMessages } from '@/hooks/api/useMessages';
@@ -585,6 +586,11 @@ export function ChatPage() {
           stands, pinned under the header so it is in view however far the thread
           has scrolled. Out of the way while picking messages or searching.
           ALWAYS MOUNTED, hiding itself, for the reason given below. */}
+      {/* The owner's bill and the days left (owner, 16 Nov 2026): the owners' own chat
+          only, out of the way while picking or searching. ALWAYS MOUNTED, for the
+          reason the setup strip below gives. */}
+      <BillDueBanner disabled={isGroup} hidden={selecting || searching} />
+
       <TicketBar tickets={conversation?.tickets} hidden={selecting || searching} />
 
       {/* The setup strip: where the outlet is on its way to live service. Only

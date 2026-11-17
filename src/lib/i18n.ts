@@ -1,6 +1,9 @@
 import * as React from 'react';
 
 import { useLangStore, type Lang } from '@/store/lang';
+import { DEALER_LANGUAGES, baseLangOf } from '@dk/shared/types';
+
+import { hl } from './i18n.hl';
 
 /**
  * Tiny, framework-free i18n for the dealer app (ADR 0008).
@@ -13,6 +16,11 @@ import { useLangStore, type Lang } from '@/store/lang';
  * Keys are dot-namespaced and every value is `{ en, hi }`. The catalog is a
  * single typed object so a MISSING KEY IS A COMPILE ERROR (`t('nav.nope')` fails
  * typechecking). Interpolation uses `{var}` placeholders.
+ *
+ * Every other language (`shared/types/dealerLanguage.ts`) has its OWN file,
+ * `i18n.<code>.ts`, typed `Record<MessageKey, string>`: a key added here and not
+ * written there is a compile error too. Hinglish is `i18n.hl.ts`. To add a
+ * language, add its file and its line to `MORE` below.
  */
 export interface LangMessage {
   en: string;
@@ -2351,6 +2359,39 @@ export const messages = {
   'setup.billOverdue': { en: 'The due date has passed', hi: 'आख़िरी तारीख़ निकल चुकी है' },
   'setup.viewReceipt': { en: 'View receipt', hi: 'रसीद देखें' },
   'setup.started': { en: 'Your services have started', hi: 'आपकी सेवाएँ शुरू हो गई हैं' },
+  // Under the bill line: nothing waits for the money (owner, 16 Nov 2026). A fact, not
+  // a way to pay — no button, no link, no method (ADR 0022 §1).
+  'setup.billMeanwhile': {
+    en: 'Any time until {date}. Your setup and services carry on meanwhile.',
+    hi: '{date} तक कभी भी। तब तक आपका सेटअप और सेवाएँ नहीं रुकेंगी।',
+  },
+  /* ── The thin bill strip at the top of the app (BillDueBanner) ─────────── */
+  // When it is due, and "send it again" OUTSIDE the app. No amount (owner, 16 Nov 2026),
+  // never a link, never how to pay.
+  'billBanner.dueInDays': {
+    en: 'Bill · any time in {n} days',
+    hi: 'बिल · {n} दिन में कभी भी',
+  },
+  'billBanner.dueTomorrow': {
+    en: 'Bill · any time until tomorrow',
+    hi: 'बिल · कल तक कभी भी',
+  },
+  'billBanner.dueToday': {
+    en: 'Bill · last day · {time} left',
+    hi: 'बिल · आज आख़िरी दिन · {time} बाकी',
+  },
+  'billBanner.overdue': {
+    en: 'Bill · due date {date} passed',
+    hi: 'बिल · {date} की तारीख़ निकल गई',
+  },
+  'billBanner.sendAgain': { en: 'Send again', hi: 'फिर से भेजें' },
+  'billBanner.sending': { en: 'Sending…', hi: 'भेज रहे हैं…' },
+  'billBanner.sent': { en: 'Sent on {where}', hi: '{where} पर भेज दिया' },
+  'billBanner.sentJustNow': { en: 'Sent just now', hi: 'अभी भेजा है' },
+  'billBanner.failed': { en: "Couldn't send — try again", hi: 'नहीं भेज पाए — फिर कोशिश करें' },
+  'billBanner.email': { en: 'email', hi: 'ईमेल' },
+  'billBanner.and': { en: 'and', hi: 'और' },
+  'billBanner.hide': { en: 'Hide for today', hi: 'आज के लिए छिपाएँ' },
   /* ── Pump details form (पंप की जानकारी) ─────────────────────────────── */
   // ONLY the form's own buttons and notes live here. The title, the intro, every
   // question, its help line, its options and its placeholder come from the server
@@ -2839,14 +2880,38 @@ function interpolate(template: string, vars?: TVars): string {
   });
 }
 
-/** Translate a catalog key for an explicit language (use outside React). */
-export function translate(lang: Lang, key: MessageKey, vars?: TVars): string {
-  return interpolate(messages[key][lang], vars);
+/** The languages beyond `messages`' two, one file each (see the header). */
+const MORE: Partial<Record<Lang, Readonly<Record<MessageKey, string>>>> = { hl };
+
+/** The words for a key in `lang`, walking the language's fallback when a file lacks one. */
+function textFor(lang: Lang, key: MessageKey): string {
+  let at: Lang | null = lang;
+  for (let i = 0; at && i < 8; i++) {
+    if (at === 'hi' || at === 'en') return messages[key][at];
+    const text = MORE[at]?.[key];
+    if (text) return text;
+    at = DEALER_LANGUAGES[at].fallback;
+  }
+  return messages[key].hi;
 }
 
-/** Choose between two already-authored strings — for bilingual DATA fields. */
+/** Translate a catalog key for an explicit language (use outside React). */
+export function translate(lang: Lang, key: MessageKey, vars?: TVars): string {
+  return interpolate(textFor(lang, key), vars);
+}
+
+/**
+ * Choose between two already-authored strings — for two-language DATA fields
+ * (`labelEn`/`labelHi`). A third language reads the one of the two its fallback
+ * reaches: Hinglish shares English's letters, so it reads the English label.
+ */
 export function pick(lang: Lang, en: string, hi: string): string {
-  return lang === 'hi' ? hi : en;
+  return baseLangOf(lang) === 'hi' ? hi : en;
+}
+
+/** The `Intl` locale for dates and numbers in `lang`. */
+export function localeOf(lang: Lang): string {
+  return DEALER_LANGUAGES[lang].locale;
 }
 
 /** Read the current language reactively (for `pick()` at call sites). */

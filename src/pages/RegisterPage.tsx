@@ -28,6 +28,7 @@ import { WelcomeBackCard } from '@/features/register/WelcomeBackCard';
 import { cn } from '@/lib/cn';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
 import { useGoBack } from '@/lib/useGoBack';
+import { baseLangOf } from '@dk/shared/types';
 
 /** The card after sending, in each case (`register.success*` for a person's look first). */
 const SUCCESS_WORDS: Record<EnrollAccount, { badge: MessageKey; title: MessageKey; body: MessageKey }> = {
@@ -178,7 +179,8 @@ export function RegisterPage() {
         password: v.password,
         // The one tick covers WhatsApp messages about the account (the label says so).
         consentWhatsApp: true as const,
-        lang,
+        // The Terms exist in Hindi and English: a third language ticks the one it reads.
+        lang: baseLangOf(lang),
         ...(ref ? { ref } : {}),
       };
       const account = await submitEnrollment({ ...fields, submissionId: submissionIdFor(fields) });

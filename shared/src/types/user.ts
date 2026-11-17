@@ -1,5 +1,7 @@
 import type { MemberReach } from '../lib/reach';
 
+import type { DealerLang } from './dealerLanguage';
+
 export type UserRole = 'admin' | 'dealer-owner' | 'dealer-staff';
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
 
@@ -26,8 +28,16 @@ export interface User {
   title?: string;
   phone?: string;
   avatarKey?: string | null;
-  /** Preferred UI language for the dealer apps. Defaults to Hindi when unset (ADR 0008). */
-  lang?: 'en' | 'hi';
+  /**
+   * The language this person reads everything in: the app, chat messages, cards,
+   * notifications and the AI's answers (`types/dealerLanguage.ts`). Hindi when unset.
+   */
+  lang?: DealerLang;
+  /**
+   * When they chose it themselves (the first-open picker or Settings). Null/absent =
+   * never chosen: the app asks once, before anything else.
+   */
+  langChosenAt?: string | null;
   status: UserStatus;
   /**
    * Set (ISO timestamp) when a super-admin archives (soft-deletes) the user: login

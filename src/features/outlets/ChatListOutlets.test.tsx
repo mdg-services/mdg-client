@@ -80,6 +80,8 @@ describe('ChatListPage — the pump chip', () => {
     renderList();
     expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /switch pump/i })).not.toBeInTheDocument();
-    expect(api.get).not.toHaveBeenCalled();
+    // The bill strip may ask for the setup; nothing asks for the pump list.
+    const asked = vi.mocked(api.get).mock.calls.map((c) => String(c[0]));
+    expect(asked.filter((url) => !url.includes('/me/setup'))).toEqual([]);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { messages } from './i18n';
+import { messages, pick, translate, type MessageKey } from './i18n';
+import { hl } from './i18n.hl';
 
 /**
  * Every string a dealer can see exists in Hindi as well as English. Hindi is the
@@ -65,5 +66,31 @@ describe('i18n — every key in both languages', () => {
       .filter(([, m]) => /\bsir\b|सर\b/i.test(`${m.en} ${m.hi}`))
       .map(([k]) => k);
     expect(sir).toEqual([]);
+  });
+});
+
+describe('Hinglish (i18n.hl.ts)', () => {
+  const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
+
+  it('has every key, never empty, with the same {placeholders} as the English', () => {
+    for (const key of Object.keys(messages) as MessageKey[]) {
+      expect(hl[key]?.trim(), key).toBeTruthy();
+      expect(holes(hl[key]), key).toEqual(holes(messages[key].en));
+    }
+  });
+
+  it('is written in English letters: no Devanagari', () => {
+    const deva = Object.entries(hl).filter(([, v]) => /[ऀ-ॿ]/.test(v));
+    expect(deva).toEqual([]);
+  });
+
+  it('is what t() gives a Hinglish reader', () => {
+    expect(translate('hl', 'common.retry')).toBe(hl['common.retry']);
+    expect(translate('hl', 'common.retry')).not.toBe(messages['common.retry'].en);
+  });
+
+  it('reads the English of a two-language data label', () => {
+    expect(pick('hl', 'Indian Oil', 'इंडियन ऑयल')).toBe('Indian Oil');
+    expect(pick('hi', 'Indian Oil', 'इंडियन ऑयल')).toBe('इंडियन ऑयल');
   });
 });

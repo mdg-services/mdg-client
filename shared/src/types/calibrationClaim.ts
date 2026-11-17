@@ -450,7 +450,7 @@ export interface WemmisResetView {
   /** Only when `state === 'need_captcha'`. */
   captchaImageUrl: string | null;
   /** Plain words for the box, both languages. */
-  message: { en: string; hi: string } | null;
+  message: { en: string; hi: string; hl?: string } | null;
 }
 
 /** What the owner's box reads: the saved login, and any reset in progress. */

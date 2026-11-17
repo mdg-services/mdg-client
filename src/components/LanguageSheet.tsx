@@ -1,23 +1,21 @@
 import * as React from 'react';
 
+import { LanguageOptions, LanguageSample } from '@/components/LanguageChoice';
 import { api } from '@/lib/api';
-import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore, type Lang } from '@/store/lang';
+import { DEALER_LANGS, DEALER_LANGUAGES } from '@dk/shared/types';
 
 /**
  * Each language in its OWN script. A dealer who has ended up in a language they
  * cannot read must still be able to find the way back, so these are never
  * translated.
  */
-export const LANGUAGE_NAMES: Record<Lang, string> = {
-  hi: 'हिंदी',
-  en: 'English',
-};
-
-const OPTIONS: Lang[] = ['hi', 'en'];
+export const LANGUAGE_NAMES: Record<Lang, string> = Object.fromEntries(
+  DEALER_LANGS.map((l) => [l, DEALER_LANGUAGES[l].name]),
+) as Record<Lang, string>;
 
 /**
  * Switching the app's language: flips every screen at once (reactive store
@@ -35,7 +33,7 @@ export function useLanguageChoice(): { lang: Lang; choose: (next: Lang) => void 
       if (next === lang) return;
       setLang(next);
       // Reflect immediately in the cached user so a /me refetch doesn't flicker.
-      if (user) setUser({ ...user, lang: next });
+      if (user) setUser({ ...user, lang: next, langChosenAt: new Date().toISOString() });
       // Best-effort: follow the member across devices. Ignore all failures.
       void api.patch('/v1/me', { lang: next }).catch(() => undefined);
     },
@@ -46,9 +44,9 @@ export function useLanguageChoice(): { lang: Lang; choose: (next: Lang) => void 
 }
 
 /**
- * The small sheet Settings → Language opens: हिंदी / English, one tap to pick,
- * and it closes on its own. It used to be a segmented switch in the app's header
- * on every screen; with no header, the choice lives where WhatsApp keeps it.
+ * Settings → Language: the same choices as the first-open picker. A tap switches
+ * the whole app at once (this sheet too) and shows, in that language, what it
+ * means and a message as it will arrive; "Done" closes it.
  */
 export function LanguageSheet({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -71,40 +69,22 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-label={t('profile.language')}
         tabIndex={-1}
-        className="relative mx-auto flex w-full max-w-md flex-col rounded-t-2xl bg-wa-bar pb-2 shadow-lg outline-none safe-bottom animate-in"
+        className="relative mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-wa-bar px-5 pb-4 shadow-lg outline-none safe-bottom animate-in"
       >
-        <p className="px-6 pb-2 pt-5 text-[17px] font-medium text-wa-bar-text">
+        <p className="pb-3 pt-5 text-[17px] font-medium text-wa-bar-text">
           {t('profile.language')}
         </p>
-        <div role="radiogroup" aria-label={t('profile.language')}>
-          {OPTIONS.map((value) => {
-            const on = value === lang;
-            return (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={on}
-                onClick={() => {
-                  choose(value);
-                  onClose();
-                }}
-                className="flex min-h-[52px] w-full items-center gap-4 px-6 text-left text-[16px] text-wa-bar-text active:bg-wa-row-active"
-              >
-                <span
-                  aria-hidden
-                  className={cn(
-                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2',
-                    on ? 'border-wa-accent' : 'border-wa-bar-icon',
-                  )}
-                >
-                  {on ? <span className="h-2.5 w-2.5 rounded-full bg-wa-accent" /> : null}
-                </span>
-                {LANGUAGE_NAMES[value]}
-              </button>
-            );
-          })}
+        <LanguageOptions value={lang} onPick={choose} label={t('profile.language')} />
+        <div className="mt-4">
+          <LanguageSample lang={lang} />
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+        >
+          {t('common.done')}
+        </button>
       </div>
     </div>
   );

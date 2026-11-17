@@ -16,6 +16,8 @@
  *   - `kv:<itemId>`   a Kavach task's photo evidence
  */
 
+import type { SomeDealerWords } from './dealerLanguage';
+
 export type ChatAskKind = 'document' | 'register' | 'kavach';
 
 export const CHAT_ASK_REF_PATTERN = /^(doc|reg|kv):([A-Za-z0-9-]{1,40})$/;
@@ -29,6 +31,13 @@ export interface MessageAsk {
   title: string;
   /** The day or period it is for, already in words ("12 Oct"), when there is one. */
   periodLabel?: string;
+  /**
+   * `title` and `periodLabel` in every language they were written in, so each
+   * reader of a shared chat sees their own (`Message.bodyByLang`). Absent on asks
+   * posted before 17 Nov 2026.
+   */
+  titleByLang?: SomeDealerWords;
+  periodLabelByLang?: SomeDealerWords;
   /** True when a PDF is as good as a photo (papers); false for a photo-only ask. */
   acceptsFile?: boolean;
   /**

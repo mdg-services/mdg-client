@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { DEALER_LANGS } from '../types/dealerLanguage';
 import { WORK_NOTE_MAX, requiresDescription } from '../types/staff';
 
 /**
@@ -261,10 +262,10 @@ export const staffPointsSummaryQuerySchema = z.object({
 });
 export type StaffPointsSummaryQuery = z.infer<typeof staffPointsSummaryQuerySchema>;
 
-/** Body for PATCH /me — a member setting their own UI language preference. */
+/** Body for PATCH /me — a member choosing their own language (`types/dealerLanguage.ts`). */
 export const updateMyPreferencesSchema = z
   .object({
-    lang: z.enum(['en', 'hi']).optional(),
+    lang: z.enum(DEALER_LANGS).optional(),
   })
   .refine((v) => v.lang !== undefined, { message: 'Provide lang' });
 export type UpdateMyPreferencesInput = z.infer<typeof updateMyPreferencesSchema>;

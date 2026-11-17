@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { DEALER_LANGS } from '../types/dealerLanguage';
+
 /**
  * Create a new admin (support/operations user). Admins are stored in the User
  * collection with role `admin`; unlike dealer members they have no dealerId.
@@ -54,8 +56,8 @@ export const superAdminUpdateUserSchema = z
       .trim()
       .refine((v) => v === '' || /^\+?[0-9\-\s]{7,20}$/.test(v), 'Invalid phone')
       .optional(),
-    /** Language the dealer apps open in. */
-    lang: z.enum(['en', 'hi']).optional(),
+    /** The language the person reads everything in (`types/dealerLanguage.ts`). */
+    lang: z.enum(DEALER_LANGS).optional(),
   })
   .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: 'Provide at least one field to update',

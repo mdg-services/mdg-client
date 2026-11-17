@@ -2,6 +2,7 @@
 import { formatDuration } from '@/lib/uploadAttachment';
 import type { Lang } from '@/store/lang';
 import type { GuideVideoListItem } from '@dk/shared/types';
+import { sayIn } from '@dk/shared/types';
 
 /**
  * What the Help videos screen decides before it draws anything.
@@ -24,11 +25,11 @@ export function playableVideos(list: GuideVideoListItem[] | undefined): GuideVid
 
 /** The video's own words follow the dealer's language; the voice in it is Hindi either way. */
 export function videoTitle(v: GuideVideoListItem, lang: Lang): string {
-  return v.title[lang] || v.title.hi || v.title.en;
+  return sayIn(v.title, lang);
 }
 
 export function videoSummary(v: GuideVideoListItem, lang: Lang): string {
-  return v.summary[lang] || v.summary.hi || v.summary.en;
+  return sayIn(v.summary, lang);
 }
 
 /** "0:49", or nothing when the length is not known (the row simply has no chip). */

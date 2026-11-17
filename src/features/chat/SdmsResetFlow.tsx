@@ -26,6 +26,7 @@ import {
   type SdmsResetRetry,
   type SdmsResetView,
 } from '@dk/shared/types';
+import { sayIn } from '@dk/shared/types';
 
 const INPUT_CLASS =
   'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
@@ -458,7 +459,7 @@ export function SdmsResetFlow({
     case 'failed':
     case 'expired':
     case 'cancelled':
-      return ended(reset.message?.[lang] ?? t('chat.sdmsResetFailed'));
+      return ended((reset.message ? sayIn(reset.message, lang) : '') || t('chat.sdmsResetFailed'));
     default:
       return null;
   }

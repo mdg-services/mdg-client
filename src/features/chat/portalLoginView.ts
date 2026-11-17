@@ -15,7 +15,7 @@ import {
  * can be tested without a screen.
  */
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-IN' };
+const LOCALES: Record<Lang, string> = { hi: 'hi-IN', hl: 'en-IN', en: 'en-IN' };
 
 /**
  * "23 Oct" — the day a login was saved, in the reader's language. The year

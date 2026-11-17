@@ -18,6 +18,7 @@ import { OutletChip } from '@/features/outlets/OutletChip';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { BatteryGuideCard } from '@/features/push/BatteryGuide';
 import { PushNotice } from '@/features/push/PushNotice';
+import { BillDueBanner } from '@/features/setup/BillDueBanner';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -25,6 +26,7 @@ import { useLang, useT } from '@/lib/i18n';
 import { markFirstScreen } from '@/lib/perfReport';
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useAuthStore } from '@/store/auth';
+import type { Lang } from '@/store/lang';
 import type { Conversation } from '@dk/shared/types';
 
 /**
@@ -206,6 +208,8 @@ function ChatList() {
     <>
       {bar}
       <div className="flex flex-1 flex-col bg-wa-bar">
+        {/* The owner's bill and the days left, while one is open (nothing for a manager). */}
+        <BillDueBanner />
         {/* Nothing here unless the phone has never been asked about
             notifications, or has said no — and then one quiet line, not a wall. */}
         <PushNotice />
@@ -350,7 +354,7 @@ function ChatRow({
 }: {
   conv: Conversation;
   myId: string | undefined;
-  lang: 'en' | 'hi';
+  lang: Lang;
   onOpen: (id: string) => void;
 }) {
   const t = useT();

@@ -233,16 +233,18 @@ describe('SettingsPage — language', () => {
     expect(within(row).getByText('English')).toBeInTheDocument();
   });
 
-  it('opens a sheet with both languages, each in its own script', () => {
+  it('opens a sheet with every language, each named in its own script', () => {
     renderSettings();
     fireEvent.click(screen.getByText('Language').closest('button')!);
     const sheet = screen.getByRole('dialog', { name: 'Language' });
-    const options = within(sheet).getAllByRole('radio');
-    expect(options.map((o) => o.textContent)).toEqual(['हिंदी', 'English']);
+    const options = within(sheet).getAllByRole('radio', { name: /./ });
+    expect(options.map((o) => o.getAttribute('aria-label'))).toEqual(['हिंदी', 'Hinglish', 'English']);
     expect(within(sheet).getByRole('radio', { name: 'English' })).toBeChecked();
+    // The sample says what the current choice means, in that language.
+    expect(within(sheet).getByTestId('language-sample')).toHaveTextContent('will now come in English');
   });
 
-  it('switches the whole app at once, saves it to the account, and closes', async () => {
+  it('switches the whole app at once, shows the sample, saves it, and closes on Done', async () => {
     renderSettings();
     fireEvent.click(screen.getByText('Language').closest('button')!);
     fireEvent.click(screen.getByRole('radio', { name: 'हिंदी' }));
@@ -250,9 +252,20 @@ describe('SettingsPage — language', () => {
     expect(useLangStore.getState().lang).toBe('hi');
     expect(api.patch).toHaveBeenCalledWith('/v1/me', { lang: 'hi' });
     expect(useAuthStore.getState().user?.lang).toBe('hi');
+    expect(screen.getByTestId('language-sample')).toHaveTextContent('हिंदी में आएँगे');
+    fireEvent.click(screen.getByRole('button', { name: 'हो गया' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     // The page redraws in the new language straight away.
     expect(screen.getByText('सेटिंग')).toBeInTheDocument();
+  });
+
+  it('switches to Hinglish: the page reads Hindi in English letters', () => {
+    renderSettings();
+    fireEvent.click(screen.getByText('Language').closest('button')!);
+    fireEvent.click(screen.getByRole('radio', { name: 'Hinglish' }));
+    expect(useLangStore.getState().lang).toBe('hl');
+    expect(api.patch).toHaveBeenCalledWith('/v1/me', { lang: 'hl' });
+    expect(screen.getByTestId('language-sample')).toHaveTextContent('Hinglish mein aayenge');
   });
 
   it('does not call the server when the dealer picks the language they already have', () => {

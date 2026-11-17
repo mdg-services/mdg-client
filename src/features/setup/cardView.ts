@@ -1,3 +1,4 @@
+import { pick } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { GST_STATES, cleanGstin, isGstin } from '@dk/shared';
 import { OIL_COMPANY_NAMES, type OilCompanyId, type SetupStage } from '@dk/shared/types';
@@ -14,7 +15,7 @@ import { OIL_COMPANY_NAMES, type OilCompanyId, type SetupStage } from '@dk/share
 /** "Indian Oil (IOCL)" / "इंडियन ऑयल (IOCL)": the company as the dealer reads it. */
 export function companyLabel(company: OilCompanyId, lang: Lang): string {
   const n = OIL_COMPANY_NAMES[company];
-  return `${n[lang]} (${n.short})`;
+  return `${pick(lang, n.en, n.hi)} (${n.short})`;
 }
 
 /**
@@ -127,7 +128,7 @@ export function formatRupees(paise: number): string {
   })}`;
 }
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-IN' };
+const LOCALES: Record<Lang, string> = { hi: 'hi-IN', hl: 'en-IN', en: 'en-IN' };
 
 /**
  * "2 November" / "2 नवंबर" from a `YYYY-MM-DD` day. Built from its parts, not

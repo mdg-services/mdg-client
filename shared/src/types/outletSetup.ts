@@ -190,6 +190,37 @@ export interface SetupPaymentDealerView {
    * paid is not a way to pay); never anything that asks for the money.
    */
   paymentId: string | null;
+  /**
+   * "Send my bill again" (`POST /me/setup/bill/resend`): present only while there is
+   * an open bill the owner can have again (not paid, no autopay already taking it).
+   * Absent from a server older than 16 Nov 2026.
+   */
+  resend?: SetupBillResendView | null;
+}
+
+/**
+ * The bill banner's button. The bill goes again OUTSIDE the app (WhatsApp, SMS,
+ * email); the app is told only where it went, never given a link.
+ */
+export interface SetupBillResendView {
+  /**
+   * Whether the phone apps show the button (a server switch, for Google Play's
+   * payments rule). An ordinary browser shows it either way.
+   */
+  inApp: boolean;
+  /** ISO time before which a press is refused (two minutes apart, five a day); null when one may go now. */
+  nextAt: string | null;
+  /** Whether it can go by SMS too: a payment link can, an autopay approval cannot (Razorpay texts it once). */
+  sms: boolean;
+}
+
+/** What `POST /me/setup/bill/resend` answers: where the bill went this time. */
+export interface SetupBillResendResult {
+  whatsapp: boolean;
+  sms: boolean;
+  email: boolean;
+  /** ISO time of the next allowed press. */
+  nextAt: string;
 }
 
 // ── What the dealer app reads: GET /me/setup ───────────────────────────────

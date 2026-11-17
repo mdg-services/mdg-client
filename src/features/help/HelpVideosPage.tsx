@@ -7,6 +7,7 @@ import { useOwnerAutopay } from '@/features/autopay/api';
 import { AutopayHelpRow } from '@/features/autopay/AutopayHelpRow';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { useLang, useT } from '@/lib/i18n';
+import type { Lang } from '@/store/lang';
 import type { GuideVideoListItem } from '@dk/shared/types';
 
 import { GuideVideoSheet } from './GuideVideoSheet';
@@ -126,7 +127,7 @@ function VideoRow({
   onPlay,
 }: {
   video: GuideVideoListItem;
-  lang: 'en' | 'hi';
+  lang: Lang;
   onPlay: () => void;
 }) {
   const t = useT();

@@ -61,6 +61,9 @@ export function PaymentCard({ view }: { view: OutletSetupView }) {
           {/* A fact about the bill, not a nudge: the day has gone by. */}
           {isPastDue(dueOn, istToday()) ? (
             <p className="text-[13px] font-medium leading-snug text-danger">{t('setup.billOverdue')}</p>
+          ) : due ? (
+            // Nothing waits for the money: the owner carries on with the setup meanwhile.
+            <p className="text-[13px] leading-snug text-wa-meta">{t('setup.billMeanwhile', { date: due })}</p>
           ) : null}
         </Block>
       </CardBox>

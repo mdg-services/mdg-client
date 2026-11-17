@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Outlet, useMatch } from 'react-router-dom';
 
+import { ChooseLanguageScreen, mustChooseLanguage } from '@/components/ChooseLanguageScreen';
 import { RouteFallback } from '@/components/RouteFallback';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useDeclarationsSocket } from '@/features/chat/useDeclarationsSocket';
@@ -99,9 +100,14 @@ export function AppShell() {
             opening on a screen). A tap from one screen to another keeps the
             old one up while the next downloads: navigation is a transition
             (main.tsx), and NavigationProgress (App.tsx) shows it is coming. */}
-        <React.Suspense fallback={<RouteFallback className="flex-1 py-20" />}>
-          <Outlet />
-        </React.Suspense>
+        {/* Before anything else, once: which language everything comes in. */}
+        {mustChooseLanguage(user) ? (
+          <ChooseLanguageScreen />
+        ) : (
+          <React.Suspense fallback={<RouteFallback className="flex-1 py-20" />}>
+            <Outlet />
+          </React.Suspense>
+        )}
       </main>
     </div>
   );

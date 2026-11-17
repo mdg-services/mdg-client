@@ -9,7 +9,7 @@ import type { Lang } from '@/store/lang';
  * at midnight.
  */
 
-const LOCALES: Record<Lang, string> = { hi: 'hi-IN', en: 'en-IN' };
+const LOCALES: Record<Lang, string> = { hi: 'hi-IN', hl: 'en-IN', en: 'en-IN' };
 
 function parse(iso: string): Date | null {
   const d = new Date(iso);

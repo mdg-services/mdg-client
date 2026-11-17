@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Spinner } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
-import { useLang, useT } from '@/lib/i18n';
+import { pick as pickLang, useLang, useT } from '@/lib/i18n';
 import { OIL_COMPANIES, OIL_COMPANY_NAMES, type OilCompanyId, type OutletSetupView } from '@dk/shared/types';
 
 import { Alert, Block, CardBox, LinkButton, Note } from './CardParts';
@@ -116,7 +116,7 @@ export function CompanyCard({ view }: { view: OutletSetupView }) {
             >
               <span className="min-w-0">
                 <span className="block break-words text-[16px] font-medium leading-snug">
-                  {names[lang]}
+                  {pickLang(lang, names.en, names.hi)}
                 </span>
                 <span className="block text-[12px] leading-tight text-wa-meta">{names.short}</span>
               </span>

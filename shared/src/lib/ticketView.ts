@@ -7,6 +7,7 @@
  * trigger or topic cannot ship without a label.
  */
 import type { AiHandoffReason } from '../types/aiFirstLine';
+import { sayIn, type DealerLang, type DealerWords } from '../types/dealerLanguage';
 import type {
   TicketDealerView,
   TicketState,
@@ -183,12 +184,16 @@ export function ticketDealerStatus(
 
 export const TICKET_DEALER_STATUS_TEXT: Record<
   'raised' | 'looking' | 'working' | 'resolved',
-  { en: string; hi: string }
+  DealerWords
 > = {
-  raised: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेजा गया' },
-  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है' },
-  working: { en: 'MDG team is working on it', hi: 'MDG टीम इस पर काम कर रही है' },
-  resolved: { en: 'Closed by the MDG team', hi: 'MDG टीम ने बंद किया' },
+  raised: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेजा गया', hl: 'MDG team ko bheja gaya' },
+  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है', hl: 'MDG team dekh rahi hai' },
+  working: {
+    en: 'MDG team is working on it',
+    hi: 'MDG टीम इस पर काम कर रही है',
+    hl: 'MDG team is par kaam kar rahi hai',
+  },
+  resolved: { en: 'Closed by the MDG team', hi: 'MDG टीम ने बंद किया', hl: 'MDG team ne band kiya' },
 };
 
 /* ───────────────────────── "On it until…" times ─────────────────────────── */
@@ -228,11 +233,11 @@ const HI_MONTHS = ['जनवरी', 'फ़रवरी', 'मार्च', '
 const EN_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /** सुबह 04:00–11:59, दोपहर 12:00–15:59, शाम 16:00–19:59, रात 20:00–03:59. */
-function hiDayPart(h: number): string {
-  if (h >= 4 && h < 12) return 'सुबह';
-  if (h >= 12 && h < 16) return 'दोपहर';
-  if (h >= 16 && h < 20) return 'शाम';
-  return 'रात';
+function hiDayPart(h: number, latin = false): string {
+  if (h >= 4 && h < 12) return latin ? 'subah' : 'सुबह';
+  if (h >= 12 && h < 16) return latin ? 'dopahar' : 'दोपहर';
+  if (h >= 16 && h < 20) return latin ? 'shaam' : 'शाम';
+  return latin ? 'raat' : 'रात';
 }
 
 /**
@@ -245,7 +250,7 @@ function hiDayPart(h: number): string {
  * night, a day late. Before 4 am, said from the evening before, it is "12:30 am
  * tonight" / "आज रात 12:30 बजे".
  */
-export function promiseTimeText(iso: string, lang: 'en' | 'hi', now: Date = new Date()): string {
+export function promiseTimeText(iso: string, lang: DealerLang, now: Date = new Date()): string {
   const at = new Date(iso);
   if (!Number.isFinite(at.getTime())) return '';
   const p = istParts(at);
@@ -261,6 +266,12 @@ export function promiseTimeText(iso: string, lang: 'en' | 'hi', now: Date = new 
     const day = p.dayKey === today ? 'आज' : p.dayKey === tomorrow ? 'कल' : `${p.day} ${HI_MONTHS[p.m]}`;
     return `${day} ${hiDayPart(p.h)} ${clock}`;
   }
+  if (lang === 'hl') {
+    const clock = p.min === 0 ? `${h12} baje` : `${h12}:${mm} baje`;
+    if (tonight) return `aaj raat ${clock}`;
+    const day = p.dayKey === today ? 'aaj' : p.dayKey === tomorrow ? 'kal' : `${p.day} ${EN_MONTHS[p.m]}`;
+    return `${day} ${hiDayPart(p.h, true)} ${clock}`;
+  }
   const clock = `${h12}:${mm} ${p.h < 12 ? 'am' : 'pm'}`;
   if (p.dayKey === today) return clock;
   if (tonight) return `${clock} tonight`;
@@ -269,9 +280,9 @@ export function promiseTimeText(iso: string, lang: 'en' | 'hi', now: Date = new 
 }
 
 /** "update by 6:00 pm" / "आज शाम 6 बजे तक अपडेट" — the tail of the dealer's `working` line. */
-export function ticketDealerUpdateBy(iso: string, lang: 'en' | 'hi', now: Date = new Date()): string {
+export function ticketDealerUpdateBy(iso: string, lang: DealerLang, now: Date = new Date()): string {
   const when = promiseTimeText(iso, lang, now);
-  return lang === 'hi' ? `${when} तक अपडेट` : `update by ${when}`;
+  return sayIn({ hi: `${when} तक अपडेट`, hl: `${when} tak update`, en: `update by ${when}` }, lang);
 }
 
 /* ───────────────────────── The ticket desk (ADR 0026) ───────────────────────── */
@@ -417,20 +428,32 @@ export function ticketForBar<T extends Pick<TicketDealerView, 'state' | 'resolve
 }
 
 /** The bar's words, after the ticket's "#N · ". `{when}` is the promised time (`promiseTimeText`). */
-export const TICKET_BAR_TEXT: Record<TicketBarPhase, { en: string; hi: string }> = {
-  new: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेज दिया है' },
-  night: { en: 'The team will see this from 9 am', hi: 'टीम सुबह 9 बजे से देखेगी' },
-  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है' },
-  working: { en: 'Being worked on · update by {when}', hi: 'काम चल रहा है · {when} तक अपडेट' },
-  late: { en: 'Taking a little longer · team reminded', hi: 'थोड़ा और समय लग रहा है · टीम को याद दिलाया' },
-  closed: { en: 'Done ✓', hi: 'पूरा हुआ ✓' },
+export const TICKET_BAR_TEXT: Record<TicketBarPhase, DealerWords> = {
+  new: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेज दिया है', hl: 'MDG team ko bhej diya hai' },
+  night: {
+    en: 'The team will see this from 9 am',
+    hi: 'टीम सुबह 9 बजे से देखेगी',
+    hl: 'Team subah 9 baje se dekhegi',
+  },
+  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है', hl: 'MDG team dekh rahi hai' },
+  working: {
+    en: 'Being worked on · update by {when}',
+    hi: 'काम चल रहा है · {when} तक अपडेट',
+    hl: 'Kaam chal raha hai · {when} tak update',
+  },
+  late: {
+    en: 'Taking a little longer · team reminded',
+    hi: 'थोड़ा और समय लग रहा है · टीम को याद दिलाया',
+    hl: 'Thoda aur time lag raha hai · team ko yaad dilaya',
+  },
+  closed: { en: 'Done ✓', hi: 'पूरा हुआ ✓', hl: 'Pura hua ✓' },
 };
 
 /** "#4 · काम चल रहा है · आज शाम 6 बजे तक अपडेट" — the whole bar line. */
 export function ticketBarText(
   t: Pick<TicketDealerView, 'number' | 'promiseUntil'>,
   phase: TicketBarPhase,
-  lang: 'en' | 'hi',
+  lang: DealerLang,
   now: Date = new Date(),
 ): string {
   const words = TICKET_BAR_TEXT[phase][lang];

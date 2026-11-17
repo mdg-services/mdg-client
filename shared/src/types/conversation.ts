@@ -1,5 +1,6 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
+import type { SomeDealerWords } from './dealerLanguage';
 import type { MessageAnnouncement } from './announcement';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
@@ -305,6 +306,14 @@ export interface Message {
   senderRole: 'admin' | 'dealer-owner' | 'dealer-staff';
   senderName?: string;
   body?: string;
+  /**
+   * The same message in every language it was written in, when MDG's machinery
+   * wrote it once per language (a service notice, a card's caption). Each reader's
+   * app shows their own language from here, so co-owners who chose different
+   * languages each read theirs, and a change of language changes these too.
+   * `body` stays the copy in the chat's planned language (admin inbox, search).
+   */
+  bodyByLang?: SomeDealerWords;
   attachments: Attachment[];
   /**
    * Posted by MDG's machinery rather than typed by a person — a shared report,
