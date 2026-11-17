@@ -6,6 +6,7 @@ import {
   Globe,
   GraduationCap,
   KeyRound,
+  LockKeyhole,
   LogOut,
   ReceiptText,
   ShieldCheck,
@@ -153,6 +154,14 @@ export function SettingsPage() {
             subtitle={t('settings.accountDesc')}
             onClick={() => navigate('/settings/account')}
           />
+          {isOwner ? (
+            <Row
+              icon={LockKeyhole}
+              title={t('logins.title')}
+              subtitle={t('logins.rowDesc')}
+              onClick={() => navigate('/settings/logins')}
+            />
+          ) : null}
           <Row
             icon={Globe}
             title={t('profile.language')}

@@ -64,6 +64,10 @@ const HelpVideosPage = lazyRoute(() =>
 const AutopayPage = lazyRoute(() =>
   import('@/features/autopay/AutopayPage').then((m) => ({ default: m.AutopayPage })),
 );
+// Settings → IDs & passwords: the owner's portal logins, with their history. Its own chunk.
+const LoginsPage = lazyRoute(() =>
+  import('@/features/logins/LoginsPage').then((m) => ({ default: m.LoginsPage })),
+);
 // Seen once, by a member who signed in with a temporary password: its own chunk,
 // so nobody else downloads it.
 const ForcedPasswordChange = lazyRoute(() =>
@@ -215,6 +219,9 @@ export function App() {
                 from a Settings row. The owner can see it and stop it; nothing on it
                 starts one (features/payments/policy.ts). */}
             <Route path="/settings/autopay" element={<AutopayPage />} />
+            {/* The owner's portal logins and what they were before. A Settings row
+                (owner only) opens it; the server refuses anyone else. */}
+            <Route path="/settings/logins" element={<LoginsPage />} />
             {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
                 and not a redirect: nothing about it needs to change address. */}
             <Route path="/profile" element={<SettingsPage />} />
