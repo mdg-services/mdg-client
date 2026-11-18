@@ -1,5 +1,5 @@
 /**
- * The standard package: the eleven services every Indian Oil outlet gets, set up
+ * The standard package: the twelve services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -7,16 +7,17 @@
  * the inspection — attaches each service with the same schedule every other
  * outlet runs on, and runs each once. Nothing reaches the dealer or writes to a
  * portal before the team presses Start services: tanker density (which messages
- * the dealer), water-test filing (which writes to the portal) and DU OTP
- * acknowledgements (which message the dealer when an event appears) are attached
- * PAUSED and switched on by Start services.
+ * the dealer), water-test filing (which writes to the portal), DU OTP
+ * acknowledgements (which message the dealer when an event appears) and TT
+ * acknowledgement (which acknowledges tankers on SDMS when the outlet asks) are
+ * attached PAUSED and switched on by Start services.
  *
  * The admin reads progress as a list of steps, each in plain words. A step that
  * cannot go on says why in one sentence and what a person has to do; "Try again"
  * resumes from that step.
  */
 
-/** The eleven services, in the order they are attached. */
+/** The twelve services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -25,6 +26,9 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   'ro-supply-status',
   'du-otp-acknowledgement',
   'tt-density',
+  // Owner, 18 Nov 2026: every outlet gets it. On demand only: it acknowledges a
+  // tanker on SDMS when an owner or manager asks in the chat ("chalan bhar do").
+  'tt-acknowledgement',
   'dealer-declarations',
   'dsr-report',
   'load-planner',
@@ -187,7 +191,7 @@ export interface HpclInspectionInput {
 
 /** GET /dealers/:id/service-package */
 export interface ServicePackageState {
-  /** Whose package this outlet gets: Indian Oil's eleven services, or HPCL's own. */
+  /** Whose package this outlet gets: Indian Oil's twelve services, or HPCL's own. */
   company: 'iocl' | 'hpcl';
   /** Null until the package has been started for this outlet. */
   setup: ServicePackageView | null;
