@@ -105,6 +105,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'tt-acknowledgement': { en: 'TT acknowledgement', hi: 'टैंकर की पावती' },
   /** ADR 0041. "लोड" is the dealer's own word for a tanker order ("load lagana"). */
   'fuel-indent': { en: 'Fuel orders', hi: 'लोड ऑर्डर' },
+  /** ADR 0048. "स्टॉक" is the pump's own word for what is in the tanks. */
+  'stock-check': { en: 'Stock check', hi: 'टैंक का स्टॉक' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -216,6 +218,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'fuel-indent': {
     en: "fuel orders (indents) placed on IndianOil's portal for the owner after the owner says yes to the order read back in the chat, every order tracked, and the owners and manager told in the chat the moment a tanker is assigned, with its number and shipment time",
     hi: 'इंडियन ऑयल पोर्टल पर लोड ऑर्डर (इंडेंट) — चैट में ऑर्डर पढ़कर सुनाने के बाद मालिक की "हाँ" पर मालिक की ओर से लगाना, हर ऑर्डर पर नज़र रखना, और टैंकर लगते ही उसका नंबर और शिपमेंट का समय मालिकों और मैनेजर को चैट में बताना',
+  },
+  'stock-check': {
+    en: 'the fuel in each tank right now, read from IRAS whenever the owner or manager asks in the chat, and sent back as a card with each tank, its litres and the time of the reading',
+    hi: 'हर टैंक में अभी कितना तेल है — मालिक या मैनेजर के चैट में पूछते ही IRAS से निकालकर, हर टैंक, उसके लीटर और रीडिंग के समय के साथ कार्ड में',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

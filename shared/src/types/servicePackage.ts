@@ -1,5 +1,5 @@
 /**
- * The standard package: the twelve services every Indian Oil outlet gets, set up
+ * The standard package: the thirteen services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -17,7 +17,7 @@
  * resumes from that step.
  */
 
-/** The twelve services, in the order they are attached. */
+/** The thirteen services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -29,6 +29,9 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   // Owner, 18 Nov 2026: every outlet gets it. On demand only: it acknowledges a
   // tanker on SDMS when an owner or manager asks in the chat ("chalan bhar do").
   'tt-acknowledgement',
+  // Owner, 20 Nov 2026: every outlet gets it (ADR 0048). On demand only: it reads the
+  // tanks' stock from IRAS when an owner or manager asks in the chat ("stock kitna hai").
+  'stock-check',
   'dealer-declarations',
   'dsr-report',
   'load-planner',
@@ -191,7 +194,7 @@ export interface HpclInspectionInput {
 
 /** GET /dealers/:id/service-package */
 export interface ServicePackageState {
-  /** Whose package this outlet gets: Indian Oil's twelve services, or HPCL's own. */
+  /** Whose package this outlet gets: Indian Oil's thirteen services, or HPCL's own. */
   company: 'iocl' | 'hpcl';
   /** Null until the package has been started for this outlet. */
   setup: ServicePackageView | null;
