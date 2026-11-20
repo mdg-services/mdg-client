@@ -19,6 +19,7 @@ import type { AskAnswerHow } from '@/features/chat/MessageBubble';
 import { MessageInfoSheet } from '@/features/chat/MessageInfoSheet';
 import { MessageList } from '@/features/chat/MessageList';
 import { ReactionsSheet } from '@/features/chat/ReactionsSheet';
+import { withReaderPictures } from '@/features/chat/readerLanguage';
 import {
   buildReplyContext,
   replyPreview,
@@ -38,7 +39,7 @@ import { NothingToSendError, useSendMessage } from '@/hooks/api/useSendMessage';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { copyText } from '@/lib/clipboard';
 import { useAttachmentDownload } from '@/lib/downloadAttachment';
-import { useT } from '@/lib/i18n';
+import { useLang, useT } from '@/lib/i18n';
 import { postChatClose, postChatOpen } from '@/lib/nativeBridge';
 import type { OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useBackToClose } from '@/lib/useBackToClose';
@@ -200,9 +201,13 @@ export function ChatPage() {
     [reactMutate, userId],
   );
 
+  // Each reader sees a card in their own language (an English owner and a Hindi
+  // manager in one group): the message carries every reader's pictures, and this
+  // puts this reader's in `attachments` for everything below.
+  const readerLang = useLang();
   const messages = React.useMemo(
-    () => (messagesQuery.data?.pages ?? []).flat(),
-    [messagesQuery.data],
+    () => (messagesQuery.data?.pages ?? []).flat().map((m) => withReaderPictures(m, readerLang)),
+    [messagesQuery.data, readerLang],
   );
 
   // Where each request MDG posted here stands — what its button, "Sent" or

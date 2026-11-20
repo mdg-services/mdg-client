@@ -1,4 +1,5 @@
 import type { Conversation, Message, MessageReaction } from './conversation';
+import type { DealerLang, SomeDealerWords } from './dealerLanguage';
 import type { DealerDocumentAskRow } from './documentAsk';
 import type { WhatsAppChangedEvent, WhatsAppIncomingEvent } from './whatsappInbox';
 
@@ -23,6 +24,19 @@ export interface ServerToClientEvents {
     /** Which attachment of the message: the voice note's storage key. */
     storageKey: string;
     transcript: string;
+  }) => void;
+  /**
+   * A message from MDG (a team member or the assistant) was translated for the
+   * chat's readers (`Message.bodyByLang` / `bodyLang`). The message went out at
+   * once in the writer's language; this arrives a few seconds later and each open
+   * app switches it to its reader's language. Sent to the conversation's room and
+   * to every dealer participant's own room.
+   */
+  'message:translated': (payload: {
+    conversationId: string;
+    messageId: string;
+    bodyLang: DealerLang;
+    bodyByLang: SomeDealerWords;
   }) => void;
   'conversation:updated': (payload: { conversation: Conversation }) => void;
   /**

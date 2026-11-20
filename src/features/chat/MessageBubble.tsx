@@ -26,6 +26,7 @@ import { DeclarationsBox } from './Declarations/DeclarationsBox';
 import { DuOtpAckBox } from './DuOtpAckBox';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
+import { readerBody } from './readerLanguage';
 import { replyPreview, replySenderLabel } from './replyContext';
 import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
@@ -422,6 +423,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   const longPress = useLongPress(() => onLongPress?.(message), {
     disabled: !onLongPress || pending,
   });
+  // The reader's tap on "See original" under a translated message.
+  const [showOriginal, setShowOriginal] = React.useState(false);
 
   // The retired services question: nothing left to answer, so nothing is drawn.
   // (After the hooks above, so the order they run in never changes.)
@@ -429,8 +432,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
   const { images, voices, videos, docs } = splitAttachments(message.attachments);
-  // MDG's notices carry every language; each reader sees their own (co-owners may differ).
-  const body = message.bodyByLang ? sayIn(message.bodyByLang, lang) || message.body : message.body;
+  // MDG's notices carry every language, and what MDG's team or assistant wrote is
+  // translated for each reader: each sees their own (owner and manager may differ).
+  const shownBody = readerBody(message, lang, showOriginal);
+  const body = shownBody.text;
+  // "Translated · See original", or "Original · See translation" after the tap.
+  const canSwitch = shownBody.translated || (showOriginal && !!message.bodyLang && message.bodyLang !== lang);
   const hasBody = !!body;
   const hasMedia = images.length > 0;
   const hasOther = voices.length > 0 || videos.length > 0 || docs.length > 0;
@@ -657,6 +664,22 @@ export const MessageBubble = React.memo(function MessageBubble({
               )}
             >
               {richText(body!, { highlight })}
+              {canSwitch ? (
+                <button
+                  type="button"
+                  data-testid="translated-toggle"
+                  // A tap on the label must not start a reply swipe or select the message.
+                  data-no-swipe
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowOriginal((v) => !v);
+                  }}
+                  className="-ml-1 mt-0.5 flex min-h-8 items-center rounded-md px-1 text-[12px] font-medium text-wa-meta active:bg-black/10"
+                >
+                  {showOriginal ? t('chat.originalSeeTranslation') : t('chat.translatedSeeOriginal')}
+                </button>
+              ) : null}
               {/* The trailing spacer: as wide as the time and ticks that sit in
                   the bubble's bottom-right corner, so the last line of words
                   stops short of them — or wraps to a line of its own when it

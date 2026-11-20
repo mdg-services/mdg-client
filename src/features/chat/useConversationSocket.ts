@@ -393,12 +393,42 @@ export function useConversationSocket(
       );
     };
 
+    // WHAT MDG WROTE, NOW IN EACH READER'S LANGUAGE (20 Nov 2026). The message is
+    // already on screen in the writer's words; this adds the translations, and the
+    // bubble switches to this reader's. A message that is not in the cache is left
+    // alone: it brings its translations with it on its next load.
+    const onTranslated = (payload: {
+      conversationId: string;
+      messageId: string;
+      bodyLang: Message['bodyLang'];
+      bodyByLang: NonNullable<Message['bodyByLang']>;
+    }) => {
+      if (payload.conversationId !== conversationId) return;
+      qc.setQueryData<InfiniteData<Message[]>>(
+        messagesQueryKey(conversationId),
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) =>
+              page.map((m) =>
+                m.id === payload.messageId
+                  ? { ...m, bodyLang: payload.bodyLang, bodyByLang: payload.bodyByLang }
+                  : m,
+              ),
+            ),
+          };
+        },
+      );
+    };
+
     socket.on('message:new', onNewMessage);
     socket.on('typing', onTyping);
     socket.on('delivered', onDelivered);
     socket.on('read', onRead);
     socket.on('message:reaction', onReaction);
     socket.on('message:transcript', onTranscript);
+    socket.on('message:translated', onTranslated);
 
     return () => {
       socket.emit('conversation:leave', conversationId);
@@ -410,6 +440,7 @@ export function useConversationSocket(
       socket.off('read', onRead);
       socket.off('message:reaction', onReaction);
       socket.off('message:transcript', onTranscript);
+      socket.off('message:translated', onTranslated);
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = null;
       for (const timer of recheckTimers) window.clearTimeout(timer);

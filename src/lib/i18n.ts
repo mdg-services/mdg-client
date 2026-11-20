@@ -1318,6 +1318,9 @@ export const messages = {
   'chat.transcript': { en: 'Transcript', hi: 'लिखा हुआ' },
   'chat.transcriptMore': { en: 'Show more', hi: 'और दिखाइए' },
   'chat.transcriptLess': { en: 'Show less', hi: 'कम दिखाइए' },
+  // Under a message MDG's team or assistant wrote in another language (20 Nov 2026).
+  'chat.translatedSeeOriginal': { en: 'Translated · See original', hi: 'अनुवाद किया गया · असली देखें' },
+  'chat.originalSeeTranslation': { en: 'Original · See translation', hi: 'असली संदेश · अनुवाद देखें' },
   'chat.voiceFailed': {
     en: "Couldn't play. Tap to try again",
     hi: 'चल नहीं सका। दोबारा दबाइए',

@@ -593,6 +593,8 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'chat.transcript': 'Likha hua',
   'chat.transcriptMore': 'Aur dikhaiye',
   'chat.transcriptLess': 'Kam dikhaiye',
+  'chat.translatedSeeOriginal': 'Anuvaad kiya gaya · Asli dekhiye',
+  'chat.originalSeeTranslation': 'Asli message · Anuvaad dekhiye',
   'chat.voiceFailed': 'Chal nahi saka. Dobara dabaiye',
   'chat.voiceUnplayable': 'Yeh phone yeh voice message nahi chala sakta.',
   'chat.askSendPhoto': 'Photo bhejiye',

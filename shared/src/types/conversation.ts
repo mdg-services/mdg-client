@@ -1,6 +1,6 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
 import type { MessageAsk } from './chatAsk';
-import type { SomeDealerWords } from './dealerLanguage';
+import type { DealerLang, SomeDealerWords } from './dealerLanguage';
 import type { MessageAnnouncement } from './announcement';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
@@ -314,7 +314,24 @@ export interface Message {
    * `body` stays the copy in the chat's planned language (admin inbox, search).
    */
   bodyByLang?: SomeDealerWords;
+  /**
+   * Set when `bodyByLang` holds a MACHINE TRANSLATION of words a person (or MDG's
+   * assistant) wrote: the language they were written in. `body` and
+   * `bodyByLang[bodyLang]` are the writer's own words. A reader whose language is
+   * different reads their own from `bodyByLang`, labelled "Translated", with a tap
+   * back to the original. Absent on MDG's notices, which are WRITTEN in every
+   * language rather than translated.
+   */
+  bodyLang?: DealerLang;
   attachments: Attachment[];
+  /**
+   * The same pictures drawn in each reader's language (a card drawn once in
+   * English and once in Hindi), set when the people who read this chat chose
+   * different languages — an English owner and a Hindi manager in the manager
+   * group. Each app shows its reader's list, else `attachments`, which is the
+   * chat's planned language and what the admin inbox shows.
+   */
+  attachmentsByLang?: Partial<Record<DealerLang, Attachment[]>>;
   /**
    * Posted by MDG's machinery rather than typed by a person — a shared report,
    * a daily Kavach line, a "Resolved" notice. The dealer app draws it exactly
