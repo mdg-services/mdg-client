@@ -93,6 +93,9 @@ export const SETUP_SERVICE_IDS = [
   // ADR 0041, live 14 Nov 2026. Here so the Fuel Orders guide video can say which
   // service it explains; this list is read by nothing else today.
   'fuel-indent',
+  // ADR 0048, live 20 Nov 2026. Here so the Stock check guide video can say which
+  // service it explains, as for Fuel Orders.
+  'stock-check',
 ] as const;
 export type SetupServiceId = (typeof SETUP_SERVICE_IDS)[number];
 
