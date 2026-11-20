@@ -107,6 +107,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'fuel-indent': { en: 'Fuel orders', hi: 'लोड ऑर्डर' },
   /** ADR 0048. "स्टॉक" is the pump's own word for what is in the tanks. */
   'stock-check': { en: 'Stock check', hi: 'टैंक का स्टॉक' },
+  /** ADR 0049. The portal's own name for the page ("Electrical Audit Compliance"). */
+  'electrical-audit': { en: 'Electrical audit compliance', hi: 'इलेक्ट्रिकल ऑडिट कंप्लायंस' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -114,7 +116,10 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
    */
   'sdms-password-reset': { en: 'Forgot SDMS password', hi: 'SDMS पासवर्ड भूल गए' },
   /** The same for the old SDMS login (IndianOil's "Business Login"), asked only on demand. */
-  'sdms-old-password-reset': { en: 'Forgot old SDMS password', hi: 'पुराने SDMS का पासवर्ड भूल गए' },
+  'sdms-old-password-reset': {
+    en: 'Forgot old SDMS password',
+    hi: 'पुराने SDMS का पासवर्ड भूल गए',
+  },
 };
 
 /**
@@ -196,7 +201,7 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     hi: 'कोई भी और काम जो मालिक MDG से करवाना चाहें',
   },
   'calibration-claim': {
-    en: "the yearly calibration subsidy, claimed from IndianOil for the owner",
+    en: 'the yearly calibration subsidy, claimed from IndianOil for the owner',
     hi: 'सालाना कैलिब्रेशन की सब्सिडी, मालिक की ओर से इंडियन ऑयल से क्लेम',
   },
   'du-otp-acknowledgement': {
@@ -222,6 +227,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'stock-check': {
     en: 'the fuel in each tank right now, read from IRAS whenever the owner or manager asks in the chat, and sent back as a card with each tank, its litres and the time of the reading',
     hi: 'हर टैंक में अभी कितना तेल है — मालिक या मैनेजर के चैट में पूछते ही IRAS से निकालकर, हर टैंक, उसके लीटर और रीडिंग के समय के साथ कार्ड में',
+  },
+  'electrical-audit': {
+    en: "the open points of IndianOil's electrical audit closed on the portal for the owner when the owner or manager asks in the chat: every point marked complied with the action taken as done, saved and submitted, and what was filed told in the chat",
+    hi: 'इंडियन ऑयल के इलेक्ट्रिकल ऑडिट के खुले पॉइंट — मालिक या मैनेजर के चैट में कहते ही पोर्टल पर हर पॉइंट "Yes" और कार्रवाई "Done" भरकर सेव और सबमिट करना, और क्या जमा हुआ वह चैट में बताना',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",
