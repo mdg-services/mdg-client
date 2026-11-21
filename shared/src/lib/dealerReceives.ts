@@ -41,7 +41,7 @@ export type MoneyAction =
       /** "Send the link by SMS" is ticked. */
       sendLink: boolean;
       amountPaise: number;
-      /** A "Subscription" payment with a due day on a new-onboarding outlet: the WhatsApp reminders apply. */
+      /** A "Subscription" payment with a due day on a new-onboarding outlet: the in-app reminders apply. */
       remindersApply: boolean;
     }
   | {
@@ -282,7 +282,7 @@ export function dealerReceives(action: MoneyAction): DealerReceivesPreview {
       });
       notes.push(
         action.remindersApply
-          ? 'If it is still unpaid after the due day, WhatsApp reminders go on day 1, 3 and 7, when the WhatsApp bill template is on and the owner agreed to WhatsApp.'
+          ? "If it is still unpaid after the due day, a short reminder goes in the owners' app chat on day 1, 3 and 7 — no amount, no link, never on WhatsApp."
           : 'No reminders are sent for this payment.',
       );
       break;
