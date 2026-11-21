@@ -12,6 +12,12 @@ export interface ServerToClientEvents {
     reactions: MessageReaction[];
   }) => void;
   /**
+   * A super admin deleted a message (`DELETE /conversations/:id/messages/:messageId`).
+   * Every open thread drops it. Sent to the conversation's room and to every dealer
+   * participant's own room; a thread that is not open simply never loads it again.
+   */
+  'message:deleted': (payload: { conversationId: string; messageId: string }) => void;
+  /**
    * A voice note's transcript was saved (`Attachment.transcript`). The note was
    * already on screen, and a repeated `message:new` is ignored as a duplicate, so
    * this is how an open thread learns the words. Sent to the conversation's room

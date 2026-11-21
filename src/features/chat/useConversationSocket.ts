@@ -422,7 +422,25 @@ export function useConversationSocket(
       );
     };
 
+    // MDG DELETED A MESSAGE (a super admin, from the inbox). It leaves the open
+    // thread at once; a thread that is not open never loads it again.
+    const onDeleted = (payload: { conversationId: string; messageId: string }) => {
+      if (payload.conversationId !== conversationId) return;
+      qc.setQueryData<InfiniteData<Message[]>>(
+        messagesQueryKey(conversationId),
+        (old) => {
+          if (!old) return old;
+          if (!old.pages.some((p) => p.some((m) => m.id === payload.messageId))) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page) => page.filter((m) => m.id !== payload.messageId)),
+          };
+        },
+      );
+    };
+
     socket.on('message:new', onNewMessage);
+    socket.on('message:deleted', onDeleted);
     socket.on('typing', onTyping);
     socket.on('delivered', onDelivered);
     socket.on('read', onRead);
@@ -435,6 +453,7 @@ export function useConversationSocket(
       socket.off('connect', join);
       offReconnect();
       socket.off('message:new', onNewMessage);
+      socket.off('message:deleted', onDeleted);
       socket.off('typing', onTyping);
       socket.off('delivered', onDelivered);
       socket.off('read', onRead);

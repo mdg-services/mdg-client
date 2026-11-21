@@ -132,6 +132,8 @@ export const AUDIT_ACTIONS = [
   // An admin's message (a file, usually) sent to the whole outlet — every
   // owner, the manager, or both — instead of to the one chat they were in.
   'CHAT_MESSAGE_SHARED',
+  // A super admin deleted a message from a chat. The audit row keeps what it said.
+  'CHAT_MESSAGE_DELETED',
   // Asks in the chat (ADR 0019): an admin marked a dealer's chat photo as
   // received for a request, or sent it back with a reason.
   'CHAT_ASK_RECEIVED',
