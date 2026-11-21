@@ -5,16 +5,16 @@
  * The server works the start-up figures out from the portals — the pump's day
  * close, how far back the credit ledger must be read, the litres delivered since
  * the inspection — attaches each service with the same schedule every other
- * outlet runs on, and runs each once. Nothing reaches the dealer or writes to a
- * portal before the team presses Start services: tanker density (which messages
- * the dealer), water-test filing (which writes to the portal), DU OTP
- * acknowledgements (which message the dealer when an event appears) and TT
- * acknowledgement (which acknowledges tankers on SDMS when the outlet asks) are
- * attached PAUSED and switched on by Start services.
+ * outlet runs on, and runs each once. The services that act for the dealer
+ * (tanker density, water-test filing, DU OTP and TT acknowledgement,
+ * declarations, fuel orders) are attached PAUSED and switched on when the
+ * services start — since ADR 0050 that is the minute both logins work, by
+ * itself; the two-day watch still holds every message they would send for a
+ * person to look at first.
  *
  * The admin reads progress as a list of steps, each in plain words. A step that
- * cannot go on says why in one sentence and what a person has to do; "Try again"
- * resumes from that step.
+ * cannot finish is looked at by the setup's watch: a passing cause is tried again
+ * by itself, and only what needs a person says what to do, with "Try again".
  */
 
 /** The thirteen services, in the order they are attached. */
@@ -109,9 +109,29 @@ export const HPCL_PACKAGE_STEP_LABELS: Record<ServicePackageStepKey, string> = {
 };
 
 /**
- * - `pending`  not reached yet
+ * What each step needs finished (done or skipped) before it can run (ADR 0050). A step
+ * that waits or needs a person stops only the steps that name it here; the rest carry
+ * on. The same for an HPCL pump, whose own order still keeps every need first.
+ */
+export const SERVICE_PACKAGE_STEP_NEEDS: Record<ServicePackageStepKey, readonly ServicePackageStepKey[]> = {
+  logins: [],
+  basic: ['logins'],
+  inspection: ['logins'],
+  shift_time: ['logins'],
+  credit: ['logins'],
+  shift_days: ['shift_time'],
+  invoices: ['inspection'],
+  ledger_check: ['invoices'],
+  dsr: ['inspection', 'shift_days', 'invoices', 'ledger_check'],
+  planner: ['dsr'],
+  first_runs: ['basic'],
+};
+
+/**
+ * - `pending`  not reached yet (or waiting for a step it needs)
  * - `running`  working now
- * - `waiting`  waiting on something outside the server (a login not saved yet); checked again by itself
+ * - `waiting`  waiting on something outside the server (a login, readings not on the portal yet);
+ *              tried again by itself at `retryAt`
  * - `blocked`  cannot go on until a person acts; the message says what to do
  * - `done`     finished (it may still carry notes worth reading)
  * - `skipped`  nothing to do (the service was already attached)
@@ -128,10 +148,10 @@ export type ServicePackageStepState = (typeof SERVICE_PACKAGE_STEP_STATES)[numbe
 
 /**
  * - `running`   steps are being worked through
- * - `waiting`   a step waits on the dealer (a login); re-checked every few minutes
+ * - `waiting`   a step waits on something outside the server; tried again by itself
  * - `blocked`   a step needs a person; "Try again" resumes it
- * - `ready`     every step is done: review, then press Start services
- * - `released`  Start services was pressed and the held services were switched on
+ * - `ready`     every step is done
+ * - `released`  every step is done and the services have started
  */
 export const SERVICE_PACKAGE_STATUSES = [
   'running',
@@ -154,6 +174,47 @@ export interface ServicePackageStepView {
   finishedAt: string | null;
   /** For a long step: how far through it is ("52 of 148 invoices"). */
   progress: { done: number; total: number } | null;
+  /** A waiting step: when it is tried again by itself. */
+  retryAt: string | null;
+  /** How many times the step has been tried since it was last started by a person. */
+  tries: number;
+  /** What the setup's watch made of a step that could not finish; null for one that did. */
+  watch: SetupWatchNote | null;
+  /** The steps this one waits for, by label; empty when it does not wait for any. */
+  waitsFor: string[];
+}
+
+/**
+ * The setup's watch over a step that could not finish (ADR 0050):
+ *
+ * - `retrying`     a passing cause (readings not on the portal yet, a portal that did not
+ *                  answer); the setup tries again by itself
+ * - `needs_dealer` only the dealer can give what is missing (a login the portal refused)
+ * - `needs_team`   a person at MDG has to look; `action` says what
+ * - `fine`         nothing is wrong
+ */
+export const SETUP_WATCH_VERDICTS = ['retrying', 'needs_dealer', 'needs_team', 'fine'] as const;
+export type SetupWatchVerdict = (typeof SETUP_WATCH_VERDICTS)[number];
+
+export interface SetupWatchNote {
+  verdict: SetupWatchVerdict;
+  /** One plain sentence: what happened. */
+  headline: string;
+  /** One plain sentence: what a person should do; null when nobody has to do anything. */
+  action: string | null;
+  /** Who judged it: the fixed rules for known passing causes, or the AI. */
+  by: 'rules' | 'ai';
+  at: string;
+}
+
+/** The AI's read of what the finished steps noted: things worth a look, one line each. */
+export interface SetupReview {
+  /** `look` when at least one point is worth a person's eye. */
+  verdict: 'fine' | 'look';
+  headline: string;
+  points: string[];
+  by: 'rules' | 'ai';
+  at: string;
 }
 
 export interface ServicePackageView {
@@ -169,6 +230,8 @@ export interface ServicePackageView {
   releasedAt: string | null;
   /** What the server worked out, one plain line each ("The pump closes its day at 06:30"). */
   found: Array<{ label: string; value: string }>;
+  /** The AI's read of the finished setup's notes; null until every step is done. */
+  review: SetupReview | null;
 }
 
 /**
@@ -208,4 +271,13 @@ export interface ServicePackageState {
   cannotStart: string | null;
   /** HPCL only: the last inspection typed from the owner's report. Null for Indian Oil. */
   inspection: HpclInspectionEntry | null;
+  /** When the outlet's services started (by a person or by themselves); null while they have not. */
+  servicesStartedAt: string | null;
+  /**
+   * Whether the services start by themselves the minute the logins work (ADR 0050):
+   * `soon` they will; `off` the switch is off on the server; `served` the outlet has been
+   * served for days without ever being started, so the team decides; `not_iocl` the
+   * outlet is not Indian Oil and starts by a person's press. Null once they have started.
+   */
+  autoStart: 'soon' | 'off' | 'served' | 'not_iocl' | null;
 }

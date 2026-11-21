@@ -411,6 +411,17 @@ export const SETUP_CHECKLIST_KEYS = [
 ] as const;
 export type SetupChecklistKey = (typeof SETUP_CHECKLIST_KEYS)[number];
 
+/**
+ * The lines a start waits for (ADR 0050). The other two — the DSR's starting figures
+ * and a first run that went well — are what the setup prepares AFTER the services
+ * start, so they are shown as "getting ready" and never stop a start.
+ */
+export const SETUP_START_GATE_KEYS: readonly SetupChecklistKey[] = [
+  'logins_working',
+  'services_attached',
+  'kavach_started',
+];
+
 /** One line of the "ready to start?" checklist the team sees before Start services. */
 export interface SetupChecklistItem {
   key: SetupChecklistKey;
