@@ -1,5 +1,5 @@
 /**
- * The standard package: the thirteen services every Indian Oil outlet gets, set up
+ * The standard package: the fourteen services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -17,7 +17,7 @@
  * by itself, and only what needs a person says what to do, with "Try again".
  */
 
-/** The thirteen services, in the order they are attached. */
+/** The fourteen services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -32,6 +32,9 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   // Owner, 20 Nov 2026: every outlet gets it (ADR 0048). On demand only: it reads the
   // tanks' stock from IRAS when an owner or manager asks in the chat ("stock kitna hai").
   'stock-check',
+  // Owner, 21 Nov 2026: every outlet gets it (ADR 0049). On demand only: it closes the
+  // open SDMS Electrical Audit points when an owner or manager asks in the chat.
+  'electrical-audit',
   'dealer-declarations',
   'dsr-report',
   'load-planner',
@@ -113,7 +116,10 @@ export const HPCL_PACKAGE_STEP_LABELS: Record<ServicePackageStepKey, string> = {
  * that waits or needs a person stops only the steps that name it here; the rest carry
  * on. The same for an HPCL pump, whose own order still keeps every need first.
  */
-export const SERVICE_PACKAGE_STEP_NEEDS: Record<ServicePackageStepKey, readonly ServicePackageStepKey[]> = {
+export const SERVICE_PACKAGE_STEP_NEEDS: Record<
+  ServicePackageStepKey,
+  readonly ServicePackageStepKey[]
+> = {
   logins: [],
   basic: ['logins'],
   inspection: ['logins'],
@@ -257,7 +263,7 @@ export interface HpclInspectionInput {
 
 /** GET /dealers/:id/service-package */
 export interface ServicePackageState {
-  /** Whose package this outlet gets: Indian Oil's thirteen services, or HPCL's own. */
+  /** Whose package this outlet gets: Indian Oil's fourteen services, or HPCL's own. */
   company: 'iocl' | 'hpcl';
   /** Null until the package has been started for this outlet. */
   setup: ServicePackageView | null;
