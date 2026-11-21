@@ -1070,7 +1070,6 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'yourVideos.mine': 'Aapki services',
   'yourVideos.more': 'Aur bhi available',
   'yourVideos.progress': '{total} mein se {done} dekhe',
-  'yourVideos.tryThis': 'Aise likhein ya bolein',
   'yourVideos.play': '{title} dekhein',
   'yourVideos.playWatched': '{title} phir dekhein — dekh chuke hain',
   'yourVideos.watched': 'Dekh liya',

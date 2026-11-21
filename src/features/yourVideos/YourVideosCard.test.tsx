@@ -130,6 +130,48 @@ describe('the "your videos" list in the chat', () => {
     expect(screen.getByText('Fuel orders from the chat')).toBeTruthy();
   });
 
+  it('draws each video’s poster as its thumbnail, a plain play block when there is none, and a green tick once watched', async () => {
+    serve({
+      mine: [
+        { ...VIEW.mine[0]!, posterUrl: 'https://bucket.test/guides/fuel.webp?sig=1' },
+        { ...VIEW.mine[1]!, posterUrl: null },
+      ],
+      more: [],
+    });
+    list();
+    const fuel = await rowOf('svc_fuel_orders');
+    const picture = fuel.querySelector('img');
+    expect(picture?.getAttribute('src')).toBe('https://bucket.test/guides/fuel.webp?sig=1');
+    // The watched one has no poster: no picture, but the tick is there, and it is green.
+    const dsr = await rowOf('svc_dsr');
+    expect(dsr.querySelector('img')).toBeNull();
+    expect(within(dsr).getByTestId('your-video-tick').className).toContain('bg-green-600');
+    expect(within(fuel).queryByTestId('your-video-tick')).toBeNull();
+    // A poster link that has gone stale falls back to the plain block instead of a broken picture.
+    fireEvent.error(picture!);
+    await waitFor(() => expect(fuel.querySelector('img')).toBeNull());
+  });
+
+  it('shows at most two sentences a row, one line each, so a row stays short', async () => {
+    serve({
+      mine: [
+        row('svc_fuel_orders', {
+          examples: [
+            { hl: 'Sentence one', hi: 'एक', en: 'One' },
+            { hl: 'Sentence two', hi: 'दो', en: 'Two' },
+            { hl: 'Sentence three', hi: 'तीन', en: 'Three' },
+          ],
+        }),
+      ],
+      more: [],
+    });
+    list('hl');
+    await rowOf('svc_fuel_orders');
+    expect(screen.getByText('“Sentence one”')).toBeTruthy();
+    expect(screen.getByText('“Sentence two”')).toBeTruthy();
+    expect(screen.queryByText('“Sentence three”')).toBeNull();
+  });
+
   it('plays the video inside the app, in the full-screen player, from the list', async () => {
     serve(VIEW);
     list();

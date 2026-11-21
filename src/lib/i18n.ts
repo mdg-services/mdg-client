@@ -2421,7 +2421,6 @@ export const messages = {
   'yourVideos.mine': { en: 'Your services', hi: 'आपकी सेवाएं' },
   'yourVideos.more': { en: 'Also available', hi: 'और भी उपलब्ध' },
   'yourVideos.progress': { en: '{done} of {total} watched', hi: '{total} में से {done} देखे' },
-  'yourVideos.tryThis': { en: 'Type or say', hi: 'ऐसे लिखें या बोलें' },
   'yourVideos.play': { en: 'Watch {title}', hi: '{title} देखें' },
   'yourVideos.playWatched': { en: 'Watch {title} again — already watched', hi: '{title} फिर देखें — देख चुके हैं' },
   'yourVideos.watched': { en: 'Watched', hi: 'देख लिया' },

@@ -55,6 +55,11 @@ export interface YourVideoRow {
   service: string;
   /** Sentences the dealer can type or say to this service, each in every language it is written in. */
   examples: SomeDealerWords[];
+  /**
+   * A picture of the video to show as its thumbnail: a signed, short-lived link to the poster in the
+   * bucket, or null when it is not there (the app then draws a plain play mark). Absent from an older server.
+   */
+  posterUrl?: string | null;
   /** This reader has played enough of it. */
   watched: boolean;
   watchedAt: string | null;

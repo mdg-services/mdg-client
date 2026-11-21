@@ -13,6 +13,9 @@ import { sayIn, type YourVideoRow } from '@dk/shared/types';
 
 import { useYourVideos } from './useYourVideos';
 
+/** A row shows this many of its sentences, one line each; the video shows the rest. */
+const MAX_EXAMPLES_SHOWN = 2;
+
 /**
  * The "your videos" list inside an MDG message (`message.videoList`): a short video for
  * each service, the sentences the dealer can type or say to that service, and a tick on
@@ -98,7 +101,46 @@ function Group({
   );
 }
 
-/** One video: the tick (or a play mark), its title, how long it is, and the sentences to try. */
+/**
+ * The video's thumbnail: its poster, with a play mark on it, and a green tick on its corner once the
+ * person has watched it. A poster that is not there (not uploaded yet, an older server) or whose link
+ * has gone stale draws a plain block with the play mark, so a row never shows a broken picture.
+ */
+function Thumb({ posterUrl, watched }: { posterUrl: string | null | undefined; watched: boolean }) {
+  const [broken, setBroken] = React.useState(false);
+  return (
+    <span className="relative h-[72px] w-[40px] shrink-0">
+      <span className="absolute inset-0 overflow-hidden rounded-md bg-neutral-soft">
+        {posterUrl && !broken ? (
+          <img
+            src={posterUrl}
+            alt=""
+            draggable={false}
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="h-full w-full object-cover"
+          />
+        ) : null}
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white">
+            <Play width={11} height={11} strokeWidth={2.5} className="ml-px fill-current" aria-hidden />
+          </span>
+        </span>
+      </span>
+      {watched ? (
+        <span
+          aria-hidden
+          data-testid="your-video-tick"
+          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-white ring-2 ring-wa-row-active"
+        >
+          <Check width={12} height={12} strokeWidth={3.5} />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** One video: its thumbnail (ticked once watched), title and length, and the first sentences to try. */
 function VideoRowButton({
   row,
   lang,
@@ -119,35 +161,23 @@ function VideoRowButton({
         data-testid={`your-video-${row.id}`}
         data-watched={row.watched ? 'true' : 'false'}
         aria-label={t(row.watched ? 'yourVideos.playWatched' : 'yourVideos.play', { title })}
-        className="flex min-h-[44px] w-full items-start gap-2.5 rounded-md px-2.5 py-2 text-left active:opacity-80"
+        className="flex min-h-[44px] w-full items-center gap-3 rounded-md px-2.5 py-2 text-left active:opacity-80"
       >
-        <span
-          aria-hidden
-          data-testid={row.watched ? 'your-video-tick' : undefined}
-          className={cn(
-            'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-            row.watched ? 'bg-wa-accent text-white' : 'bg-wa-accent/10 text-wa-accent',
-          )}
-        >
-          {row.watched ? (
-            <Check width={16} height={16} strokeWidth={3} />
-          ) : (
-            <Play width={14} height={14} strokeWidth={2.25} />
-          )}
-        </span>
+        <Thumb posterUrl={row.posterUrl} watched={row.watched} />
         <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className="text-[15px] font-medium leading-snug text-wa-bubble-text">{title}</span>
+          <span className="flex items-start gap-2">
+            <span className="line-clamp-2 text-[14px] font-medium leading-snug text-wa-bubble-text">{title}</span>
             {length ? (
-              <span className="ml-auto shrink-0 text-[12px] tabular-nums text-wa-meta">{length}</span>
+              <span className="ml-auto shrink-0 pt-px text-[12px] tabular-nums text-wa-meta">{length}</span>
             ) : null}
           </span>
           {row.watched ? (
-            <span className="block text-[12px] font-medium text-wa-accent">{t('yourVideos.watched')}</span>
+            <span className="block text-[12px] font-medium leading-tight text-green-700">
+              {t('yourVideos.watched')}
+            </span>
           ) : null}
-          <span className="mt-1 block text-[12px] text-wa-meta">{t('yourVideos.tryThis')}</span>
-          {row.examples.map((example, i) => (
-            <span key={i} className="mt-0.5 block text-[14px] leading-snug text-wa-bubble-text">
+          {row.examples.slice(0, MAX_EXAMPLES_SHOWN).map((example, i) => (
+            <span key={i} className="mt-0.5 block truncate text-[13px] leading-snug text-wa-meta">
               “{sayIn(example, lang)}”
             </span>
           ))}
