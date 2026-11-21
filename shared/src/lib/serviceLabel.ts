@@ -72,6 +72,7 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'hpcl-inspection-reports': { en: 'HPCL inspection reports', hi: 'HPCL इंस्पेक्शन रिपोर्ट' },
   /** The book on the desk, per docs/specs/tt-density-ux.md §2. */
   'tt-density': { en: 'TT Density', hi: 'डेंसिटी रजिस्टर' },
+  'tanker-documents': { en: 'Tanker documents', hi: 'टैंकर के काग़ज़' },
   /** "Ingress" is an inspection form's word. The dealer's word is water in the tank. */
   'water-ingress-testing': { en: 'Water ingress testing', hi: 'टैंक में पानी की जाँच' },
   /**

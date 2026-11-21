@@ -40,7 +40,6 @@ export * from './film';
 export * from './adminAlert';
 export * from './adminAction';
 export * from './tankerDocument';
-export * from './browserRun';
 export * from './kkSignin';
 export * from './whatsapp';
 export * from './whatsappInbox';
