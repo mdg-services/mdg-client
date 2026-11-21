@@ -2414,6 +2414,18 @@ export const messages = {
   'outletDetails.no': { en: 'No', hi: 'नहीं' },
   'outletDetails.pick': { en: 'Choose', hi: 'चुनिए' },
   'outletDetails.notAnswered': { en: 'Not answered', hi: 'अभी भरा नहीं है' },
+  /* ── Your videos (आपके वीडियो) ────────────────────────────────────────── */
+  // The list MDG puts in the chat: a video for each service and the sentences to type to it.
+  // The videos' own titles and the sentences come from the server with each read.
+  'yourVideos.title': { en: 'Your videos', hi: 'आपके वीडियो' },
+  'yourVideos.mine': { en: 'Your services', hi: 'आपकी सेवाएं' },
+  'yourVideos.more': { en: 'Also available', hi: 'और भी उपलब्ध' },
+  'yourVideos.progress': { en: '{done} of {total} watched', hi: '{total} में से {done} देखे' },
+  'yourVideos.tryThis': { en: 'Type or say', hi: 'ऐसे लिखें या बोलें' },
+  'yourVideos.play': { en: 'Watch {title}', hi: '{title} देखें' },
+  'yourVideos.playWatched': { en: 'Watch {title} again — already watched', hi: '{title} फिर देखें — देख चुके हैं' },
+  'yourVideos.watched': { en: 'Watched', hi: 'देख लिया' },
+  'yourVideos.empty': { en: 'No videos yet', hi: 'अभी कोई वीडियो नहीं है' },
   /* ── payments (ADR 0022) ─────────────────────────────────────────────── */
   // What MDG has asked this pump to pay, and what it has paid. Written to be
   // true wherever the screen runs: the same words are shown inside the Android

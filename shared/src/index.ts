@@ -68,6 +68,7 @@ export * from './lib/videoSearch';
 // The words a guide video goes out with on WhatsApp: the server sends them, the
 // admin's "Send a video" shows them before the send.
 export * from './lib/videoCaption';
+export * from './lib/yourVideos';
 // The mobile number a person signs in with: the app's sign-in, the admin's Add member,
 // the member routes and an approved registration all hold a number to this one rule.
 export * from './lib/mobile';

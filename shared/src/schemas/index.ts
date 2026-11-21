@@ -35,3 +35,4 @@ export * from './declarations';
 export * from './outletDetails';
 export * from './extension';
 export * from './announcement';
+export * from './yourVideos';

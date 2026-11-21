@@ -4,13 +4,14 @@ import * as React from 'react';
 import { Spinner } from '@/components/ui';
 import { useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
+import { useWatchReport } from '@/features/yourVideos/useYourVideos';
 
 import { playableSrc } from './helpView';
 import { fetchGuideVideoPlay } from './useGuideVideos';
 
 type Phase =
   | { kind: 'loading' }
-  | { kind: 'ready'; url: string; startSec: number }
+  | { kind: 'ready'; url: string; startSec: number; durationMs: number }
   | { kind: 'failed' };
 
 /**
@@ -43,13 +44,20 @@ export function GuideVideoSheet({
   const [phase, setPhase] = React.useState<Phase>({ kind: 'loading' });
   const [attempt, setAttempt] = React.useState(0);
   const refreshed = React.useRef(false);
+  // The seconds the person really plays are counted, and the video is ticked in their
+  // "your videos" list once enough of it was played (`useWatchReport`). Never shown here.
+  const watch = useWatchReport({ videoId: id }, phase.kind === 'ready' ? phase.durationMs : undefined);
+  const { flush } = watch;
+  React.useEffect(() => flush, [flush]);
 
   React.useEffect(() => {
     let cancelled = false;
     setPhase({ kind: 'loading' });
     fetchGuideVideoPlay(id, startSec).then(
       (play) => {
-        if (!cancelled) setPhase({ kind: 'ready', url: play.url, startSec: play.startSec });
+        if (!cancelled) {
+          setPhase({ kind: 'ready', url: play.url, startSec: play.startSec, durationMs: play.durationMs });
+        }
       },
       () => {
         if (!cancelled) setPhase({ kind: 'failed' });
@@ -112,6 +120,10 @@ export function GuideVideoSheet({
             controlsList="nodownload noremoteplayback"
             aria-label={title}
             onError={onVideoError}
+            onTimeUpdate={watch.onTimeUpdate}
+            onSeeking={watch.onSeeking}
+            onPause={watch.onPause}
+            onEnded={watch.onEnded}
             className="absolute inset-0 h-full w-full object-contain"
           />
         ) : null}

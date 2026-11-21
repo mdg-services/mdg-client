@@ -46,6 +46,12 @@ export interface ServerToClientEvents {
   }) => void;
   'conversation:updated': (payload: { conversation: Conversation }) => void;
   /**
+   * This person played a guide video far enough for it to count as watched
+   * (`POST /me/your-videos/watch`). Sent to that person's own room only, so a
+   * second phone of theirs ticks the video in its "your videos" list without a reload.
+   */
+  'videos:watched': (payload: { videoId: string; watchedAt: string }) => void;
+  /**
    * A paper MDG needs from this dealer was asked for, nudged, or settled.
    *
    * Sent to the DEALER'S room, carrying the whole row rather than an id, so an

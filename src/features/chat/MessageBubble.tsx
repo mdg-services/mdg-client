@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
 import { OutletDetailsCard } from '@/features/outletDetails/OutletDetailsCard';
+import { YourVideosCard } from '@/features/yourVideos/YourVideosCard';
 import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
@@ -485,6 +486,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   // pump (its state first). An empty object means "draw it": the card reads the outlet's
   // live view and the message carries nothing else. Wide and timed on its own line.
   const outletDetails = message.outletDetails;
+  // THE "YOUR VIDEOS" LIST (`message.videoList`): a video for each service, the sentences to
+  // type to it and a tick on the ones this reader has watched. An empty object means "draw
+  // it": the card reads this person's live list. Wide and timed on its own line.
+  const videoList = message.videoList;
   // A SETUP CARD MDG posted (`message.setupCard`): the company choice, the
   // billing form, the bill. Drawn under the words from the outlet's state NOW,
   // never from what was true when the message was posted. Wide, like the login
@@ -506,6 +511,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!mockDrill ||
     !!declarations ||
     !!outletDetails ||
+    !!videoList ||
     !!announcement ||
     hasSetupBody;
 
@@ -529,6 +535,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!mockDrill ||
       !!declarations ||
       !!outletDetails ||
+      !!videoList ||
       !!announcement ||
       hasSetupBody);
 
@@ -713,6 +720,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           {declarations ? <DeclarationsBox /> : null}
 
           {outletDetails ? <OutletDetailsCard /> : null}
+          {videoList ? <YourVideosCard /> : null}
 
           {setupCard ? <SetupCard card={setupCard.card} /> : null}
 

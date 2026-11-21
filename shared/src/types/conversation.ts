@@ -9,6 +9,7 @@ import type { MessageDeclarations } from './declarations';
 import type { MessageFuelIndent } from './fuelIndent';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
+import type { MessageVideoList } from './yourVideos';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
@@ -404,6 +405,13 @@ export interface Message {
    * answers NOW. See `outletDetails.ts`.
    */
   outletDetails?: MessageOutletDetails;
+  /**
+   * Set on an MDG message that carries the "your videos" list: a video for each
+   * service, with the sentences to type to it and a tick on the ones this reader
+   * has watched. The app draws it from `GET /me/your-videos` — the list and the
+   * ticks NOW, never what was true when the message was posted. See `yourVideos.ts`.
+   */
+  videoList?: MessageVideoList;
   /**
    * Set on an MDG message that carries one of the onboarding setup cards
    * (choose services, billing details, the bill, logins). The app draws the

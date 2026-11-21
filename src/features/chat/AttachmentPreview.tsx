@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { Avatar, Spinner } from '@/components/ui';
 import { playableSrc } from '@/features/help/helpView';
+import { useWatchReport } from '@/features/yourVideos/useYourVideos';
 import { cn } from '@/lib/cn';
 import {
   fetchFreshInlineUrl,
@@ -762,6 +763,17 @@ export function VideoMessage({
   // Where it opens: the chapter the assistant matched, else the first frame.
   const startAt = attachment.startSec && attachment.startSec > 0 ? attachment.startSec : 0;
   const startApplied = React.useRef(false);
+  // A guide video MDG sent into the chat counts toward the "your videos" ticks like one opened
+  // from the list: the seconds really played are counted and reported once they are enough.
+  // A clip that is not one of MDG's guides is never reported (no length is given).
+  const isGuideFile = attachment.storageKey.startsWith('guides/');
+  const [metaMs, setMetaMs] = React.useState<number | undefined>(undefined);
+  const watch = useWatchReport(
+    { storageKey: attachment.storageKey },
+    isGuideFile ? (attachment.durationMs ?? metaMs) : undefined,
+  );
+  const { flush: flushWatch } = watch;
+  React.useEffect(() => flushWatch, [flushWatch]);
 
   // A WORKING PLAYER KEEPS ITS LINK. Every refetch of the thread (a socket
   // reconnect on 2G, reopening the chat) brings the same video back with a newly
@@ -831,7 +843,12 @@ export function VideoMessage({
           controlsList="nodownload noremoteplayback"
           aria-label={attachment.filename}
           onPlay={() => setStarted(true)}
+          onTimeUpdate={watch.onTimeUpdate}
+          onSeeking={watch.onSeeking}
+          onPause={watch.onPause}
+          onEnded={watch.onEnded}
           onLoadedMetadata={(e) => {
+            if (Number.isFinite(e.currentTarget.duration)) setMetaMs(e.currentTarget.duration * 1000);
             // A WebView that ignored `#t=`: move it to the chapter, once. The
             // half-second slack leaves a phone that did honour it alone.
             const v = e.currentTarget;

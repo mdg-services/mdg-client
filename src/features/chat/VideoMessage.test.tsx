@@ -1,13 +1,35 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render as renderBare,
+  screen,
+  waitFor,
+  type RenderOptions,
+} from '@testing-library/react';
+import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { useLangStore } from '@/store/lang';
-import { makeMessage } from '@/test/utils';
+import { makeMessage, makeTestQueryClient } from '@/test/utils';
 import type { Attachment } from '@dk/shared/types';
 
 import { splitAttachments, VideoMessage } from './AttachmentPreview';
 import { MessageBubble } from './MessageBubble';
 import { replyPreview } from './replyContext';
+
+/**
+ * A video in the chat reports how much of it was played (the "your videos" ticks), which
+ * needs the app's query client. The wrapper stays across `rerender`.
+ */
+function render(ui: React.ReactElement, opts: Omit<RenderOptions, 'wrapper'> = {}) {
+  const client = makeTestQueryClient();
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  );
+  return renderBare(ui, { wrapper, ...opts });
+}
 
 const h = vi.hoisted(() => ({ download: vi.fn(), fresh: vi.fn() }));
 vi.mock('@/lib/downloadAttachment', () => ({
