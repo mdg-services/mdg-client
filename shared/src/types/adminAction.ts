@@ -2,11 +2,9 @@
  * The admin "action needed" queue (ADR 0043): the human-in-the-loop steps of a service
  * run that only a person can finish, surfaced to every admin in an urgent place.
  *
- * Two kinds, and neither defeats a captcha:
- *  - `robot_tick`   a human admin signs in to IndianOil Partners / IOC XtraPower in their
- *                   own Chrome (Summon) and clicks "I'm not a robot" themselves. The
- *                   server never signs these in, so such an item never holds a server
- *                   browser slot.
+ * Two kinds, each for a portal step that still needs a person:
+ *  - `robot_tick`   a human admin signs in to a portal such as IOC XtraPower in their own
+ *                   Chrome (Summon) and clicks "I'm not a robot" themselves.
  *  - `picture_code` a distorted-text captcha (eMaaptaul, SDMS, IRAS) the model could not
  *                   read; the admin reads the image and types it. Its run holds a browser
  *                   slot only for the short window it is on screen (ADR 0043, option A).

@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 /**
- * What the browser worker POSTs after reading TT Info for one outlet (ADR 0044). One entry
- * per vehicle, each with its document cards. Dates are the portal's text (e.g. "09 Jun
- * 2027") or `YYYY-MM-DD`; the server normalises and keeps only valid ones.
+ * The server collector's TT Info result for one outlet. One entry per vehicle, each with
+ * its document cards. Dates are the portal's text (e.g. "09 Jun 2027") or `YYYY-MM-DD`;
+ * the server normalises and keeps only valid ones.
  */
 
 const tankerDocEntrySchema = z
@@ -24,7 +24,7 @@ const tankerVehicleSchema = z
   })
   .strict();
 
-/** `POST /dealers/:id/tanker-documents` (the worker's upload for one outlet). */
+/** Internal payload for the server-side Partners TT Info collector. */
 export const ingestTankerDocumentsSchema = z
   .object({
     vehicles: z.array(tankerVehicleSchema).max(200),

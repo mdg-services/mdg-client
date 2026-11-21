@@ -45,9 +45,8 @@ export function isCompanyPortal(p: PortalId): boolean {
 /**
  * IndianOil Partners (pwa.indianoil.in/Partners), the portal of an Indian Oil owner who
  * also runs a tanker for IndianOil. Asked only of an owner who said yes to "do you own a
- * tanker?" (`PortalLoginsView.tanker`). Its sign-in sits behind Google's "I'm not a
- * robot" tick, so like a company portal it is saved and read back and never tried
- * automatically; MDG's team works it by hand. Unlike one, it sits BESIDE SDMS and IRAS,
+ * tanker?" (`PortalLoginsView.tanker`). The server-side tanker-documents service uses its
+ * saved login to read TT Info. Unlike a company portal, it sits BESIDE SDMS and IRAS,
  * never in their place — which is why it is not a company portal.
  *
  * Its one automated step is the owner's own "Forgot password?": IndianOil's reset page
@@ -60,7 +59,7 @@ export const TANKER_PORTAL: PortalId = 'partners';
  * IOC XtraPower (beta.iocxtrapower.com), IndianOil's fleet-card portal. Asked ON DEMAND
  * only: the team ticks it in "Ask for portal login" for the outlet that needs it, and it
  * is never part of onboarding. Its sign-in sits behind Google's "I'm not a robot" tick,
- * so like IndianOil Partners it is saved and read back and never tried automatically.
+ * so it is saved and read back and never tried automatically.
  *
  * Its "Forgot password?" is GUIDED, never automated: the last step of XtraPower's own
  * reset is behind the same tick, so the owner does the reset on XtraPower's page (the
@@ -72,7 +71,7 @@ export const XTRAPOWER_PORTAL: PortalId = 'xtrapower';
 /** XtraPower's own "Reset Password" page: user ID, registered mobile, a 6-digit SMS code, a new password. */
 export const XTRAPOWER_RESET_URL = 'https://beta.iocxtrapower.com/account/reset-password';
 
-/** The IndianOil Partners (Transporter App) sign-in page. The worker opens this (ADR 0044). */
+/** The IndianOil Partners (Transporter App) sign-in page used by the server collector. */
 export const PARTNERS_LOGIN_URL = 'https://pwa.indianoil.in/Partners/index.jsp';
 
 /**
