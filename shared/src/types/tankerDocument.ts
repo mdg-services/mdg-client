@@ -20,6 +20,17 @@ export const KNOWN_TANKER_DOC_TYPES = [
 ] as const;
 export type KnownTankerDocType = (typeof KNOWN_TANKER_DOC_TYPES)[number];
 
+/**
+ * Types that carry a date but never run out, so they are never reminded about and never drawn
+ * as expired. A tanker's date of manufacture is a fact about the vehicle, not a licence.
+ */
+export const NON_EXPIRING_TANKER_DOC_TYPES: readonly string[] = ['date-of-manufacture'];
+
+/** True when the document is a licence or certificate that runs out. */
+export function tankerDocExpires(docType: string): boolean {
+  return !NON_EXPIRING_TANKER_DOC_TYPES.includes(docType);
+}
+
 /** Nice labels for the known types (admin-side display). Unknown slugs fall back to `docLabel`. */
 export const TANKER_DOC_LABELS: Record<KnownTankerDocType, string> = {
   'date-of-manufacture': 'Date of Manufacture',
@@ -29,6 +40,17 @@ export const TANKER_DOC_LABELS: Record<KnownTankerDocType, string> = {
   'fitness-license': 'Fitness License',
   'pollution-under-control': 'Pollution Under Control',
   'calibration-certificate': 'Calibration Certificate',
+};
+
+/** The same names for a Hindi reader (the dealer's reminder). Unknown slugs fall back to the portal's own words. */
+export const TANKER_DOC_LABELS_HI: Record<KnownTankerDocType, string> = {
+  'date-of-manufacture': 'निर्माण की तारीख़',
+  'road-permit': 'रोड परमिट',
+  'explosive-license': 'विस्फोटक लाइसेंस',
+  'vehicle-insurance': 'गाड़ी का बीमा',
+  'fitness-license': 'फ़िटनेस सर्टिफ़िकेट',
+  'pollution-under-control': 'प्रदूषण (PUC) सर्टिफ़िकेट',
+  'calibration-certificate': 'कैलिब्रेशन सर्टिफ़िकेट',
 };
 
 /**
@@ -58,6 +80,16 @@ export interface TankerDocumentView {
   validUntil: string | null;
   /** When MDG last read it off the portal (ISO). */
   fetchedAt: string;
+  /** Whole days until it runs out (negative once gone); null when undated or not a licence that expires. */
+  daysLeft: number | null;
+  /** `expired`, `expiring` (inside the reminder window), `valid`; undefined = no verdict. */
+  state: 'expired' | 'expiring' | 'valid' | undefined;
+  /** How many reminders the dealer has been told about this date (sent, not written off). */
+  remindersSent: number;
+  /** When the dealer was last told (ISO), or null. */
+  lastRemindedAt: string | null;
+  /** True once the one-time "this has run out" notice went out. */
+  lapsedNoticeSent: boolean;
 }
 
 /** A vehicle and all its documents, for the vault's per-vehicle grouping. */
@@ -72,5 +104,23 @@ export interface TankerVehicleDocuments {
 export interface TankerDocumentsView {
   vehicles: TankerVehicleDocuments[];
   /** When any document was last fetched (ISO), or null if never. */
+  lastFetchedAt: string | null;
+}
+
+/** One row of the team's "tanker papers running out" list: a document and the outlet it belongs to. */
+export interface TankerExpiringRow extends TankerDocumentView {
+  dealerId: string;
+  dealerCode: string | null;
+  dealerName: string | null;
+}
+
+/** `GET /tanker-documents/expiring` (admin): every dated tanker paper that is expired or inside the window. */
+export interface TankerExpiringView {
+  rows: TankerExpiringRow[];
+  /** Days ahead that count as "running out" (the first step of the reminder ladder). */
+  windowDays: number;
+  /** Outlets that hold at least one tanker document. */
+  outlets: number;
+  /** When any document was last read (ISO), or null if none was. */
   lastFetchedAt: string | null;
 }

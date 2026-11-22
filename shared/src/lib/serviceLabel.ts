@@ -169,6 +169,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     en: 'the density of each new tanker, sent to your chat as a card',
     hi: 'हर नए टैंकर की डेंसिटी, चैट में कार्ड के रूप में',
   },
+  'tanker-documents': {
+    en: "your tanker's papers, such as the road permit, insurance and licences, kept in one place, with a warning in your chat before any of them runs out",
+    hi: 'आपके टैंकर के काग़ज़ (रोड परमिट, बीमा, लाइसेंस वग़ैरह) एक जगह, और किसी की तारीख़ ख़त्म होने से पहले चैट में चेतावनी',
+  },
   'ro-supply-status': {
     en: 'whether supply to the pump is open, and what to do if it stops',
     hi: 'पंप की सप्लाई खुली है या नहीं, और रुके तो क्या करना है',
