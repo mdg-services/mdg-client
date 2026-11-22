@@ -251,6 +251,19 @@ describe('MessageBubble sender names (group threads)', () => {
     expect(screen.getByText('Manager Raju')).toBeInTheDocument();
   });
 
+  it('says "MDG", never "MDG System", on an AI reply (the same account as a notice)', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ senderId: 'sys', senderName: 'MDG System', body: 'ठीक है', system: false })}
+        mine={false}
+        currentUserId="me"
+        showSender
+      />,
+    );
+    expect(screen.getByText('MDG')).toBeInTheDocument();
+    expect(screen.queryByText('MDG System')).toBeNull();
+  });
+
   it('never shows a name on my own bubbles', () => {
     render(
       <MessageBubble

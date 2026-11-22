@@ -79,6 +79,9 @@ export function replyPreview(rc: MessageReplyContext, t: TFunction): ReplyPrevie
  */
 const SYSTEM_SENDER_NAME = 'MDG System';
 
+/** Is this the server's own sender identity? Its name is never shown to a dealer. */
+export const isSystemSenderName = (name: string | null | undefined): boolean => name === SYSTEM_SENDER_NAME;
+
 /**
  * Display name for whoever sent a message, wherever a name is shown out of the
  * message itself: "You", the wire name, or the support fallback. The server's
@@ -90,9 +93,9 @@ export function senderDisplayName(
   t: TFunction,
 ): string {
   if (currentUserId && sender.senderId === currentUserId) return t('chat.you');
-  if (!sender.senderName || sender.senderName === SYSTEM_SENDER_NAME) {
-    return t('chat.supportFallbackName');
-  }
+  // The same word the bubble itself carries, so a quote of a message says what the message did.
+  if (isSystemSenderName(sender.senderName)) return t('chat.senderMdg');
+  if (!sender.senderName) return t('chat.supportFallbackName');
   return sender.senderName;
 }
 

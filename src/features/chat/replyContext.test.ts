@@ -5,7 +5,7 @@ import type { MessageReplyContext } from '@dk/shared/types';
 import { replySenderLabel, senderDisplayName } from './replyContext';
 
 const t = ((key: string) =>
-  ({ 'chat.you': 'आप', 'chat.supportFallbackName': 'MDG सहायता' })[key] ?? key) as Parameters<
+  ({ 'chat.you': 'आप', 'chat.supportFallbackName': 'MDG सहायता', 'chat.senderMdg': 'MDG' })[key] ?? key) as Parameters<
   typeof replySenderLabel
 >[2];
 
@@ -21,7 +21,7 @@ describe('the name on a quoted message', () => {
   });
 
   it('is MDG, in the dealer’s words, for the server’s own asks and notices — never "MDG System"', () => {
-    expect(replySenderLabel(quote({ senderName: 'MDG System' }), 'me', t)).toBe('MDG सहायता');
+    expect(replySenderLabel(quote({ senderName: 'MDG System' }), 'me', t)).toBe('MDG');
     expect(replySenderLabel(quote({}), 'me', t)).toBe('MDG सहायता');
   });
 
@@ -33,9 +33,7 @@ describe('the name on a quoted message', () => {
 describe('the name on a gallery item', () => {
   it('follows the same rules as a quote: you, MDG for the system, otherwise the name', () => {
     expect(senderDisplayName({ senderId: 'me', senderName: 'Ramesh' }, 'me', t)).toBe('आप');
-    expect(senderDisplayName({ senderId: 'sys', senderName: 'MDG System' }, 'me', t)).toBe(
-      'MDG सहायता',
-    );
+    expect(senderDisplayName({ senderId: 'sys', senderName: 'MDG System' }, 'me', t)).toBe('MDG');
     expect(senderDisplayName({ senderId: 'sys' }, 'me', t)).toBe('MDG सहायता');
     expect(senderDisplayName({ senderId: 'u9', senderName: 'MDG team' }, 'me', t)).toBe('MDG team');
   });

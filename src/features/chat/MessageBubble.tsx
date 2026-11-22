@@ -28,7 +28,7 @@ import { DuOtpAckBox } from './DuOtpAckBox';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
-import { replyPreview, replySenderLabel } from './replyContext';
+import { isSystemSenderName, replyPreview, replySenderLabel } from './replyContext';
 import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
@@ -552,9 +552,11 @@ export const MessageBubble = React.memo(function MessageBubble({
     </span>
   );
 
-  // A notice (a shared report, a daily line) is MDG's — the bubble says "MDG",
-  // as the viewer does, not the name of the account that posted it.
-  const senderLabel = message.system ? t('chat.senderMdg') : message.senderName;
+  // A notice (a shared report, a daily line) and an AI reply are both MDG's — the
+  // bubble says "MDG", as the viewer does, not the name of the account that posted
+  // them ("MDG System", which an AI reply carried because it is not flagged `system`).
+  const senderLabel =
+    message.system || isSystemSenderName(message.senderName) ? t('chat.senderMdg') : message.senderName;
   const showName = !!showSender && !mine && first && !!senderLabel && !announcement;
 
   return (
