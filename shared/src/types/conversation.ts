@@ -7,6 +7,7 @@ import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
 import type { MessageDeclarations } from './declarations';
 import type { MessageComplaint } from './complaints';
+import type { MessageWorkPermit } from './workPermits';
 import type { MessageFuelIndent } from './fuelIndent';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
@@ -404,6 +405,11 @@ export interface Message {
    * the complaint's view names; the marker keeps it out of the WhatsApp backup.
    */
   complaint?: MessageComplaint;
+  /**
+   * A work-permit box (ADR 0053): the app draws the live box on the message the
+   * permit's view names; the marker keeps it out of the WhatsApp backup.
+   */
+  workPermit?: MessageWorkPermit;
   /**
    * Set on an MDG message that carries the Pump details form (पंप की जानकारी):
    * which state the pump is in, and whatever else the server's question list

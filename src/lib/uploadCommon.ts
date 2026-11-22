@@ -45,7 +45,9 @@ export type UploadTarget =
   /** One of the two photos of a mock drill (ADR 0034): images only, 5 MB at most. */
   | { scope: 'mock-drill'; dealerId: string }
   /** One of the two washroom photos of a dealer declaration (ADR 0037): images only, 500 KB at most. */
-  | { scope: 'declarations'; dealerId: string };
+  | { scope: 'declarations'; dealerId: string }
+  /** A photo asked for in the work-permit box (ADR 0053): images only, 10 MB at most. */
+  | { scope: 'work-permit'; dealerId: string };
 
 /**
  * A photograph, ready to go: the bytes that will actually be PUT, and the three

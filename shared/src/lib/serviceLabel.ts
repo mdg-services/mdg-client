@@ -112,6 +112,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'electrical-audit': { en: 'Electrical audit compliance', hi: 'इलेक्ट्रिकल ऑडिट कंप्लायंस' },
   /** ADR 0052. "शिकायत" is what a dealer calls it: the card machine, the automation or a nozzle is broken. */
   'maintenance-complaints': { en: 'Complaints', hi: 'शिकायतें (मशीन ख़राब)' },
+  /** ADR 0053. "वर्क परमिट" is the word on the pump: the engineer cannot start without it. */
+  'work-permits': { en: 'Work permits', hi: 'वर्क परमिट' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -238,6 +240,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'maintenance-complaints': {
     en: "something broken at the pump — the card machine, the automation, a dispenser or another facility — reported in the chat in your own words, filed on IndianOil's portal after your yes, followed step by step, and closed when you say it works again",
     hi: 'पंप पर कुछ ख़राब होने पर — कार्ड मशीन, ऑटोमेशन, डिस्पेंसर या कोई और सुविधा — चैट में अपने शब्दों में बताना, आपकी "हाँ" के बाद इंडियन ऑयल के पोर्टल पर दर्ज करना, हर कदम पर नज़र रखना, और ठीक चलने की आपकी बात पर बंद करना',
+  },
+  'work-permits': {
+    en: "the work permit an engineer needs before starting work at the pump, issued on SDMS from the chat: say who came and for what, MDG fills IndianOil's form, writes the letter of authorization on your letterhead, sends you the permit PDF, and closes it when you say the work is done",
+    hi: 'पंप पर काम शुरू करने से पहले इंजीनियर को चाहिए वर्क परमिट — चैट में बताइए कौन आया और किस काम के लिए, MDG इंडियन ऑयल का फ़ॉर्म भरता है, आपके लेटरहेड पर अधिकार-पत्र बनाता है, परमिट की PDF भेजता है, और काम पूरा होने की आपकी बात पर परमिट बंद करता है',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

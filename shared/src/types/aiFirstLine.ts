@@ -504,6 +504,11 @@ export const AI_HANDOFF_REASONS = [
    * dealer is not answered twice.
    */
   'complaint_answer',
+  /**
+   * The message was the dealer's typed answer to a question MDG's work-permit box had open
+   * (ADR 0053): it was applied to the permit and the first line stayed out.
+   */
+  'work_permit_answer',
 ] as const;
 export type AiHandoffReason = (typeof AI_HANDOFF_REASONS)[number];
 

@@ -118,6 +118,8 @@ export const TICKET_TRIGGER_FOR_REASON: Record<AiHandoffReason, TicketTrigger | 
   on_it: null,
   // A typed answer to a complaint question: applied there, nothing for a person to answer.
   complaint_answer: null,
+  // A typed answer to a work-permit question: applied there, nothing for a person to answer.
+  work_permit_answer: null,
 };
 
 /** Minutes since `iso`, never negative. */

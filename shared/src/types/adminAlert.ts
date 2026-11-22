@@ -143,6 +143,9 @@ export const ADMIN_ALERT_KINDS = [
    * complaint, or an acknowledgement that could not be made.
    */
   'complaint_attention',
+  // ── Work permits (ADR 0053) ──
+  /** A work permit needs a person: a lost Submit answer, a refusal, a changed form, a close that failed. */
+  'work_permit_attention',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -459,6 +462,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   },
   complaint_attention: {
     label: 'Complaint',
+    clearsWhen: 'Closes once marked seen, or after a day.',
+    superAdminOnly: false,
+  },
+  work_permit_attention: {
+    label: 'Work permit',
     clearsWhen: 'Closes once marked seen, or after a day.',
     superAdminOnly: false,
   },

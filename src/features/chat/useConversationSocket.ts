@@ -11,6 +11,7 @@ import { invalidateMockDrill } from '@/hooks/api/useMockDrill';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
 import { invalidateWemmisLogin } from '@/hooks/api/useWemmisLogin';
+import { invalidateWorkPermits } from '@/hooks/api/useWorkPermits';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { isPageVisible } from '@/lib/usePageVisible';
@@ -272,6 +273,7 @@ export function useConversationSocket(
       // A COMPLAINT BOX ARRIVED: it draws the complaint as it stands NOW (the next question,
       // the filed number), which the cache may not have heard yet. Cheap when no box is on screen.
       if (!alreadyPresent && payload.message.complaint) invalidateComplaints(qc);
+      if (!alreadyPresent && payload.message.workPermit) invalidateWorkPermits(qc);
       // THE DECLARATIONS BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);
       // THE PUMP DETAILS FORM ARRIVED: it draws the outlet's answers NOW, and another

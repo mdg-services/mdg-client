@@ -7,6 +7,7 @@ import { useConversationsListSocket } from '@/features/chat/useConversationsList
 import { useDeclarationsSocket } from '@/features/chat/useDeclarationsSocket';
 import { useDuOtpSocket } from '@/features/chat/useDuOtpSocket';
 import { useComplaintsSocket } from '@/features/chat/useComplaintsSocket';
+import { useWorkPermitsSocket } from '@/features/chat/useWorkPermitsSocket';
 import { useMockDrillSocket } from '@/features/chat/useMockDrillSocket';
 import { useOutletSetupSocket } from '@/features/setup/useOutletSetupSocket';
 import { useMe } from '@/hooks/api/useMe';
@@ -45,6 +46,7 @@ export function AppShell() {
   useOutletSetupSocket(); // keep the setup cards + strip following MDG's team
   useDuOtpSocket(); // keep the DU OTP box in the chat following the portal and the owner's answers
   useComplaintsSocket(); // keep the complaint boxes following the filing, the portal and the engineer
+  useWorkPermitsSocket(); // keep the work-permit box following the issue run and the close
   useMockDrillSocket(); // keep the Mock Drill box following the admin's check and the filing
   useDeclarationsSocket(); // keep the Declarations box following the filing of the washroom photos
   // …and loaded, wherever the app was opened. An old link can open it cold on

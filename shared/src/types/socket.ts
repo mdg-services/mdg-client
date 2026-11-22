@@ -96,6 +96,8 @@ export interface ServerToClientEvents {
   'mockDrill:changed': (payload: { dealerId: string }) => void;
   /** A maintenance complaint of this outlet changed (ADR 0052). */
   'complaints:changed': (payload: { dealerId: string }) => void;
+  /** A work permit of this outlet changed (ADR 0053). */
+  'workPermits:changed': (payload: { dealerId: string }) => void;
   /**
    * An outlet's Dealer Declarations state moved (a photo, a send, a run, an admin's
    * button). Carries only the outlet's id: each side reads its own scoped view.

@@ -134,7 +134,7 @@ export const presignUploadSchema = z.object({
     .positive()
     .max(25 * 1024 * 1024),
   scope: z
-    .enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask', 'calibration', 'du-otp', 'mock-drill', 'declarations'])
+    .enum(['chat', 'avatar', 'staff', 'tt-density', 'kavach', 'slip', 'ask', 'calibration', 'du-otp', 'mock-drill', 'declarations', 'work-permit'])
     .default('chat'),
   conversationId: z.string().optional(),
   /**

@@ -26,6 +26,7 @@ import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { DeclarationsBox } from './Declarations/DeclarationsBox';
 import { DuOtpAckBox } from './DuOtpAckBox';
 import { ComplaintBox } from './Complaints/ComplaintBox';
+import { WorkPermitBox } from './WorkPermits/WorkPermitBox';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
@@ -482,6 +483,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   // THE COMPLAINT BOX (`message.complaint`, ADR 0052): drawn live on the one message the
   // complaint's view names, and nothing extra on the others. Wide, timed on its own line.
   const complaint = message.complaint;
+  // THE WORK PERMIT BOX (`message.workPermit`, ADR 0053): same rule, live on one message only.
+  const workPermit = message.workPermit;
   // THE DECLARATIONS BOX (`message.declarations`, ADR 0037): the two washroom
   // photos IndianOil's weekly declaration needs. Again an empty object means "draw
   // it": it reads the outlet's live view. Wide and timed on its own line.
@@ -514,6 +517,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!duOtpAck ||
     !!mockDrill ||
     !!complaint ||
+    !!workPermit ||
     !!declarations ||
     !!outletDetails ||
     !!videoList ||
@@ -539,6 +543,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!duOtpAck ||
       !!mockDrill ||
       !!complaint ||
+      !!workPermit ||
       !!declarations ||
       !!outletDetails ||
       !!videoList ||
@@ -726,6 +731,9 @@ export const MessageBubble = React.memo(function MessageBubble({
           {mockDrill ? <MockDrillBox /> : null}
           {complaint ? (
             <ComplaintBox complaintId={complaint.complaintId} messageId={message.id} />
+          ) : null}
+          {workPermit ? (
+            <WorkPermitBox permitId={workPermit.permitId} messageId={message.id} />
           ) : null}
 
           {declarations ? <DeclarationsBox /> : null}
