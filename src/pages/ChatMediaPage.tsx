@@ -8,7 +8,8 @@ import { AttachmentPdfViewer, isPdfAttachment } from '@/features/chat/Attachment
 import { FileTypeBadge } from '@/features/chat/FileTypeBadge';
 import { monthHeading, monthKey, shortDate } from '@/features/chat/mediaFormat';
 import { MediaViewer, type MediaViewerItem } from '@/features/chat/MediaViewer';
-import { senderDisplayName } from '@/features/chat/replyContext';
+import { dealerSideIdsOf, senderDisplayName } from '@/features/chat/replyContext';
+import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -187,6 +188,12 @@ export function ChatMediaPage() {
   const { id: conversationId } = useParams<{ id: string }>();
   const goBack = useGoBack(`/chat/${conversationId ?? ''}`);
   const userId = useAuthStore((s) => s.user?.id);
+  // Anyone outside the dealer's side of the thread is MDG, never named.
+  const conversationsQuery = useMyConversations();
+  const dealerSideIds = React.useMemo(
+    () => dealerSideIdsOf(conversationsQuery.data?.find((c) => c.id === conversationId)),
+    [conversationsQuery.data, conversationId],
+  );
   const [tab, setTab] = React.useState<ConversationMediaTab>('media');
   const query = useConversationMedia(conversationId, tab);
   const download = useAttachmentDownload();
@@ -218,11 +225,11 @@ export function ChatMediaPage() {
         key: itemKey(item),
         attachment: item.attachment,
         source: { conversationId: conversationId!, messageId: item.messageId },
-        senderLabel: senderDisplayName(item, userId, t),
+        senderLabel: senderDisplayName(item, userId, t, dealerSideIds),
         createdAt: item.createdAt,
         ...(item.bodySnippet ? { caption: item.bodySnippet } : {}),
       })),
-    [pictures, conversationId, userId, t],
+    [pictures, conversationId, userId, t, dealerSideIds],
   );
 
   // `fetchNextPage` keeps one identity for the life of the query; the query

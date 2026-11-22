@@ -126,11 +126,13 @@ const QUOTE_ICONS = {
 function QuoteBlock({
   message,
   currentUserId,
+  dealerSideIds,
   quoteLoading,
   onJumpTo,
 }: {
   message: Message;
   currentUserId?: string;
+  dealerSideIds?: ReadonlySet<string> | undefined;
   quoteLoading?: boolean;
   onJumpTo?: (targetId: string, fromId: string) => void;
 }) {
@@ -147,7 +149,7 @@ function QuoteBlock({
       <span className="w-1 shrink-0 bg-wa-accent" aria-hidden />
       <span className="min-w-0 flex-1 px-2 py-1">
         <span className="block truncate text-[13px] font-medium leading-tight text-wa-accent-strong">
-          {replySenderLabel(rc, currentUserId, t)}
+          {replySenderLabel(rc, currentUserId, t, dealerSideIds)}
         </span>
         <span className="flex items-center gap-1 text-[13px] leading-snug text-wa-meta">
           {Icon ? <Icon width={13} strokeWidth={1.75} className="shrink-0" /> : null}
@@ -347,6 +349,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   message,
   mine,
   currentUserId,
+  dealerSideIds,
   showSender,
   first = true,
   quoteLoading,
@@ -366,6 +369,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   message: Message;
   mine: boolean;
   currentUserId?: string;
+  /** Who is on the dealer's side of this thread; any other sender is MDG (see `replySenderLabel`). */
+  dealerSideIds?: ReadonlySet<string> | undefined;
   /** Show the sender's name inside the bubble (group threads, others' messages). */
   showSender?: boolean;
   /**
@@ -566,8 +571,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   // A notice (a shared report, a daily line) and an AI reply are both MDG's — the
   // bubble says "MDG", as the viewer does, not the name of the account that posted
   // them ("MDG System", which an AI reply carried because it is not flagged `system`).
-  const senderLabel =
-    message.system || isSystemSenderName(message.senderName) ? t('chat.senderMdg') : message.senderName;
+  // An admin's own name is never shown to a dealer: whoever at MDG wrote it, it is "MDG".
+  const fromMdg =
+    message.system || message.senderRole === 'admin' || isSystemSenderName(message.senderName);
+  const senderLabel = fromMdg ? t('chat.senderMdg') : message.senderName;
   const showName = !!showSender && !mine && first && !!senderLabel && !announcement;
 
   return (
@@ -627,6 +634,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             <QuoteBlock
               message={message}
               currentUserId={currentUserId}
+              dealerSideIds={dealerSideIds}
               quoteLoading={quoteLoading}
               onJumpTo={onJumpTo}
             />
@@ -653,7 +661,7 @@ export const MessageBubble = React.memo(function MessageBubble({
               <AttachmentStack
                 attachments={message.attachments}
                 mine={mine}
-                senderName={message.senderName}
+                senderName={fromMdg ? t('chat.senderMdg') : message.senderName}
                 source={source}
                 onOpenImage={openImage}
                 mediaOverlay={

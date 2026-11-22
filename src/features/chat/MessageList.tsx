@@ -74,6 +74,8 @@ export interface MessageListProps {
   onQuickAction?: (text: string) => void;
   /** Show sender names above others' bubbles (group threads). */
   showSenderNames?: boolean;
+  /** The dealer's side of the thread; a quoted sender outside it is MDG. */
+  dealerSideIds?: ReadonlySet<string> | undefined;
   /**
    * The messages currently selected (long-press, then taps). While there is one,
    * a tap on any row adds or removes it and nothing else on the row reacts.
@@ -141,6 +143,7 @@ export function MessageList({
   typing,
   onQuickAction,
   showSenderNames,
+  dealerSideIds,
   selectedIds,
   onToggleSelect,
   onReact,
@@ -649,6 +652,7 @@ export function MessageList({
             mine={mine}
             currentUserId={currentUserId}
             showSender={showSenderNames}
+            dealerSideIds={dealerSideIds}
             first={rm.first}
             quoteLoading={quoteLoadingId === m.id}
             highlight={marks}
@@ -690,6 +694,7 @@ export function MessageList({
     handleJumpTo,
     quoteLoadingId,
     showSenderNames,
+    dealerSideIds,
     ticketLines,
     selectedIds,
     selecting,

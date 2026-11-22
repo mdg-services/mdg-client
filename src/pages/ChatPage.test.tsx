@@ -451,6 +451,24 @@ describe('ChatPage — the bar', () => {
     expect(await screen.findByText('Raju is typing…')).toBeInTheDocument();
   });
 
+  it('shows an admin typing in a group as MDG, never by name', async () => {
+    mount(
+      conversation(undefined, {
+        kind: 'manager',
+        participants: [
+          { userId: 'u1', name: 'Ramesh' },
+          { userId: 'u9', name: 'Raju' },
+        ],
+      }),
+    );
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    act(() =>
+      h.socket.server('typing', { conversationId: CONVERSATION_ID, userId: 'adm1', userName: 'Sunita Verma' }),
+    );
+    expect(await screen.findByText('MDG is typing…')).toBeInTheDocument();
+    expect(screen.queryByText(/Sunita/)).toBeNull();
+  });
+
   it('opens the chat\'s info when its name is tapped', async () => {
     mount(conversation(undefined));
     await screen.findByText('Ye MDG team ko bhej diya hai.');

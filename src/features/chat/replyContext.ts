@@ -88,11 +88,18 @@ export const isSystemSenderName = (name: string | null | undefined): boolean => 
  * own identity ("MDG System") is never shown to a dealer.
  */
 export function senderDisplayName(
-  sender: { senderId: string; senderName?: string | undefined },
+  sender: { senderId: string; senderName?: string | undefined; senderRole?: string | undefined },
   currentUserId: string | undefined,
   t: TFunction,
+  dealerSideIds?: ReadonlySet<string>,
 ): string {
   if (currentUserId && sender.senderId === currentUserId) return t('chat.you');
+  // Everyone at MDG is one sender to a dealer: "MDG". An admin's own name is never
+  // shown — by role when the message is in hand, and by elimination otherwise (a
+  // quote carries only an id: anyone who is not on the dealer's side of this thread
+  // is the admin pool, the same rule the reactions and delivery sheets follow).
+  if (sender.senderRole === 'admin') return t('chat.senderMdg');
+  if (dealerSideIds && !dealerSideIds.has(sender.senderId)) return t('chat.senderMdg');
   // The same word the bubble itself carries, so a quote of a message says what the message did.
   if (isSystemSenderName(sender.senderName)) return t('chat.senderMdg');
   if (!sender.senderName) return t('chat.supportFallbackName');
@@ -104,6 +111,24 @@ export function replySenderLabel(
   rc: MessageReplyContext,
   currentUserId: string | undefined,
   t: TFunction,
+  dealerSideIds?: ReadonlySet<string>,
 ): string {
-  return senderDisplayName(rc, currentUserId, t);
+  return senderDisplayName(rc, currentUserId, t, dealerSideIds);
+}
+
+/**
+ * The people on the dealer's side of a thread: its primary member and every other
+ * participant. The MDG admin pool is implicit and never listed, so anyone else is MDG.
+ */
+export function dealerSideIdsOf(
+  conversation:
+    | { userId?: string; participantUserIds?: string[]; participants?: { userId: string }[] }
+    | undefined,
+): ReadonlySet<string> | undefined {
+  if (!conversation?.userId) return undefined;
+  return new Set([
+    conversation.userId,
+    ...(conversation.participantUserIds ?? []),
+    ...(conversation.participants ?? []).map((p) => p.userId),
+  ]);
 }

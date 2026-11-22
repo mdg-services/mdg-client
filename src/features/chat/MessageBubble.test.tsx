@@ -264,6 +264,38 @@ describe('MessageBubble sender names (group threads)', () => {
     expect(screen.queryByText('MDG System')).toBeNull();
   });
 
+  it('says "MDG", never the admin\'s own name, on a reply an admin wrote', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({ senderId: 'a1', senderRole: 'admin', senderName: 'Sunita Verma', body: 'done' })}
+        mine={false}
+        currentUserId="me"
+        showSender
+      />,
+    );
+    expect(screen.getByText('MDG')).toBeInTheDocument();
+    expect(screen.queryByText('Sunita Verma')).toBeNull();
+  });
+
+  it('says "MDG" on a quote of an admin, and names a quote of the dealer\'s own side', () => {
+    const side = new Set(['me', 'mgr']);
+    const quoteOf = (senderId: string, senderName: string) =>
+      makeMessage({
+        senderId: 'me',
+        replyTo: { messageId: 'q1', senderId, senderName, body: 'earlier' },
+      });
+    const { unmount } = render(
+      <MessageBubble message={quoteOf('a1', 'Sunita Verma')} mine currentUserId="me" dealerSideIds={side} />,
+    );
+    expect(screen.queryByText('Sunita Verma')).toBeNull();
+    expect(screen.getByText('MDG')).toBeInTheDocument();
+    unmount();
+    render(
+      <MessageBubble message={quoteOf('mgr', 'Raju Manager')} mine currentUserId="me" dealerSideIds={side} />,
+    );
+    expect(screen.getByText('Raju Manager')).toBeInTheDocument();
+  });
+
   it('never shows a name on my own bubbles', () => {
     render(
       <MessageBubble
@@ -341,7 +373,7 @@ describe('MessageBubble — a message MDG shared (system: true)', () => {
     const { container } = render(
       <MessageBubble message={shared()} mine={false} currentUserId="me" />,
     );
-    const time = screen.getByText(/^12:00/);
+    const time = screen.getByText(/^12:0\d/);
     expect(container.querySelector('.bg-wa-in')!.contains(time)).toBe(true);
   });
 
@@ -489,7 +521,7 @@ describe('MessageBubble — the bubble itself', () => {
 
   it('carries its time inside the bubble, at the bottom-right', () => {
     const { container } = renderBubble(makeMessage({ senderId: 'x' }), false);
-    const time = screen.getByText(/^12:00/);
+    const time = screen.getByText(/^12:0\d/);
     const bubble = container.querySelector('.bg-wa-in')!;
     expect(bubble.contains(time)).toBe(true);
     // Absolutely placed in the corner, not a row of its own below the bubble.
@@ -511,7 +543,7 @@ describe('MessageBubble — the bubble itself', () => {
 
   it('puts ticks beside the time on mine, and none on theirs', () => {
     const mine = renderBubble(makeMessage({ id: 'r1', senderId: 'u1' }), true);
-    const timeBox = screen.getByText(/^12:00/).parentElement!;
+    const timeBox = screen.getByText(/^12:0\d/).parentElement!;
     expect(timeBox.querySelector('.lucide-check')).toBeTruthy();
     mine.unmount();
     const theirs = renderBubble(makeMessage({ senderId: 'x' }), false);
@@ -626,7 +658,7 @@ describe('MessageBubble — pictures', () => {
       />,
     );
     const media = screen.getByAltText('a.jpg').closest('.relative')!.parentElement!;
-    const time = screen.getByText(/^12:00/);
+    const time = screen.getByText(/^12:0\d/);
     expect(media.contains(time)).toBe(true);
     expect(media.querySelector('.bg-gradient-to-t')).toBeTruthy();
     expect(time.parentElement!.className).toContain('text-white');
@@ -643,7 +675,7 @@ describe('MessageBubble — pictures', () => {
     );
     expect(container.querySelector('.bg-gradient-to-t')).toBeNull();
     const media = screen.getByAltText('a.jpg').closest('.relative')!.parentElement!;
-    expect(media.contains(screen.getByText(/^12:00/))).toBe(false);
+    expect(media.contains(screen.getByText(/^12:0\d/))).toBe(false);
   });
 
   it('sizes a single picture by its real shape once it has loaded', () => {
@@ -753,7 +785,7 @@ describe('MessageBubble — pictures', () => {
     it('with no caption the time rides on the album, bottom-right', () => {
       const { container } = render(<MessageBubble message={album(2)} mine={false} />);
       const grid = container.querySelector('[data-testid="album"]')!;
-      expect(grid.parentElement!.contains(screen.getByText(/^12:00/))).toBe(true);
+      expect(grid.parentElement!.contains(screen.getByText(/^12:0\d/))).toBe(true);
     });
 
     it('with a caption the album and the caption are one bubble', () => {

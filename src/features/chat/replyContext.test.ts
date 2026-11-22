@@ -30,6 +30,20 @@ describe('the name on a quoted message', () => {
   });
 });
 
+describe('an admin is never named to a dealer', () => {
+  const side = new Set(['me', 'mgr']);
+  it('is MDG by role when the message is in hand', () => {
+    expect(
+      senderDisplayName({ senderId: 'a1', senderName: 'Sunita Verma', senderRole: 'admin' }, 'me', t),
+    ).toBe('MDG');
+  });
+  it('is MDG for a quoted id outside the dealer side, and the name for one inside', () => {
+    expect(replySenderLabel(quote({ senderId: 'a1', senderName: 'Sunita Verma' }), 'me', t, side)).toBe('MDG');
+    expect(replySenderLabel(quote({ senderId: 'mgr', senderName: 'Raju' }), 'me', t, side)).toBe('Raju');
+    expect(replySenderLabel(quote({ senderId: 'me', senderName: 'Ramesh' }), 'me', t, side)).toBe('आप');
+  });
+});
+
 describe('the name on a gallery item', () => {
   it('follows the same rules as a quote: you, MDG for the system, otherwise the name', () => {
     expect(senderDisplayName({ senderId: 'me', senderName: 'Ramesh' }, 'me', t)).toBe('आप');

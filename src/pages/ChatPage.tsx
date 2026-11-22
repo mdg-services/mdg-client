@@ -23,7 +23,8 @@ import { withReaderPictures } from '@/features/chat/readerLanguage';
 import {
   buildReplyContext,
   replyPreview,
-  replySenderLabel,
+  dealerSideIdsOf,
+  senderDisplayName,
 } from '@/features/chat/replyContext';
 import { TicketBar } from '@/features/chat/TicketBar';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
@@ -65,6 +66,9 @@ export function ChatPage() {
     [listQuery.data, conversationId],
   );
 
+  // Who is on the dealer's side of this thread; every other sender is MDG, never a name.
+  const dealerSideIds = React.useMemo(() => dealerSideIdsOf(conversation), [conversation]);
+
   const messagesQuery = useMessages(conversationId);
   // The one-tap questions above the box: for this outlet's stage, in this reader's language.
   const quickReplies = useChatSuggestions({ enabled: !!conversationId });
@@ -95,6 +99,14 @@ export function ChatPage() {
     conversationId,
     userId,
     conversation?.kind,
+  );
+  // An admin typing is "MDG", not the admin's name (a group thread names who is typing).
+  const typingShown = React.useMemo(
+    () =>
+      typing.active && typing.userId && dealerSideIds && !dealerSideIds.has(typing.userId)
+        ? { ...typing, userName: t('chat.senderMdg') }
+        : typing,
+    [typing, dealerSideIds, t],
   );
 
   // The nonce is what makes the SAME chip work twice: the composer seeds off a
@@ -372,13 +384,13 @@ export function ChatPage() {
     const rc = buildReplyContext(replyTo);
     const preview = replyPreview(rc, t);
     return {
-      senderLabel: replySenderLabel(rc, userId, t),
+      senderLabel: senderDisplayName({ ...rc, senderRole: replyTo.senderRole }, userId, t, dealerSideIds),
       text: preview.text,
       icon: preview.icon,
       // An answer to a request has its photo in hand: not the moment for the keyboard.
       ...(quietReply ? { quiet: true } : {}),
     };
-  }, [replyTo, quietReply, userId, t]);
+  }, [replyTo, quietReply, userId, t, dealerSideIds]);
 
   // WHAT WAS UNREAD WHEN THIS THREAD OPENED — taken before the effect below
   // tells the server it has all been read, or there would be nothing left to
@@ -517,8 +529,8 @@ export function ChatPage() {
     (isGroup ? undefined : t('chat.barSupportSubtitle'));
   const subtitle: React.ReactNode = typing.active ? (
     <span className="text-wa-accent-strong">
-      {shared && typing.userName
-        ? `${t('chat.isTyping', { name: typing.userName })}…`
+      {shared && typingShown.userName
+        ? `${t('chat.isTyping', { name: typingShown.userName })}…`
         : t('chat.typing')}
     </span>
   ) : (
@@ -622,11 +634,12 @@ export function ChatPage() {
         loadMoreFailed={messagesQuery.isFetchNextPageError}
         onLoadMore={() => void messagesQuery.fetchNextPage()}
         onFetchOlder={messagesQuery.fetchNextPage}
-        typing={typing}
+        typing={typingShown}
         onQuickAction={(quick) =>
           setComposerSeed((prev) => ({ text: quick, n: (prev?.n ?? 0) + 1 }))
         }
         showSenderNames={shared}
+        dealerSideIds={dealerSideIds}
         selectedIds={selectedSet}
         onToggleSelect={toggleSelect}
         onReact={reactFromStrip}

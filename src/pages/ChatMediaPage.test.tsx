@@ -16,6 +16,13 @@ afterEach(() => cleanup());
 const api = vi.hoisted(() => ({ get: vi.fn() }));
 vi.mock('@/lib/api', () => ({ api }));
 
+// The thread's own list (who is on the dealer's side): a stand-in, so it does not
+// take one of the gallery pages that `api.get` is queued with.
+const mine = vi.hoisted(() => ({ conversations: [{ id: 'c1', userId: 'me', participantUserIds: ['me', 'u9'] }] }));
+vi.mock('@/hooks/api/useMyConversations', () => ({
+  useMyConversations: () => ({ data: mine.conversations }),
+}));
+
 // The PDF reader draws with pdf.js, which jsdom cannot run: here it fetches what
 // it is given and shows its title, which is what this page decides.
 const pdf = vi.hoisted(() => ({ bytes: vi.fn() }));
@@ -477,13 +484,21 @@ describe('ChatMediaPage — the viewer', () => {
       picture(1, { senderId: 'sys' }),
     ]);
     renderPage();
-    for (const name of ['pic2.jpg', 'pic1.jpg']) {
+    for (const [name, label] of [['pic2.jpg', 'MDG'], ['pic1.jpg', 'MDG']] as const) {
       fireEvent.click(await screen.findByRole('button', { name }));
-      expect(within(viewer()).getByText('MDG Support')).toBeInTheDocument();
+      expect(within(viewer()).getByText(label)).toBeInTheDocument();
       expect(within(viewer()).queryByText('MDG System')).toBeNull();
       fireEvent.keyDown(window, { key: 'Escape' });
       await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Image preview' })).toBeNull());
     }
+  });
+
+  it('says MDG, not the admin\'s own name, for a picture an admin sent', async () => {
+    api.get.mockResolvedValue([picture(1, { senderId: 'adm1', senderName: 'Sunita Verma' })]);
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: 'pic1.jpg' }));
+    expect(within(viewer()).getByText('MDG')).toBeInTheDocument();
+    expect(within(viewer()).queryByText('Sunita Verma')).toBeNull();
   });
 
   it('says "You" for a picture the dealer sent, and shows its caption', async () => {

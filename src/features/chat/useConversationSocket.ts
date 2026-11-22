@@ -26,6 +26,8 @@ import type {
 export interface TypingState {
   active: boolean;
   userName?: string;
+  /** Who is typing, so a view can tell the dealer's side from MDG. */
+  userId?: string;
 }
 
 /**
@@ -302,7 +304,7 @@ export function useConversationSocket(
     const onTyping = (payload: { conversationId: string; userId: string; userName: string }) => {
       if (payload.conversationId !== conversationId) return;
       if (payload.userId === currentUserId) return;
-      setTyping({ active: true, userName: payload.userName });
+      setTyping({ active: true, userName: payload.userName, userId: payload.userId });
       if (typingTimer.current) window.clearTimeout(typingTimer.current);
       typingTimer.current = window.setTimeout(() => {
         setTyping({ active: false });

@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import { useT } from '@/lib/i18n';
 import { useBackToClose } from '@/lib/useBackToClose';
+import { dealerSideIdsOf } from './replyContext';
 import type { Conversation, Message } from '@dk/shared/types';
 
 /**
@@ -30,6 +31,10 @@ export function ReactionsSheet({
 
   const nameFor = (userId: string, wireName?: string): string => {
     if (userId === currentUserId) return t('chat.you');
+    // An admin who reacted is MDG, whatever name the wire carries: only people on the
+    // dealer's side of the thread are named.
+    const side = dealerSideIdsOf(conversation);
+    if (side && !side.has(userId)) return t('chat.senderMdg');
     if (wireName) return wireName;
     const p = conversation?.participants?.find((x) => x.userId === userId);
     // Unknown ids are the MDG admin pool (never listed as participants).
