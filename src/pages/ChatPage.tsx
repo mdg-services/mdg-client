@@ -31,6 +31,7 @@ import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
 import { BillDueBanner } from '@/features/setup/BillDueBanner';
 import { SetupStrip } from '@/features/setup/SetupStrip';
 import { useChatAskStates } from '@/hooks/api/useChatAskStates';
+import { useChatSuggestions } from '@/hooks/api/useChatSuggestions';
 import { messagesQueryKey, useMessages } from '@/hooks/api/useMessages';
 import { useMessageSearch } from '@/hooks/api/useMessageSearch';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
@@ -65,6 +66,8 @@ export function ChatPage() {
   );
 
   const messagesQuery = useMessages(conversationId);
+  // The one-tap questions above the box: for this outlet's stage, in this reader's language.
+  const quickReplies = useChatSuggestions({ enabled: !!conversationId });
   // LEAVE ONLY THE NEWEST PAGE BEHIND. Opening a chat refetches it (see
   // `useMessages`), and a refetch asks again for every page in the cache, one
   // after another — a dealer who had read back through a year of reports waited
@@ -656,6 +659,7 @@ export function ChatPage() {
         // Only once the thread has something in it. On an empty thread the
         // empty state is already showing its own two chips.
         showQuickReplies={messages.length > 0}
+        quickReplies={quickReplies}
       />
 
       {liveReactionsMessage ? (

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import { invalidateChatSuggestions } from '@/hooks/api/useChatSuggestions';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
@@ -41,6 +42,8 @@ export function useOutletSetup({ enabled = true }: { enabled?: boolean } = {}) {
 /** Ask the server again — something about the outlet's setup changed. */
 export function invalidateOutletSetup(qc: QueryClient): void {
   void qc.invalidateQueries({ queryKey: outletSetupKey });
+  // The chips above the chat box follow the setup stage.
+  invalidateChatSuggestions(qc);
 }
 
 /**
@@ -65,6 +68,8 @@ function isSetupView(data: unknown): data is OutletSetupView {
 function takeAnswer(qc: QueryClient, data: unknown): Promise<unknown> | undefined {
   if (isSetupView(data)) {
     qc.setQueryData(outletSetupKey, data);
+    // The step moved, so the chips above the chat box have to follow it.
+    invalidateChatSuggestions(qc);
     return undefined;
   }
   return qc.invalidateQueries({ queryKey: outletSetupKey });

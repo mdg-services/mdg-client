@@ -220,8 +220,6 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'chat.quickReportIssue': 'Koi dikkat batayein',
   'chat.quickRequestService': 'Service ke liye kahein',
   'chat.aiInstantReply': 'Turant jawab',
-  'chat.quickTodayReport': 'Aaj ki report?',
-  'chat.quickWhatNow': 'Ab kya karna hai?',
   'chat.today': 'Aaj',
   'chat.yesterday': 'Kal',
   'chat.isTyping': '{name} likh rahe hain',

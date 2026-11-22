@@ -542,16 +542,6 @@ export const messages = {
   // the answer it annotates.
   'chat.aiInstantReply': { en: 'Instant reply', hi: 'तुरंत जवाब' },
 
-  // The two chips above the composer. Both are questions a dealer asks most
-  // mornings and both are a nuisance to type on a Devanagari phone keyboard,
-  // which is the entire point of a chip.
-  'chat.quickTodayReport': { en: "Today's report?", hi: 'आज की रिपोर्ट?' },
-  // REPLACED "Sent today's photo?" — see the note on `quickReplies` in
-  // Composer.tsx. The wording is deliberately the glossary's own example for the
-  // `todo` label ("ab kya karna hai" / "what do I need to do now"), so the chip
-  // lands on the one intent that was written to answer it.
-  'chat.quickWhatNow': { en: 'What do I need to do?', hi: 'अब क्या करना है?' },
-
   'chat.today': { en: 'Today', hi: 'आज' },
   'chat.yesterday': { en: 'Yesterday', hi: 'कल' },
   'chat.isTyping': { en: '{name} is typing', hi: '{name} लिख रहे हैं' },

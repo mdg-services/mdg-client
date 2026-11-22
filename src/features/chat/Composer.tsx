@@ -147,10 +147,21 @@ export interface ComposerProps {
    * two sets on one screen is four chips and no clear first move.
    */
   showQuickReplies?: boolean;
+  /**
+   * The sentences those chips carry, already in the reader's language and in
+   * the order to show them. The caller chooses them from where the outlet is
+   * (setting up, or live and not yet using some service) — see
+   * `useChatSuggestions`. Empty, or not given, means no row at all: while the
+   * choice is still loading the box shows nothing, never the wrong chips.
+   */
+  quickReplies?: readonly string[];
 }
 
 /** What the Document choice offers. Photos have their own two doors. */
 const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.txt';
+
+/** No chips. A constant, so an absent prop is the same array on every render. */
+const NO_CHIPS: readonly string[] = [];
 
 /** The server's ceiling on attachments in one message. */
 const MAX_ATTACHMENTS = 10;
@@ -376,6 +387,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
     onAnswerPicked,
     onAnswerDropped,
     showQuickReplies,
+    quickReplies,
   },
   handleRef,
 ) {
@@ -544,33 +556,24 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
   // The gate is `text.length`, not `text.trim().length`: the first keystroke
   // hides them, whatever it was.
   //
-  // WHY THESE TWO, AND WHY "Sent today's photo?" IS NO LONGER ONE OF THEM.
-  // A chip is worth its row only if it is a question a dealer actually asks AND
-  // one nothing else on the screen already answers. The photo chip failed the
-  // second test twice over. When a photo is owed, the request itself is in the
-  // thread — a message with its own "Send photo" button — so the chip asked the
-  // machine to describe a chore the thread was already showing, and when nothing
-  // was owed its answer was one fixed sentence.
+  // WHICH ONES IS NOT DECIDED HERE. Until 23 Nov 2026 this row held two fixed
+  // questions for every dealer on every day: "Today's report?" and "What do I
+  // need to do?". A dealer still setting up has no report, tapped the first at
+  // random and was told their setup was not finished, which only confused them.
+  // The caller now chooses the sentences from the outlet's stage — questions
+  // about the setup step the dealer is on, or, once live, things this outlet can
+  // ask for and has not yet. See `useChatSuggestions`.
   //
-  // "What do I need to do?" replaces it because it is the question the live
-  // incident was about: at dealer 1E it was answered with "I couldn't check this
-  // one myself. I've passed it to the MDG team…" and the thread went to a person
-  // on the dealer's SECOND message. It now has a label of its own that answers
-  // it — the papers owed, the register page, and where the report stands — so
-  // the chip finally names something the machine can do.
-  //
-  // THEY ONLY FILL THE BOX. A conversational first line is an argument for
-  // FEWER fixed chips, not more: the whole point is that the dealer can now type
-  // their own question and be understood, so a menu of canned ones would teach
-  // them the opposite. These two earn their place as a keyboard shortcut for the
-  // two things typed most often on a Devanagari phone keyboard — not as the
-  // interface. The composer is the interface.
-  const quickReplies = React.useMemo(
-    () => [t('chat.quickTodayReport'), t('chat.quickWhatNow')],
-    [t],
-  );
+  // THEY ONLY FILL THE BOX. A conversational first line is an argument for FEWER
+  // fixed chips, not more: the whole point is that the dealer can type their own
+  // question and be understood, so a menu of canned ones would teach them the
+  // opposite. The row earns its place as a keyboard shortcut on a Devanagari
+  // phone keyboard, and as the one place that says what the chat can do. The
+  // composer is the interface.
+  const chips = quickReplies ?? NO_CHIPS;
   const showChips =
     !!showQuickReplies &&
+    chips.length > 0 &&
     !disabled &&
     recMode === 'idle' &&
     !replyingTo &&
@@ -1876,7 +1879,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
         // screen every time the box was empty; a chip half in view is the
         // affordance that says there is more to the right.
         <div className="flex gap-2 overflow-x-auto overscroll-contain px-2 pt-2 scrollbar-thin">
-          {quickReplies.map((label) => (
+          {chips.map((label) => (
             <button
               key={label}
               type="button"

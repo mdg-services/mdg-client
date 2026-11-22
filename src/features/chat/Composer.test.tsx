@@ -1290,13 +1290,13 @@ describe('Composer — the voice-note bar', () => {
 });
 
 /**
- * The one-tap questions above the composer.
+ * The one-tap question chips above the box.
  *
- * They exist for one reason: "आज की रिपोर्ट?" is nine taps on a Devanagari phone
- * keyboard and one tap here. The dangerous part is the mechanism — the seed sets
- * the textarea's value, it does not append to it — so a chip that stayed on
- * screen beside a half-typed sentence would be a one-tap way to lose it. They
- * must be gone before the first character lands.
+ * WHICH chips is the caller's choice (the outlet's stage, see `useChatSuggestions`);
+ * what the composer owns is the MECHANISM, and it is the dangerous part: the seed
+ * sets the textarea's value, it does not append to it — so a chip that stayed on
+ * screen beside a half-typed sentence would be a one-tap way to lose it. They must
+ * be gone before the first character lands.
  */
 describe('Composer quick-reply chips', () => {
   beforeEach(() => {
@@ -1304,38 +1304,47 @@ describe('Composer quick-reply chips', () => {
     useLangStore.setState({ lang: 'en', explicit: true });
   });
 
-  // "Sent today's photo?" was the middle one until the conversational writer
-  // shipped: `AskBar` already states that chore above this thread and opens the
-  // camera, while "What do I need to do?" is the question the live incident at
-  // 1E was handed to a person over.
-  const CHIPS = ["Today's report?", 'What do I need to do?'];
+  const CHIPS = ['Where has my setup reached?', 'When will my services start?'];
 
-  it('offers the two questions while the box is empty', () => {
-    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+  it('offers exactly the questions it is given while the box is empty', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={CHIPS} />);
     for (const label of CHIPS) {
       expect(screen.getByRole('button', { name: label })).toBeInTheDocument();
     }
   });
 
-  it('has no "Talk to support" chip — a person is reached by a ticket, not a tap', () => {
+  it('no longer carries a fixed pair of its own', () => {
+    // The old pair ("Today's report?") was shown to every dealer, including one still
+    // setting up who has no report. With nothing given there is no row at all.
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    expect(screen.queryByRole('button', { name: "Today's report?" })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'What do I need to do?' })).toBeNull();
+  });
+
+  it('shows no row for an empty list (the choice is still loading)', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={[]} />);
+    expect(document.querySelector('.scrollbar-thin')).toBeNull();
+  });
+
+  it('has no "Talk to support" chip — a person is reached by a ticket, not a tap', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={CHIPS} />);
     expect(screen.queryByRole('button', { name: 'Talk to support' })).toBeNull();
   });
 
   it('fills the box and does NOT send', () => {
     const onSend = vi.fn();
-    renderWithProviders(<Composer onSend={onSend} showQuickReplies />);
-    fireEvent.click(screen.getByRole('button', { name: "Today's report?" }));
+    renderWithProviders(<Composer onSend={onSend} showQuickReplies quickReplies={CHIPS} />);
+    fireEvent.click(screen.getByRole('button', { name: CHIPS[0] }));
 
     const box = screen.getByPlaceholderText('Message') as HTMLTextAreaElement;
-    expect(box.value).toBe("Today's report?");
+    expect(box.value).toBe(CHIPS[0]);
     // The dealer still reads it, still edits it, still presses Send.
     expect(onSend).not.toHaveBeenCalled();
     expect(screen.getByRole('button', { name: 'Send' })).toBeInTheDocument();
   });
 
   it('disappears the moment anything is typed, so a chip can never wipe it', () => {
-    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={CHIPS} />);
     const box = screen.getByPlaceholderText('Message');
     fireEvent.change(box, { target: { value: 'p' } });
 
@@ -1346,16 +1355,16 @@ describe('Composer quick-reply chips', () => {
 
   it('stays gone while a half-typed message sits in the box', () => {
     // The one that actually protects the dealer: a long sentence, mid-thought.
-    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies />);
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={CHIPS} />);
     const box = screen.getByPlaceholderText('Message');
     fireEvent.change(box, {
       target: { value: 'pump 2 ka nozzle band hai, kal se, aur' },
     });
-    expect(screen.queryByRole('button', { name: "Today's report?" })).toBeNull();
+    expect(screen.queryByRole('button', { name: CHIPS[0] })).toBeNull();
     // Clearing it brings them back — the row is a state of the empty box, not a
     // one-shot banner.
     fireEvent.change(box, { target: { value: '' } });
-    expect(screen.getByRole('button', { name: "Today's report?" })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: CHIPS[0] })).toBeInTheDocument();
   });
 
   it('hides them while replying to a message', () => {
@@ -1364,17 +1373,18 @@ describe('Composer quick-reply chips', () => {
       <Composer
         onSend={vi.fn()}
         showQuickReplies
+        quickReplies={CHIPS}
         replyingTo={{ senderLabel: 'MDG Support', text: 'the answer', icon: null }}
         onCancelReply={vi.fn()}
       />,
     );
-    expect(screen.queryByRole('button', { name: "Today's report?" })).toBeNull();
+    expect(screen.queryByRole('button', { name: CHIPS[0] })).toBeNull();
   });
 
   it('shows nothing at all when the caller has not asked for them', () => {
     // An empty thread: `MessageList`'s empty state is already offering its own
-    // three chips, and six on one screen is no clear first move.
-    renderWithProviders(<Composer onSend={vi.fn()} />);
+    // chips, and two sets on one screen is no clear first move.
+    renderWithProviders(<Composer onSend={vi.fn()} quickReplies={CHIPS} />);
     for (const label of CHIPS) {
       expect(screen.queryByRole('button', { name: label })).toBeNull();
     }
