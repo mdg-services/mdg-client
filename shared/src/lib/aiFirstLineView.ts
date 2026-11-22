@@ -212,6 +212,7 @@ export const AI_HANDOFF_REASON_LABEL: Record<AiHandoffReason, string> = {
   ack: 'Only “ok” or “thanks” — nothing to answer',
   quiet_reply: 'A person at MDG replied here or picked the chat up a moment ago, so it stayed out',
   on_it: 'A person is on this ticket and the message was about it',
+  complaint_answer: 'It was the dealer\'s answer to a question in a complaint box, applied there',
 };
 
 /**

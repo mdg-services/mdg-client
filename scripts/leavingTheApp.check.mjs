@@ -50,6 +50,10 @@ const ALLOWED = {
   },
   'src/pages/ChatMediaPage.tsx': { count: 2, why: 'the Links tab lists those same typed web links' },
   'src/pages/LoginPage.tsx': { count: 1, why: 'the helpline number is a tel: link — it opens the dialler' },
+  'src/features/chat/Complaints/VendorMailCard.tsx': {
+    count: 1,
+    why: 'the vendor e-mail the owner asked the dealer be able to send in one tap: Gmail compose (through openWebPage) / the mail app (mailto:) (owner, 22 Nov 2026)',
+  },
   'src/lib/nativeBridge.ts': {
     count: 2,
     why: 'an oil-company portal page cannot be shown in the app; old shells and browsers get it outside',

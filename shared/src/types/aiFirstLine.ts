@@ -498,6 +498,12 @@ export const AI_HANDOFF_REASONS = [
    * message was added to the ticket.
    */
   'on_it',
+  /**
+   * The message was the dealer's typed answer to a question MDG's complaint box had open
+   * (ADR 0052): it was applied to the complaint and the first line stayed out, so the
+   * dealer is not answered twice.
+   */
+  'complaint_answer',
 ] as const;
 export type AiHandoffReason = (typeof AI_HANDOFF_REASONS)[number];
 

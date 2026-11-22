@@ -110,6 +110,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'stock-check': { en: 'Stock check', hi: 'टैंक का स्टॉक' },
   /** ADR 0049. The portal's own name for the page ("Electrical Audit Compliance"). */
   'electrical-audit': { en: 'Electrical audit compliance', hi: 'इलेक्ट्रिकल ऑडिट कंप्लायंस' },
+  /** ADR 0052. "शिकायत" is what a dealer calls it: the card machine, the automation or a nozzle is broken. */
+  'maintenance-complaints': { en: 'Complaints', hi: 'शिकायतें (मशीन ख़राब)' },
   /**
    * Not a service the owner takes: the run MDG makes when the owner taps "Forgot
    * password?" in the SDMS login box. Named for what it is so the admin's run
@@ -232,6 +234,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
   'electrical-audit': {
     en: "the open points of IndianOil's electrical audit closed on the portal for the owner when the owner or manager asks in the chat: every point marked complied with the action taken as done, saved and submitted, and what was filed told in the chat",
     hi: 'इंडियन ऑयल के इलेक्ट्रिकल ऑडिट के खुले पॉइंट — मालिक या मैनेजर के चैट में कहते ही पोर्टल पर हर पॉइंट "Yes" और कार्रवाई "Done" भरकर सेव और सबमिट करना, और क्या जमा हुआ वह चैट में बताना',
+  },
+  'maintenance-complaints': {
+    en: "something broken at the pump — the card machine, the automation, a dispenser or another facility — reported in the chat in your own words, filed on IndianOil's portal after your yes, followed step by step, and closed when you say it works again",
+    hi: 'पंप पर कुछ ख़राब होने पर — कार्ड मशीन, ऑटोमेशन, डिस्पेंसर या कोई और सुविधा — चैट में अपने शब्दों में बताना, आपकी "हाँ" के बाद इंडियन ऑयल के पोर्टल पर दर्ज करना, हर कदम पर नज़र रखना, और ठीक चलने की आपकी बात पर बंद करना',
   },
   'sdms-password-reset': {
     en: "a new SDMS password when IndianOil expires the old one, set with the OTP from the owner's phone",

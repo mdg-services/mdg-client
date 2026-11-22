@@ -116,6 +116,8 @@ export const TICKET_TRIGGER_FOR_REASON: Record<AiHandoffReason, TicketTrigger | 
   ack: null,
   quiet_reply: null,
   on_it: null,
+  // A typed answer to a complaint question: applied there, nothing for a person to answer.
+  complaint_answer: null,
 };
 
 /** Minutes since `iso`, never negative. */

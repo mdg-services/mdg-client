@@ -25,6 +25,7 @@ import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
 import { DeclarationsBox } from './Declarations/DeclarationsBox';
 import { DuOtpAckBox } from './DuOtpAckBox';
+import { ComplaintBox } from './Complaints/ComplaintBox';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
@@ -478,6 +479,9 @@ export const MessageBubble = React.memo(function MessageBubble({
   // practised, two photos and the day. Like the box above, an empty object means
   // "draw it": it reads the outlet's live view. Wide and timed on its own line.
   const mockDrill = message.mockDrill;
+  // THE COMPLAINT BOX (`message.complaint`, ADR 0052): drawn live on the one message the
+  // complaint's view names, and nothing extra on the others. Wide, timed on its own line.
+  const complaint = message.complaint;
   // THE DECLARATIONS BOX (`message.declarations`, ADR 0037): the two washroom
   // photos IndianOil's weekly declaration needs. Again an empty object means "draw
   // it": it reads the outlet's live view. Wide and timed on its own line.
@@ -509,6 +513,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!wemmisLogin ||
     !!duOtpAck ||
     !!mockDrill ||
+    !!complaint ||
     !!declarations ||
     !!outletDetails ||
     !!videoList ||
@@ -533,6 +538,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!wemmisLogin ||
       !!duOtpAck ||
       !!mockDrill ||
+      !!complaint ||
       !!declarations ||
       !!outletDetails ||
       !!videoList ||
@@ -718,6 +724,9 @@ export const MessageBubble = React.memo(function MessageBubble({
           {duOtpAck ? <DuOtpAckBox /> : null}
 
           {mockDrill ? <MockDrillBox /> : null}
+          {complaint ? (
+            <ComplaintBox complaintId={complaint.complaintId} messageId={message.id} />
+          ) : null}
 
           {declarations ? <DeclarationsBox /> : null}
 

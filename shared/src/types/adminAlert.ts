@@ -136,6 +136,13 @@ export const ADMIN_ALERT_KINDS = [
    * linked to a portal order on a loose match, or it waits on a summoned window.
    */
   'fuel_order_attention',
+  // ── Maintenance complaints (ADR 0052) ──
+  /**
+   * A complaint needs a person: a press whose answer was lost, a portal status MDG has
+   * no mapping for, a refusal in words MDG does not know, a changed form, a rejected
+   * complaint, or an acknowledgement that could not be made.
+   */
+  'complaint_attention',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -447,6 +454,11 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   },
   fuel_order_attention: {
     label: 'Fuel order',
+    clearsWhen: 'Closes once marked seen, or after a day.',
+    superAdminOnly: false,
+  },
+  complaint_attention: {
+    label: 'Complaint',
     clearsWhen: 'Closes once marked seen, or after a day.',
     superAdminOnly: false,
   },

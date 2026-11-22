@@ -206,15 +206,17 @@ describe('TICKET_TRIGGER_FOR_REASON', () => {
     ack: null,
     quiet_reply: null,
     on_it: null,
+    // The dealer's typed answer went to the complaint box (ADR 0052): nothing to ticket.
+    complaint_answer: null,
   };
 
   it('covers every handoff reason the first line can give, and no other key', () => {
     expect(keysOf(TICKET_TRIGGER_FOR_REASON)).toEqual([...AI_HANDOFF_REASONS].sort());
   });
 
-  it('opens a ticket for every reason except the five that post nothing new', () => {
+  it('opens a ticket for every reason except the six that post nothing new', () => {
     const noTicket = AI_HANDOFF_REASONS.filter((r) => TICKET_TRIGGER_FOR_REASON[r] === null);
-    expect(noTicket.sort()).toEqual(['ack', 'follow_up', 'group_thread', 'on_it', 'quiet_reply']);
+    expect(noTicket.sort()).toEqual(['ack', 'complaint_answer', 'follow_up', 'group_thread', 'on_it', 'quiet_reply']);
   });
 
   it.each(['ack', 'quiet_reply', 'on_it'] as const)(

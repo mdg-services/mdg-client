@@ -6,6 +6,7 @@ import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/use
 import { invalidateDeclarations } from '@/hooks/api/useDeclarations';
 import { invalidateDuOtp } from '@/hooks/api/useDuOtp';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
+import { invalidateComplaints } from '@/hooks/api/useComplaints';
 import { invalidateMockDrill } from '@/hooks/api/useMockDrill';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
@@ -268,6 +269,9 @@ export function useConversationSocket(
       if (!alreadyPresent && payload.message.duOtpAck) invalidateDuOtp(qc);
       // THE MOCK DRILL BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.mockDrill) invalidateMockDrill(qc);
+      // A COMPLAINT BOX ARRIVED: it draws the complaint as it stands NOW (the next question,
+      // the filed number), which the cache may not have heard yet. Cheap when no box is on screen.
+      if (!alreadyPresent && payload.message.complaint) invalidateComplaints(qc);
       // THE DECLARATIONS BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);
       // THE PUMP DETAILS FORM ARRIVED: it draws the outlet's answers NOW, and another

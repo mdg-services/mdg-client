@@ -6,6 +6,7 @@ import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
 import type { MessageDuOtpAck } from './duOtpAck';
 import type { MessageDeclarations } from './declarations';
+import type { MessageComplaint } from './complaints';
 import type { MessageFuelIndent } from './fuelIndent';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
@@ -398,6 +399,11 @@ export interface Message {
    * goes in the app with a push, never on WhatsApp (owner, 13 Nov 2026).
    */
   fuelIndent?: MessageFuelIndent;
+  /**
+   * A maintenance complaint box (ADR 0052): the app draws the live box on the message
+   * the complaint's view names; the marker keeps it out of the WhatsApp backup.
+   */
+  complaint?: MessageComplaint;
   /**
    * Set on an MDG message that carries the Pump details form (पंप की जानकारी):
    * which state the pump is in, and whatever else the server's question list
