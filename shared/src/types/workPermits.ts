@@ -76,9 +76,8 @@ export interface WorkPermitOption {
 
 /**
  * What a question fills: vendor_code | vendor_rep | work | complaint | jsa | work_order |
- * dealer_rep | dealer_rep_extend | rep_name | rep_mobile | rep_dob | rep_gender | rep_email |
- * rep_id_number | letter_way | letterhead_photo | sign_photo | signed_letter_photo | done |
- * more_time.
+ * dealer_rep | rep_name | rep_mobile | rep_dob | rep_gender | rep_email | rep_id_number |
+ * letter_way | letterhead_photo | done.
  */
 export interface WorkPermitQuestion {
   id: string;
@@ -138,18 +137,19 @@ export interface WorkPermitsMeView {
 // ---------------------------------------------------------------- the letterhead kit
 
 /**
- * How the outlet signs the letters MDG writes for it (owner, 22 Nov 2026):
- *  - `sign_each`: MDG sends the letter, the dealer signs and stamps it and sends a photo back;
- *  - `blank_letterhead`: a photo of a blank sheet of the outlet's printed letterhead; MDG prints onto it;
- *  - `sign_stamp`: a photo of the owner's signature and stamp on a blank page; MDG puts it under the letter.
+ * Whose letterhead the letters MDG writes for the outlet go on (owner, 22 Nov 2026, revised):
+ *  - `blank_letterhead`: a photo of a blank sheet of the outlet's own printed letterhead; MDG prints onto it;
+ *  - `sign_each`: MDG's drawn letterhead with the outlet's name. A letter that needs a signature is
+ *    printed, signed and sent back by the dealer; one that does not (the work permit's Letter of
+ *    Authorization) is submitted as it is.
+ * No signature or stamp is ever collected from the dealer.
  */
-export const LETTERHEAD_WAYS = ['sign_each', 'blank_letterhead', 'sign_stamp'] as const;
+export const LETTERHEAD_WAYS = ['blank_letterhead', 'sign_each'] as const;
 export type LetterheadWay = (typeof LETTERHEAD_WAYS)[number];
 
 export interface LetterheadKitView {
   way: LetterheadWay | null;
   hasBlankLetterhead: boolean;
-  hasSignStamp: boolean;
   updatedAt?: string;
 }
 
