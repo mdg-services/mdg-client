@@ -86,6 +86,8 @@ export const COMPLAINT_EVENTS = [
   'escalated',
   'auto_closed',
   'failed',
+  /** "It has not moved for N days": the question with Remind / Tell the team / I'll wait (a filed complaint). */
+  'nudge',
 ] as const;
 export type ComplaintEvent = (typeof COMPLAINT_EVENTS)[number];
 
@@ -111,7 +113,7 @@ export interface ComplaintOption {
 /** The one thing MDG is asking right now. */
 export interface ComplaintQuestion {
   id: string;
-  /** What it fills: route | tid | du | tank | fault | nozzles | product_dip | water_dip | sales_stopped | products | du_count | nozzle_count | vendor_mail_who | vendor_mail_sent | vendor_mail_date | ack_reason. */
+  /** What it fills: route | tid | du | tank | fault | nozzles | product_dip | water_dip | sales_stopped | products | du_count | nozzle_count | vendor_mail_who | vendor_mail_sent | vendor_mail_date | ack_reason | existing_open (a complaint MDG filed is still open on the same machine) | nudge | reminder_who | reminder_sent (a filed complaint that is not moving; these three are shown under the step tracker). */
   field: string;
   prompt: SomeDealerWords;
   options: ComplaintOption[];
@@ -172,6 +174,12 @@ export interface ComplaintDealerView {
    * shows the mail to copy, with a Gmail link and a mail-app link already filled in.
    */
   vendorMail?: ComplaintVendorMailView;
+  /**
+   * The reminder to the card-machine company that the dealer sends himself, shown (with the
+   * "Sent?" question) under the step tracker of a filed complaint that is not moving.
+   * Same shape as `vendorMail`; MDG's own reminders are never drawn as a card.
+   */
+  reminderMail?: ComplaintVendorMailView;
   /** The chat message that holds the live box. */
   liveMessageId?: string;
   filedAt?: string;
@@ -220,6 +228,8 @@ export const COMPLAINT_ATTENTION = [
   'login_problem',
   'rejected',
   'ack_blocked',
+  /** A complaint MDG filed has not moved for a week (or the owner asked for the team): nobody is on it. */
+  'stalled',
 ] as const;
 export type ComplaintAttention = (typeof COMPLAINT_ATTENTION)[number];
 

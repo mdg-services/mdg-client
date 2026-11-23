@@ -70,7 +70,9 @@ export function wantsAnswer(view: ComplaintDealerView): boolean {
     view.screen === 'asking' ||
     view.screen === 'confirm' ||
     view.screen === 'ack' ||
-    view.screen === 'ack_reason'
+    view.screen === 'ack_reason' ||
+    // A filed complaint that has not moved asks the owner what to do, under its tracker.
+    (view.screen === 'tracking' && !!view.question)
   );
 }
 

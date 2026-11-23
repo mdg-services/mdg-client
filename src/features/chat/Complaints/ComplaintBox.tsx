@@ -436,6 +436,12 @@ function Screen({
           <Tracker steps={view.steps} />
           {view.screen === 'tracking' ? <Engineer view={view} /> : null}
           {status ? <p className="break-words text-[14px] leading-snug">{status}</p> : null}
+          {/* "It has not moved": the step tracker above stays; the question and, when the owner sends
+              the reminder himself, the e-mail to copy come under it. */}
+          {view.screen === 'tracking' && view.reminderMail ? <VendorMailCard mail={view.reminderMail} /> : null}
+          {view.screen === 'tracking' && view.question ? (
+            <Asking key={view.question.id} view={view} busy={busy} onAnswer={onAnswer} />
+          ) : null}
           {view.screen === 'tracking' && view.canCheckNow ? (
             <button
               type="button"
