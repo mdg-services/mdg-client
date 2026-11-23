@@ -3,8 +3,8 @@ import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
 import { OutletDetailsCard } from '@/features/outletDetails/OutletDetailsCard';
-import { YourVideosCard } from '@/features/yourVideos/YourVideosCard';
 import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
+import { YourVideosCard } from '@/features/yourVideos/YourVideosCard';
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
@@ -23,10 +23,10 @@ import {
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
+import { ComplaintBox } from './Complaints/ComplaintBox';
 import { DeclarationsBox } from './Declarations/DeclarationsBox';
 import { DuOtpAckBox } from './DuOtpAckBox';
-import { ComplaintBox } from './Complaints/ComplaintBox';
-import { WorkPermitBox } from './WorkPermits/WorkPermitBox';
+import { FuelOrderCardView } from './FuelOrderCardView';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
@@ -35,6 +35,7 @@ import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
 import { ticketLineText, type TicketLineStatus } from './ticketLine';
 import { WemmisLoginBox } from './WemmisLoginBox';
+import { WorkPermitBox } from './WorkPermits/WorkPermitBox';
 
 /**
  * The coloured strip across the top of an announcement. Strong colours on
@@ -512,6 +513,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   // line, and no button: a dealer answers it by writing in the chat. An app that
   // predates the field draws the words as an ordinary bubble, which still reads.
   const announcement = message.announcement;
+  // A TANKER MESSAGE MDG posted (`message.fuelCard`, ADR 0041): a strip, the tanker
+  // number large, then the order's facts one per line. Drawn INSTEAD of the words
+  // (they are its plain copy, for an older app and for search). Wide, timed on its own line.
+  const fuelCard = message.fuelCard;
   const hasSetupBody = !!setupCard && setupCardHasBody(setupCard.card);
   const wide =
     hasMedia ||
@@ -527,6 +532,7 @@ export const MessageBubble = React.memo(function MessageBubble({
     !!outletDetails ||
     !!videoList ||
     !!announcement ||
+    !!fuelCard ||
     hasSetupBody;
 
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
@@ -553,6 +559,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       !!outletDetails ||
       !!videoList ||
       !!announcement ||
+      !!fuelCard ||
       hasSetupBody);
 
   const time = formatTime(message.createdAt, lang);
@@ -575,7 +582,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   const fromMdg =
     message.system || message.senderRole === 'admin' || isSystemSenderName(message.senderName);
   const senderLabel = fromMdg ? t('chat.senderMdg') : message.senderName;
-  const showName = !!showSender && !mine && first && !!senderLabel && !announcement;
+  const showName = !!showSender && !mine && first && !!senderLabel && !announcement && !fuelCard;
 
   return (
     <div className={cn('flex w-full', mine ? 'justify-end' : 'justify-start')}>
@@ -595,7 +602,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             wide && 'w-full',
             mine ? 'bg-wa-out' : 'bg-wa-in',
             first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
-            announcement
+            announcement || fuelCard
               ? 'pb-[5px]'
               : hasMedia || hasOther
                 ? 'p-[3px]'
@@ -617,6 +624,8 @@ export const MessageBubble = React.memo(function MessageBubble({
               ) : null}
             </div>
           ) : null}
+
+          {fuelCard && !announcement ? <FuelOrderCardView card={fuelCard} lang={lang} /> : null}
 
           {showName ? (
             <span
@@ -681,7 +690,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             </div>
           ) : null}
 
-          {hasBody && !announcement ? (
+          {hasBody && !announcement && !fuelCard ? (
             <div
               className={cn(
                 // NOT selectable: long-press selects the message (Copy lives in

@@ -1,20 +1,20 @@
 import type { ConversationAiState, MessageAiMeta } from './aiFirstLine';
-import type { MessageAsk } from './chatAsk';
-import type { DealerLang, SomeDealerWords } from './dealerLanguage';
 import type { MessageAnnouncement } from './announcement';
-import type { MessageSetupCard } from './outletSetup';
 import type { MessageWemmisLogin } from './calibrationClaim';
-import type { MessageDuOtpAck } from './duOtpAck';
-import type { MessageDeclarations } from './declarations';
+import type { MessageAsk } from './chatAsk';
 import type { MessageComplaint } from './complaints';
-import type { MessageWorkPermit } from './workPermits';
-import type { MessageFuelIndent } from './fuelIndent';
+import type { DealerLang, SomeDealerWords } from './dealerLanguage';
+import type { MessageDeclarations } from './declarations';
+import type { MessageDuOtpAck } from './duOtpAck';
+import type { FuelOrderCard, MessageFuelIndent } from './fuelIndent';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
-import type { MessageVideoList } from './yourVideos';
+import type { MessageSetupCard } from './outletSetup';
 import type { MessagePortalLogin } from './portalLogin';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
+import type { MessageWorkPermit } from './workPermits';
+import type { MessageVideoList } from './yourVideos';
 
 export type ConversationStatus = 'OPEN' | 'ASSIGNED' | 'RESOLVED';
 
@@ -400,6 +400,8 @@ export interface Message {
    * goes in the app with a push, never on WhatsApp (owner, 13 Nov 2026).
    */
   fuelIndent?: MessageFuelIndent;
+  /** A tanker message drawn as a card (ADR 0041). Absent on every other message. */
+  fuelCard?: FuelOrderCard;
   /**
    * A maintenance complaint box (ADR 0052): the app draws the live box on the message
    * the complaint's view names; the marker keeps it out of the WhatsApp backup.

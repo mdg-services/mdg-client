@@ -13,6 +13,8 @@
  * known yet, and a mapping would hide a new one.
  */
 
+import type { SomeDealerWords } from './dealerLanguage';
+
 export const FUEL_INDENT_SERVICE_ID = 'fuel-indent';
 
 /** The fuels an order can carry, in the platform's product vocabulary. */
@@ -117,6 +119,28 @@ export interface MessageFuelIndent {
   event: string;
   /** The order row the notice is about, so a notice whose claim outlived a crash is found, not sent twice. */
   indentId?: string | null;
+}
+
+/**
+ * A fuel-order message the app draws as a CARD (owner, 23 Nov 2026: "this should
+ * have been a card with the important details highlighted"). The message body
+ * stays the plain copy — for an older app, the admin's search, the push and the
+ * AI's reading of the chat; the card is the same facts, laid out to be read at a
+ * glance. Every text comes in each dealer language; the app picks the reader's
+ * own with `sayIn`. Figures, dates and the tanker number are already in the text.
+ */
+export interface FuelOrderCard {
+  kind: 'tanker_assigned' | 'tanker_changed' | 'tanker_details_added';
+  /** The coloured strip across the top ("Tanker lag gaya"). */
+  title: SomeDealerWords;
+  /** The one thing to read from across the room: the tanker number. Null when the portal has none yet. */
+  hero: string | null;
+  /** The small label above the hero ("Tanker number"). */
+  heroLabel: SomeDealerWords;
+  /** Label and value, one per line; `strong` values are drawn bold. A plain string is the same in every language (a number, a KL). */
+  rows: { label: SomeDealerWords | string; value: SomeDealerWords | string; strong?: boolean }[];
+  /** One quiet line under the rows, when there is something to add. */
+  note?: SomeDealerWords | null;
 }
 
 export interface FuelOrderLineView {
@@ -226,7 +250,9 @@ export interface FuelOrderView {
 /** What the admin's per-order timeline is drawn from. */
 export interface FuelOrderTrailView {
   /** Every notice slot, by event. */
-  notices: Partial<Record<FuelIndentEvent, FuelNoticeView & { key: string | null; messageIds: string[] }>>;
+  notices: Partial<
+    Record<FuelIndentEvent, FuelNoticeView & { key: string | null; messageIds: string[] }>
+  >;
   /** The orders the owner was shown on the read-back as already there (`sap:<no>` / `id:<id>`). */
   acknowledgedKeys: string[];
   /** The owner's yes was the "ek aur" kind: another load on top of an order already there. */
@@ -240,7 +266,12 @@ export interface FuelOrderTrailView {
   /** Who set each part of the draft, and when (ISO). */
   setBy: {
     deliveryDate: { userName: string | null; at: string | null } | null;
-    lines: { product: FuelProduct; kl: number | null; userName: string | null; at: string | null }[];
+    lines: {
+      product: FuelProduct;
+      kl: number | null;
+      userName: string | null;
+      at: string | null;
+    }[];
     tanker: { userName: string | null; at: string | null } | null;
   } | null;
   /** The order this one replaces (cancel + new). */
