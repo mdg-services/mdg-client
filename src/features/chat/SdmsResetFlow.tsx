@@ -17,6 +17,7 @@ import { useAuthStore } from '@/store/auth';
 import {
   newPasswordRuleFor,
   PORTAL_RESET_TOO_MANY,
+  IRAS_RESET_NO_USER_ID,
   SDMS_OLD_RESET_NO_USER_ID,
   SDMS_RESET_ALREADY_ANSWERED,
   SDMS_RESET_NO_SAP_CODE,
@@ -37,9 +38,9 @@ const TEXT_BUTTON =
 const NOTICE_CLASS = 'rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text';
 
 /**
- * The words that differ between the two portals. The old SDMS (IndianOil's "Business
- * Login") runs none of the owner's services, has its own registered mobile, and a rule
- * that asks for a symbol too.
+ * The words that differ between the portals. The old SDMS (IndianOil's "Business Login")
+ * runs none of the owner's services, has its own registered mobile, and a rule that asks for
+ * a symbol too; IRAS has the same rule, and its reports run again once it is set.
  */
 const WORDS: Record<OtpResetPortal, Record<'intro' | 'sent' | 'rule' | 'done', MessageKey>> = {
   sdms: {
@@ -53,6 +54,12 @@ const WORDS: Record<OtpResetPortal, Record<'intro' | 'sent' | 'rule' | 'done', M
     sent: 'chat.sdmsOldResetSent',
     rule: 'chat.sdmsOldResetRule',
     done: 'chat.sdmsOldResetDone',
+  },
+  iras: {
+    intro: 'chat.irasResetIntro',
+    sent: 'chat.irasResetSent',
+    rule: 'chat.irasResetRule',
+    done: 'chat.irasResetDone',
   },
 };
 
@@ -71,9 +78,11 @@ export function sdmsResetErrorKey(
   if (err instanceof ApiError) {
     if (err.status === 409 && err.code === SDMS_RESET_NO_SAP_CODE) return 'chat.sdmsResetNoSap';
     if (err.status === 409 && err.code === SDMS_OLD_RESET_NO_USER_ID) return 'chat.sdmsOldNeedsId';
+    if (err.status === 409 && err.code === IRAS_RESET_NO_USER_ID) return 'chat.irasNeedsId';
     if (err.status === 409 && err.code === SDMS_RESET_OTHER_GOING) return 'chat.sdmsResetOtherGoing';
     if (err.status === 409 && err.code === PORTAL_RESET_TOO_MANY) return 'chat.sdmsOldResetTooMany';
     if (err.status === 400 && step === 'start' && portal === 'sdmsOld') return 'chat.sdmsOldBadId';
+    if (err.status === 400 && step === 'start' && portal === 'iras') return 'chat.irasBadId';
     if (err.status === 409 && err.code === SDMS_RESET_ALREADY_ANSWERED) return 'chat.sdmsResetTaken';
     if (err.status === 409) return 'chat.sdmsResetOver';
     if (err.status === 429) return 'chat.portalRateLimited';
@@ -278,13 +287,13 @@ export function SdmsResetFlow({
   onEditId,
 }: {
   /**
-   * The old SDMS: back to the row's form to type a different user ID — the way out when
+   * The old SDMS and IRAS: back to the row's form to type a different user ID — the way out when
    * IndianOil did not take the one used (the form is hidden while this flow is open).
    */
   onEditId?: () => void;
-  /** Which login: SDMS (default), or the old SDMS. */
+  /** Which login: SDMS (default), the old SDMS, or IRAS. */
   portal?: OtpResetPortal;
-  /** The old SDMS: the user ID typed in its row, when one was. Empty: the server's own. */
+  /** The old SDMS and IRAS: the user ID typed in their row, when one was. Empty: the server's own. */
   username?: string;
   initial: SdmsResetView | null;
   onClose: () => void;

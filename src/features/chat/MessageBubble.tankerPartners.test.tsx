@@ -167,10 +167,12 @@ describe('MessageBubble — "Forgot password?" on IndianOil Partners', () => {
     expect(document.querySelector('[data-portal="sdms"]')).toBeNull();
   });
 
-  it('never offers a reset on SDMS or IRAS', async () => {
+  it('offers no reset on SDMS here, and IRAS’s own is the OTP one — never the Partners "new password is sent" kind', async () => {
     box(view([...IOCL, SAVED_PARTNERS], OWNS));
     await waitFor(() => row('partners'));
     expect(within(row('sdms')).queryByRole('button', { name: 'Forgot password?' })).toBeNull();
-    expect(within(row('iras')).queryByRole('button', { name: 'Forgot password?' })).toBeNull();
+    fireEvent.click(within(row('iras')).getByRole('button', { name: 'Forgot password?' }));
+    expect(within(row('iras')).getByRole('button', { name: 'Send OTP' })).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
   });
 });

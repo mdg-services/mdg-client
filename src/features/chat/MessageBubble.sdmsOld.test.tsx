@@ -279,7 +279,7 @@ describe('MessageBubble — the Old SDMS reset form', () => {
     expect(h.post).not.toHaveBeenCalled();
   });
 
-  it('tells the owner a reset for the other SDMS login is going, when the server says so', async () => {
+  it('tells the owner a reset for another login is going, when the server says so', async () => {
     box({ portals: [{ ...SAVED }], canEdit: true });
     const old = await ready('sdmsOld');
     fireEvent.click(within(old).getByRole('button', { name: 'Forgot password?' }));
@@ -287,7 +287,7 @@ describe('MessageBubble — the Old SDMS reset form', () => {
     fireEvent.click(within(old).getByRole('button', { name: 'Send OTP' }));
     expect(
       await within(old).findByText(
-        'A password reset for your other SDMS login is going right now. Finish it first, or try again in a few minutes.',
+        'A password reset for another of your logins is going right now. Finish it first, or try again in a few minutes.',
       ),
     ).toBeInTheDocument();
     // Still on the first step: nothing was started.

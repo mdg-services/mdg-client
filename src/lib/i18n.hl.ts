@@ -729,7 +729,7 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'chat.sdmsResetNoSap': 'Aapki SDMS ID abhi MDG mein save nahi hai. ID aur password bhariye.',
   'chat.sdmsResetSendFailed': 'Shuru nahi ho paya, phir koshish karein',
   'chat.sdmsResetOtherGoing':
-    'Aapke dusre SDMS login ka password reset abhi chal raha hai. Pehle use poora kijiye, ya kuch minute baad phir koshish kijiye.',
+    'Aapke dusre login ka password reset abhi chal raha hai. Pehle use poora kijiye, ya kuch minute baad phir koshish kijiye.',
   'chat.sdmsOldUserIdHint': 'Aamtaur par aapki SDMS ID jaisi hi hoti hai',
   'chat.sdmsOldNeedsId':
     'Upar purane SDMS ki user ID bhariye, phir se Password bhool gaye? dabaiye.',
@@ -744,6 +744,16 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'chat.sdmsOldResetRule':
     '8 se 15 akshar — kam se kam ek bada akshar (A-Z), ek chhota akshar (a-z), ek ank aur @ jaisa ek chinh',
   'chat.sdmsOldResetDone': 'Naya password IndianOil par ban gaya aur save ho gaya ✓',
+  'chat.irasUserIdHint': 'Wahi ID jisse aap IRAS mein login karte hain',
+  'chat.irasNeedsId': 'Upar IRAS ki user ID bhariye, phir se Password bhool gaye? dabaiye.',
+  'chat.irasBadId': 'Ye user ID sahi nahi lag rahi. Jaanchiye aur phir koshish kijiye.',
+  'chat.irasResetIntro':
+    'MDG, IndianOil se aapke IRAS login mein darj mobile par OTP bhijwayega. Wo phone apne paas rakhiye.',
+  'chat.irasResetSent': 'IRAS login mein darj mobile par OTP bheja gaya',
+  'chat.irasResetRule':
+    '8 se 15 akshar — kam se kam ek bada akshar (A-Z), ek chhota akshar (a-z), ek ank aur @ jaisa ek chinh',
+  'chat.irasResetDone':
+    'Naya IRAS password IndianOil par ban gaya aur save ho gaya ✓ Reports thodi der mein phir aane lagengi.',
   'chat.wemmisTitle': 'eMaaptaul login',
   'chat.wemmisWhy': 'Aapka calibration certificate aur fees ki raseed download karne ke liye',
   'chat.wemmisSavedAs': 'Mil gaya ✓ {username}',

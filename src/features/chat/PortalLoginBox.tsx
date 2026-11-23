@@ -43,12 +43,14 @@ import { WemmisLoginBox } from './WemmisLoginBox';
 const USER_ID_HINT: Partial<Record<PortalId, MessageKey>> = {
   partners: 'chat.partnersUserIdHint',
   sdmsOld: 'chat.sdmsOldUserIdHint',
+  iras: 'chat.irasUserIdHint',
 };
 
 /** What "Forgot password?" says when it has no user ID to work with. */
 const NEEDS_ID_KEY: Partial<Record<PortalId, MessageKey>> = {
   partners: 'chat.portalResetNeedsId',
   sdmsOld: 'chat.sdmsOldNeedsId',
+  iras: 'chat.irasNeedsId',
 };
 
 const INPUT_CLASS =
@@ -76,7 +78,7 @@ function PortalForm({
   /** Present when the form was reopened over a saved login: a way back out. */
   onCancel?: () => void;
   /**
-   * "Forgot password?" (IndianOil Partners', the old SDMS's), with the user ID typed above
+   * "Forgot password?" (IndianOil Partners', the old SDMS's, IRAS's), with the user ID typed above
    * (empty: the one the server has). The owner never types the ID twice.
    */
   onForgot?: (typedUserId: string) => void;
@@ -317,7 +319,7 @@ function PortalRow({
   loading: boolean;
   failed: boolean;
   onRetry: () => void;
-  /** SDMS and the old SDMS: this login's OTP "Forgot password?" reset going now, or just ended. */
+  /** SDMS, the old SDMS and IRAS: this login's OTP "Forgot password?" reset going now, or just ended. */
   otpReset?: SdmsResetView | null;
   /** Chosen from "Which password?": opens straight on the form for the new password. */
   startOpen?: boolean;
@@ -333,11 +335,13 @@ function PortalRow({
   const [guiding, setGuiding] = React.useState(false);
   // The owner closed the "enter the new password" form a finished reset opened.
   const [resetDismissedAt, setResetDismissedAt] = React.useState<string | null>(null);
-  // SDMS / old SDMS "Forgot password?": opened by this owner, or a reset already going
+  // SDMS / old SDMS / IRAS "Forgot password?": opened by this owner, or a reset already going
   // (another owner's, or this one's from before). Closing it shows the form again.
-  const otpPortal = portal === 'sdms' || portal === 'sdmsOld' ? portal : null;
+  const otpPortal = portal === 'sdms' || portal === 'sdmsOld' || portal === 'iras' ? portal : null;
+  // The old SDMS and IRAS reset by the user ID typed in their form (or the one MDG has).
+  const idResetPortal = portal === 'sdmsOld' || portal === 'iras';
   const [forgot, setForgot] = React.useState(false);
-  // The old SDMS: the user ID typed in the form when "Forgot password?" was tapped.
+  // The old SDMS and IRAS: the user ID typed in the form when "Forgot password?" was tapped.
   const [forgotId, setForgotId] = React.useState('');
   const [closedResetId, setClosedResetId] = React.useState<string | null>(null);
   const reset = otpPortal && otpReset && otpReset.id !== closedResetId ? otpReset : null;
@@ -347,7 +351,7 @@ function PortalRow({
     setForgotId('');
     setClosedResetId(otpReset?.id ?? null);
   }, [otpReset?.id]);
-  const openOldReset = (typed: string) => {
+  const openIdReset = (typed: string) => {
     setChanging(false);
     setForgotId(typed);
     setForgot(true);
@@ -508,7 +512,7 @@ function PortalRow({
           onClose={closeReset}
           onDone={resetDone}
           onEditId={
-            otpPortal === 'sdmsOld'
+            otpPortal === 'sdmsOld' || otpPortal === 'iras'
               ? () => {
                   closeReset();
                   setChanging(true);
@@ -537,15 +541,13 @@ function PortalRow({
                       setChanging(false);
                       setGuiding(true);
                     }
-                  : portal === 'sdmsOld'
-                    ? openOldReset
+                  : idResetPortal
+                    ? openIdReset
                     : undefined
             }
             // The guided reset types the user ID on the portal's own page, not here; the old
-            // SDMS's uses the one the server has when none is typed.
-            hasSavedId={
-              state.status === 'saved' || canGuide || (portal === 'sdmsOld' && !!state.resetPossible)
-            }
+            // SDMS's and IRAS's use the one the server has when none is typed.
+            hasSavedId={state.status === 'saved' || canGuide || (idResetPortal && !!state.resetPossible)}
           />
           {portal === 'sdms' && state.resetPossible ? (
             <button
@@ -561,12 +563,12 @@ function PortalRow({
         </>
       ) : null}
 
-      {portal === 'sdmsOld' && canEdit && !formOpen && !resetOpen && state?.status === 'saved' ? (
+      {idResetPortal && canEdit && !formOpen && !resetOpen && state?.status === 'saved' ? (
         <button
           type="button"
           data-no-swipe
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={() => openOldReset('')}
+          onClick={() => openIdReset('')}
           className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
         >
           <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
@@ -1220,7 +1222,13 @@ export function PortalLoginBox({
       failed={failed}
       onRetry={retry}
       otpReset={
-        portal === 'sdms' ? (view?.sdmsReset ?? null) : portal === 'sdmsOld' ? (view?.sdmsOldReset ?? null) : null
+        portal === 'sdms'
+          ? (view?.sdmsReset ?? null)
+          : portal === 'sdmsOld'
+            ? (view?.sdmsOldReset ?? null)
+            : portal === 'iras'
+              ? (view?.irasReset ?? null)
+              : null
       }
     />
   );

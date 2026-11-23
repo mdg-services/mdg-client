@@ -56,13 +56,14 @@ export function sdmsResetIsLive(state: SdmsResetState): boolean {
 export type SdmsResetRetry = 'wrong_otp' | 'password_used' | 'password_rule';
 
 /**
- * The portals whose "Forgot password?" works by an OTP to the owner's phone: SDMS, and the
- * old SDMS (IndianOil's "Business Login", `portalLogin.ts` `OLD_SDMS_PORTAL`). Both run on
- * this one record and this one box; what differs is the portal's page and its password rule.
+ * The portals whose "Forgot password?" works by an OTP to the owner's phone: SDMS, the
+ * old SDMS (IndianOil's "Business Login", `portalLogin.ts` `OLD_SDMS_PORTAL`) and IRAS
+ * (IndianOil's "Dealer Forgot Password" box on the IRAS login page). All run on this one
+ * record and this one box; what differs is the portal's page and its password rule.
  */
-export type OtpResetPortal = 'sdms' | 'sdmsOld';
+export type OtpResetPortal = 'sdms' | 'sdmsOld' | 'iras';
 
-export const OTP_RESET_PORTALS: readonly OtpResetPortal[] = ['sdms', 'sdmsOld'];
+export const OTP_RESET_PORTALS: readonly OtpResetPortal[] = ['sdms', 'sdmsOld', 'iras'];
 
 /** `GET /me/portal-logins/sdms/reset/:id`, and the reset inside the login box's view. */
 export interface SdmsResetView {
@@ -111,8 +112,20 @@ export const SDMS_NEW_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[\x21-\x7e]{
  */
 export const SDMS_OLD_NEW_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])[\x21-\x7e]{8,15}$/;
 
+/**
+ * IRAS's rule for a new password, as its reset box prints it: "at least one Uppercase, one
+ * lowercase, one number, one special character with minimum length of 8 characters". It
+ * prints no top end, so this keeps to 15 like the other IndianOil logins: a password that
+ * passes this is one every portal here takes.
+ */
+export const IRAS_NEW_PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9])[\x21-\x7e]{8,15}$/;
+
+/** IRAS's user names: letters, digits and a few signs. It prints no rule, so this only keeps junk out. */
+export const IRAS_USER_ID_RE = /^[A-Za-z0-9_.@-]{3,40}$/;
+
 /** The rule a new password must follow on this portal before it is sent. */
 export function newPasswordRuleFor(portal: OtpResetPortal | null | undefined): RegExp {
+  if (portal === 'iras') return IRAS_NEW_PASSWORD_RE;
   return portal === 'sdmsOld' ? SDMS_OLD_NEW_PASSWORD_RE : SDMS_NEW_PASSWORD_RE;
 }
 
@@ -124,6 +137,11 @@ export const SDMS_RESET_OTP_RE = /^\d{4,8}$/;
  * (no old SDMS login and no SDMS login saved) and none was typed.
  */
 export const SDMS_OLD_RESET_NO_USER_ID = 'SDMS_OLD_RESET_NO_USER_ID';
+/**
+ * `POST /me/portal-logins/iras/reset` answers 409 with this when no IRAS user ID is on
+ * record (no IRAS login saved) and none was typed, or the one typed is not this outlet's.
+ */
+export const IRAS_RESET_NO_USER_ID = 'IRAS_RESET_NO_USER_ID';
 /** A start of one portal's reset while the other portal's reset is going for the outlet. */
 export const SDMS_RESET_OTHER_GOING = 'SDMS_RESET_OTHER_GOING';
 

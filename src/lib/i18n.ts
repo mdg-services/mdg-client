@@ -1636,8 +1636,8 @@ export const messages = {
   },
   'chat.sdmsResetSendFailed': { en: "Couldn't start — try again", hi: 'शुरू नहीं हो पाया, फिर से कोशिश करें' },
   'chat.sdmsResetOtherGoing': {
-    en: 'A password reset for your other SDMS login is going right now. Finish it first, or try again in a few minutes.',
-    hi: 'आपके दूसरे SDMS लॉगिन का पासवर्ड रीसेट अभी चल रहा है। पहले उसे पूरा कीजिए, या कुछ मिनट बाद फिर कोशिश कीजिए।',
+    en: 'A password reset for another of your logins is going right now. Finish it first, or try again in a few minutes.',
+    hi: 'आपके दूसरे लॉगिन का पासवर्ड रीसेट अभी चल रहा है। पहले उसे पूरा कीजिए, या कुछ मिनट बाद फिर कोशिश कीजिए।',
   },
 
   // The Old SDMS login (IndianOil's "Business Login", access.ex.indianoil.in): asked only
@@ -1675,6 +1675,37 @@ export const messages = {
   'chat.sdmsOldResetDone': {
     en: 'New password set on IndianOil and saved ✓',
     hi: 'नया पासवर्ड IndianOil पर बन गया और सेव हो गया ✓',
+  },
+
+  // The IRAS login's "Forgot password?": IRAS's own reset box, done for the owner — an OTP to the
+  // registered mobile, typed with a new password (a symbol too), the same box as SDMS's.
+  'chat.irasUserIdHint': {
+    en: 'The ID you use to log in to IRAS',
+    hi: 'वही ID जिससे आप IRAS में लॉगिन करते हैं',
+  },
+  'chat.irasNeedsId': {
+    en: 'Type your IRAS user ID above, then tap Forgot password? again.',
+    hi: 'ऊपर IRAS की यूज़र ID भरिए, फिर से पासवर्ड भूल गए? दबाइए।',
+  },
+  'chat.irasBadId': {
+    en: "That user ID doesn't look right. Check it and try again.",
+    hi: 'ये यूज़र ID सही नहीं लग रही। जाँचिए और फिर कोशिश कीजिए।',
+  },
+  'chat.irasResetIntro': {
+    en: 'MDG will ask IndianOil to send an OTP to the mobile registered with your IRAS login. Keep that phone with you.',
+    hi: 'MDG, IndianOil से आपके IRAS लॉगिन में दर्ज मोबाइल पर OTP भिजवाएगा। वो फ़ोन अपने पास रखिए।',
+  },
+  'chat.irasResetSent': {
+    en: 'OTP sent to the mobile registered with your IRAS login',
+    hi: 'IRAS लॉगिन में दर्ज मोबाइल पर OTP भेजा गया',
+  },
+  'chat.irasResetRule': {
+    en: '8 to 15 characters, with at least one capital letter, one small letter, one number and one symbol such as @',
+    hi: '8 से 15 अक्षर — कम से कम एक बड़ा अक्षर (A-Z), एक छोटा अक्षर (a-z), एक अंक और @ जैसा एक चिह्न',
+  },
+  'chat.irasResetDone': {
+    en: 'New IRAS password set on IndianOil and saved ✓ Your reports will start coming in again shortly.',
+    hi: 'नया IRAS पासवर्ड IndianOil पर बन गया और सेव हो गया ✓ रिपोर्टें थोड़ी देर में फिर आने लगेंगी।',
   },
 
   // The eMaaptaul login box (ADR 0029): the Bihar weights-and-measures site where

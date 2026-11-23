@@ -269,6 +269,8 @@ export interface PortalLoginsView {
   sdmsReset?: SdmsResetView | null;
   /** The same for the old SDMS's "Forgot password?". Absent from a server that predates it. */
   sdmsOldReset?: SdmsResetView | null;
+  /** The same for IRAS's "Forgot password?". Absent from a server that predates it. */
+  irasReset?: SdmsResetView | null;
 }
 
 /**
