@@ -469,6 +469,16 @@ export function ChatPage() {
     }
   };
 
+  // A tapped answer under MDG's question goes out as the dealer's own words, the
+  // same way a typed message does (no quote, no files).
+  const handleChoice = React.useCallback(
+    (text: string) => {
+      if (!conversationId) return;
+      void sendMessage({ conversationId, body: text }).catch(() => toast.error(t('chat.sendFailed')));
+    },
+    [sendMessage, conversationId, t],
+  );
+
   // Files dropped on the conversation (`DropToSend`) go out through this same send —
   // the upload, the photo shrinking and the post are the composer's — as plain
   // messages: no quote, no caption, and never the answer to a request (`handleSend`
@@ -651,6 +661,7 @@ export function ChatPage() {
         highlight={searching ? search.term : undefined}
         askStates={askStates}
         onAskAnswer={handleAskAnswer}
+        onChoice={handleChoice}
       />
 
       <Composer

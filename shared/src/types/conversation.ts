@@ -400,6 +400,14 @@ export interface Message {
    * goes in the app with a push, never on WhatsApp (owner, 13 Nov 2026).
    */
   fuelIndent?: MessageFuelIndent;
+  /**
+   * Answers the dealer can TAP instead of typing, under an MDG question (owner,
+   * 24 Nov 2026: "give the user an option to select from instead of asking him to
+   * type"). A tap sends the option's words, in the reader's language, as an
+   * ordinary message from them; the server knows those exact words, so a tapped
+   * answer is never misread. Shown only while the question is the newest message.
+   */
+  replyChoices?: MessageReplyChoices;
   /** A tanker message drawn as a card (ADR 0041). Absent on every other message. */
   fuelCard?: FuelOrderCard;
   /**
@@ -486,3 +494,11 @@ export interface AdminNotificationPrefs {
  */
 export const INBOX_TABS = ['tickets', 'chats'] as const;
 export type InboxTab = (typeof INBOX_TABS)[number];
+
+/** Tap-to-answer buttons under an MDG question (see `Message.replyChoices`). */
+export interface MessageReplyChoices {
+  /** What the question is about, e.g. `owns_tanker`, `tanker`, `delivery_date`. */
+  key: string;
+  /** Each answer: the value the server takes, and its words in each dealer language. */
+  options: { value: string; label: SomeDealerWords }[];
+}

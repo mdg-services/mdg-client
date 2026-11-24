@@ -30,6 +30,7 @@ import { FuelOrderCardView } from './FuelOrderCardView';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
+import { ReplyChoices } from './ReplyChoices';
 import { isSystemSenderName, replyPreview, replySenderLabel } from './replyContext';
 import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
@@ -366,6 +367,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   askReason,
   onAskAnswer,
   onAskRetry,
+  choicesLive = false,
+  onChoice,
 }: {
   message: Message;
   mine: boolean;
@@ -413,6 +416,10 @@ export const MessageBubble = React.memo(function MessageBubble({
   onAskAnswer?: (message: Message, how: AskAnswerHow) => void;
   /** "Try again" when where the request stands could not be fetched. */
   onAskRetry?: () => void;
+  /** This is the newest message in the chat, so its answer buttons (if any) can be tapped. */
+  choicesLive?: boolean;
+  /** A tap on an answer button: send its words as the dealer's own message. */
+  onChoice?: (text: string) => void;
 }) {
   const t = useT();
   const lang = useLang();
@@ -804,6 +811,10 @@ export const MessageBubble = React.memo(function MessageBubble({
             <span className="absolute bottom-[5px] right-[8px]">{meta(false)}</span>
           ) : null}
         </div>
+
+        {message.replyChoices && choicesLive && !mine && onChoice ? (
+          <ReplyChoices choices={message.replyChoices} lang={lang} onChoice={onChoice} />
+        ) : null}
 
         {reactionGroups.length > 0 ? (
           <button

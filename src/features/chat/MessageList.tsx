@@ -89,6 +89,8 @@ export interface MessageListProps {
   onOpenReactions?: (message: Message) => void;
   /** Swipe-right on a bubble → start replying to it. */
   onReply?: (message: Message) => void;
+  /** A tap on one of the answer buttons under MDG's newest question: send these words. */
+  onChoice?: (text: string) => void;
   /**
    * The conversation's tickets (`Conversation.tickets`). A message that names a
    * ticket in `ai.ticketId` gets a status line under it when that ticket is in
@@ -149,6 +151,7 @@ export function MessageList({
   onReact,
   onOpenReactions,
   onReply,
+  onChoice,
   tickets,
   onFetchOlder,
   failed,
@@ -224,6 +227,7 @@ export function MessageList({
     () => orderMessages(messages).filter((m) => !isRetiredSetupCard(m)),
     [messages],
   );
+  const newestId = ordered[ordered.length - 1]?.id;
 
   // ── Older history ───────────────────────────────────────────────────────
   const requestOlder = React.useCallback(() => {
@@ -667,6 +671,10 @@ export function MessageList({
             askReason={askView?.reason}
             onAskAnswer={onAskAnswer}
             onAskRetry={askStates?.refetch}
+            // The answer buttons work only under the newest message: once anybody has
+            // written after the question, it has been answered (or moved past).
+            choicesLive={m.id === newestId}
+            onChoice={onChoice}
           />
           {soleSelected === m.id && onReact ? (
             <ReactionStrip
@@ -703,6 +711,8 @@ export function MessageList({
     highlight,
     askStates,
     onAskAnswer,
+    newestId,
+    onChoice,
   ]);
 
   const viewerItems = React.useMemo(
