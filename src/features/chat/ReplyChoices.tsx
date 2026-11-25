@@ -37,7 +37,7 @@ export function ReplyChoices({
               onChoice(words);
             }}
             className={
-              'min-h-10 rounded-full border px-3.5 py-1.5 text-[14.5px] font-medium leading-tight shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] transition-colors ' +
+              'min-h-10 rounded-full border px-3.5 py-1.5 text-cta font-medium shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] transition-colors ' +
               (sent === o.value
                 ? 'border-wa-accent bg-wa-accent text-white'
                 : 'border-wa-accent bg-wa-in text-wa-accent-strong active:bg-wa-row-active disabled:opacity-50')
