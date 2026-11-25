@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { invalidateWorkPermits } from '@/hooks/api/useWorkPermits';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
@@ -28,7 +29,11 @@ export function useWorkPermitsSocket() {
     const socket = getSocket();
     if (!socket) return;
 
-    const refresh = () => invalidateWorkPermits(qc);
+    const refresh = () => {
+      invalidateWorkPermits(qc);
+      // The Today page lists what is still open, so it asks again too.
+      invalidateTodayFeed(qc);
+    };
     const onChanged = (payload: { dealerId: string }) => {
       if (dealerId && payload.dealerId !== dealerId) return;
       refresh();

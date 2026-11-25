@@ -25,8 +25,8 @@ export function EmbedStatus({ loading }: { loading: boolean }) {
         role="status"
         className="flex min-h-full flex-col items-center justify-center gap-1.5 px-6 text-center"
       >
-        <p className="text-base font-semibold text-text">{t('embed.signedOut')}</p>
-        <p className="text-sm text-text-muted">{t('embed.signedOutDesc')}</p>
+        <p className="text-subheading text-text">{t('embed.signedOut')}</p>
+        <p className="text-meta text-text-muted">{t('embed.signedOutDesc')}</p>
       </div>
     );
   }
@@ -37,11 +37,11 @@ export function EmbedStatus({ loading }: { loading: boolean }) {
         role="alert"
         className="flex min-h-full flex-col items-center justify-center gap-3 px-6 text-center"
       >
-        <p className="text-sm text-text-muted">{t('common.loadFailed')}</p>
+        <p className="text-meta text-text-muted">{t('common.loadFailed')}</p>
         <button
           type="button"
           onClick={() => (retry ? retry() : window.location.reload())}
-          className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+          className="rounded-full bg-brand px-4 py-2 text-meta font-medium text-text-inverse active:opacity-90"
         >
           {t('common.retry')}
         </button>
@@ -55,7 +55,7 @@ export function EmbedStatus({ loading }: { loading: boolean }) {
       className="flex min-h-full flex-col items-center justify-center gap-3 px-6 text-center"
     >
       <Spinner size={22} />
-      <p className="text-sm text-text-muted">{t('embed.opening')}</p>
+      <p className="text-meta text-text-muted">{t('embed.opening')}</p>
     </div>
   );
 }

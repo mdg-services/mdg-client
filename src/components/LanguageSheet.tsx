@@ -1,6 +1,8 @@
+import { QueryClientContext } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { LanguageOptions, LanguageSample } from '@/components/LanguageChoice';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
@@ -27,6 +29,8 @@ export function useLanguageChoice(): { lang: Lang; choose: (next: Lang) => void 
   const setLang = useLangStore((s) => s.setLang);
   const user = useAuthStore((s) => s.user);
   const setUser = useAuthStore((s) => s.setUser);
+  // Absent in a bare test render: nothing cached then to refresh.
+  const qc = React.useContext(QueryClientContext);
 
   const choose = React.useCallback(
     (next: Lang) => {
@@ -35,9 +39,16 @@ export function useLanguageChoice(): { lang: Lang; choose: (next: Lang) => void 
       // Reflect immediately in the cached user so a /me refetch doesn't flicker.
       if (user) setUser({ ...user, lang: next, langChosenAt: new Date().toISOString() });
       // Best-effort: follow the member across devices. Ignore all failures.
-      void api.patch('/v1/me', { lang: next }).catch(() => undefined);
+      // The Today feed's words are written in the language the server holds for the member,
+      // so it is asked for again only once the save has gone through.
+      void api
+        .patch('/v1/me', { lang: next })
+        .then(() => {
+          if (qc) invalidateTodayFeed(qc);
+        })
+        .catch(() => undefined);
     },
-    [lang, setLang, user, setUser],
+    [lang, setLang, user, setUser, qc],
   );
 
   return { lang, choose };
@@ -71,7 +82,7 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
         tabIndex={-1}
         className="relative mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-wa-bar px-5 pb-4 shadow-lg outline-none safe-bottom animate-in"
       >
-        <p className="pb-3 pt-5 text-[17px] font-medium text-wa-bar-text">
+        <p className="pb-3 pt-5 text-subheading text-wa-bar-text">
           {t('profile.language')}
         </p>
         <LanguageOptions value={lang} onPick={choose} label={t('profile.language')} />
@@ -81,7 +92,7 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+          className="mt-4 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
         >
           {t('common.done')}
         </button>

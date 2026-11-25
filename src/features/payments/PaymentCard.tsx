@@ -48,16 +48,16 @@ export function PaymentCard({
 
   const summary = (
     <div className="min-w-0 flex-1">
-      <p className="break-words text-lg font-semibold text-text">{payment.title}</p>
+      <p className="break-words text-subheading text-text">{payment.title}</p>
       {/* The chip sits by the amount, not the title: a title is long, a chip is
           wide, and side by side they left the title three lines tall. */}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        <p className="text-3xl font-bold tabular-nums text-text">
+        <p className="text-display font-bold tabular-nums text-text">
           {formatPaise(payment.amountPaise)}
         </p>
         <PaymentStatusChip status={payment.status} />
       </div>
-      <div className="mt-1 flex flex-col gap-0.5 text-base text-text-muted">
+      <div className="mt-1 flex flex-col gap-0.5 text-body text-text-muted">
         {due ? <p>{due}</p> : null}
         {isWaitingForApproval(payment) ? <p>{t('payments.waitingForApproval')}</p> : null}
         {payment.status === 'processing' ? <p>{t('payments.confirmingNote')}</p> : null}

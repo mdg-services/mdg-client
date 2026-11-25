@@ -157,7 +157,7 @@ export function StagedAttachmentChip({
           <div className="w-[132px]">
             <Waveform peaks={peaks} progress={1} />
           </div>
-          <p className="text-[11px] text-text-subtle">
+          <p className="text-meta text-text-subtle">
             {staged.durationMs
               ? formatDuration(staged.durationMs)
               : t('chat.recorded')}
@@ -192,10 +192,10 @@ export function StagedAttachmentChip({
         </span>
       )}
       <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-text max-w-[140px]">
+        <p className="truncate text-meta font-medium text-text max-w-[140px]">
           {staged.file.name}
         </p>
-        <p className="text-[11px] text-text-subtle">
+        <p className="text-meta text-text-subtle">
           {formatBytes(staged.file.size)}
         </p>
       </div>
@@ -254,12 +254,19 @@ export function VoiceMessage({
   mine,
   senderName,
   source,
+  showTranscript = true,
 }: {
   attachment: Attachment;
   mine?: boolean;
   senderName?: string;
   /** The message it is in: how a link that is missing or stale gets replaced. */
   source?: AttachmentSource;
+  /**
+   * Draw the note's written-down words under the player. The dealer app turns it off
+   * for a dealer's own voice notes: a machine's reading of what they said, printed
+   * under it, tells them a machine listened (ADR 0055). The admin keeps it.
+   */
+  showTranscript?: boolean;
 }) {
   const t = useT();
   // A note of mine has no `senderName` on it (the optimistic copy never had one),
@@ -434,7 +441,7 @@ export function VoiceMessage({
       type="button"
       onClick={cycleRate}
       aria-label={t('chat.voiceSpeed', { rate: rateLabel(rate) })}
-      className="flex h-10 min-w-[40px] shrink-0 items-center justify-center rounded-full bg-black/10 px-2 text-[13px] font-semibold tabular-nums text-wa-bar-icon"
+      className="flex h-10 min-w-[40px] shrink-0 items-center justify-center rounded-full bg-black/10 px-2 text-meta font-semibold tabular-nums text-wa-bar-icon"
     >
       {rateLabel(rate)}
     </button>
@@ -443,7 +450,7 @@ export function VoiceMessage({
   );
 
   // What the note says, once MDG has listened to it: under the player, not part of it.
-  const transcript = transcriptOf(attachment);
+  const transcript = showTranscript ? transcriptOf(attachment) : '';
 
   return (
     <>
@@ -469,7 +476,7 @@ export function VoiceMessage({
           <Waveform peaks={peaks} progress={progress} mine={mine} knob onScrub={scrub} />
           <span
             className={cn(
-              'text-[11px] tabular-nums',
+              'text-meta tabular-nums',
               failed || unplayable ? 'text-danger' : 'text-wa-meta',
               unplayable && 'leading-tight',
             )}
@@ -635,7 +642,7 @@ function ImageTile({ attachment, source, onOpen, fill, more }: TileProps) {
         <span className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center text-wa-meta">
           <ImageOff width={fill ? 20 : 26} strokeWidth={1.5} />
           {fill ? null : (
-            <span className="text-[12px] leading-tight">{t('chat.imageTapToRetry')}</span>
+            <span className="text-meta leading-tight">{t('chat.imageTapToRetry')}</span>
           )}
         </span>
       ) : refreshing || (!src && !unsent) ? (
@@ -653,7 +660,7 @@ function ImageTile({ attachment, source, onOpen, fill, more }: TileProps) {
         </span>
       ) : null}
       {more && more > 0 ? (
-        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-[26px] font-medium text-white">
+        <span className="absolute inset-0 flex items-center justify-center bg-black/45 text-title text-white">
           +{more}
         </span>
       ) : null}
@@ -872,7 +879,7 @@ export function VideoMessage({
       {attachment.durationMs && !started && !failed ? (
         <span
           data-testid="video-duration"
-          className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[12px] tabular-nums leading-tight text-white"
+          className="pointer-events-none absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-meta tabular-nums leading-tight text-white"
         >
           {formatDuration(attachment.durationMs)}
         </span>
@@ -884,7 +891,7 @@ export function VideoMessage({
           className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-black px-3 text-center text-white/80"
         >
           <VideoOff width={28} strokeWidth={1.5} aria-hidden />
-          <span className="text-[13px] leading-tight">{t('chat.voiceFailed')}</span>
+          <span className="text-meta leading-tight">{t('chat.voiceFailed')}</span>
         </button>
       ) : waiting || busy || (!playable && unsent) ? (
         <span className="absolute inset-0 flex items-center justify-center text-white/80">
@@ -934,10 +941,10 @@ function DocumentAttachment({
       >
         <FileTypeBadge filename={attachment.filename} contentType={attachment.contentType} />
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 break-words text-[14px] leading-snug text-wa-bubble-text">
+          <span className="line-clamp-2 break-words text-meta leading-snug text-wa-bubble-text">
             {attachment.filename}
           </span>
-          <span className="block text-[12px] text-wa-meta">
+          <span className="block text-meta text-wa-meta">
             {fileTypeLabel(attachment.filename, attachment.contentType)} ·{' '}
             {formatBytes(attachment.size)}
           </span>
@@ -986,6 +993,7 @@ export function AttachmentStack({
   attachments,
   mine,
   senderName,
+  showTranscript = true,
   source,
   onOpenImage,
   mediaOverlay,
@@ -993,6 +1001,8 @@ export function AttachmentStack({
   attachments: readonly Attachment[];
   mine: boolean;
   senderName?: string;
+  /** Passed on to each voice note: see `VoiceMessage`. */
+  showTranscript?: boolean;
   /** The message carrying them — how a stale or missing link gets re-signed. */
   source: AttachmentSource;
   onOpenImage?: (attachment: Attachment) => void;
@@ -1015,6 +1025,7 @@ export function AttachmentStack({
           mine={mine}
           senderName={senderName}
           source={source}
+          showTranscript={showTranscript}
         />
       ))}
       {videos.map((a, i) => (

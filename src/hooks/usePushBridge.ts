@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { reportDeepLink, useRealLocation } from '@/features/reports/reportNav';
 import { api } from '@/lib/api';
 import { reportIssue } from '@/lib/monitoring';
 import {
@@ -77,7 +78,8 @@ export function requestPushPermission(): void {
  *   publishes it as `pushState` so the app can explain before the phone asks.
  * - Registers this phone's token whenever permission is already granted.
  * - Listens for `expo-push-token` events and registers new tokens (de-duped).
- * - Listens for `expo-deep-link` events and navigates the SPA accordingly.
+ * - Listens for `expo-deep-link` events and navigates the SPA accordingly (a report's
+ *   link opens its overlay over the current screen).
  * - Reports the reason when the shell cannot produce a token at all.
  *
  * ASKING ON EVERY MOUNT IS THE FIX, NOT AN OPTIMISATION. The token used to be
@@ -110,6 +112,15 @@ export function usePushBridge(): void {
   React.useEffect(() => {
     navigateRef.current = navigate;
   }, [navigate]);
+  // Where the app is NOW, read at the moment a link arrives and not listed as a dependency, for
+  // the same reason as `navigate`. A report's link opens its overlay over this screen, or in
+  // place of another report's overlay, so it needs to know (`reportDeepLink`). It is the real
+  // address: the router's own `useLocation()` answers with the screen under an open report.
+  const location = useRealLocation();
+  const locationRef = React.useRef(location);
+  React.useEffect(() => {
+    locationRef.current = location;
+  }, [location]);
   const lastSentToken = React.useRef<string | null>(null);
 
   React.useEffect(() => {
@@ -199,7 +210,12 @@ export function usePushBridge(): void {
       const detail = (event as CustomEvent<string>).detail;
       if (typeof detail !== 'string' || detail.length === 0) return;
       window.__handledDeepLink = true;
-      navigateRef.current(detail);
+      // `/report/<conversationId>/<messageId>` (a push about a report, ADR 0056) opens the
+      // overlay over the screen the dealer is on; Close then returns there, or to Today when
+      // the app was started by this very link. Every other address is followed as it always was.
+      const report = reportDeepLink(detail, locationRef.current);
+      if (report) navigateRef.current(report.to, report.options);
+      else navigateRef.current(detail);
     };
 
     window.addEventListener('expo-push-token', onPushToken);

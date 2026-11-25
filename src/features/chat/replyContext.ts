@@ -3,6 +3,7 @@ import { formatDuration } from '@/lib/uploadAttachment';
 import { replySnippet } from '@dk/shared/schemas';
 import type { Message, MessageReplyContext } from '@dk/shared/types';
 
+import { chatAttachments, cleanReportCaption, isLegacyReportCaption, isReportBubble } from './reportBubble';
 
 /**
  * Client-side snapshot of a message being replied to, embedded on the
@@ -11,13 +12,18 @@ import type { Message, MessageReplyContext } from '@dk/shared/types';
  * replaces it with the authoritative version.
  */
 export function buildReplyContext(m: Message): MessageReplyContext {
-  const first = m.attachments[0];
-  const firstImage = m.attachments.find((a) => a.kind === 'image');
+  // A report's card is on Today: quoting the message quotes its words, not a thumbnail.
+  const shown = chatAttachments(m);
+  const first = shown[0];
+  const firstImage = shown.find((a) => a.kind === 'image');
   return {
     messageId: m.id,
     senderId: m.senderId,
     ...(m.senderName ? { senderName: m.senderName } : {}),
-    ...(m.body ? { body: replySnippet(m.body) } : {}),
+    // An old report's caption is quoted as the chat shows it, not in its robot style.
+    ...(m.body
+      ? { body: replySnippet(isReportBubble(m) && isLegacyReportCaption(m) ? cleanReportCaption(m.body) : m.body) }
+      : {}),
     ...(first ? { attachmentKind: first.kind, attachmentName: first.filename } : {}),
     ...(first?.durationMs !== undefined ? { durationMs: first.durationMs } : {}),
     ...(firstImage

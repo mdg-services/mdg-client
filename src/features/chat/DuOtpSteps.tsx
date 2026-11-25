@@ -43,20 +43,20 @@ import { useBringIntoView } from './useBringIntoView';
  */
 
 export const INPUT_CLASS =
-  'w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
+  'w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 export const PRIMARY_BUTTON =
-  'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 py-2 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60';
+  'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 py-2 text-cta text-white active:opacity-90 disabled:opacity-60';
 export const SECONDARY_BUTTON =
-  'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active disabled:opacity-60';
+  'flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-body font-medium text-wa-bubble-text active:bg-wa-row-active disabled:opacity-60';
 export const TEXT_BUTTON =
-  'flex min-h-11 shrink-0 items-center justify-center rounded-md px-2 text-[14px] font-medium text-wa-accent-strong active:bg-black/10 disabled:opacity-60';
+  'flex min-h-11 shrink-0 items-center justify-center rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10 disabled:opacity-60';
 export const NOTICE_CLASS =
-  'rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text';
+  'rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text';
 
 /** A line with a spinner: a robot is working, or a file is on its way, and the owner has nothing to do. */
 export function BusyLine({ text }: { text: string }) {
   return (
-    <p role="status" className="flex items-center gap-2 text-[14px] leading-snug">
+    <p role="status" className="flex items-center gap-2 text-meta leading-snug">
       <Spinner size={16} />
       <span className="min-w-0 break-words">{text}</span>
     </p>
@@ -89,7 +89,7 @@ function FileLink({ file }: { file: DuOtpFileView }) {
     </>
   );
   if (!file.url) {
-    return <span className="inline-flex items-center gap-1.5 text-[14px] leading-snug">{body}</span>;
+    return <span className="inline-flex items-center gap-1.5 text-meta leading-snug">{body}</span>;
   }
   const url = file.url;
   return (
@@ -97,7 +97,7 @@ function FileLink({ file }: { file: DuOtpFileView }) {
       <button
         type="button"
         onClick={() => setReading(true)}
-        className="inline-flex min-h-11 items-center gap-1.5 text-left text-[14px] leading-snug text-wa-accent-strong underline"
+        className="inline-flex min-h-11 items-center gap-1.5 text-left text-meta leading-snug text-wa-accent-strong underline"
       >
         {body}
       </button>
@@ -138,11 +138,11 @@ function StepHeader({ step }: { step: DuOtpStep }) {
   return (
     <div className="flex flex-col gap-0.5">
       {n !== null ? (
-        <p className="text-[12px] font-medium leading-tight text-wa-meta">
+        <p className="text-meta font-medium leading-tight text-wa-meta">
           {t('chat.duOtpStep', { n, total: DU_OTP_STEP_COUNT })}
         </p>
       ) : null}
-      <p className="text-[15px] font-medium leading-snug">{t(STEP_TITLE_KEY[step])}</p>
+      <p className="text-subheading leading-snug">{t(STEP_TITLE_KEY[step])}</p>
     </div>
   );
 }
@@ -158,11 +158,11 @@ function ReasonsStep({ group, busy, onAnswer }: StepProps) {
   return (
     <fieldset className="m-0 flex min-w-0 flex-col gap-2 border-0 p-0">
       <legend className="sr-only">{t('chat.duOtpStepReasons')}</legend>
-      <p className="text-[13px] leading-snug text-wa-meta">{t('chat.duOtpReasonsHint')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.duOtpReasonsHint')}</p>
       {DU_OTP_REASONS.map((reason) => (
         <label
           key={reason}
-          className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-wa-divider bg-wa-in px-3 py-1.5 text-[15px] leading-snug"
+          className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-wa-divider bg-wa-in px-3 py-1.5 text-body leading-snug"
         >
           <input
             type="checkbox"
@@ -226,7 +226,7 @@ function PaperStep({ slot, view, group, busy, uploading, onAnswer, onPaper }: St
   return (
     <div className="flex flex-col gap-2">
       {current ? (
-        <div className="flex flex-wrap items-center gap-x-2 text-[13px] text-wa-meta">
+        <div className="flex flex-wrap items-center gap-x-2 text-meta text-wa-meta">
           <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
           <span>{t('chat.duOtpAdded')}</span>
           <FileLink file={current} />
@@ -255,7 +255,7 @@ function PaperStep({ slot, view, group, busy, uploading, onAnswer, onPaper }: St
           className="sr-only"
         />
       </label>
-      <p className="text-[12px] leading-snug text-wa-meta">{t('chat.duOtpUploadHint')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.duOtpUploadHint')}</p>
       {uploading ? <BusyLine text={t('chat.duOtpUploading')} /> : null}
 
       {isCertificate ? (
@@ -290,7 +290,7 @@ function PaperStep({ slot, view, group, busy, uploading, onAnswer, onPaper }: St
           {fetchView.state === 'failed' ? (
             <>
               <Notice text={t('chat.duOtpFetchFailed')} />
-              <p className="text-[13px] leading-snug text-wa-meta">
+              <p className="text-meta leading-snug text-wa-meta">
                 {t('chat.duOtpFetchUploadInstead')}
               </p>
             </>
@@ -332,7 +332,7 @@ function RemarksStep({ group, busy, onAnswer }: StepProps) {
       className="flex flex-col gap-2"
     >
       <div>
-        <label htmlFor={`${ids}-remarks`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={`${ids}-remarks`} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.duOtpLblRemarks')}
         </label>
         <textarea
@@ -346,7 +346,7 @@ function RemarksStep({ group, busy, onAnswer }: StepProps) {
           enterKeyHint="done"
           className={cn(INPUT_CLASS, 'resize-none py-2 leading-snug')}
         />
-        <p className="mt-0.5 text-right text-[12px] tabular-nums leading-tight text-wa-meta">
+        <p className="mt-0.5 text-right text-meta tabular-nums leading-tight text-wa-meta">
           {text.length} / {DU_OTP_REMARKS_MAX}
         </p>
       </div>
@@ -377,8 +377,8 @@ function ReviewRow({
   return (
     <div className="flex items-start justify-between gap-2 border-b border-wa-divider py-1 last:border-b-0">
       <div className="min-w-0 py-1">
-        <p className="text-[12px] leading-tight text-wa-meta">{label}</p>
-        <div className="break-words text-[14px] leading-snug">{children}</div>
+        <p className="text-meta leading-tight text-wa-meta">{label}</p>
+        <div className="break-words text-meta leading-snug">{children}</div>
       </div>
       {field && onChange ? (
         <button
@@ -402,7 +402,7 @@ function PaperValue({ file }: { file: DuOtpFileView }) {
   return (
     <>
       <FileLink file={file} />
-      {sourceKey ? <p className="text-[12px] leading-tight text-wa-meta">{t(sourceKey)}</p> : null}
+      {sourceKey ? <p className="text-meta leading-tight text-wa-meta">{t(sourceKey)}</p> : null}
     </>
   );
 }
@@ -441,7 +441,7 @@ function ReviewStep({ group, busy, onAnswer }: StepProps) {
         </ReviewRow>
         <ReviewRow label={t('chat.duOtpLblDate')} busy={busy}>
           {dates.length > 0 ? dates.join(', ') : dash}
-          <p className="text-[12px] leading-tight text-wa-meta">{t('chat.duOtpDateNote')}</p>
+          <p className="text-meta leading-tight text-wa-meta">{t('chat.duOtpDateNote')}</p>
         </ReviewRow>
       </div>
       <button

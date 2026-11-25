@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '@/components/ui';
 import { aliasMessageId } from '@/hooks/api/useMessages';
 import { makeMessage } from '@/test/utils';
-import type { Attachment, Message, TicketDealerView } from '@dk/shared/types';
+import type { Attachment, Message } from '@dk/shared/types';
 
 import { MessageList } from './MessageList';
 
@@ -36,9 +36,7 @@ vi.mock('./MessageBubble', () => ({
     onOpenImage,
     onLongPress,
     onJumpTo,
-    ticketStatus,
-    ticketNumber,
-    ticketUntil,
+    quoteHideImage,
   }: {
     message: Message;
     first?: boolean;
@@ -46,9 +44,7 @@ vi.mock('./MessageBubble', () => ({
     onOpenImage?: (a: Attachment, m: Message) => void;
     onLongPress?: (m: Message) => void;
     onJumpTo?: (targetId: string, fromId: string) => void;
-    ticketStatus?: string;
-    ticketNumber?: number;
-    ticketUntil?: string;
+    quoteHideImage?: boolean;
   }) => {
     captured.openImageRefs.push(onOpenImage);
     captured.onJumpTo = onJumpTo ?? null;
@@ -58,9 +54,7 @@ vi.mock('./MessageBubble', () => ({
         data-id={message.id}
         data-first={String(first)}
         data-highlight={highlight}
-        data-ticket-status={ticketStatus}
-        data-ticket-number={ticketNumber}
-        data-ticket-until={ticketUntil}
+        data-quote-hide-image={quoteHideImage === undefined ? undefined : String(quoteHideImage)}
       >
         <button
           type="button"
@@ -253,6 +247,39 @@ describe('MessageList', () => {
     );
     const unique = new Set(captured.openImageRefs);
     expect(unique.size).toBe(1); // same callback identity every render
+  });
+
+  describe('the card picture of a report', () => {
+    const report = makeMessage({
+      id: 'rep',
+      createdAt: iso(-2000),
+      senderId: 'mdg',
+      senderRole: 'admin',
+      system: true,
+      body: 'Yesterday sales are in.',
+      attachments: [picture('dsr-card')],
+      report: { kind: 'dsr_sales', status: 'ok' },
+    });
+    const photo = makeMessage({ id: 'pic', createdAt: iso(-1000), attachments: [picture('site-photo')] });
+
+    it("is left out of the thread's own picture swipe (a report opens on its own screen)", () => {
+      renderList(
+        <MessageList currentUserId="u1" messages={[report, photo]} typing={{ active: false }} />,
+      );
+      fireEvent.click(screen.getByTestId('img-pic'));
+      const items = viewer.props!.items as Array<{ source: { messageId: string } }>;
+      expect(items.map((i) => i.source.messageId)).toEqual(['pic']);
+    });
+
+    it('lets the swipe page on to older pictures, and closes back to the thread', () => {
+      renderList(
+        <MessageList currentUserId="u1" messages={[report, photo]} hasMore typing={{ active: false }} />,
+      );
+      fireEvent.click(screen.getByTestId('img-pic'));
+      expect(viewer.props!.hasOlder).toBe(true);
+      act(() => (viewer.props!.onClose as () => void)());
+      expect(screen.queryByTestId('viewer')).toBeNull();
+    });
   });
 
   it('shows an empty state when there are no messages and not loading', () => {
@@ -1053,208 +1080,73 @@ describe('MessageList — jumping from outside', () => {
 });
 
 /**
- * Which bubble gets a ticket line, and what it is told.
- *
- * The bubble is stubbed, so what is asserted is the hand-off: a status word and
- * a number for the one message that names a ticket the conversation still
- * lists, and nothing for every other bubble.
+ * ADR 0055: a ticket number under a dealer's message told them a machine had raised it, so
+ * no bubble is handed a ticket line any more. The pinned bar under the header says where
+ * their question stands.
  */
-describe('MessageList — ticket status lines', () => {
-  const aiBlock = { turnId: 'turn-1', kind: 'handoff', intent: 'talk_to_human', templateId: 'h' };
-
-  function ticket(over: Partial<TicketDealerView> = {}): TicketDealerView {
-    return {
-      id: 't-42',
-      number: 42,
-      state: 'OPEN',
-      seen: false,
-      raisedAt: iso(-60_000),
-      ...over,
-    };
-  }
-
-  const raising = makeMessage({
-    id: 'raising',
-    createdAt: iso(-5000),
-    ai: { ...aiBlock, ticketId: 't-42' } as never,
-  });
-  const plain = makeMessage({ id: 'plain', createdAt: iso(-9000) });
-  const noTicket = makeMessage({
-    id: 'no-ticket',
-    createdAt: iso(-1000),
-    ai: { ...aiBlock, kind: 'answer' } as never,
-  });
-
-  it.each([
-    ['not seen yet', { state: 'OPEN', seen: false }, 'raised'],
-    ['seen by an admin', { state: 'OPEN', seen: true }, 'looking'],
-    ['resolved', { state: 'RESOLVED', seen: true, resolvedAt: iso(-1000) }, 'resolved'],
-  ] as const)('hands the bubble "%s" as its status word', (_label, over, status) => {
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[plain, raising, noTicket]}
-        tickets={[ticket(over)]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe(status);
-    expect(bubble('raising').getAttribute('data-ticket-number')).toBe('42');
-  });
-
-  it('hands a ticket someone is working on the time they promised', () => {
-    const until = iso(2 * 60 * 60_000);
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[plain, raising]}
-        tickets={[ticket({ seen: true, promiseUntil: until })]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
-    expect(bubble('raising').getAttribute('data-ticket-until')).toBe(until);
-    expect(bubble('plain').hasAttribute('data-ticket-until')).toBe(false);
-  });
-
-  it('hands no time for any state but working, even when the ticket carries one', () => {
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[raising]}
-        tickets={[ticket({ seen: true, state: 'RESOLVED', promiseUntil: iso(60_000) })]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('resolved');
-    expect(bubble('raising').hasAttribute('data-ticket-until')).toBe(false);
-  });
-
-  it('falls back to the seen / unseen word by itself when the promised time runs out', () => {
-    // Nothing is sent when a time passes, so the list arms one timer for it. Only
-    // the clock and the timer are faked; the list's other waits stay real.
-    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-    vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[raising]}
-        tickets={[ticket({ seen: true, promiseUntil: '2026-10-30T10:30:00.000Z' })]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
-
-    act(() => {
-      vi.advanceTimersByTime(29 * 60_000);
+describe('MessageList — no ticket line under a bubble', () => {
+  it('hands a message that names a ticket nothing about it', () => {
+    const raising = makeMessage({
+      id: 'raising',
+      createdAt: iso(-5000),
+      ai: { turnId: 'turn-1', kind: 'handoff', intent: 'talk_to_human', templateId: 'h', ticketId: 't-42' } as never,
     });
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('working');
-
-    act(() => {
-      vi.advanceTimersByTime(60_000);
-    });
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('looking');
-    expect(bubble('raising').hasAttribute('data-ticket-until')).toBe(false);
-  });
-
-  it('moves on to the next promise when the first one runs out', () => {
-    vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-    vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
-    const second = makeMessage({
-      id: 'second',
-      createdAt: iso(-2000),
-      ai: { ...aiBlock, ticketId: 't-43' } as never,
-    });
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[raising, second]}
-        tickets={[
-          ticket({ seen: true, promiseUntil: '2026-10-30T10:10:00.000Z' }),
-          ticket({ id: 't-43', number: 43, promiseUntil: '2026-10-30T11:00:00.000Z' }),
-        ]}
-      />,
-    );
-    act(() => {
-      vi.advanceTimersByTime(11 * 60_000);
-    });
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('looking');
-    expect(bubble('second').getAttribute('data-ticket-status')).toBe('working');
-
-    act(() => {
-      vi.advanceTimersByTime(50 * 60_000);
-    });
-    expect(bubble('second').getAttribute('data-ticket-status')).toBe('raised');
-  });
-
-  it('gives nothing to a message that names no ticket', () => {
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[plain, raising, noTicket]}
-        tickets={[ticket()]}
-      />,
-    );
-    expect(bubble('plain').hasAttribute('data-ticket-status')).toBe(false);
-    expect(bubble('no-ticket').hasAttribute('data-ticket-status')).toBe(false);
-  });
-
-  it('gives nothing when the conversation no longer lists the ticket', () => {
-    // A resolved ticket older than the server's seven-day window drops out of
-    // `tickets`; the message that raised it stays in the thread.
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[raising]}
-        tickets={[ticket({ id: 't-other', number: 9 })]}
-      />,
-    );
-    expect(bubble('raising').hasAttribute('data-ticket-status')).toBe(false);
-    expect(bubble('raising').hasAttribute('data-ticket-number')).toBe(false);
-  });
-
-  it('gives nothing when the conversation carries no tickets at all', () => {
-    // An older server, or a thread that never raised one.
     renderList(<MessageList currentUserId="u1" messages={[raising]} />);
-    expect(bubble('raising').hasAttribute('data-ticket-status')).toBe(false);
+    const el = bubble('raising');
+    expect(el.hasAttribute('data-ticket-status')).toBe(false);
+    expect(el.hasAttribute('data-ticket-number')).toBe(false);
+  });
+});
+
+/**
+ * Report messages (ADR 0055): words and a button in the chat, the card on Today. The list
+ * must not offer that card as a picture anywhere.
+ */
+describe('MessageList — report messages are not chat pictures', () => {
+  const card = (key: string): Attachment => ({ ...picture(key), filename: `dsr-sales-2026-11-22.png` });
+  const report = makeMessage({
+    id: 'dsr',
+    senderId: 'sys',
+    senderRole: 'admin',
+    system: true,
+    body: 'Aaj ki DSR bhej di hai.',
+    attachments: [card('card1')],
+    report: { kind: 'dsr_sales', status: 'ok', day: '2026-11-22' },
+    createdAt: iso(-3000),
+  });
+  const photo = makeMessage({
+    id: 'photo',
+    senderId: 'x',
+    body: 'meri photo',
+    attachments: [picture('own1')],
+    createdAt: iso(-4000),
   });
 
-  it('follows the ticket as the conversation is replaced with a new state', () => {
-    const msgs = [raising];
-    const { rerenderList } = renderList(
-      <MessageList currentUserId="u1" messages={msgs} tickets={[ticket()]} />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('raised');
-
-    rerenderList(
-      <MessageList currentUserId="u1" messages={msgs} tickets={[ticket({ seen: true })]} />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('looking');
-
-    rerenderList(
-      <MessageList
-        currentUserId="u1"
-        messages={msgs}
-        tickets={[ticket({ seen: true, state: 'RESOLVED', resolvedAt: iso(0) })]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('resolved');
+  it('leaves a report card out of the picture viewer, but keeps ordinary pictures', () => {
+    renderList(<MessageList currentUserId="me" messages={[photo, report]} />);
+    fireEvent.click(screen.getByTestId('img-photo'));
+    const items = viewer.props!.items as { key: string }[];
+    expect(items.map((i) => i.key)).toEqual(['photo:own1']);
   });
 
-  it('reads two tickets on one thread independently', () => {
-    const second = makeMessage({
-      id: 'second',
-      createdAt: iso(-2000),
-      ai: { ...aiBlock, ticketId: 't-43' } as never,
+  it('tells a reply that quotes a report not to show the card as a thumbnail', () => {
+    const reply = makeMessage({
+      id: 'reply',
+      senderId: 'me',
+      body: 'theek hai',
+      replyTo: { messageId: 'dsr', senderId: 'sys', imageUrl: 'https://files.test/card1.png' } as never,
+      createdAt: iso(-1000),
     });
-    renderList(
-      <MessageList
-        currentUserId="u1"
-        messages={[raising, second]}
-        tickets={[
-          ticket({ state: 'RESOLVED', seen: true }),
-          ticket({ id: 't-43', number: 43 }),
-        ]}
-      />,
-    );
-    expect(bubble('raising').getAttribute('data-ticket-status')).toBe('resolved');
-    expect(bubble('second').getAttribute('data-ticket-status')).toBe('raised');
-    expect(bubble('second').getAttribute('data-ticket-number')).toBe('43');
+    const other = makeMessage({
+      id: 'reply2',
+      senderId: 'me',
+      body: 'aur yeh',
+      replyTo: { messageId: 'photo', senderId: 'x', imageUrl: 'https://files.test/own1.png' } as never,
+      createdAt: iso(-500),
+    });
+    renderList(<MessageList currentUserId="me" messages={[photo, report, reply, other]} />);
+    expect(bubble('reply').getAttribute('data-quote-hide-image')).toBe('true');
+    expect(bubble('reply2').getAttribute('data-quote-hide-image')).toBe('false');
+    expect(bubble('dsr').hasAttribute('data-quote-hide-image')).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as ApiModule from '@/lib/api';
@@ -62,6 +62,31 @@ describe('the first-open language picker', () => {
     const user = useAuthStore.getState().user;
     expect(user?.lang).toBe('hl');
     expect(mustChooseLanguage(user)).toBe(false);
+  });
+});
+
+describe('the Today feed after the choice', () => {
+  it('is asked for again once the save has gone through, so its words follow the new language', async () => {
+    signIn({ role: 'dealer-owner', langChosenAt: null });
+    const { queryClient } = renderWithProviders(<ChooseLanguageScreen />);
+    // Today was answered in the old language while the choice was being saved.
+    queryClient.setQueryData(['today-feed'], { day: '2026-11-24' });
+    expect(queryClient.getQueryState(['today-feed'])?.isInvalidated).toBe(false);
+    fireEvent.click(screen.getByRole('radio', { name: 'English' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(queryClient.getQueryState(['today-feed'])?.isInvalidated).toBe(true));
+  });
+
+  it('is left as it was when the save fails', async () => {
+    vi.mocked(api.patch).mockRejectedValue(new Error('offline'));
+    signIn({ role: 'dealer-owner', langChosenAt: null });
+    const { queryClient } = renderWithProviders(<ChooseLanguageScreen />);
+    queryClient.setQueryData(['today-feed'], { day: '2026-11-24' });
+    fireEvent.click(screen.getByRole('radio', { name: 'English' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(api.patch).toHaveBeenCalled());
+    await Promise.resolve();
+    expect(queryClient.getQueryState(['today-feed'])?.isInvalidated).toBe(false);
   });
 });
 

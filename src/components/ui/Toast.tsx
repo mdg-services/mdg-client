@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useInRouterContext, useMatch } from 'react-router-dom';
 
 import { cn } from '@/lib/cn';
+import { isEmbedded } from '@/lib/embedMode';
 import { useT } from '@/lib/i18n';
 
 type Intent = 'success' | 'danger' | 'info';
@@ -94,13 +95,14 @@ export function useToast(): ToastContextValue {
 
 /**
  * Where the toasts sit: just above the bottom edge of the screen, clear of the
- * phone's own gesture area (`env(safe-area-inset-bottom)`). There is no tab bar
- * to clear any more.
+ * phone's own gesture area (`env(safe-area-inset-bottom)`).
  *
- * ONE SCREEN IS DIFFERENT. In an open conversation the composer is pinned to
- * the bottom edge, and a toast there would sit on top of the message the dealer
+ * TWO KINDS OF SCREEN ARE DIFFERENT. In an open conversation the composer is pinned
+ * to the bottom edge, and a toast there would sit on top of the message the dealer
  * is typing and swallow the taps meant for it — so on `/chat/:id` the toasts
- * stay above the composer.
+ * stay above the composer. On the two tab screens (Today at `/`, Chats at `/chat`)
+ * the tab bar is there, and the toasts stay above that for the same reason — except
+ * in the extension's panel, which has no tab bar.
  *
  * Asking the router which screen this is has to survive being rendered with no
  * router at all (several tests mount the provider that way), and a hook cannot
@@ -114,7 +116,10 @@ function ToastViewport(props: { toasts: Toast[]; dismiss: (id: string) => void }
 
 function RoutedToastViewport(props: { toasts: Toast[]; dismiss: (id: string) => void }) {
   const inConversation = !!useMatch('/chat/:id');
-  return <ToastList {...props} raised={inConversation} />;
+  const onToday = !!useMatch({ path: '/', end: true });
+  const onChats = !!useMatch({ path: '/chat', end: true });
+  const aboveTabBar = (onToday || onChats) && !isEmbedded();
+  return <ToastList {...props} raised={inConversation || aboveTabBar} />;
 }
 
 function ToastList({
@@ -124,7 +129,7 @@ function ToastList({
 }: {
   toasts: Toast[];
   dismiss: (id: string) => void;
-  /** True while a composer is pinned to the bottom edge. */
+  /** True while a composer or the tab bar is pinned to the bottom edge. */
   raised: boolean;
 }) {
   const t = useT();
@@ -159,10 +164,10 @@ function ToastList({
           </span>
           <div className="min-w-0 flex-1">
             {item.title ? (
-              <p className="text-sm font-medium text-text">{item.title}</p>
+              <p className="text-body font-medium text-text">{item.title}</p>
             ) : null}
             {item.description ? (
-              <p className="mt-0.5 text-xs text-text-muted">{item.description}</p>
+              <p className="mt-0.5 text-meta text-text-muted">{item.description}</p>
             ) : null}
             {item.action ? (
               <button
@@ -171,7 +176,7 @@ function ToastList({
                   item.action?.onClick();
                   dismiss(item.id);
                 }}
-                className="mt-1.5 text-xs font-semibold text-brand underline-offset-2 hover:underline"
+                className="mt-1.5 text-meta font-semibold text-brand underline-offset-2 hover:underline"
               >
                 {item.action.label}
               </button>

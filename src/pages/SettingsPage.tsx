@@ -26,6 +26,7 @@ import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
 import { BatteryGuideSheet, batteryGuideMaker } from '@/features/push/BatteryGuide';
 import { requestPushPermission } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
+import { isEmbedded } from '@/lib/embedMode';
 import { useLang, useT } from '@/lib/i18n';
 import { PRIVACY_URL, TERMS_URL, openWebPage } from '@/lib/legalLinks';
 import { isNativeShell, openNativeAppSettings } from '@/lib/nativeBridge';
@@ -60,7 +61,9 @@ export function SettingsPage() {
   const t = useT();
   const lang = useLang();
   const navigate = useNavigate();
-  const goBack = useGoBack('/chat');
+  // Opened cold (a notification) there is nothing behind it: home is Today, and
+  // the extension's panel, which has no Today, goes back to its chat.
+  const goBack = useGoBack(isEmbedded() ? '/chat' : '/');
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const [languageOpen, setLanguageOpen] = React.useState(false);
@@ -127,14 +130,14 @@ export function SettingsPage() {
         >
           <Avatar name={user.name} size={64} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[19px] font-medium text-wa-bar-text">
+            <span className="block truncate text-heading text-wa-bar-text">
               {user.name}
             </span>
-            <span className="block truncate text-[14px] text-wa-meta">
+            <span className="block truncate text-meta text-wa-meta">
               {roleLabel(user.role, t)}
             </span>
             {contact ? (
-              <span className="block truncate text-[14px] text-wa-meta">{contact}</span>
+              <span className="block truncate text-meta text-wa-meta">{contact}</span>
             ) : null}
           </span>
         </button>
@@ -295,14 +298,14 @@ function Row({
         <span className="min-w-0 flex-1">
           <span
             className={cn(
-              'block truncate text-[16px]',
+              'block truncate text-body',
               danger ? 'text-danger' : 'text-wa-bar-text',
             )}
           >
             {title}
           </span>
           {subtitle ? (
-            <span className="block truncate text-[14px] text-wa-meta">{subtitle}</span>
+            <span className="block truncate text-meta text-wa-meta">{subtitle}</span>
           ) : null}
         </span>
       </button>
@@ -341,10 +344,10 @@ function LogoutConfirm({
         tabIndex={-1}
         className="relative w-full max-w-sm rounded-2xl bg-wa-bar p-6 shadow-lg outline-none animate-in"
       >
-        <p id="logout-title" className="text-[18px] font-medium text-wa-bar-text">
+        <p id="logout-title" className="text-heading text-wa-bar-text">
           {t('settings.logoutTitle')}
         </p>
-        <p id="logout-desc" className="mt-2 text-[15px] text-wa-meta">
+        <p id="logout-desc" className="mt-2 text-meta text-wa-meta">
           {t('settings.logoutDesc')}
         </p>
         <div className="mt-6 flex justify-end gap-2">

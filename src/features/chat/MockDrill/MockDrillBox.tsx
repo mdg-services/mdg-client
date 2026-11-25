@@ -19,7 +19,7 @@ import { canGoBack, filedDay, mockDrillErrorText, scenarioName, stepOf } from '.
 
 /** The words under the box while nothing is being asked: a line, or a returned report. */
 function Quiet({ text }: { text: string }) {
-  return <p className="break-words text-[14px] leading-snug">{text}</p>;
+  return <p className="break-words text-meta leading-snug">{text}</p>;
 }
 
 /**
@@ -92,7 +92,7 @@ export function MockDrillBox() {
     >
       <div className="rounded-md bg-wa-row-active px-2.5 py-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+          <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
             <Siren width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
             {t('chat.mockDrillTitle')}
           </p>
@@ -101,7 +101,7 @@ export function MockDrillBox() {
 
         {loadFailed ? (
           <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="text-[13px] leading-snug text-wa-meta">
+            <span className="text-meta leading-snug text-wa-meta">
               {t('chat.askStateFailed')}
             </span>
             <button type="button" onClick={() => void refetch()} className={TEXT_BUTTON}>
@@ -177,7 +177,7 @@ function Screen({
       return (
         <>
           <ReturnedNotice view={view} />
-          <p className="text-[15px] font-medium leading-snug">{t('chat.mockDrillChooseTitle')}</p>
+          <p className="text-subheading leading-snug">{t('chat.mockDrillChooseTitle')}</p>
           <button
             type="button"
             disabled={busy}
@@ -190,7 +190,7 @@ function Screen({
               {t('chat.mockDrillSame')}
             </span>
             {saved ? (
-              <span className="min-w-0 break-words text-[13px] font-normal leading-snug">
+              <span className="min-w-0 break-words text-meta font-normal leading-snug">
                 {saved.label}
               </span>
             ) : null}
@@ -274,7 +274,7 @@ function Screen({
       return (
         <>
           <Notice text={view.open?.failure?.trim() || t('chat.mockDrillFailedFallback')} />
-          <p className="text-[13px] leading-snug text-wa-meta">{t('chat.duOtpTeamTold')}</p>
+          <p className="text-meta leading-snug text-wa-meta">{t('chat.duOtpTeamTold')}</p>
         </>
       );
   }

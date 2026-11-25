@@ -49,7 +49,7 @@ import {
 type Send = (body: WorkPermitAnswerInput) => void;
 
 const CHIP =
-  'flex min-h-11 w-full items-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-left text-[15px] text-wa-bubble-text transition-colors duration-150 active:bg-wa-row-active disabled:opacity-60';
+  'flex min-h-11 w-full items-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-left text-body text-wa-bubble-text transition-colors duration-150 active:bg-wa-row-active disabled:opacity-60';
 
 function Chip({
   option,
@@ -75,7 +75,7 @@ function Chip({
       <span className="flex min-w-0 flex-1 flex-col">
         <span className="min-w-0 break-words font-medium leading-snug">{sayIn(option.label, lang)}</span>
         {hint ? (
-          <span className="min-w-0 break-words text-[13px] font-normal leading-snug text-wa-meta">
+          <span className="min-w-0 break-words text-meta font-normal leading-snug text-wa-meta">
             {hint}
           </span>
         ) : null}
@@ -287,8 +287,8 @@ function Asking({
   const help = q.help ? sayIn(q.help, lang) : '';
   return (
     <div className="flex flex-col gap-2">
-      <p className="break-words text-[15px] font-medium leading-snug">{sayIn(q.prompt, lang)}</p>
-      {help ? <p className="break-words text-[13px] leading-snug text-wa-meta">{help}</p> : null}
+      <p className="break-words text-subheading leading-snug">{sayIn(q.prompt, lang)}</p>
+      {help ? <p className="break-words text-meta leading-snug text-wa-meta">{help}</p> : null}
       {q.videoId ? <VideoLink videoId={q.videoId} /> : null}
       {q.options.length ? (
         <div className="flex flex-col gap-1.5">
@@ -340,13 +340,13 @@ function Confirm({ view, busy, onAnswer }: { view: WorkPermitDealerView; busy: b
         <dl className="m-0 flex flex-col divide-y divide-wa-divider rounded-lg bg-wa-in px-3 py-0.5">
           {view.summary.map((row, i) => (
             <div key={i} className="flex flex-col gap-0.5 py-1.5">
-              <dt className="text-[12px] leading-snug text-wa-meta">{sayIn(row.label, lang)}</dt>
-              <dd className="m-0 min-w-0 break-words text-[14px] leading-snug">{sayIn(row.value, lang)}</dd>
+              <dt className="text-meta leading-snug text-wa-meta">{sayIn(row.label, lang)}</dt>
+              <dd className="m-0 min-w-0 break-words text-meta leading-snug">{sayIn(row.value, lang)}</dd>
             </div>
           ))}
         </dl>
       ) : null}
-      {status ? <p className="break-words text-[14px] leading-snug">{status}</p> : null}
+      {status ? <p className="break-words text-meta leading-snug">{status}</p> : null}
       <button
         type="button"
         disabled={busy}
@@ -460,7 +460,7 @@ function LetterViewer({ permitId, title, onClose }: { permitId: string; title: s
         <button type="button" onClick={onClose} aria-label={t('common.cancel')} className="rounded-full p-2">
           <ArrowLeft width={22} aria-hidden />
         </button>
-        <p className="min-w-0 flex-1 truncate text-[15px]">{title}</p>
+        <p className="min-w-0 flex-1 truncate text-body">{title}</p>
         {url ? (
           <button
             type="button"
@@ -480,7 +480,7 @@ function LetterViewer({ permitId, title, onClose }: { permitId: string; title: s
         {url ? (
           <ZoomableImage src={url} alt={title} onDismiss={onClose} onError={() => setFailed(true)} />
         ) : failed ? (
-          <p className="p-6 text-center text-[14px] text-white/80">{t('pdf.failed')}</p>
+          <p className="p-6 text-center text-meta text-white/80">{t('pdf.failed')}</p>
         ) : (
           <div className="flex h-full items-center justify-center">
             <Spinner size={28} />
@@ -542,22 +542,22 @@ function Screen({
             <div data-work-permit-number className="flex flex-col gap-0.5 rounded-lg bg-wa-in px-3 py-2">
               {view.number ? (
                 <>
-                  <span className="text-[12px] leading-snug text-wa-meta">
+                  <span className="text-meta leading-snug text-wa-meta">
                     {t('chat.workPermitNumberLabel')}
                   </span>
-                  <span className="select-text break-all text-[16px] font-semibold leading-snug tabular-nums">
+                  <span className="select-text break-all text-subheading leading-snug tabular-nums">
                     {view.number}
                   </span>
                 </>
               ) : null}
               {till ? (
-                <span className="text-[13px] leading-snug text-wa-meta">
+                <span className="text-meta leading-snug text-wa-meta">
                   {t('chat.workPermitValidTill', { when: till })}
                 </span>
               ) : null}
             </div>
           ) : null}
-          {status ? <p className="break-words text-[14px] leading-snug">{status}</p> : null}
+          {status ? <p className="break-words text-meta leading-snug">{status}</p> : null}
           {view.hasPdf ? (
             <PermitFile
               permitId={view.id}
@@ -581,7 +581,7 @@ function Screen({
     case 'done_ask':
       return (
         <div className="flex flex-col gap-2">
-          <p className="break-words text-[15px] font-medium leading-snug">
+          <p className="break-words text-subheading leading-snug">
             {t('chat.workPermitDoneQuestion')}
           </p>
           <button
@@ -608,7 +608,7 @@ function Screen({
     case 'done':
     case 'failed':
     case 'cancelled':
-      return status ? <p className="break-words text-[14px] leading-snug text-wa-meta">{status}</p> : null;
+      return status ? <p className="break-words text-meta leading-snug text-wa-meta">{status}</p> : null;
   }
 }
 
@@ -680,8 +680,8 @@ export function WorkPermitBox({ permitId, messageId }: { permitId: string; messa
             <ShieldCheck width={15} strokeWidth={2} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-[12px] leading-snug text-wa-meta">{t('chat.workPermitLabel')}</span>
-            <span className="min-w-0 break-words text-[15px] font-medium leading-snug">
+            <span className="text-meta leading-snug text-wa-meta">{t('chat.workPermitLabel')}</span>
+            <span className="min-w-0 break-words text-subheading leading-snug">
               {sayIn(view.title, lang)}
             </span>
           </div>

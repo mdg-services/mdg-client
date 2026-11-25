@@ -40,7 +40,7 @@ function CopyButton({
       data-mail-copy={part}
       aria-label={`${t("chat.complaintsMailCopy")}: ${label}`}
       onClick={() => void copy()}
-      className="flex min-h-9 shrink-0 items-center gap-1 rounded-md px-2 text-[13px] font-medium text-wa-accent-strong transition-colors duration-150 active:bg-wa-row-active"
+      className="flex min-h-9 shrink-0 items-center gap-1 rounded-md px-2 text-meta font-medium text-wa-accent-strong transition-colors duration-150 active:bg-wa-row-active"
     >
       {done ? (
         <Check width={14} strokeWidth={3} />
@@ -66,13 +66,13 @@ function Field({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] leading-snug text-wa-meta">{label}</span>
+        <span className="text-meta leading-snug text-wa-meta">{label}</span>
         <CopyButton part={part} text={text} label={label} />
       </div>
       <div
         data-mail-field={part}
         className={cn(
-          "select-text whitespace-pre-wrap break-words rounded-md bg-wa-in px-2.5 py-1.5 text-[14px] leading-snug",
+          "select-text whitespace-pre-wrap break-words rounded-md bg-wa-in px-2.5 py-1.5 text-meta leading-snug",
           scroll && "max-h-44 overflow-y-auto overscroll-contain",
         )}
       >
@@ -98,7 +98,7 @@ export function VendorMailCard({ mail }: { mail: ComplaintVendorMailView }) {
     return (
       <p
         data-mail-sent-by-mdg
-        className="flex items-start gap-2 break-words rounded-lg bg-wa-in px-3 py-2 text-[13px] leading-snug text-wa-meta"
+        className="flex items-start gap-2 break-words rounded-lg bg-wa-in px-3 py-2 text-meta leading-snug text-wa-meta"
       >
         <Mail
           width={14}
@@ -123,7 +123,7 @@ export function VendorMailCard({ mail }: { mail: ComplaintVendorMailView }) {
       aria-label={t("chat.complaintsMailTitle")}
       className="flex flex-col gap-2.5 rounded-lg border border-wa-divider bg-wa-chip p-2.5"
     >
-      <h4 className="m-0 flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+      <h4 className="m-0 flex items-center gap-1.5 text-meta font-medium leading-snug">
         <Mail width={15} strokeWidth={2} aria-hidden className="shrink-0" />
         {t("chat.complaintsMailTitle")}
       </h4>
@@ -142,7 +142,7 @@ export function VendorMailCard({ mail }: { mail: ComplaintVendorMailView }) {
       {hint ? (
         <p
           data-mail-attach
-          className="m-0 break-words text-[13px] leading-snug"
+          className="m-0 break-words text-meta leading-snug"
         >
           <span className="font-medium">
             {t("chat.complaintsMailAttach")}:{" "}

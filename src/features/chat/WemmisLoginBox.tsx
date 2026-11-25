@@ -32,14 +32,14 @@ import {
 } from './wemmisLoginView';
 
 const INPUT_CLASS =
-  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
-const LABEL_CLASS = 'mb-0.5 block text-[12px] leading-tight text-wa-meta';
+  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
+const LABEL_CLASS = 'mb-0.5 block text-meta leading-tight text-wa-meta';
 const PRIMARY_BUTTON =
-  'flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60';
+  'flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60';
 const TEXT_BUTTON =
-  'flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10';
+  'flex min-h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10';
 const NOTICE_CLASS =
-  'rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text';
+  'rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text';
 
 /**
  * Bring a field to the middle of the screen once the keyboard has risen over the
@@ -66,7 +66,7 @@ function useBringIntoView() {
 /** A line with a spinner: the robot is working and the owner has nothing to do. */
 function BusyLine({ text }: { text: string }) {
   return (
-    <p role="status" className="mt-2 flex items-center gap-2 text-[14px] leading-snug">
+    <p role="status" className="mt-2 flex items-center gap-2 text-meta leading-snug">
       <Spinner size={16} />
       <span className="min-w-0 break-words">{text}</span>
     </p>
@@ -220,7 +220,7 @@ function LoginForm({
           {t('common.cancel')}
         </button>
       ) : null}
-      <p className="text-[12px] leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
     </form>
   );
 }
@@ -273,7 +273,7 @@ function MobileForm({
           aria-describedby={`${ids}-mobile-help`}
           className={cn(INPUT_CLASS, 'tabular-nums tracking-wide')}
         />
-        <p id={`${ids}-mobile-help`} className="mt-0.5 text-[12px] leading-snug text-wa-meta">
+        <p id={`${ids}-mobile-help`} className="mt-0.5 text-meta leading-snug text-wa-meta">
           {t('chat.wemmisMobileHelp')}
         </p>
       </div>
@@ -308,7 +308,7 @@ function Countdown({ expiresAt }: { expiresAt: string }) {
   const end = Date.parse(expiresAt);
   if (Number.isNaN(end)) return null;
   return (
-    <p role="timer" className="text-[13px] tabular-nums leading-snug text-wa-meta">
+    <p role="timer" className="text-meta tabular-nums leading-snug text-wa-meta">
       {t('chat.wemmisTimeLeft', { time: formatCountdown(end - now) })}
     </p>
   );
@@ -412,7 +412,7 @@ function OtpForm({
       noValidate
       className="mt-2 flex flex-col gap-2"
     >
-      <p className="text-[14px] font-medium leading-snug">{mobileLine}</p>
+      <p className="text-meta font-medium leading-snug">{mobileLine}</p>
       {reset.state === 'wrong_otp' ? (
         <p role="alert" className={NOTICE_CLASS}>
           {t('chat.wemmisWrongOtp')}
@@ -454,7 +454,7 @@ function OtpForm({
               e.currentTarget.select();
               bringIntoView(e);
             }}
-            className="h-12 min-w-0 flex-1 rounded-md border border-wa-divider bg-wa-in text-center text-[22px] font-medium tabular-nums text-wa-bubble-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60"
+            className="h-12 min-w-0 flex-1 rounded-md border border-wa-divider bg-wa-in text-center text-title tabular-nums text-wa-bubble-text focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60"
           />
         ))}
       </div>
@@ -531,14 +531,14 @@ function UserChoice({
       onPointerDown={(e) => e.stopPropagation()}
       className="mt-2 flex flex-col gap-2"
     >
-      <p className="text-[14px] font-medium leading-snug">{t('chat.wemmisChooseUser')}</p>
+      <p className="text-meta font-medium leading-snug">{t('chat.wemmisChooseUser')}</p>
       {usernames.map((name) => (
         <button
           key={name}
           type="button"
           disabled={pending}
           onClick={() => onPick(name)}
-          className="flex min-h-11 w-full items-center justify-center break-all rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active disabled:opacity-60"
+          className="flex min-h-11 w-full items-center justify-center break-all rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-body font-medium text-wa-bubble-text active:bg-wa-row-active disabled:opacity-60"
         >
           {name}
         </button>
@@ -569,7 +569,7 @@ function ExpiredPanel({
       onPointerDown={(e) => e.stopPropagation()}
       className="mt-2 flex flex-col gap-2"
     >
-      <p role="status" className="text-[14px] leading-snug">
+      <p role="status" className="text-meta leading-snug">
         {t('chat.wemmisExpired')}
       </p>
       {error ? (
@@ -686,11 +686,11 @@ function ResetFlow({ initial, onClose }: { initial: WemmisResetView | null; onCl
     if (resetQuery.isError) {
       return (
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[13px] leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
+          <span className="text-meta leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="min-h-11 shrink-0 rounded-md px-2 text-[13px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('common.retry')}
           </button>
@@ -731,7 +731,7 @@ function ResetFlow({ initial, onClose }: { initial: WemmisResetView | null; onCl
       return (
         <p
           role="status"
-          className="mt-2 flex items-start gap-2 text-[14px] font-medium leading-snug"
+          className="mt-2 flex items-start gap-2 text-meta font-medium leading-snug"
         >
           <Check
             width={16}
@@ -807,7 +807,7 @@ export function WemmisLoginBox() {
     <div data-wemmis-login data-status={status ?? (failed ? 'failed' : 'loading')} className="mt-1">
       <div className="rounded-md bg-wa-row-active px-2.5 py-2">
         <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-          <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+          <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
             <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
             {t('chat.wemmisTitle')}
           </p>
@@ -815,11 +815,11 @@ export function WemmisLoginBox() {
               nothing at all, and the "Saved" line is the answer to the button. */}
           <span aria-live="polite">
             {status === 'refused' ? (
-              <span className="rounded-full bg-wa-notice px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-bubble-text">
+              <span className="rounded-full bg-wa-notice px-2 py-0.5 text-meta font-medium leading-tight text-wa-bubble-text">
                 {t('chat.portalRefused')}
               </span>
             ) : status === 'missing' ? (
-              <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-meta">
+              <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-meta font-medium leading-tight text-wa-meta">
                 {t('chat.portalNeeded')}
               </span>
             ) : !view && q.isPending ? (
@@ -827,17 +827,17 @@ export function WemmisLoginBox() {
             ) : null}
           </span>
         </div>
-        <p className="mt-0.5 text-[13px] leading-snug text-wa-meta">{t('chat.wemmisWhy')}</p>
+        <p className="mt-0.5 text-meta leading-snug text-wa-meta">{t('chat.wemmisWhy')}</p>
 
         {failed ? (
           <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="text-[13px] leading-snug text-wa-meta">
+            <span className="text-meta leading-snug text-wa-meta">
               {t('chat.askStateFailed')}
             </span>
             <button
               type="button"
               onClick={() => void refetch()}
-              className="min-h-11 shrink-0 rounded-md px-2 text-[13px] font-medium text-wa-accent-strong active:bg-black/10"
+              className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
             >
               {t('common.retry')}
             </button>
@@ -845,12 +845,12 @@ export function WemmisLoginBox() {
         ) : null}
 
         {view && !canEdit && status !== 'saved' ? (
-          <p className="mt-1 text-[13px] leading-snug text-wa-meta">{t('chat.portalOwnerFills')}</p>
+          <p className="mt-1 text-meta leading-snug text-wa-meta">{t('chat.portalOwnerFills')}</p>
         ) : null}
 
         {savedRow ? (
           <div className="mt-0.5 flex items-center justify-between gap-2">
-            <span className="min-w-0 break-all text-[14px] leading-snug">
+            <span className="min-w-0 break-all text-meta leading-snug">
               {view.username
                 ? t('chat.wemmisSavedAs', { username: view.username })
                 : t('chat.portalSaved')}
@@ -861,7 +861,7 @@ export function WemmisLoginBox() {
                 data-no-swipe
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => setChanging(true)}
-                className="min-h-11 shrink-0 rounded-md px-2 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+                className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
               >
                 {t('chat.portalChange')}
               </button>

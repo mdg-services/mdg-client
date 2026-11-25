@@ -34,11 +34,11 @@ export function VoiceTranscript({ text }: { text: string }) {
       data-testid="voice-transcript"
       className="w-[min(68vw,264px)] px-1.5 pb-1 pt-0.5 text-wa-meta"
     >
-      <p className="text-[11px] font-medium leading-tight">{t('chat.transcript')}</p>
+      <p className="text-meta font-medium leading-tight">{t('chat.transcript')}</p>
       <p
         id={bodyId}
         className={cn(
-          'whitespace-pre-wrap break-words text-[13px] leading-snug',
+          'whitespace-pre-wrap break-words text-meta leading-snug',
           long && !open && 'line-clamp-3',
         )}
       >
@@ -53,7 +53,7 @@ export function VoiceTranscript({ text }: { text: string }) {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={bodyId}
-          className="-ml-1.5 min-h-9 rounded-md px-1.5 text-[13px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="-ml-1.5 min-h-9 rounded-md px-1.5 text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           {open ? t('chat.transcriptLess') : t('chat.transcriptMore')}
         </button>

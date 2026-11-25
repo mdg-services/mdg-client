@@ -46,7 +46,7 @@ function EntryLines({ entries }: { entries: readonly DuOtpEntryView[] }) {
             key={e.id}
             data-du-entry={e.id}
             data-state={e.state}
-            className="flex items-start gap-1.5 text-[13px] leading-snug text-wa-meta"
+            className="flex items-start gap-1.5 text-meta leading-snug text-wa-meta"
           >
             {e.state === 'submitted' ? (
               <Check width={14} strokeWidth={2.5} className="mt-0.5 shrink-0 text-success" aria-hidden />
@@ -81,8 +81,8 @@ function StartBlock() {
 
   return (
     <div data-du-start className="flex flex-col gap-2 border-t border-wa-divider pt-3">
-      <p className="text-[14px] font-medium leading-snug">{t('chat.duOtpNeedTitle')}</p>
-      <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-[14px] leading-snug">
+      <p className="text-meta font-medium leading-snug">{t('chat.duOtpNeedTitle')}</p>
+      <ul className="m-0 flex list-disc flex-col gap-1 pl-5 text-meta leading-snug">
         {NEED_KEYS.map((key) => (
           <li key={key} className="break-words">
             {t(key)}
@@ -120,7 +120,7 @@ function FailedBlock({
   return (
     <div data-du-failed className="mt-2 flex flex-col gap-2">
       <Notice text={groupFailure(group) ?? t('chat.duOtpFailedFallback')} />
-      <p className="text-[13px] leading-snug text-wa-meta">{t('chat.duOtpTeamTold')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.duOtpTeamTold')}</p>
       {error ? <Notice text={error} /> : null}
       <button
         type="button"
@@ -179,7 +179,7 @@ function GroupSection({ view, group }: { view: DuOtpAckView; group: DuOtpGroupVi
       data-step={group.step ?? ''}
       className="border-t border-wa-divider pt-3 first:border-t-0 first:pt-0"
     >
-      {line ? <p className="break-words text-[14px] font-medium leading-snug">{line}</p> : null}
+      {line ? <p className="break-words text-meta font-medium leading-snug">{line}</p> : null}
       <EntryLines entries={group.entries} />
 
       {group.state === 'collecting' ? (
@@ -230,7 +230,7 @@ function RecentLines({ recent }: { recent: DuOtpAckView['recent'] }) {
         const name = [duLine(t, l), nozzleText(t, l.nozzles)].filter(Boolean).join(' · ');
         const date = l.date ?? '—';
         return (
-          <li key={l.key} data-state={l.state} className="flex items-start gap-2 text-[13px] leading-snug">
+          <li key={l.key} data-state={l.state} className="flex items-start gap-2 text-meta leading-snug">
             <Check width={14} strokeWidth={2.5} className="mt-0.5 shrink-0 text-success" aria-hidden />
             <span className="min-w-0 break-words">
               {name ? <span className="block font-medium">{name}</span> : null}
@@ -297,11 +297,11 @@ export function DuOtpAckBox() {
       className="mt-1"
     >
       {status === 'none' ? (
-        <p className="px-1.5 text-[13px] leading-snug text-wa-meta">{t('chat.duOtpNone')}</p>
+        <p className="px-1.5 text-meta leading-snug text-wa-meta">{t('chat.duOtpNone')}</p>
       ) : (
         <div className="rounded-md bg-wa-row-active px-2.5 py-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+            <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
               <Fuel width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
               {t('chat.duOtpTitle')}
             </p>
@@ -310,7 +310,7 @@ export function DuOtpAckBox() {
 
           {failed ? (
             <div className="mt-1 flex items-center justify-between gap-2">
-              <span className="text-[13px] leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
+              <span className="text-meta leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
               <button type="button" onClick={() => void refetch()} className={TEXT_BUTTON}>
                 {t('common.retry')}
               </button>

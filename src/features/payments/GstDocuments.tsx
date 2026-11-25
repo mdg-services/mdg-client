@@ -12,12 +12,12 @@ import { useGstDownload } from './useGstDownload';
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
-      <dt className="text-base text-text-muted">{label}</dt>
+      <dt className="text-body text-text-muted">{label}</dt>
       <dd
         className={
           strong
-            ? 'break-words text-right text-base font-semibold tabular-nums text-text'
-            : 'break-words text-right text-base font-medium tabular-nums text-text'
+            ? 'break-words text-right text-body font-semibold tabular-nums text-text'
+            : 'break-words text-right text-body font-medium tabular-nums text-text'
         }
       >
         {value}
@@ -68,7 +68,7 @@ function GstDocumentCard({
   return (
     <Card role="region" aria-labelledby={headingId}>
       <CardContent className="p-5">
-        <h2 id={headingId} className="text-lg font-semibold text-text">
+        <h2 id={headingId} className="text-heading text-text">
           {t(isCreditNote ? 'payments.invoice.creditNoteTitle' : 'payments.invoice.title')}
         </h2>
         <dl className="mt-1 divide-y divide-border">
@@ -162,7 +162,7 @@ export function GstDocuments({ payment }: { payment: DealerPayment }) {
       {invoice ? (
         card(invoice)
       ) : (
-        <p className="px-1 text-base text-text-muted">{t('payments.invoice.preparing')}</p>
+        <p className="px-1 text-body text-text-muted">{t('payments.invoice.preparing')}</p>
       )}
       {creditNotes.map(card)}
     </>

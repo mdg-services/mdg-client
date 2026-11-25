@@ -3,13 +3,17 @@ import { Outlet, useMatch } from 'react-router-dom';
 
 import { ChooseLanguageScreen, mustChooseLanguage } from '@/components/ChooseLanguageScreen';
 import { RouteFallback } from '@/components/RouteFallback';
+import { useComplaintsSocket } from '@/features/chat/useComplaintsSocket';
 import { useConversationsListSocket } from '@/features/chat/useConversationsListSocket';
 import { useDeclarationsSocket } from '@/features/chat/useDeclarationsSocket';
 import { useDuOtpSocket } from '@/features/chat/useDuOtpSocket';
-import { useComplaintsSocket } from '@/features/chat/useComplaintsSocket';
-import { useWorkPermitsSocket } from '@/features/chat/useWorkPermitsSocket';
 import { useMockDrillSocket } from '@/features/chat/useMockDrillSocket';
+import { useWorkPermitsSocket } from '@/features/chat/useWorkPermitsSocket';
+import { ReportHost } from '@/features/reports/lazy';
+import { parseReportPath, useRealLocation } from '@/features/reports/reportNav';
 import { useOutletSetupSocket } from '@/features/setup/useOutletSetupSocket';
+import { TabBar } from '@/features/tabs/TabBar';
+import { WhatsNewGate } from '@/features/whatsNew/WhatsNewGate';
 import { useMe } from '@/hooks/api/useMe';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useDeliveryAck } from '@/hooks/useDeliveryAck';
@@ -32,13 +36,20 @@ import { useLangStore } from '@/store/lang';
  *     <Outlet/> content instead of unmounting/remounting the shell — useMe no
  *     longer refetches and the socket does not re-subscribe on every tap.
  *
- * IT DRAWS NO HEADER AND NO TAB BAR. The app is the chat: the chat list is the
- * first screen, Settings hangs off its ⋮ menu, and every screen draws exactly one
- * top bar of its own (`AppBar`) — a back arrow where there is somewhere to go
- * back to. A shell header above those would stack two bars on every screen, and a
- * tab bar would put four doors on a screen that has one. Nothing here reserves
- * room at the bottom any more either, so there is no `pb-20`: the composer's own
- * safe-area padding is what governs the bottom edge of a conversation.
+ * IT DRAWS NO HEADER. Every screen draws exactly one top bar of its own
+ * (`AppBar`) — a back arrow where there is somewhere to go back to — and a shell
+ * header above those would stack two bars on every screen.
+ *
+ * ITS ONLY BOTTOM BAR IS THE THREE-TAB ONE (ADR 0055, 0056): Today, Chats and
+ * Reports, drawn on those three screens and nowhere else — not in a conversation,
+ * Settings or any sub-page, not in the extension's panel, not while the keyboard is
+ * up, not under an open report. It sits in the frame's own flow, so no screen
+ * reserves room for it, and the composer's safe-area padding still governs the
+ * bottom edge of a conversation.
+ *
+ * IT HOSTS THE REPORT OVERLAY. `/report/:conversationId/:messageId` is drawn over the
+ * screen the dealer came from, which `App` keeps mounted underneath (reportNav.ts), so
+ * the overlay is mounted here, once, beside the screens and not instead of one.
  */
 export function AppShell() {
   useMe(); // refresh /me when authed
@@ -57,10 +68,9 @@ export function AppShell() {
   useDeliveryAck(); // ack message delivery (✓✓) app-wide, even off the chat screen
   usePushBridge(); // learn where notifications stand, register the push token, handle deep links from native
   useReachReport(); // tell the server where notifications stand on this phone (the team's reach line)
-  // Called for its side effect. It publishes `--vvh` / `--kb` on <html>, which is
-  // what keeps the composer above the keyboard; nothing in this frame reads the
-  // returned flag now that there is no bottom bar to slide out of its way.
-  useKeyboardViewport();
+  // It publishes `--vvh` / `--kb` on <html>, which is what keeps the composer above
+  // the keyboard, and says whether the keyboard is up, so the tab bar can step aside.
+  const { keyboardOpen } = useKeyboardViewport();
   const user = useAuthStore((s) => s.user);
   const setLangFromUser = useLangStore((s) => s.setLangFromUser);
 
@@ -79,6 +89,9 @@ export function AppShell() {
   // rest) keeps normal document flow + scrolling. The match is exact on purpose:
   // `/chat/:id/media` and `/chat/:id/info` scroll as ordinary pages.
   const inConversation = !!useMatch('/chat/:id');
+  // An open report is drawn over whatever screen is on show; `useMatch` above sees that
+  // screen, so the overlay's own address is read from the app's real location.
+  const reportOpen = parseReportPath(useRealLocation().pathname) !== null;
 
   // A returning member lands in their saved language (unless they've already
   // made an explicit local pick). Guarded inside the store, so this is idempotent.
@@ -113,6 +126,17 @@ export function AppShell() {
           </React.Suspense>
         )}
       </main>
+      {/* Not over the language choice: nothing is behind it to switch between. */}
+      {mustChooseLanguage(user) ? null : <TabBar keyboardOpen={keyboardOpen} />}
+      {/* A report, over everything above. Its code is its own chunk, so nothing is
+          downloaded until the first report opens (and `App` preloads it). */}
+      {reportOpen && !mustChooseLanguage(user) ? (
+        <React.Suspense fallback={null}>
+          <ReportHost />
+        </React.Suspense>
+      ) : null}
+      {/* The one-time "what is new" video: opens itself on Today in the phone app (ADR 0056). */}
+      <WhatsNewGate />
     </div>
   );
 }

@@ -186,18 +186,23 @@ export function ticketDealerStatus(
   return t.seen ? 'looking' : 'raised';
 }
 
+/**
+ * What a dealer is told about where their question stands, written as the team's own
+ * note ("we are looking at it"), never as a message passed between systems (ADR 0055:
+ * "Sent to the MDG team" told dealers a machine had handed their question on).
+ */
 export const TICKET_DEALER_STATUS_TEXT: Record<
   'raised' | 'looking' | 'working' | 'resolved',
   DealerWords
 > = {
-  raised: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेजा गया', hl: 'MDG team ko bheja gaya' },
-  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है', hl: 'MDG team dekh rahi hai' },
+  raised: { en: 'We have your message', hi: 'आपकी बात हमें मिल गई है', hl: 'Aapki baat humein mil gayi hai' },
+  looking: { en: 'We are looking at it', hi: 'हम देख रहे हैं', hl: 'Hum dekh rahe hain' },
   working: {
-    en: 'MDG team is working on it',
-    hi: 'MDG टीम इस पर काम कर रही है',
-    hl: 'MDG team is par kaam kar rahi hai',
+    en: 'We are on it',
+    hi: 'हम इस पर काम कर रहे हैं',
+    hl: 'Hum is par kaam kar rahe hain',
   },
-  resolved: { en: 'Closed by the MDG team', hi: 'MDG टीम ने बंद किया', hl: 'MDG team ne band kiya' },
+  resolved: { en: 'Closed', hi: 'बंद किया गया', hl: 'Band kiya gaya' },
 };
 
 /* ───────────────────────── "On it until…" times ─────────────────────────── */
@@ -431,36 +436,40 @@ export function ticketForBar<T extends Pick<TicketDealerView, 'state' | 'resolve
     .sort((a, b) => new Date(b.resolvedAt!).getTime() - new Date(a.resolvedAt!).getTime())[0];
 }
 
-/** The bar's words, after the ticket's "#N · ". `{when}` is the promised time (`promiseTimeText`). */
+/**
+ * The bar's words. `{when}` is the promised time (`promiseTimeText`).
+ * Written as the team's own note: "we", not "Sent to the MDG team" or "team reminded".
+ * No ticket number leads it: a helpdesk number tells the dealer a machine raised it.
+ */
 export const TICKET_BAR_TEXT: Record<TicketBarPhase, DealerWords> = {
-  new: { en: 'Sent to the MDG team', hi: 'MDG टीम को भेज दिया है', hl: 'MDG team ko bhej diya hai' },
+  new: { en: 'We have your message', hi: 'आपकी बात हमें मिल गई है', hl: 'Aapki baat humein mil gayi hai' },
   night: {
-    en: 'The team will see this from 9 am',
-    hi: 'टीम सुबह 9 बजे से देखेगी',
-    hl: 'Team subah 9 baje se dekhegi',
+    en: 'We will look at this from 9 am',
+    hi: 'हम सुबह 9 बजे से देखेंगे',
+    hl: 'Hum subah 9 baje se dekhenge',
   },
-  looking: { en: 'MDG team is looking at it', hi: 'MDG टीम देख रही है', hl: 'MDG team dekh rahi hai' },
+  looking: { en: 'We are looking at it', hi: 'हम देख रहे हैं', hl: 'Hum dekh rahe hain' },
   working: {
-    en: 'Being worked on · update by {when}',
-    hi: 'काम चल रहा है · {when} तक अपडेट',
-    hl: 'Kaam chal raha hai · {when} tak update',
+    en: 'We are on it · update by {when}',
+    hi: 'हम इस पर काम कर रहे हैं · {when} तक अपडेट',
+    hl: 'Hum is par kaam kar rahe hain · {when} tak update',
   },
   late: {
-    en: 'Taking a little longer · team reminded',
-    hi: 'थोड़ा और समय लग रहा है · टीम को याद दिलाया',
-    hl: 'Thoda aur time lag raha hai · team ko yaad dilaya',
+    en: 'Taking a little longer than we said',
+    hi: 'थोड़ा और समय लग रहा है',
+    hl: 'Thoda aur time lag raha hai',
   },
   closed: { en: 'Done ✓', hi: 'पूरा हुआ ✓', hl: 'Pura hua ✓' },
 };
 
-/** "#4 · काम चल रहा है · आज शाम 6 बजे तक अपडेट" — the whole bar line. */
+/** "हम इस पर काम कर रहे हैं · आज शाम 6 बजे तक अपडेट" — the whole bar line, with no ticket number. */
 export function ticketBarText(
-  t: Pick<TicketDealerView, 'number' | 'promiseUntil'>,
+  t: Pick<TicketDealerView, 'promiseUntil'>,
   phase: TicketBarPhase,
   lang: DealerLang,
   now: Date = new Date(),
 ): string {
   const words = TICKET_BAR_TEXT[phase][lang];
   const when = t.promiseUntil ? promiseTimeText(t.promiseUntil, lang, now) : '';
-  return `${ticketRef(t.number)} · ${words.replace('{when}', when)}`;
+  return words.replace('{when}', when);
 }

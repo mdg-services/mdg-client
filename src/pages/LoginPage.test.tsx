@@ -18,7 +18,7 @@ function renderLogin(lang: 'en' | 'hi' = 'en') {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<div>register-page</div>} />
-      <Route path="/chat" element={<div>chat-page</div>} />
+      <Route path="/" element={<div>today-page</div>} />
     </Routes>,
     { route: '/login' },
   );
@@ -115,7 +115,7 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Password'), PASSWORD);
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-      expect(await screen.findByText('chat-page')).toBeInTheDocument();
+      expect(await screen.findByText('today-page')).toBeInTheDocument();
       const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
       expect(url).toMatch(/\/v1\/auth\/login$/);
       expect(init.method).toBe('POST');
@@ -131,7 +131,7 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Mobile number or email'), '  Ramesh@Example.COM ');
       await user.type(screen.getByLabelText('Password'), PASSWORD);
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
-      await screen.findByText('chat-page');
+      await screen.findByText('today-page');
       expect(sentBody()).toEqual({ identifier: 'ramesh@example.com', password: PASSWORD });
     });
 
@@ -142,7 +142,7 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Mobile number or email'), '९८७६५ ४३२१०');
       await user.type(screen.getByLabelText('Password'), PASSWORD);
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
-      await screen.findByText('chat-page');
+      await screen.findByText('today-page');
       expect(sentBody().identifier).toBe('9876543210');
     });
 
@@ -155,7 +155,7 @@ describe('LoginPage', () => {
       await user.type(screen.getByLabelText('Mobile number or email'), '9876543210');
       await user.type(screen.getByLabelText('Password'), 'given-by-mdg');
       await user.click(screen.getByRole('button', { name: 'Sign in' }));
-      await screen.findByText('chat-page');
+      await screen.findByText('today-page');
       expect(useAuthStore.getState().user?.mustChangePassword).toBe(true);
     });
 

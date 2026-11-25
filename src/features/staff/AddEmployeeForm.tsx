@@ -80,7 +80,7 @@ export function AddEmployeeForm({
         {...register('name')}
       />
       {errors.name ? (
-        <p className="text-xs text-danger">
+        <p className="text-meta text-danger">
           {errors.name.message || t('staff.form.nameRequired')}
         </p>
       ) : null}

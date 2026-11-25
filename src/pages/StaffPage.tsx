@@ -65,7 +65,7 @@ function WindowToggle({
             aria-checked={active}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'flex min-h-[44px] items-center justify-center rounded-full px-4 text-xs font-medium transition-colors',
+              'flex min-h-[44px] items-center justify-center rounded-full px-4 text-meta font-medium transition-colors',
               active
                 ? 'bg-brand text-text-inverse shadow-sm'
                 : 'text-text-muted hover:text-text',
@@ -106,39 +106,39 @@ function LeaderboardRow({
     >
       <Avatar name={employee.name} size={44} />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-text">
+        <p className="truncate text-subheading text-text">
           {employee.name}
         </p>
         {employee.designation ? (
-          <p className="truncate text-xs text-text-muted">
+          <p className="truncate text-meta text-text-muted">
             {employee.designation}
           </p>
         ) : null}
         {onLeaveToday ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
             {t('staff.onLeave')}
           </span>
         ) : reached ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[11px] font-medium text-success">
+          <span className="mt-1 inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-meta font-medium text-success">
             {t('staff.reached')}
           </span>
         ) : leaveDays > 0 ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
             {t('staff.leaveDays', { n: leaveDays })}
           </span>
         ) : null}
       </div>
       <div className="flex shrink-0 flex-col items-end leading-none">
         {showLeaveInsteadOfPoints ? (
-          <span className="text-sm font-semibold text-warning">
+          <span className="text-meta font-semibold text-warning">
             {t('staff.onLeaveShort')}
           </span>
         ) : (
           <>
-            <span className="text-2xl font-bold tabular-nums text-text">
+            <span className="text-title font-bold tabular-nums text-text">
               {fmtPoints(employee.pointsInWindow)}
             </span>
-            <span className="mt-0.5 text-[11px] text-text-subtle">
+            <span className="mt-0.5 text-meta text-text-subtle">
               {t('staff.points')}
             </span>
           </>
@@ -174,7 +174,7 @@ function RemovedRoster({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 self-start px-1 text-xs font-semibold text-text-muted active:opacity-70"
+        className="flex items-center gap-1.5 self-start px-1 text-meta font-semibold text-text-muted active:opacity-70"
       >
         {open ? (
           <ChevronUp width={14} strokeWidth={2} />
@@ -191,7 +191,7 @@ function RemovedRoster({
               className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/60 px-3 py-2.5"
             >
               <Avatar name={e.name} size={36} />
-              <span className="min-w-0 flex-1 truncate text-sm font-medium text-text-muted">
+              <span className="min-w-0 flex-1 truncate text-meta font-medium text-text-muted">
                 {e.name}
               </span>
               <Button
@@ -225,7 +225,7 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 self-start px-1 text-xs font-semibold text-text-muted active:opacity-70"
+        className="flex items-center gap-1.5 self-start px-1 text-meta font-semibold text-text-muted active:opacity-70"
       >
         {open ? (
           <ChevronUp width={14} strokeWidth={2} />
@@ -244,17 +244,17 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
           // a month, told there is no record of any of it, has been given a
           // reason to stop trusting the screen.
           <div className="flex flex-col items-start gap-2 px-1 py-2">
-            <p className="text-xs text-text-subtle">{t('common.loadFailed')}</p>
+            <p className="text-meta text-text-subtle">{t('common.loadFailed')}</p>
             <button
               type="button"
               onClick={() => void batchesQuery.refetch()}
-              className="rounded-full border border-border px-3 py-1 text-xs text-text-muted active:bg-surface-2"
+              className="rounded-full border border-border px-3 py-1 text-meta text-text-muted active:bg-surface-2"
             >
               {t('common.retry')}
             </button>
           </div>
         ) : batches.length === 0 ? (
-          <p className="px-1 py-2 text-xs text-text-subtle">
+          <p className="px-1 py-2 text-meta text-text-subtle">
             {t('staff.pastEmpty')}
           </p>
         ) : (
@@ -265,8 +265,8 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
                 className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-text">{b.workDate}</p>
-                  <p className="text-xs text-text-muted">
+                  <p className="text-meta font-medium text-text">{b.workDate}</p>
+                  <p className="text-meta text-text-muted">
                     {t('staff.batchSummary', {
                       points: fmtPoints(b.totalPoints),
                       workers: b.employeeCount,
@@ -277,7 +277,7 @@ function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
                   <button
                     type="button"
                     onClick={() => setLightbox(b.hardCopyImageUrl!)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text active:opacity-70"
+                    className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-meta font-semibold text-text active:opacity-70"
                   >
                     <ImageIcon width={14} strokeWidth={1.75} />
                     {t('staff.viewHardcopy')}
@@ -438,7 +438,7 @@ export function StaffPage() {
             sync={draftSync}
           />
 
-          <p className="px-1 text-xs text-text-subtle">
+          <p className="px-1 text-meta text-text-subtle">
             {t('staff.targetLegend')}
           </p>
 

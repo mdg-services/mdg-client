@@ -117,7 +117,7 @@ function BannerBar({
         urgent ? 'border-danger/20 bg-danger-soft text-danger' : 'border-warning/20 bg-warning-soft text-warning-strong',
       )}
     >
-      <p className="min-w-0 flex-1 text-[12px] font-medium leading-snug tabular-nums" aria-live="polite">
+      <p className="min-w-0 flex-1 text-meta font-medium leading-snug tabular-nums" aria-live="polite">
         {said ?? text}
       </p>
       {sendable && !said ? (
@@ -125,7 +125,7 @@ function BannerBar({
           type="button"
           onClick={press}
           disabled={send.isPending || waiting}
-          className="min-h-7 shrink-0 rounded-full border border-current px-2.5 text-[12px] font-medium disabled:opacity-50"
+          className="min-h-7 shrink-0 rounded-full border border-current px-2.5 text-meta font-medium disabled:opacity-50"
         >
           {send.isPending ? t('billBanner.sending') : waiting ? t('billBanner.sentJustNow') : t('billBanner.sendAgain')}
         </button>

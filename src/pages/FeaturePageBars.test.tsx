@@ -17,8 +17,9 @@ const { StaffPage } = await import('./StaffPage');
 /**
  * The feature page that has no test of its own, held to the one rule
  * every screen now shares: it draws its own top bar — the title, and a ← that
- * leaves it — because there is no bottom bar to leave by, and the bar is on
- * every state of the page, a failed load included.
+ * leaves it — because a sub-page carries no tab bar to leave by (that is on Today
+ * and Chats only), and the bar is on every state of the page, a failed load
+ * included.
  */
 
 function renderAt(path: '/staff', page: React.ReactElement) {

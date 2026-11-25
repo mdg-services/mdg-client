@@ -60,11 +60,11 @@ function ScenarioText({
   const name = scenarioName(id, label, scenarios);
   return (
     <span className="min-w-0 break-words">
-      <span className={cn('block text-[14px] leading-snug', strong && 'font-medium')}>
+      <span className={cn('block text-meta leading-snug', strong && 'font-medium')}>
         {name.label}
       </span>
       {lang === 'hi' && name.gloss ? (
-        <span className="block text-[12px] leading-snug text-wa-meta">{name.gloss}</span>
+        <span className="block text-meta leading-snug text-wa-meta">{name.gloss}</span>
       ) : null}
     </span>
   );
@@ -131,7 +131,7 @@ function ScenarioStep({ view, busy, onAnswer }: StepProps) {
         aria-expanded={listOpen}
         disabled={busy}
         onClick={() => setListOpen((v) => !v)}
-        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-wa-divider bg-wa-in px-2.5 py-1.5 text-left text-[15px] disabled:opacity-60"
+        className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-wa-divider bg-wa-in px-2.5 py-1.5 text-left text-body disabled:opacity-60"
       >
         {current && dependent ? (
           <ScenarioText id={current} label={dependent.scenarioLabel} scenarios={view.scenarios} />
@@ -167,7 +167,7 @@ function ScenarioStep({ view, busy, onAnswer }: StepProps) {
                 type="button"
                 aria-expanded={moreOpen}
                 onClick={() => setMoreOpen((v) => !v)}
-                className="flex min-h-11 w-full items-center justify-between gap-2 border-t border-wa-divider px-2.5 py-1.5 text-left text-[14px] font-medium text-wa-accent-strong active:bg-wa-row-active"
+                className="flex min-h-11 w-full items-center justify-between gap-2 border-t border-wa-divider px-2.5 py-1.5 text-left text-meta font-medium text-wa-accent-strong active:bg-wa-row-active"
               >
                 {moreOpen ? t('chat.mockDrillFewer') : t('chat.mockDrillMore')}
                 {moreOpen ? (
@@ -225,10 +225,10 @@ function PhotoSlot({
     <div data-photo-slot={slot} className="flex items-center gap-2.5">
       <PhotoThumb url={photo?.url} label={label} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+        <p className="flex items-center gap-1.5 text-meta font-medium leading-snug">
           {label}
           {photo && !uploading ? (
-            <span className="flex items-center gap-1 text-[12px] font-normal text-wa-meta">
+            <span className="flex items-center gap-1 text-meta font-normal text-wa-meta">
               <Check width={13} strokeWidth={2.5} className="text-success" aria-hidden />
               {t('chat.mockDrillPhotoAdded')}
             </span>
@@ -266,7 +266,7 @@ function PhotoSlot({
             className="sr-only"
           />
         </label>
-        {hint ? <p className="text-[12px] leading-snug text-wa-meta">{hint}</p> : null}
+        {hint ? <p className="text-meta leading-snug text-wa-meta">{hint}</p> : null}
       </div>
     </div>
   );
@@ -283,7 +283,7 @@ function PhotosStep({ view, busy, uploadingSlot, onPhoto }: StepProps) {
   const second = photoInSlot(dependent, 2);
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[13px] leading-snug text-wa-meta">{t('chat.mockDrillPhotosHint')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.mockDrillPhotosHint')}</p>
       <PhotoSlot
         slot={1}
         photo={first}
@@ -314,7 +314,7 @@ function WhenStep({ busy, onAnswer }: StepProps) {
   const say = (day: 'today' | 'yesterday') => onAnswer({ step: 'when', day, confirmDone: true });
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[13px] leading-snug text-wa-meta">{t('chat.mockDrillWhenHint')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.mockDrillWhenHint')}</p>
       <button
         type="button"
         disabled={busy}
@@ -340,8 +340,8 @@ function WhenStep({ busy, onAnswer }: StepProps) {
 function ReviewRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="border-b border-wa-divider py-1.5 last:border-b-0">
-      <p className="text-[12px] leading-tight text-wa-meta">{label}</p>
-      <div className="mt-0.5 break-words text-[14px] leading-snug">{children}</div>
+      <p className="text-meta leading-tight text-wa-meta">{label}</p>
+      <div className="mt-0.5 break-words text-meta leading-snug">{children}</div>
     </div>
   );
 }
@@ -379,7 +379,7 @@ function ReviewStep({ view, busy, onAnswer }: StepProps) {
         </ReviewRow>
         <ReviewRow label={t('chat.mockDrillLblDay')}>{day ?? '—'}</ReviewRow>
       </div>
-      <p className="text-[13px] leading-snug text-wa-meta">
+      <p className="text-meta leading-snug text-wa-meta">
         {checked ? t('chat.mockDrillSendChecked') : t('chat.mockDrillSendDirect')}
       </p>
       <button
@@ -406,7 +406,7 @@ export function CollectingStep(props: StepProps & { step: MockDrillStep }) {
   const { step } = props;
   return (
     <div data-mock-step={step} className="mt-2 flex flex-col gap-2">
-      <p className="text-[15px] font-medium leading-snug">{t(STEP_TITLE_KEY[step])}</p>
+      <p className="text-subheading leading-snug">{t(STEP_TITLE_KEY[step])}</p>
       {step === 'scenario' ? <ScenarioStep {...props} /> : null}
       {step === 'photos' ? <PhotosStep {...props} /> : null}
       {step === 'when' ? <WhenStep {...props} /> : null}

@@ -11,6 +11,7 @@ import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
 import type { MessageSetupCard } from './outletSetup';
 import type { MessagePortalLogin } from './portalLogin';
+import type { ReportData } from './reportData';
 import type { TicketDealerView } from './ticket';
 import type { UserRole } from './user';
 import type { MessageWorkPermit } from './workPermits';
@@ -302,6 +303,56 @@ export interface Attachment {
   url?: string;
 }
 
+/**
+ * What a report message is about (ADR 0055). A report is a card or notice MDG sends
+ * that the dealer reads rather than answers: the Today page lists the newest of each
+ * kind, and in the chat the message is words only with a button to Today.
+ */
+export const REPORT_KINDS = [
+  'dsr_sales',
+  'dsr_variation',
+  'credit_dod',
+  'water_ingress',
+  'ro_supply',
+  'stock_check',
+  'load_plan',
+  'tanker_density',
+  'tt_ack',
+  'fuel_order',
+  'declaration_filed',
+  'du_otp',
+  'mock_drill',
+  'kavach',
+  'ledger_watch',
+  'announcement',
+  // Added by ADR 0056: each had a notice or a picture with no kind before.
+  'electrical_audit',
+  'calibration_claim',
+  'paper_expiry',
+] as const;
+export type ReportKind = (typeof REPORT_KINDS)[number];
+
+/** `attention` = the dealer should look (over the limit, a missed window); `info` = nothing to judge. */
+export type ReportStatus = 'ok' | 'attention' | 'info';
+
+/**
+ * The tag a sender puts on a report message. `day` is the business day the card is
+ * about (YYYY-MM-DD, IST); `key` separates several cards of one kind on one day (a
+ * vehicle number, an order number).
+ */
+export interface MessageReport {
+  kind: ReportKind;
+  status: ReportStatus;
+  day?: string;
+  key?: string;
+  /**
+   * The snapshot the app draws the report from (ADR 0056), set by the sender at post
+   * time. Absent on every message sent before it existed: those keep their stored
+   * pictures and open the old picture viewer.
+   */
+  data?: ReportData;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
@@ -448,6 +499,14 @@ export interface Message {
    * about the card is ever read from anywhere but here.
    */
   announcement?: MessageAnnouncement;
+  /**
+   * Set by the sender on a report message (ADR 0055): what kind of report, whether
+   * it needs a look, which business day it is about. Absent on every older message,
+   * which `reportOf` (shared/lib/reportKind) recognises from its caption instead. The
+   * chat draws a tagged message as words with a "See it on Today" button; the Today
+   * page lists it.
+   */
+  report?: MessageReport;
   /**
    * Set on a DEALER's message that answered one of those requests — the
    * request's ref (`doc:…`, `reg:…`, `kv:…`). It is what lets the admin inbox

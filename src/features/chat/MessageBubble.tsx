@@ -1,25 +1,26 @@
-import { Camera, Check, CheckCheck, Clock, FileText, Megaphone, Mic, Video, Zap } from 'lucide-react';
+import { Camera, Check, CheckCheck, ChevronRight, Clock, FileText, Mic, Video } from 'lucide-react';
 import * as React from 'react';
+import { useInRouterContext } from 'react-router-dom';
 
 import { Spinner } from '@/components/ui';
 import { OutletDetailsCard } from '@/features/outletDetails/OutletDetailsCard';
+import { familyVar } from '@/features/reports/familyVar';
+import { kindStyle } from '@/features/reports/kindStyle';
+import { ReportModal } from '@/features/reports/lazy';
+import { useOpenReport } from '@/features/reports/reportNav';
+import { sayWords } from '@/features/reports/types';
 import { SetupCard, isRetiredSetupCard, setupCardHasBody } from '@/features/setup/SetupCard';
 import { YourVideosCard } from '@/features/yourVideos/YourVideosCard';
 import { cn } from '@/lib/cn';
 import type { AttachmentSource } from '@/lib/downloadAttachment';
+import { isEmbedded } from '@/lib/embedMode';
 import { useLang, useT } from '@/lib/i18n';
 import { richText } from '@/lib/linkify';
 import { detectPlatform } from '@/lib/nativeBridge';
 import { useLongPress } from '@/lib/useLongPress';
 import type { Lang } from '@/store/lang';
 import { sayIn } from '@dk/shared/types';
-import {
-  ANNOUNCEMENT_TONE_LABELS,
-  type Attachment,
-  type AnnouncementTone,
-  type Message,
-  type MessageReaction,
-} from '@dk/shared/types';
+import { type Attachment, type Message, type MessageReaction } from '@dk/shared/types';
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
@@ -32,40 +33,19 @@ import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
 import { ReplyChoices } from './ReplyChoices';
 import { isSystemSenderName, replyPreview, replySenderLabel } from './replyContext';
+import {
+  REPORT_SENTENCE_KEY,
+  chatAttachments,
+  cleanReportCaption,
+  isLegacyReportCaption,
+  isReportBubble,
+  reportKindOf,
+  reportRowOf,
+} from './reportBubble';
 import { SignLetterOpen } from './SignLetterAsk';
 import { isSignLetterAsk } from './signLetterView';
-import { ticketLineText, type TicketLineStatus } from './ticketLine';
 import { WemmisLoginBox } from './WemmisLoginBox';
 import { WorkPermitBox } from './WorkPermits/WorkPermitBox';
-
-/**
- * The coloured strip across the top of an announcement. Strong colours on
- * purpose: a report and an announcement are both MDG's, and the dealer has to be
- * able to tell them apart from across the room. Not a button, nothing to press.
- */
-const ANNOUNCEMENT_STRIP: Record<AnnouncementTone, string> = {
-  new: 'bg-emerald-600 text-white',
-  notice: 'bg-sky-600 text-white',
-  important: 'bg-amber-500 text-amber-950',
-};
-
-function AnnouncementStrip({ tone, softCorner }: { tone: AnnouncementTone; softCorner: boolean }) {
-  return (
-    <div
-      data-testid="announcement-strip"
-      className={cn(
-        'flex items-center gap-1.5 rounded-t-md px-[10px] py-[5px] text-[11px] font-bold uppercase tracking-wider',
-        // The bubble's own pointed corner, where its tail is.
-        softCorner && 'rounded-tl-none',
-        ANNOUNCEMENT_STRIP[tone],
-      )}
-    >
-      <Megaphone width={14} strokeWidth={2.4} className="shrink-0" aria-hidden />
-      <span>{ANNOUNCEMENT_TONE_LABELS[tone]}</span>
-      <span className="ml-auto normal-case tracking-normal opacity-90">MDG</span>
-    </div>
-  );
-}
 
 const TIME_FORMATS = new Map<Lang, Intl.DateTimeFormat>();
 
@@ -130,12 +110,15 @@ function QuoteBlock({
   currentUserId,
   dealerSideIds,
   quoteLoading,
+  hideImage,
   onJumpTo,
 }: {
   message: Message;
   currentUserId?: string;
   dealerSideIds?: ReadonlySet<string> | undefined;
   quoteLoading?: boolean;
+  /** The quoted message is a report: its card is on Today, so no thumbnail of it here. */
+  hideImage?: boolean;
   onJumpTo?: (targetId: string, fromId: string) => void;
 }) {
   const t = useT();
@@ -150,10 +133,10 @@ function QuoteBlock({
     >
       <span className="w-1 shrink-0 bg-wa-accent" aria-hidden />
       <span className="min-w-0 flex-1 px-2 py-1">
-        <span className="block truncate text-[13px] font-medium leading-tight text-wa-accent-strong">
+        <span className="block truncate text-meta font-medium leading-tight text-wa-accent-strong">
           {replySenderLabel(rc, currentUserId, t, dealerSideIds)}
         </span>
-        <span className="flex items-center gap-1 text-[13px] leading-snug text-wa-meta">
+        <span className="flex items-center gap-1 text-meta leading-snug text-wa-meta">
           {Icon ? <Icon width={13} strokeWidth={1.75} className="shrink-0" /> : null}
           <span className="line-clamp-2 break-words">{preview.text}</span>
         </span>
@@ -162,7 +145,7 @@ function QuoteBlock({
         <span className="flex w-10 shrink-0 items-center justify-center">
           <Spinner size={14} />
         </span>
-      ) : rc.imageUrl ? (
+      ) : rc.imageUrl && !hideImage ? (
         <img
           src={rc.imageUrl}
           alt=""
@@ -267,7 +250,7 @@ function AskFooter({
 
   if (phase === 'sent') {
     return (
-      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-[13px] text-wa-meta">
+      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-meta text-wa-meta">
         <Clock width={14} strokeWidth={2} className="shrink-0" aria-hidden />
         {t('chat.askSent')}
       </p>
@@ -275,7 +258,7 @@ function AskFooter({
   }
   if (phase === 'received') {
     return (
-      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-[13px] font-medium text-wa-bubble-text">
+      <p className="mt-1.5 flex items-center gap-1.5 px-0.5 text-meta font-medium text-wa-bubble-text">
         <Check width={15} strokeWidth={2.5} className="shrink-0" aria-hidden />
         {t('chat.askReceived')}
       </p>
@@ -284,11 +267,11 @@ function AskFooter({
   if (phase === 'failed') {
     return (
       <div className="mt-1.5 flex items-center justify-between gap-2 px-0.5">
-        <span className="text-[13px] text-wa-meta">{t('chat.askStateFailed')}</span>
+        <span className="text-meta text-wa-meta">{t('chat.askStateFailed')}</span>
         <button
           type="button"
           onClick={onRetry}
-          className="shrink-0 rounded-md px-2 py-1 text-[13px] font-medium text-wa-accent-strong active:bg-wa-row-active"
+          className="shrink-0 rounded-md px-2 py-1 text-meta font-medium text-wa-accent-strong active:bg-wa-row-active"
         >
           {t('common.retry')}
         </button>
@@ -298,7 +281,7 @@ function AskFooter({
 
   // `open`
   const sentBack = reason ? (
-    <p className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug">
+    <p className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug">
       <span className="font-medium">{t('chat.askSentBack')}: </span>
       {reason}
     </p>
@@ -316,7 +299,7 @@ function AskFooter({
       <button
         type="button"
         onClick={() => onAnswer?.(message, 'camera')}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
       >
         {/* A Lucide glyph and not the 📷 character: an emoji is a colour picture
             on an Android WebView, and its width varies by font. */}
@@ -330,7 +313,7 @@ function AskFooter({
       <button
         type="button"
         onClick={() => onAnswer?.(message, message.ask?.acceptsFile ? 'files' : 'gallery')}
-        className="flex h-11 w-full items-center justify-center rounded-lg border border-wa-divider bg-wa-chip px-3 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active"
+        className="flex h-11 w-full items-center justify-center rounded-lg border border-wa-divider bg-wa-chip px-3 text-body font-medium text-wa-bubble-text active:bg-wa-row-active"
       >
         {message.ask?.acceptsFile
           ? t('chat.askChooseFile')
@@ -340,13 +323,104 @@ function AskFooter({
   );
 }
 
+/**
+ * The button under a report's words (ADR 0056 §5): it NAMES the report ("See sales report ›"),
+ * in the report's own colour and icon, so a dealer who taps without reading knows which one it is.
+ *
+ * It opens the report's overlay. The overlay draws from the snapshot on this very message, so it
+ * is handed the message's own copy as its first frame and opens at once, with no network, even
+ * for a report Today no longer lists. A message sent before snapshots has only its picture, and
+ * the same button opens the overlay, which shows the picture.
+ *
+ * In the extension's side panel there is no Today to be over, so the overlay opens as a modal
+ * inside the thread (`ReportModal`) and the thread stays where it was.
+ *
+ * The bubble is memoized, so the click handler lives down here with the router hook rather than
+ * being handed in. It is drawn only inside a router (every screen is in one); a bare bubble in a
+ * test has nowhere to open a report.
+ */
+function ReportButton({
+  message,
+  onJumpTo,
+}: {
+  message: Message;
+  onJumpTo?: ((targetId: string, fromId: string) => void) | undefined;
+}) {
+  return useInRouterContext() ? <ReportButtonInner message={message} onJumpTo={onJumpTo} /> : null;
+}
+
+function ReportButtonInner({
+  message,
+  onJumpTo,
+}: {
+  message: Message;
+  onJumpTo?: ((targetId: string, fromId: string) => void) | undefined;
+}) {
+  const lang = useLang();
+  const openReport = useOpenReport();
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const closeModal = React.useCallback(() => setModalOpen(false), []);
+  const kind = reportKindOf(message);
+  const jump = React.useCallback((id: string) => onJumpTo?.(id, id), [onJumpTo]);
+  if (!kind) return null;
+  const style = kindStyle(kind);
+  const row = reportRowOf(message, readerBody(message, lang, false).text);
+  const onTap = () => {
+    if (isEmbedded()) {
+      setModalOpen(true);
+      return;
+    }
+    openReport({
+      conversationId: message.conversationId,
+      messageId: message.id,
+      ...(row ? { report: row } : {}),
+    });
+  };
+  return (
+    <>
+      <button
+        type="button"
+        data-testid="report-button"
+        data-kind={kind}
+        // A tap on the button must not start a reply swipe or select the message.
+        data-no-swipe
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onTap();
+        }}
+        className="mt-2 flex min-h-12 w-full items-center gap-3 rounded-[10px] border border-border bg-surface px-2.5 py-2 text-left text-cta leading-snug text-text transition-colors duration-150 active:bg-surface-2"
+      >
+        <span
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: familyVar(style.family, 'soft'), color: familyVar(style.family, 'ink') }}
+          aria-hidden
+        >
+          <style.Icon width={18} strokeWidth={1.75} />
+        </span>
+        <span className="min-w-0 flex-1 break-words">{sayWords(style.button, lang)}</span>
+        <ChevronRight width={18} strokeWidth={1.75} className="shrink-0 text-text-subtle rtl:rotate-180" aria-hidden />
+      </button>
+      {modalOpen ? (
+        <React.Suspense fallback={null}>
+          <ReportModal
+            conversationId={message.conversationId}
+            messageId={message.id}
+            placeholder={row ?? undefined}
+            onClose={closeModal}
+            onJumpTo={jump}
+          />
+        </React.Suspense>
+      ) : null}
+    </>
+  );
+}
+
 // Memoized: message objects are updated immutably in the query cache (see
 // useConversationSocket applyReceipt / onNewMessage), so a typing toggle, a
 // delivery/read receipt, or a new message re-renders only the changed bubble
 // instead of every bubble in the thread. Every callback prop must therefore
-// stay referentially stable (created once in MessageList/ChatPage), and the
-// ticket line arrives as a status word and a number rather than the ticket, for
-// the same reason: one ticket changing must re-render one bubble.
+// stay referentially stable (created once in MessageList/ChatPage).
 export const MessageBubble = React.memo(function MessageBubble({
   message,
   mine,
@@ -360,9 +434,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   onLongPress,
   onOpenReactions,
   onJumpTo,
-  ticketStatus,
-  ticketNumber,
-  ticketUntil,
+  quoteHideImage,
   askPhase = 'none',
   askReason,
   onAskAnswer,
@@ -395,15 +467,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   onOpenReactions?: (message: Message) => void;
   /** Tap on the quote block → jump to the original message. */
   onJumpTo?: (targetId: string, fromId: string) => void;
-  /**
-   * Where the ticket this message raised stands. Set by MessageList only when
-   * the message names a ticket AND the conversation still lists it; absent, the
-   * line is simply not drawn. Always given together with `ticketNumber`.
-   */
-  ticketStatus?: TicketLineStatus;
-  ticketNumber?: number;
-  /** The time the team said it would update by (ISO), given only while the status is `working`. */
-  ticketUntil?: string;
+  /** The message this one quotes is a report: its picture is not shown as a thumbnail in the quote. */
+  quoteHideImage?: boolean;
   /**
    * Where the request this message asks for stands (ADR 0019) — set by
    * MessageList only on a message that carries `ask`. A status word, not the
@@ -447,27 +512,45 @@ export const MessageBubble = React.memo(function MessageBubble({
   if (isRetiredSetupCard(message)) return null;
 
   const reactionGroups = groupReactions(message.reactions ?? [], currentUserId);
-  const { images, voices, videos, docs } = splitAttachments(message.attachments);
+  // A REPORT (ADR 0055): a card MDG sent to be read. Here it is the team's words and a
+  // button to Today, with no picture — `attachments` is what is left of it once the card
+  // pictures are taken off, which is nothing for a plain report.
+  const reportBubble = isReportBubble(message);
+  const attachments = chatAttachments(message);
+  const { images, voices, videos, docs } = splitAttachments(attachments);
+
+  // Everyone at MDG is one sender to a dealer, "MDG", whatever the stored name: an AI
+  // reply carries "MDG System" because it is not flagged `system`, an admin their own.
+  const fromMdg =
+    message.system || message.senderRole === 'admin' || isSystemSenderName(message.senderName);
+  const senderLabel = fromMdg ? t('chat.senderMdg') : message.senderName;
+
   // MDG's notices carry every language, and what MDG's team or assistant wrote is
   // translated for each reader: each sees their own (owner and manager may differ).
   const shownBody = readerBody(message, lang, showOriginal);
-  const body = shownBody.text;
-  // "Translated · See original", or "Original · See translation" after the tap.
-  const canSwitch = shownBody.translated || (showOriginal && !!message.bodyLang && message.bodyLang !== lang);
+  // An older card's caption leads with an emoji or a label and a dot; a team member's
+  // sentence does not. A report with no words of its own says what it is.
+  let body = shownBody.text;
+  if (reportBubble) {
+    // Only an old caption is cleaned: a tagged message is already the team's own words,
+    // and an announcement is what an admin typed.
+    body = body ? (isLegacyReportCaption(message) ? cleanReportCaption(body) : body) : undefined;
+    const kind = reportKindOf(message);
+    if (!body && kind && !message.announcement && !message.fuelCard) {
+      body = t(REPORT_SENTENCE_KEY[kind]);
+    }
+  }
+  // "Translated · See original", or "Original · See translation" after the tap. Only on
+  // a co-owner's or manager's words: MDG's are never offered as a translation.
+  const canSwitch =
+    !fromMdg &&
+    (shownBody.translated || (showOriginal && !!message.bodyLang && message.bodyLang !== lang));
   const hasBody = !!body;
   const hasMedia = images.length > 0;
   const hasOther = voices.length > 0 || videos.length > 0 || docs.length > 0;
   // A picture with no caption carries its time ON the picture, on a soft dark
   // gradient — never a bar of its own underneath.
   const timeOnPicture = hasMedia && !hasBody && !hasOther;
-
-  // The only thing that marks a reply as machine-written. There is no `'ai'`
-  // sender role and there must not be one: a role this app does not know would
-  // be drawn as a person's reply. Everything below is therefore progressive
-  // enhancement — an app that predates this field ignores the unknown key and
-  // draws an ordinary bubble, which is correct, merely unlabelled.
-  const ai = message.ai;
-  const showAiBadge = !!ai && ai.kind !== 'handoff';
 
   // A REQUEST MDG POSTED (`message.ask`): its title and day sit on a light inset
   // above the words, and its button (or what became of the answer) sits under
@@ -515,9 +598,9 @@ export const MessageBubble = React.memo(function MessageBubble({
   // never from what was true when the message was posted. Wide, like the login
   // box; a card that is only words (the welcome) leaves the bubble as it was.
   const setupCard = message.setupCard;
-  // AN ANNOUNCEMENT MDG posted (`message.announcement`, ADR 0039): a coloured strip,
-  // a bold title, then the words with their `*bold*` marks. Wide, timed on its own
-  // line, and no button: a dealer answers it by writing in the chat. An app that
+  // AN ANNOUNCEMENT MDG posted (`message.announcement`, ADR 0039): a bold title, then the
+  // words with their `*bold*` marks (the coloured strip it once had is gone, ADR 0055).
+  // Wide, timed on its own line; a dealer answers it by writing in the chat. An app that
   // predates the field draws the words as an ordinary bubble, which still reads.
   const announcement = message.announcement;
   // A TANKER MESSAGE MDG posted (`message.fuelCard`, ADR 0041): a strip, the tanker
@@ -545,15 +628,15 @@ export const MessageBubble = React.memo(function MessageBubble({
   // WHERE THE TIME GOES. Inside the text's last line when there is text (the
   // spacer below keeps the words from running under it); on the picture when it
   // is a bare picture; on a line of its own when the bubble ends in something
-  // that has no last line of text — a voice note, a document — or when the
-  // "Instant reply" footnote needs the room beside it.
+  // that has no last line of text — a voice note, a document.
   //
   // A request always has its time on its own line: its button runs the full
   // width of the bubble, and a time pinned to the bottom-right corner would sit
-  // on top of it. So does a login box, for the same reason.
+  // on top of it. So does a login box, and a report's button to Today, for the
+  // same reason.
   const metaInFlow =
     !timeOnPicture &&
-    (showAiBadge ||
+    (reportBubble ||
       !hasBody ||
       !!ask ||
       !!portalLogin ||
@@ -573,7 +656,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   const meta = (overlay: boolean) => (
     <span
       className={cn(
-        'flex items-center gap-1 whitespace-nowrap text-[11px] leading-none',
+        'flex items-center gap-1 whitespace-nowrap text-micro leading-none',
         overlay ? 'text-white' : 'text-wa-meta',
       )}
     >
@@ -582,14 +665,10 @@ export const MessageBubble = React.memo(function MessageBubble({
     </span>
   );
 
-  // A notice (a shared report, a daily line) and an AI reply are both MDG's — the
-  // bubble says "MDG", as the viewer does, not the name of the account that posted
-  // them ("MDG System", which an AI reply carried because it is not flagged `system`).
   // An admin's own name is never shown to a dealer: whoever at MDG wrote it, it is "MDG".
-  const fromMdg =
-    message.system || message.senderRole === 'admin' || isSystemSenderName(message.senderName);
-  const senderLabel = fromMdg ? t('chat.senderMdg') : message.senderName;
-  const showName = !!showSender && !mine && first && !!senderLabel && !announcement && !fuelCard;
+  // An announcement or a tanker card used to carry "MDG" in its coloured strip and hid the
+  // name; the strip is gone (ADR 0055), so the name shows where any sender's name shows.
+  const showName = !!showSender && !mine && first && !!senderLabel;
 
   return (
     <div className={cn('flex w-full', mine ? 'justify-end' : 'justify-start')}>
@@ -609,35 +688,15 @@ export const MessageBubble = React.memo(function MessageBubble({
             wide && 'w-full',
             mine ? 'bg-wa-out' : 'bg-wa-in',
             first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
-            announcement || fuelCard
-              ? 'pb-[5px]'
-              : hasMedia || hasOther
-                ? 'p-[3px]'
-                : 'px-[9px] pb-[7px] pt-[6px]',
+            hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
           )}
         >
           {first ? <Tail mine={mine} /> : null}
 
-          {announcement ? (
-            <AnnouncementStrip tone={announcement.tone} softCorner={first && !mine} />
-          ) : null}
-          {announcement ? (
-            <div data-testid="announcement-card" className="px-[10px] pb-0.5 pt-2">
-              <p className="break-words text-[17px] font-bold leading-snug">{announcement.title}</p>
-              {hasBody ? (
-                <div className="mt-1.5 whitespace-pre-wrap break-words text-[15px] leading-[1.4] [&_a]:text-wa-accent-strong">
-                  {richText(body!, { highlight })}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {fuelCard && !announcement ? <FuelOrderCardView card={fuelCard} lang={lang} /> : null}
-
           {showName ? (
             <span
               className={cn(
-                'block truncate text-[13px] font-medium leading-tight',
+                'block truncate text-meta font-medium leading-tight',
                 hasMedia || hasOther ? 'px-1.5 pb-1 pt-1' : 'pb-0.5',
               )}
               style={{ color: `hsl(${senderHue(message.senderId)} 55% 40%)` }}
@@ -646,12 +705,28 @@ export const MessageBubble = React.memo(function MessageBubble({
             </span>
           ) : null}
 
+          {announcement ? (
+            // A plain card: a bold title, then the words. No coloured strip and no
+            // label — a notice from the team reads like the rest of what it writes.
+            <div data-testid="announcement-card" className="pb-0.5">
+              <p className="break-words text-subheading leading-snug">{announcement.title}</p>
+              {hasBody ? (
+                <div className="mt-1.5 whitespace-pre-wrap break-words text-body leading-[1.4] [&_a]:text-wa-accent-strong">
+                  {richText(body!, { highlight })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {fuelCard && !announcement ? <FuelOrderCardView card={fuelCard} lang={lang} /> : null}
+
           {message.replyTo ? (
             <QuoteBlock
               message={message}
               currentUserId={currentUserId}
               dealerSideIds={dealerSideIds}
               quoteLoading={quoteLoading}
+              hideImage={quoteHideImage}
               onJumpTo={onJumpTo}
             />
           ) : null}
@@ -661,23 +736,25 @@ export const MessageBubble = React.memo(function MessageBubble({
               data-ask-ref={ask.ref}
               className="mb-1 rounded-md bg-wa-row-active px-2.5 py-2"
             >
-              <p className="break-words text-[14px] font-medium leading-snug">
+              <p className="break-words text-meta font-medium leading-snug">
                 {ask.titleByLang ? sayIn(ask.titleByLang, lang) || ask.title : ask.title}
               </p>
               {ask.periodLabel ? (
-                <p className="text-[13px] leading-snug text-wa-meta">
+                <p className="text-meta leading-snug text-wa-meta">
                   {ask.periodLabelByLang ? sayIn(ask.periodLabelByLang, lang) || ask.periodLabel : ask.periodLabel}
                 </p>
               ) : null}
             </div>
           ) : null}
 
-          {message.attachments.length > 0 ? (
+          {attachments.length > 0 ? (
             <div className="flex flex-col gap-1">
               <AttachmentStack
-                attachments={message.attachments}
+                attachments={attachments}
                 mine={mine}
-                senderName={fromMdg ? t('chat.senderMdg') : message.senderName}
+                senderName={senderLabel}
+                // A machine's reading of a dealer's voice note is never shown to the dealer.
+                showTranscript={fromMdg}
                 source={source}
                 onOpenImage={openImage}
                 mediaOverlay={
@@ -703,7 +780,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 // NOT selectable: long-press selects the message (Copy lives in
                 // the bar above), so the browser's text-selection long-press
                 // must not race it.
-                'whitespace-pre-wrap break-words text-[15px] leading-[1.35] [&_a]:text-wa-accent-strong',
+                'whitespace-pre-wrap break-words text-body leading-[1.35] [&_a]:text-wa-accent-strong',
                 hasMedia || hasOther ? 'px-[6px] pb-0.5 pt-1' : '',
               )}
             >
@@ -719,7 +796,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                     e.stopPropagation();
                     setShowOriginal((v) => !v);
                   }}
-                  className="-ml-1 mt-0.5 flex min-h-8 items-center rounded-md px-1 text-[12px] font-medium text-wa-meta active:bg-black/10"
+                  className="-ml-1 mt-0.5 flex min-h-8 items-center rounded-md px-1 text-meta font-medium text-wa-meta active:bg-black/10"
                 >
                   {showOriginal ? t('chat.originalSeeTranslation') : t('chat.translatedSeeOriginal')}
                 </button>
@@ -739,6 +816,8 @@ export const MessageBubble = React.memo(function MessageBubble({
               )}
             </div>
           ) : null}
+
+          {reportBubble ? <ReportButton message={message} onJumpTo={onJumpTo} /> : null}
 
           {portalLogin ? (
             <PortalLoginBox
@@ -782,28 +861,10 @@ export const MessageBubble = React.memo(function MessageBubble({
             <div
               className={cn(
                 'flex items-center justify-between gap-3 pb-0.5 pt-0.5',
-                announcement ? 'px-[10px]' : 'px-1.5',
+                'px-1.5',
               )}
             >
-              {showAiBadge ? (
-                // On the time's own row rather than a line of its own, because a
-                // footnote that gets its own row starts reading as a banner. A
-                // Lucide glyph and not the ⚡ character: an emoji renders as a
-                // colour picture on an Android WebView, which is the opposite of
-                // quiet, and its width varies by font.
-                //
-                // NOT ON A HANDOFF. "Instant reply" under "I've passed this to
-                // the MDG team" tells a dealer the machine answered them at the
-                // exact moment it is saying it could not — and the handoff line
-                // is the one a dealer reads while already unsatisfied, so it is
-                // the worst place in the product to look pleased with ourselves.
-                <span className="flex items-center gap-0.5 text-[11px] leading-none text-wa-meta">
-                  <Zap width={11} strokeWidth={2} className="shrink-0" />
-                  {t('chat.aiInstantReply')}
-                </span>
-              ) : (
-                <span />
-              )}
+              <span />
               {meta(false)}
             </div>
           ) : null}
@@ -831,28 +892,19 @@ export const MessageBubble = React.memo(function MessageBubble({
               <span
                 key={g.emoji}
                 className={cn(
-                  'flex items-center gap-0.5 rounded-full border bg-wa-in px-1.5 py-0.5 text-[13px] shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
+                  'flex items-center gap-0.5 rounded-full border bg-wa-in px-1.5 py-0.5 text-meta shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
                   g.mine ? 'border-wa-accent' : 'border-wa-divider',
                 )}
               >
                 <span>{g.emoji}</span>
                 {g.count > 1 ? (
-                  <span className="text-[11px] tabular-nums text-wa-meta">
+                  <span className="text-micro tabular-nums text-wa-meta">
                     {g.count}
                   </span>
                 ) : null}
               </span>
             ))}
           </button>
-        ) : null}
-        {ticketStatus && ticketNumber !== undefined ? (
-          // ONE QUIET LINE, NOT A CONTROL. Same size and colour as the time
-          // inside the bubble above it, no button, and not green: a ticket
-          // closing is not a success to celebrate, it only says a person has
-          // dealt with it, and what they wrote is in the thread.
-          <p className="mt-0.5 px-1 text-[11px] text-wa-meta">
-            {ticketLineText(lang, ticketStatus, ticketNumber, ticketUntil)}
-          </p>
         ) : null}
       </div>
     </div>

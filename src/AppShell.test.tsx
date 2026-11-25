@@ -1,4 +1,5 @@
 import { screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,7 +11,7 @@ import type { Conversation } from '@dk/shared/types';
 // The shell's app-wide side effects — /me, the list socket, the delivery ack and
 // the native push bridge — are not what this file is about, and every one of
 // them reaches for a network or a native bridge jsdom does not have.
-vi.mock('@/hooks/api/useMe', () => ({ useMe: () => undefined }));
+vi.mock('@/hooks/api/useMe', () => ({ useMe: () => ({ isSuccess: false, isFetchedAfterMount: false, data: undefined }) }));
 vi.mock('@/features/chat/useConversationsListSocket', () => ({
   useConversationsListSocket: () => undefined,
 }));
@@ -30,7 +31,13 @@ vi.mock('@/features/chat/useDeclarationsSocket', () => ({
   useDeclarationsSocket: () => undefined,
 }));
 
+// …and the tab bar's badge reads the Today feed, which would reach for the network.
+vi.mock('@/hooks/api/useTodayFeed', () => ({
+  useTodayFeed: () => ({ data: h.feed }),
+}));
+
 const h = vi.hoisted(() => ({
+  feed: undefined as { tasks: unknown[] } | undefined,
   keyboardOpen: false,
   keyboardHookCalls: 0,
   setupSocketCalls: 0,
@@ -55,16 +62,29 @@ vi.mock('@/hooks/api/useMyConversations', () => ({
   }),
 }));
 
+// The overlay itself is tested on its own (`features/reports`); the shell only has to mount it,
+// and to hide the tab bar while it is up (what the real host does through `useHideTabBar`).
+vi.mock('@/features/reports/lazy', async () => {
+  const { useHideTabBar } = await import('@/features/tabs/tabBarVisibility');
+  return {
+    ReportHost: () => {
+      useHideTabBar(true);
+      return <div data-testid="report-host" />;
+    },
+    ReportModal: () => null,
+  };
+});
+
 const { AppShell } = await import('./AppShell');
 const { ChatListPage } = await import('./pages/ChatListPage');
 
 /**
  * The shell: the frame every screen is drawn in.
  *
- * The shell draws NO header and NO tab bar — each screen draws one `AppBar` of
- * its own — so this file pins the frame: nothing stacked above a screen's own
- * bar, nothing reserved at the bottom, and a fixed-height frame for an open
- * conversation only.
+ * The shell draws NO header — each screen draws one `AppBar` of its own — and its
+ * only bottom bar is the three-tab one, on Today, Chats and Reports alone (ADR 0055, 0056). So this
+ * file pins the frame: nothing stacked above a screen's own bar, nothing reserved
+ * at the bottom, and a fixed-height frame for an open conversation only.
  *
  * It also pins what is NOT there any more. There used to be a strip under every
  * top bar saying "N things to send", and an engine wrapped around the whole frame
@@ -107,7 +127,9 @@ function renderShell(route: string) {
   return renderWithProviders(
     <Routes>
       <Route element={<AppShell />}>
+        <Route path="/" element={<Screen name="today-page" />} />
         <Route path="/chat" element={<ChatListPage />} />
+        <Route path="/reports" element={<Screen name="reports-page" />} />
         <Route path="/chat/:id" element={<Screen name="thread-page" />} />
         <Route path="/chat/:id/info" element={<Screen name="info-page" />} />
         <Route path="/settings" element={<Screen name="settings-page" />} />
@@ -124,6 +146,7 @@ afterEach(() => {
   h.keyboardHookCalls = 0;
   h.setupSocketCalls = 0;
   h.convos = [];
+  h.feed = undefined;
 });
 
 describe('AppShell — the frame', () => {
@@ -143,14 +166,104 @@ describe('AppShell — the frame', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 
-  it('draws no tab bar', async () => {
-    renderShell('/settings');
-    await screen.findByText('settings-page');
+  // The bar has three doors, and only on the three screens they open.
+  it.each([
+    ['/', 'today-page', 'Today'],
+    ['/chat', 'Dealer Kavach', 'Chats'],
+    ['/reports', 'reports-page', 'Reports'],
+  ])('draws the Today / Chats / Reports bar on %s, with %s\'s tab selected', async (route, marker, selected) => {
+    h.convos = [conv({ id: 'only' })];
+    renderShell(route);
+    await screen.findByText(marker);
 
-    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
-    for (const gone of ['Chat', 'Reports', 'Kavach', 'Profile']) {
-      expect(screen.queryByRole('link', { name: gone })).not.toBeInTheDocument();
-    }
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual(['Today', 'Chats', 'Reports']);
+    expect(screen.getByRole('tab', { name: new RegExp(`^${selected}`) })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it.each([
+    ['/settings', 'settings-page'],
+    ['/services', 'services-page'],
+    ['/chat/c1', 'thread-page'],
+    ['/chat/c1/info', 'info-page'],
+  ])('draws no tab bar on %s — not in a chat, not on Settings, not on a sub-page', async (route, title) => {
+    renderShell(route);
+    await screen.findByText(title);
+
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+  });
+
+  it('puts the bar away while the keyboard is up', async () => {
+    h.keyboardOpen = true;
+    renderShell('/');
+    await screen.findByText('today-page');
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+  });
+
+  it('counts what is waiting: open tasks on Today, chats with something unread on Chats', async () => {
+    h.feed = { tasks: [{}, {}, {}] };
+    h.convos = [
+      conv({ id: 'a', unreadCount: 2 }),
+      conv({ id: 'b', unreadCount: 0 }),
+      conv({ id: 'c', unreadCount: 5 }),
+    ];
+    renderShell('/');
+    await screen.findByText('today-page');
+
+    expect(screen.getByRole('img', { name: '3 to do' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '2 unread' })).toBeInTheDocument();
+  });
+
+  it('moves between the tabs, one screen replacing the other', async () => {
+    h.convos = [conv({ id: 'only' })];
+    const user = userEvent.setup();
+    renderShell('/');
+    await screen.findByText('today-page');
+
+    await user.click(screen.getByRole('tab', { name: /^Chats/ }));
+    expect(await screen.findByText('Dealer Kavach')).toBeInTheDocument();
+    expect(screen.queryByText('today-page')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /^Today/ }));
+    expect(await screen.findByText('today-page')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: /^Reports/ }));
+    expect(await screen.findByText('reports-page')).toBeInTheDocument();
+    expect(screen.queryByText('today-page')).not.toBeInTheDocument();
+  });
+
+  /**
+   * ADR 0056 §4: an open report is drawn OVER the screen behind it. The shell mounts the
+   * overlay when the app's real address is a report's, and the bar steps aside under it.
+   */
+  describe('a report open over a screen', () => {
+    it('mounts the overlay and puts the tab bar away, with the screen still there beneath', async () => {
+      signIn({ id: 'owner', dealerId: 'd1' });
+      useLangStore.setState({ lang: 'en', explicit: true });
+      renderWithProviders(
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<Screen name="today-page" />} />
+            <Route path="/report/:conversationId/:messageId" element={<Screen name="today-page" />} />
+          </Route>
+        </Routes>,
+        { route: '/report/c1/m1', withRouter: true },
+      );
+      expect(await screen.findByTestId('report-host')).toBeInTheDocument();
+      expect(screen.getByText('today-page')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('mounts no overlay on any other address', async () => {
+      renderShell('/');
+      await screen.findByText('today-page');
+      expect(screen.queryByTestId('report-host')).not.toBeInTheDocument();
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
   });
 
   /**
@@ -206,9 +319,8 @@ describe('AppShell — the frame', () => {
   });
 
   /**
-   * The keyboard hook is not for the frame's own sake any more (nothing slides
-   * out of the keyboard's way), but it is what publishes `--vvh` / `--kb`, and
-   * the composer needs those to stay above the keyboard.
+   * The keyboard hook is what publishes `--vvh` / `--kb` (the composer needs those
+   * to stay above the keyboard) and what tells the tab bar to step aside.
    */
   it('keeps the keyboard hook mounted', async () => {
     renderShell('/settings');

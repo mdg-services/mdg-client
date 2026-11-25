@@ -33,26 +33,26 @@ export function LoginHistory({
           <li key={e.id} className="flex flex-col gap-2 border-t border-border py-3 first:border-t-0 first:pt-0">
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-base font-medium text-text">{t(entryTitleKey(e))}</span>
+                <span className="text-body font-medium text-text">{t(entryTitleKey(e))}</span>
                 {e.id === nowId ? (
-                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
+                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-meta font-medium text-brand">
                     {t('logins.h.now')}
                   </span>
                 ) : null}
               </div>
-              <p className="text-sm text-text-muted">{[formatWhen(e.at, lang), by].filter(Boolean).join(' · ')}</p>
+              <p className="text-meta text-text-muted">{[formatWhen(e.at, lang), by].filter(Boolean).join(' · ')}</p>
             </div>
             {e.kind === 'saved' && e.username ? (
               <>
                 <div>
-                  <p className="text-xs font-medium text-text-muted">{t('chat.portalUserId')}</p>
+                  <p className="text-meta font-medium text-text-muted">{t('chat.portalUserId')}</p>
                   <IdValue value={e.username} name={name} />
                   {e.previousUsername ? (
-                    <p className="text-sm text-text-muted">{t('logins.h.was', { id: e.previousUsername })}</p>
+                    <p className="text-meta text-text-muted">{t('logins.h.was', { id: e.previousUsername })}</p>
                   ) : null}
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-text-muted">{t('chat.portalPassword')}</p>
+                  <p className="text-meta font-medium text-text-muted">{t('chat.portalPassword')}</p>
                   <PasswordValue portal={portal} name={name} versionId={e.id} />
                 </div>
               </>

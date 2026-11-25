@@ -3,6 +3,8 @@ import type { Lang } from '@/store/lang';
 import type { Message } from '@dk/shared/types';
 
 import type { MediaViewerItem } from './MediaViewer';
+import { isSystemSenderName } from './replyContext';
+import { chatAttachments } from './reportBubble';
 
 /**
  * The thread as WhatsApp lays it out, decided here so it can be tested without
@@ -131,8 +133,8 @@ export function viewerKey(message: Pick<Message, 'id'>, storageKey: string): str
 
 /**
  * Every picture in the thread, oldest first, for the full-screen viewer. A
- * picture with no link yet (the live copy of a shared report) is still here: the
- * viewer asks for one through the message.
+ * picture with no link yet is still here: the viewer asks for one through the
+ * message. A report's card picture is not: a report is words in the chat and its own screen.
  */
 export function buildViewerItems(
   ordered: readonly Message[],
@@ -144,10 +146,11 @@ export function buildViewerItems(
     const label =
       m.senderId === currentUserId
         ? t('chat.you')
-        : m.senderRole === 'admin'
+        : m.senderRole === 'admin' || isSystemSenderName(m.senderName)
           ? t('chat.senderMdg')
           : (m.senderName ?? t('chat.senderMdg'));
-    for (const a of m.attachments) {
+    // A report's card picture is not in the swipe through this chat's pictures.
+    for (const a of chatAttachments(m)) {
       if (a.kind !== 'image') continue;
       items.push({
         key: viewerKey(m, a.storageKey),

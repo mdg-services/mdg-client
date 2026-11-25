@@ -25,9 +25,9 @@ export function StateBlock({
       >
         {icon}
       </div>
-      <p className="text-lg font-semibold text-text">{title}</p>
+      <p className="text-heading text-text">{title}</p>
       {description ? (
-        <div className="flex max-w-xs flex-col gap-2 text-base text-text-muted">
+        <div className="flex max-w-xs flex-col gap-2 text-body text-text-muted">
           {typeof description === 'string' ? <p>{description}</p> : description}
         </div>
       ) : null}

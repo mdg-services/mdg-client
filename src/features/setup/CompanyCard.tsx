@@ -47,7 +47,7 @@ export function CompanyCard({ view }: { view: OutletSetupView }) {
       <CardBox kind="company">
         <Block>
           <div className="flex items-center justify-between gap-2">
-            <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+            <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
               <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
               {companyLabel(saved, lang)}
             </p>
@@ -93,7 +93,7 @@ export function CompanyCard({ view }: { view: OutletSetupView }) {
 
   return (
     <CardBox kind="company">
-      <p id={questionId} className="text-[14px] font-medium leading-snug">
+      <p id={questionId} className="text-meta font-medium leading-snug">
         {t('setup.companyQuestion')}
       </p>
       <div role="group" aria-labelledby={questionId} className="flex flex-col gap-1.5">
@@ -115,10 +115,10 @@ export function CompanyCard({ view }: { view: OutletSetupView }) {
               )}
             >
               <span className="min-w-0">
-                <span className="block break-words text-[16px] font-medium leading-snug">
+                <span className="block break-words text-body font-medium leading-snug">
                   {pickLang(lang, names.en, names.hi)}
                 </span>
-                <span className="block text-[12px] leading-tight text-wa-meta">{names.short}</span>
+                <span className="block text-meta leading-tight text-wa-meta">{names.short}</span>
               </span>
               {picking === company ? (
                 <Spinner size={16} />
@@ -149,7 +149,7 @@ export function CompanyCard({ view }: { view: OutletSetupView }) {
             setLockedByServer(false);
             setEditing(false);
           }}
-          className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           {t('common.cancel')}
         </button>

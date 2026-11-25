@@ -80,7 +80,30 @@ describe('readerBody', () => {
 });
 
 describe('the bubble', () => {
-  it('labels a translation and switches to the original and back on a tap', () => {
+  it("labels a co-owner's or manager's translated words and switches to the original and back on a tap", () => {
+    useLangStore.setState({ lang: 'en', explicit: false });
+    render(
+      <MessageBubble
+        message={makeMessage({
+          senderRole: 'dealer-manager',
+          senderName: 'Sunil',
+          body: 'Aaj ka DSR bhej diya hai.',
+          bodyLang: 'hl',
+          bodyByLang: { hl: 'Aaj ka DSR bhej diya hai.', en: 'Today’s DSR has been sent.' },
+        })}
+        mine={false}
+      />,
+    );
+    expect(screen.getByText('Today’s DSR has been sent.')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('translated-toggle'));
+    expect(screen.getByText('Aaj ka DSR bhej diya hai.')).toBeInTheDocument();
+    expect(screen.getByTestId('translated-toggle')).toHaveTextContent('Original · See translation');
+    fireEvent.click(screen.getByTestId('translated-toggle'));
+    expect(screen.getByText('Today’s DSR has been sent.')).toBeInTheDocument();
+  });
+
+  it("shows MDG's words in the reader's language with no 'Translated · See original' label (ADR 0055)", () => {
+    // The label told dealers a machine had translated the team's message.
     useLangStore.setState({ lang: 'en', explicit: false });
     render(
       <MessageBubble
@@ -94,11 +117,38 @@ describe('the bubble', () => {
       />,
     );
     expect(screen.getByText('Your DSR has been sent.')).toBeInTheDocument();
-    fireEvent.click(screen.getByTestId('translated-toggle'));
-    expect(screen.getByText('Aapka DSR bhej diya hai.')).toBeInTheDocument();
-    expect(screen.getByTestId('translated-toggle')).toHaveTextContent('Original · See translation');
-    fireEvent.click(screen.getByTestId('translated-toggle'));
-    expect(screen.getByText('Your DSR has been sent.')).toBeInTheDocument();
+    expect(screen.queryByTestId('translated-toggle')).toBeNull();
+    expect(screen.queryByText(/Translated/)).toBeNull();
+  });
+
+  it('shows no label on an AI reply or a system notice either', () => {
+    useLangStore.setState({ lang: 'en', explicit: false });
+    const { rerender } = render(
+      <MessageBubble
+        message={makeMessage({
+          senderRole: 'dealer-owner',
+          senderName: 'MDG System',
+          body: 'Aapka DSR bhej diya hai.',
+          bodyLang: 'hl',
+          bodyByLang: { hl: 'Aapka DSR bhej diya hai.', en: 'Your DSR has been sent.' },
+        })}
+        mine={false}
+      />,
+    );
+    expect(screen.queryByTestId('translated-toggle')).toBeNull();
+    rerender(
+      <MessageBubble
+        message={makeMessage({
+          senderRole: 'dealer-owner',
+          system: true,
+          body: 'Aapka DSR bhej diya hai.',
+          bodyLang: 'hl',
+          bodyByLang: { hl: 'Aapka DSR bhej diya hai.', en: 'Your DSR has been sent.' },
+        })}
+        mine={false}
+      />,
+    );
+    expect(screen.queryByTestId('translated-toggle')).toBeNull();
   });
 
   it('has no label for the writer, or on a message that was never translated', () => {
@@ -106,7 +156,8 @@ describe('the bubble', () => {
     render(
       <MessageBubble
         message={makeMessage({
-          senderRole: 'admin',
+          senderRole: 'dealer-manager',
+          senderName: 'Sunil',
           body: 'Aapka DSR bhej diya hai.',
           bodyLang: 'hl',
           bodyByLang: { hl: 'Aapka DSR bhej diya hai.', en: 'Your DSR has been sent.' },

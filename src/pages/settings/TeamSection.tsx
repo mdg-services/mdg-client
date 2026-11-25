@@ -131,7 +131,7 @@ export function TeamSection() {
     <Card>
       <CardContent>
         <div className="mb-3 flex items-center justify-between">
-          <p className="text-sm font-semibold text-text">{t('profile.team')}</p>
+          <p className="text-subheading text-text">{t('profile.team')}</p>
           <Button
             size="sm"
             variant="secondary"
@@ -158,8 +158,8 @@ export function TeamSection() {
                   onClick={() => setInviteRole(role)}
                   className={
                     inviteRole === role
-                      ? 'rounded-md bg-brand px-2 py-1.5 text-xs font-semibold text-white'
-                      : 'rounded-md px-2 py-1.5 text-xs font-medium text-text-muted active:bg-surface-2'
+                      ? 'rounded-md bg-brand px-2 py-1.5 text-meta font-semibold text-white'
+                      : 'rounded-md px-2 py-1.5 text-meta font-medium text-text-muted active:bg-surface-2'
                   }
                 >
                   {t(role === 'dealer-owner' ? 'profile.invitePartner' : 'profile.inviteManager')}
@@ -175,7 +175,7 @@ export function TeamSection() {
               {...register('name')}
             />
             {errors.name ? (
-              <p className="text-xs text-danger">{errors.name.message}</p>
+              <p className="text-meta text-danger">{errors.name.message}</p>
             ) : null}
             <Input
               type="tel"
@@ -186,7 +186,7 @@ export function TeamSection() {
               {...register('mobile')}
             />
             {errors.mobile ? (
-              <p className="text-xs text-danger">{errors.mobile.message}</p>
+              <p className="text-meta text-danger">{errors.mobile.message}</p>
             ) : null}
             <Input
               type="email"
@@ -200,7 +200,7 @@ export function TeamSection() {
               {...register('email')}
             />
             {errors.email ? (
-              <p className="text-xs text-danger">{errors.email.message}</p>
+              <p className="text-meta text-danger">{errors.email.message}</p>
             ) : null}
             <Input
               type="password"
@@ -212,9 +212,9 @@ export function TeamSection() {
               {...register('password')}
             />
             {errors.password ? (
-              <p className="text-xs text-danger">{errors.password.message}</p>
+              <p className="text-meta text-danger">{errors.password.message}</p>
             ) : (
-              <p className="text-xs text-text-subtle">
+              <p className="text-meta text-text-subtle">
                 {t(partner ? 'profile.partnerNote' : 'profile.tempPasswordNote')}
               </p>
             )}
@@ -249,19 +249,19 @@ export function TeamSection() {
           // the obvious next move is to invite the manager again, which then
           // fails on a duplicate email.
           <div className="flex flex-col items-center gap-2 py-4">
-            <p className="text-center text-xs text-text-subtle">
+            <p className="text-center text-meta text-text-subtle">
               {t('common.loadFailed')}
             </p>
             <button
               type="button"
               onClick={() => void teamQuery.refetch()}
-              className="rounded-full border border-border px-3 py-1 text-xs text-text-muted active:bg-surface-2"
+              className="rounded-full border border-border px-3 py-1 text-meta text-text-muted active:bg-surface-2"
             >
               {t('common.retry')}
             </button>
           </div>
         ) : !teamQuery.data || teamQuery.data.length === 0 ? (
-          <p className="py-4 text-center text-xs text-text-subtle">
+          <p className="py-4 text-center text-meta text-text-subtle">
             {t('profile.noTeammates')}
           </p>
         ) : (
@@ -274,12 +274,12 @@ export function TeamSection() {
                 <Avatar name={member.name} size={36} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <p className="truncate text-sm font-medium text-text">
+                    <p className="truncate text-meta font-medium text-text">
                       {member.name}
                     </p>
                     <StatusDot status={member.status} />
                   </div>
-                  <p className="truncate text-xs text-text-muted">
+                  <p className="truncate text-meta text-text-muted">
                     {member.email || member.phone}
                   </p>
                 </div>
@@ -291,7 +291,7 @@ export function TeamSection() {
                     <button
                       type="button"
                       onClick={() => toggle.mutate(member)}
-                      className="text-[11px] font-medium text-text-muted underline-offset-2 hover:underline"
+                      className="text-meta font-medium text-text-muted underline-offset-2 hover:underline"
                     >
                       {member.status === 'ACTIVE'
                         ? t('profile.suspend')

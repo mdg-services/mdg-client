@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { duOtpKey, invalidateDuOtp } from '@/hooks/api/useDuOtp';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -32,7 +33,11 @@ export function useDuOtpSocket() {
     const socket = getSocket();
     if (!socket) return;
 
-    const refresh = () => invalidateDuOtp(qc);
+    const refresh = () => {
+      invalidateDuOtp(qc);
+      // The Today page lists what is still open, so it asks again too.
+      invalidateTodayFeed(qc);
+    };
     const onChanged = (payload: { dealerId: string }) => {
       // The user's own outlet; failing that, the one the box already drew.
       const mine = dealerId ?? qc.getQueryData<DuOtpAckView>(duOtpKey)?.dealerId ?? null;

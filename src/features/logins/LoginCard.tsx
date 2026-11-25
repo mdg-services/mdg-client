@@ -18,7 +18,7 @@ function StatusChip({ row }: { row: LoginRow }) {
   const t = useT();
   if (row.status === 'saved') {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-text">
+      <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-meta font-medium text-text">
         <Check width={13} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
         {t('chat.portalSaved')}
       </span>
@@ -26,13 +26,13 @@ function StatusChip({ row }: { row: LoginRow }) {
   }
   if (row.status === 'refused') {
     return (
-      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning-strong">
+      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-meta font-medium text-warning-strong">
         {t('chat.portalRefused')}
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-text-muted">
+    <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-meta font-medium text-text-muted">
       {row.needed ? t('logins.status.missing') : t('chat.portalNotNeeded')}
     </span>
   );
@@ -95,13 +95,13 @@ export function LoginCard({ row }: { row: LoginRow }) {
     <Card data-testid={`login-${row.portal}`}>
       <CardContent className="flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <h2 className="text-lg font-semibold text-text">{row.name}</h2>
+          <h2 className="text-subheading text-text">{row.name}</h2>
           <StatusChip row={row} />
         </div>
 
         {mode === 'later' ? (
           <>
-            <p className="text-sm text-text-muted">{t('logins.notNeeded')}</p>
+            <p className="text-meta text-text-muted">{t('logins.notNeeded')}</p>
             <Button variant="secondary" onClick={() => setAdding(true)}>
               {t('logins.add')}
             </Button>
@@ -140,15 +140,15 @@ export function LoginCard({ row }: { row: LoginRow }) {
         {mode === 'saved' && row.username ? (
           <>
             <div>
-              <p className="text-xs font-medium text-text-muted">{t('chat.portalUserId')}</p>
+              <p className="text-meta font-medium text-text-muted">{t('chat.portalUserId')}</p>
               <IdValue value={row.username} name={row.name} />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-muted">{t('chat.portalPassword')}</p>
+              <p className="text-meta font-medium text-text-muted">{t('chat.portalPassword')}</p>
               <PasswordValue portal={row.portal} name={row.name} />
             </div>
             {row.savedAt ? (
-              <p className="text-sm text-text-muted">
+              <p className="text-meta text-text-muted">
                 {[t('logins.savedLine', { when: formatWhen(row.savedAt, lang) }), savedBy].filter(Boolean).join(' · ')}
               </p>
             ) : null}
@@ -166,7 +166,7 @@ export function LoginCard({ row }: { row: LoginRow }) {
               onClick={() => setHistoryOpen((v) => !v)}
               aria-expanded={historyOpen}
               aria-label={`${row.name}: ${historyOpen ? t('logins.historyHide') : t('logins.history', { n: row.history.length })}`}
-              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg text-left text-base font-medium text-brand active:bg-surface-2"
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg text-left text-cta text-brand active:bg-surface-2"
             >
               <span className="flex items-center gap-2">
                 <History width={18} strokeWidth={1.75} aria-hidden />

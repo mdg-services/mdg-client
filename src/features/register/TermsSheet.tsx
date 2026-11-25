@@ -52,8 +52,8 @@ export function TermsSheet({
       >
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold text-text-muted">{t('register.termsEyebrow')}</p>
-            <h2 id={titleId} className="mt-0.5 text-lg font-semibold text-text">
+            <p className="text-meta font-semibold text-text-muted">{t('register.termsEyebrow')}</p>
+            <h2 id={titleId} className="mt-0.5 text-heading text-text">
               {t('register.termsTitle')}
             </h2>
           </div>
@@ -70,14 +70,14 @@ export function TermsSheet({
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           {courtesy ? (
             <div className="mb-4 rounded-xl bg-surface-2 p-3">
-              <p className="text-[13px] leading-relaxed text-text-muted">
+              <p className="text-meta leading-relaxed text-text-muted">
                 {t('register.bindingNotice')}
               </p>
               <button
                 type="button"
                 onClick={() => setOriginal((v) => !v)}
                 aria-pressed={original}
-                className="mt-1 min-h-[44px] text-sm font-semibold text-brand underline underline-offset-4"
+                className="mt-1 min-h-[44px] text-meta font-semibold text-brand underline underline-offset-4"
               >
                 {original ? t('register.showHindi') : t('register.showEnglish')}
               </button>
@@ -90,15 +90,15 @@ export function TermsSheet({
                 key={i}
                 className="grid grid-cols-[auto_1fr] gap-x-3 border-t border-border py-3 first:border-t-0 first:pt-0"
               >
-                <span className="text-sm font-bold tabular-nums text-text-subtle">
+                <span className="text-meta font-bold tabular-nums text-text-subtle">
                   {String(i + 1).padStart(2, '0')}
                 </span>
-                <p className="text-sm leading-relaxed text-text">{clause}</p>
+                <p className="text-meta leading-relaxed text-text">{clause}</p>
               </li>
             ))}
           </ol>
 
-          <p className="mt-4 rounded-xl bg-surface-2 p-3 text-[13px] leading-relaxed text-text-muted">
+          <p className="mt-4 rounded-xl bg-surface-2 p-3 text-meta leading-relaxed text-text-muted">
             {t('register.annexure')}
           </p>
         </div>

@@ -31,8 +31,8 @@ export function AutopayCard({ autopay }: { autopay: DealerAutopay | null }) {
           className="flex items-center gap-2 rounded-2xl p-4 active:bg-surface-2"
         >
           <div className="min-w-0 flex-1">
-            <p className="break-words text-lg font-semibold text-text">{t('autopay.title')}</p>
-            <p className="mt-1 text-base text-text-muted">{t('autopay.sub.unknown')}</p>
+            <p className="break-words text-subheading text-text">{t('autopay.title')}</p>
+            <p className="mt-1 text-body text-text-muted">{t('autopay.sub.unknown')}</p>
           </div>
           <ChevronRight width={20} height={20} className="shrink-0 text-text-subtle" aria-hidden />
         </Link>
@@ -47,14 +47,14 @@ export function AutopayCard({ autopay }: { autopay: DealerAutopay | null }) {
         className="flex items-center gap-2 rounded-2xl p-4 active:bg-surface-2"
       >
         <div className="min-w-0 flex-1">
-          <p className="break-words text-lg font-semibold text-text">{t('autopay.title')}</p>
+          <p className="break-words text-subheading text-text">{t('autopay.title')}</p>
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <p className="text-3xl font-bold tabular-nums text-text">
+            <p className="text-display font-bold tabular-nums text-text">
               {formatPaise(autopay.amountPaise)}
             </p>
             <AutopayChip state={autopay.state} />
           </div>
-          <p className="mt-1 text-base text-text-muted">{autopaySubtitle(t, lang, autopay)}</p>
+          <p className="mt-1 text-body text-text-muted">{autopaySubtitle(t, lang, autopay)}</p>
         </div>
         <ChevronRight width={20} height={20} className="shrink-0 text-text-subtle" aria-hidden />
       </Link>

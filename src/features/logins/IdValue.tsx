@@ -14,7 +14,7 @@ export function IdValue({ value, name }: { value: string; name: string }) {
   };
   return (
     <div className="flex items-center gap-1">
-      <span data-testid="id-value" className="min-w-0 flex-1 select-text break-all font-mono text-[15px] text-text">
+      <span data-testid="id-value" className="min-w-0 flex-1 select-text break-all font-mono text-body text-text">
         {value}
       </span>
       <button

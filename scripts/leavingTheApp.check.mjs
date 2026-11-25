@@ -49,6 +49,10 @@ const ALLOWED = {
     why: 'a web link someone typed in chat opens in the browser, as on WhatsApp',
   },
   'src/pages/ChatMediaPage.tsx': { count: 2, why: 'the Links tab lists those same typed web links' },
+  'src/features/reports/kinds/announcement.tsx': {
+    count: 2,
+    why: 'a web link the MDG team typed into an announcement opens in the browser, as the same link does in chat (ADR 0056)',
+  },
   'src/pages/LoginPage.tsx': { count: 1, why: 'the helpline number is a tel: link — it opens the dialler' },
   'src/features/chat/Complaints/VendorMailCard.tsx': {
     count: 1,

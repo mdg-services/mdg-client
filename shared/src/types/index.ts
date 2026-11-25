@@ -8,6 +8,8 @@ export * from './auditLog';
 export * from './plugin';
 export * from './user';
 export * from './conversation';
+export * from './todayFeed';
+export * from './reportData';
 export * from './chatAsk';
 export * from './portalLogin';
 export * from './sdmsPasswordReset';

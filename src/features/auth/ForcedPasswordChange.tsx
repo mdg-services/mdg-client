@@ -126,10 +126,10 @@ export function ForcedPasswordChange() {
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-1 text-center">
           <BrandMark size={48} className="text-text" />
-          <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">
+          <h1 className="mt-3 text-title text-text">
             {t('auth.forcedTitle')}
           </h1>
-          <p className="text-sm leading-relaxed text-text-muted">{t('auth.forcedIntro')}</p>
+          <p className="text-meta leading-relaxed text-text-muted">{t('auth.forcedIntro')}</p>
         </div>
         <Card>
           <CardContent>
@@ -171,7 +171,7 @@ export function ForcedPasswordChange() {
               </Field>
 
               {change.isError || stuck ? (
-                <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+                <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                   {t(change.isError ? changeErrorKey(change.error) : 'profile.passwordChangeFailed')}
                 </p>
               ) : null}
@@ -185,7 +185,7 @@ export function ForcedPasswordChange() {
         <button
           type="button"
           onClick={logout}
-          className="mx-auto mt-4 flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-text-muted underline underline-offset-4"
+          className="mx-auto mt-4 flex min-h-11 items-center rounded-lg px-3 text-meta font-medium text-text-muted underline underline-offset-4"
         >
           {t('auth.forcedSignOut')}
         </button>
@@ -207,11 +207,11 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-text" htmlFor={id}>
+      <label className="text-meta font-medium text-text" htmlFor={id}>
         {label}
       </label>
       {children}
-      {error ? <p className="text-xs text-danger">{error}</p> : null}
+      {error ? <p className="text-meta text-danger">{error}</p> : null}
     </div>
   );
 }

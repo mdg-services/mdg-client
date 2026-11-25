@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -31,6 +32,8 @@ export function useOutletSetupSocket() {
     const refresh = () => {
       invalidateOutletSetup(qc);
       invalidatePortalLogins(qc);
+      // The setup steps on the Today page follow the team too.
+      invalidateTodayFeed(qc);
     };
     const offReconnect = onSocketReconnect(socket, refresh);
     socket.on('outletSetup:changed', refresh);

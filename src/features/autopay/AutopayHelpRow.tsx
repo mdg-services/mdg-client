@@ -35,9 +35,9 @@ export function AutopayHelpRow({ autopay }: { autopay: DealerAutopay | null }) {
             <Repeat width={24} height={24} strokeWidth={1.75} />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[16px] text-wa-bar-text">{t('autopay.title')}</span>
+            <span className="block truncate text-body text-wa-bar-text">{t('autopay.title')}</span>
             {/* Wraps to a second line: an amount and a day do not fit one at 320px in Hindi. */}
-            <span className="block text-[14px] leading-snug text-wa-meta">
+            <span className="block text-meta leading-snug text-wa-meta">
               {autopay ? autopaySubtitle(t, lang, autopay) : t('autopay.sub.unknown')}
             </span>
           </span>

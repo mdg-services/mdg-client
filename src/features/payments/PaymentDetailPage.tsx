@@ -87,7 +87,7 @@ export function PaymentDetailPage() {
       <>
         <Card>
           <CardContent className="flex flex-col gap-3 p-5">
-            <h2 className="break-words text-xl font-semibold text-text">{payment.title}</h2>
+            <h2 className="break-words text-title text-text">{payment.title}</h2>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <p className="text-4xl font-bold tabular-nums text-text">
                 {formatPaise(payment.amountPaise)}
@@ -95,21 +95,21 @@ export function PaymentDetailPage() {
               <PaymentStatusChip status={payment.status} />
             </div>
             {payment.note ? (
-              <p className="whitespace-pre-line break-words text-base text-text-muted">
+              <p className="whitespace-pre-line break-words text-body text-text-muted">
                 {payment.note}
               </p>
             ) : null}
-            {due ? <p className="text-base text-text-muted">{due}</p> : null}
+            {due ? <p className="text-body text-text-muted">{due}</p> : null}
             {/* Read-only, so it is said in the app too: it names no link and no way to pay. */}
             {isWaitingForApproval(payment) ? (
-              <p role="status" className="rounded-lg bg-surface-2 p-3 text-base text-text">
+              <p role="status" className="rounded-lg bg-surface-2 p-3 text-body text-text">
                 {t('payments.waitingForApproval')}
               </p>
             ) : null}
             {payment.status === 'processing' ? (
               <p
                 role="status"
-                className="rounded-lg bg-warning-soft p-3 text-base text-warning-strong"
+                className="rounded-lg bg-warning-soft p-3 text-body text-warning-strong"
               >
                 {t('payments.confirmingNote')}
               </p>
@@ -118,7 +118,7 @@ export function PaymentDetailPage() {
                 Android app says nothing of it. Razorpay's own text is never shown,
                 only our phrase for what it means. */}
             {canPayHere() && payment.status === 'due' && payment.lastFailure ? (
-              <p className="rounded-lg bg-surface-2 p-3 text-base text-text">
+              <p className="rounded-lg bg-surface-2 p-3 text-body text-text">
                 {lastFailureText}
               </p>
             ) : null}

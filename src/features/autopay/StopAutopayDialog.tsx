@@ -127,16 +127,16 @@ export function StopAutopayDialog({
         tabIndex={-1}
         className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-2xl bg-wa-bar p-5 shadow-lg outline-none animate-in"
       >
-        <p id="autopay-stop-title" className="text-[18px] font-medium text-wa-bar-text">
+        <p id="autopay-stop-title" className="text-heading text-wa-bar-text">
           {t(dialogTitleKey(autopay.state))}
         </p>
-        <div id="autopay-stop-desc" className="mt-2 flex flex-col gap-2 text-[15px]">
+        <div id="autopay-stop-desc" className="mt-2 flex flex-col gap-2 text-body">
           {inProgress ? <p className="font-medium text-wa-bar-text">{inProgress}</p> : null}
           <p className="text-wa-meta">{dialogBody(t, lang, autopay, refund)}</p>
         </div>
 
         <div role="group" aria-labelledby="autopay-stop-why" className="mt-4">
-          <p id="autopay-stop-why" className="text-[14px] text-wa-meta">
+          <p id="autopay-stop-why" className="text-meta text-wa-meta">
             {t('autopay.dialog.reasonLabel')}
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -150,7 +150,7 @@ export function StopAutopayDialog({
                   disabled={saving}
                   onClick={() => setReason((current) => toggleReason(current, r))}
                   className={cn(
-                    'inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-2 text-left text-[15px] text-wa-bar-text disabled:opacity-70',
+                    'inline-flex min-h-[44px] items-center gap-1.5 rounded-full border px-4 py-2 text-left text-body text-wa-bar-text disabled:opacity-70',
                     picked
                       ? 'border-wa-accent bg-wa-accent/10 font-medium'
                       : 'border-border-strong active:bg-wa-row-active',
@@ -167,7 +167,7 @@ export function StopAutopayDialog({
         {/* Off at first, and only inside the first month. Stopping works the same
             ticked or not: it is a request for the money back, never a hurdle. */}
         {canAskRefund(autopay) ? (
-          <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 text-[15px] text-wa-bar-text">
+          <label className="mt-3 flex min-h-[44px] cursor-pointer items-center gap-3 text-body text-wa-bar-text">
             <input
               type="checkbox"
               checked={refund}
@@ -179,14 +179,14 @@ export function StopAutopayDialog({
           </label>
         ) : null}
         {refundAsked(refund, autopay) ? (
-          <p className="mt-1 text-[15px] text-wa-meta">{t('autopay.off.refundAsked')}</p>
+          <p className="mt-1 text-body text-wa-meta">{t('autopay.off.refundAsked')}</p>
         ) : null}
 
         <button
           type="button"
           disabled={saving}
           onClick={askInChat}
-          className="mt-3 min-h-[44px] w-full py-2 text-left text-[15px] font-medium text-wa-accent disabled:opacity-70"
+          className="mt-3 min-h-[44px] w-full py-2 text-left text-cta text-wa-accent disabled:opacity-70"
         >
           {t(helpLineKey(autopay, refund))}
         </button>
@@ -196,7 +196,7 @@ export function StopAutopayDialog({
             red line sits with them for the same reason — it must be seen. */}
         <div className="sticky bottom-0 -mx-5 -mb-5 mt-3 bg-wa-bar px-5 pb-5 pt-2">
           {failed ? (
-            <p role="alert" className="mb-2 text-[15px] font-medium text-danger">
+            <p role="alert" className="mb-2 text-body font-medium text-danger">
               {t(failed)}
             </p>
           ) : null}

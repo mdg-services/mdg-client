@@ -19,6 +19,8 @@ import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { BatteryGuideCard } from '@/features/push/BatteryGuide';
 import { PushNotice } from '@/features/push/PushNotice';
 import { BillDueBanner } from '@/features/setup/BillDueBanner';
+import { legacyThreadId } from '@/features/tabs/legacyLink';
+import { useHideTabBar } from '@/features/tabs/tabBarVisibility';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
@@ -30,13 +32,8 @@ import type { Lang } from '@/store/lang';
 import type { Conversation } from '@dk/shared/types';
 
 /**
- * A conversation id as the server writes it. Checked before an old-style link is
- * trusted, because the id goes straight into a route.
- */
-const LEGACY_ID = /^[A-Za-z0-9_-]{1,64}$/;
-
-/**
- * The first screen of the app: the dealer's chats, the way WhatsApp lists them.
+ * The Chats tab: the dealer's chats, the way WhatsApp lists them (the app opens on
+ * Today, `/`; ADR 0055).
  *
  * `/chat?c=<id>` is the form older notifications carry (the native shell turns a
  * push that names only a conversation into that link). It lands here, and goes
@@ -45,8 +42,8 @@ const LEGACY_ID = /^[A-Za-z0-9_-]{1,64}$/;
  */
 export function ChatListPage() {
   const [params] = useSearchParams();
-  const legacy = params.get('c');
-  if (legacy && LEGACY_ID.test(legacy)) {
+  const legacy = legacyThreadId(params);
+  if (legacy) {
     return <Navigate to={`/chat/${encodeURIComponent(legacy)}`} replace />;
   }
   return <ChatList />;
@@ -58,14 +55,18 @@ function ChatList() {
   const navigate = useNavigate();
   const myId = useAuthStore((s) => s.user?.id);
   const q = useMyConversations();
-  // The app's first real screen is this list with its chats: the moment the
-  // speed report counts "opening the app" up to (lib/perfReport).
+  // Where the app opens inside the extension's panel (and on a link to /chat), this
+  // list with its chats is the first real screen: the moment the speed report counts
+  // "opening the app" up to (lib/perfReport). Once per page, so Today's mark wins
+  // everywhere else.
   const listShown = !!q.data;
   React.useEffect(() => {
     if (listShown) markFirstScreen();
   }, [listShown]);
 
   const [searching, setSearching] = React.useState(false);
+  // The search bar and the keyboard share the screen: the tab bar steps aside.
+  useHideTabBar(searching);
   const [query, setQuery] = React.useState('');
   const [chip, setChip] = React.useState<ChatChip>('all');
   // ── one person, several pumps ── the chip's sheet
@@ -76,8 +77,8 @@ function ChatList() {
     setSearching(false);
     setQuery('');
   }, []);
-  // The phone's Back button leaves the search, not the app — this is the first
-  // screen, so an ordinary Back from it would close the app with the keyboard up.
+  // The phone's Back button leaves the search, not the app — this is a root screen
+  // (a tab), so an ordinary Back from it would close the app with the keyboard up.
   useBackToClose(closeSearch, searching);
 
   const menu = React.useMemo<AppBarMenuItem[]>(
@@ -221,7 +222,7 @@ function ChatList() {
           onChange={setChip}
         />
         {rows.length === 0 ? (
-          <p className="px-8 py-12 text-center text-[15px] text-wa-meta">
+          <p className="px-8 py-12 text-center text-meta text-wa-meta">
             {query.trim() ? t('chatlist.noMatch') : t('chatlist.noUnread')}
           </p>
         ) : (
@@ -282,7 +283,7 @@ function SearchBar({
             autoCorrect="off"
             spellCheck={false}
             autoFocus
-            className="min-w-0 flex-1 bg-transparent text-base text-wa-bar-text outline-none placeholder:text-wa-meta"
+            className="min-w-0 flex-1 bg-transparent text-body text-wa-bar-text outline-none placeholder:text-wa-meta"
           />
           {query ? (
             <AppBarIconButton
@@ -328,7 +329,7 @@ function FilterChips({
             aria-pressed={on}
             onClick={() => onChange(c.id)}
             className={cn(
-              'h-8 shrink-0 rounded-full border px-3.5 text-[14px] font-medium',
+              'h-8 shrink-0 rounded-full border px-3.5 text-meta font-medium',
               on
                 ? 'border-transparent bg-wa-out text-wa-accent-strong'
                 : 'border-wa-divider bg-wa-bar text-wa-meta active:bg-wa-row-active',
@@ -384,12 +385,12 @@ function ChatRow({
         </span>
         <span className="ml-3 flex h-full min-w-0 flex-1 flex-col justify-center border-b border-wa-divider pr-4">
           <span className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-base font-medium text-wa-bar-text">
+            <span className="truncate text-body font-medium text-wa-bar-text">
               {conversationTitle(conv, t)}
             </span>
             <span
               className={cn(
-                'shrink-0 text-xs',
+                'shrink-0 text-meta',
                 unread ? 'font-medium text-wa-badge' : 'text-wa-meta',
               )}
             >
@@ -401,7 +402,7 @@ function ChatRow({
                 own prose — up to 280 characters of Hindi, about 35% longer than
                 English — and two lines for one thread would push the rest of the
                 list off a 360px screen. */}
-            <span className="truncate text-sm text-wa-meta">
+            <span className="truncate text-meta text-wa-meta">
               {conversationPreview(conv, myId, t)}
             </span>
             {unread ? <UnreadPill count={count} /> : null}
@@ -428,7 +429,7 @@ function UnreadPill({ count }: { count: number | null }) {
     <span
       role="img"
       aria-label={t('chatlist.unreadCount', { n: count })}
-      className="inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-wa-badge px-1.5 text-xs font-medium leading-none text-white"
+      className="inline-flex h-5 min-w-[20px] shrink-0 items-center justify-center rounded-full bg-wa-badge px-1.5 text-meta font-medium leading-none text-white"
     >
       {count > 999 ? '999+' : count}
     </span>

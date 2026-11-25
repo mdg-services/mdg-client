@@ -71,7 +71,7 @@ export function ChangePasswordCard() {
   return (
     <Card>
       <CardContent>
-        <p className="mb-3 text-sm font-semibold text-text">
+        <p className="mb-3 text-subheading text-text">
           {t('profile.changePassword')}
         </p>
         <form
@@ -80,7 +80,7 @@ export function ChangePasswordCard() {
           noValidate
         >
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-muted">
+            <label className="text-subheading text-text-muted">
               {t('profile.currentPassword')}
             </label>
             <Input
@@ -90,13 +90,13 @@ export function ChangePasswordCard() {
               {...register('currentPassword')}
             />
             {errors.currentPassword ? (
-              <p className="text-xs text-danger">
+              <p className="text-meta text-danger">
                 {errors.currentPassword.message}
               </p>
             ) : null}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-muted">
+            <label className="text-subheading text-text-muted">
               {t('profile.newPassword')}
             </label>
             <Input
@@ -106,11 +106,11 @@ export function ChangePasswordCard() {
               {...register('newPassword')}
             />
             {errors.newPassword ? (
-              <p className="text-xs text-danger">{errors.newPassword.message}</p>
+              <p className="text-meta text-danger">{errors.newPassword.message}</p>
             ) : null}
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-text-muted">
+            <label className="text-subheading text-text-muted">
               {t('profile.confirmPassword')}
             </label>
             <Input
@@ -120,7 +120,7 @@ export function ChangePasswordCard() {
               {...register('confirmPassword')}
             />
             {errors.confirmPassword ? (
-              <p className="text-xs text-danger">
+              <p className="text-meta text-danger">
                 {errors.confirmPassword.message}
               </p>
             ) : null}

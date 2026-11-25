@@ -99,10 +99,10 @@ export function PendingSubmissionPanel({
       <section className="flex flex-col gap-3 rounded-2xl border border-brand/40 bg-surface p-3 shadow-sm">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="text-sm font-semibold text-text">
+            <h2 className="text-meta font-semibold text-text">
               {t('staff.pendingSubmission')}
             </h2>
-            <p className="mt-0.5 text-xs text-text-muted">
+            <p className="mt-0.5 text-meta text-text-muted">
               {t('staff.pendingHint')}
             </p>
           </div>
@@ -117,10 +117,10 @@ export function PendingSubmissionPanel({
             >
               <div className="mb-1.5 flex items-center gap-2">
                 <Avatar name={g.name} size={28} />
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-text">
+                <span className="min-w-0 flex-1 truncate text-meta font-semibold text-text">
                   {g.name}
                 </span>
-                <span className="shrink-0 text-sm font-bold tabular-nums text-text">
+                <span className="shrink-0 text-meta font-bold tabular-nums text-text">
                   {fmtPoints(g.total)}
                 </span>
               </div>
@@ -170,7 +170,7 @@ export function PendingSubmissionPanel({
         </ul>
 
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs text-text-muted">
+          <span className="text-meta text-text-muted">
             {t('staff.pendingTotal', { points: fmtPoints(total) })}
           </span>
           {confirmClear ? (
@@ -178,14 +178,14 @@ export function PendingSubmissionPanel({
               <button
                 type="button"
                 onClick={onClearAll}
-                className="text-xs font-semibold text-danger active:opacity-70"
+                className="text-cta text-danger active:opacity-70"
               >
                 {t('staff.clearDraftConfirm')}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmClear(false)}
-                className="text-xs font-semibold text-text-muted active:opacity-70"
+                className="text-cta text-text-muted active:opacity-70"
               >
                 {t('common.cancel')}
               </button>
@@ -195,7 +195,7 @@ export function PendingSubmissionPanel({
               type="button"
               disabled={finalizeOpen}
               onClick={() => setConfirmClear(true)}
-              className="text-xs font-semibold text-text-muted active:opacity-70 disabled:opacity-50"
+              className="text-cta text-text-muted active:opacity-70 disabled:opacity-50"
             >
               {t('staff.clearDraft')}
             </button>
@@ -259,7 +259,7 @@ function SyncChip({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-meta font-medium',
         config.className,
       )}
     >
@@ -304,7 +304,7 @@ function PendingLineRow({
   return (
     <li className="flex items-center gap-2 rounded-lg bg-surface px-2 py-1.5">
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm text-text">
+        <p className="truncate text-meta text-text">
           {pick(lang, line.labelEn, line.labelHi)}
         </p>
         {/*
@@ -313,12 +313,12 @@ function PendingLineRow({
           so show what was written rather than making them reopen the flow.
         */}
         {line.note ? (
-          <p className="truncate text-[11px] italic text-text-muted">
+          <p className="truncate text-meta italic text-text-muted">
             {line.note}
           </p>
         ) : null}
         {line.splitAmong && line.splitAmong > 1 ? (
-          <p className="text-[11px] text-text-subtle">
+          <p className="text-meta text-text-subtle">
             {t('staff.give.splitInfo')}
           </p>
         ) : null}
@@ -326,14 +326,14 @@ function PendingLineRow({
 
       {isRupee ? (
         <div className="flex shrink-0 items-center gap-1 rounded-lg border border-border-strong bg-surface-2 px-2">
-          <span className="text-xs font-semibold text-text-muted">₹</span>
+          <span className="text-meta font-semibold text-text-muted">₹</span>
           <input
             value={amountText}
             onChange={(e) => commitAmount(e.target.value)}
             disabled={disabled}
             inputMode="decimal"
             aria-label={t('staff.amountRupees')}
-            className="h-8 w-20 bg-transparent text-right text-base text-text outline-none disabled:opacity-60"
+            className="h-8 w-20 bg-transparent text-right text-body text-text outline-none disabled:opacity-60"
           />
         </div>
       ) : isPerUnit ? (
@@ -347,7 +347,7 @@ function PendingLineRow({
           >
             <Minus width={14} strokeWidth={2} />
           </button>
-          <span className="w-5 text-center text-sm font-semibold tabular-nums text-text">
+          <span className="w-5 text-center text-meta font-semibold tabular-nums text-text">
             {qty}
           </span>
           <button
@@ -362,7 +362,7 @@ function PendingLineRow({
         </div>
       ) : null}
 
-      <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums text-text">
+      <span className="w-12 shrink-0 text-right text-meta font-semibold tabular-nums text-text">
         {fmtPoints(line.points)}
       </span>
       <button

@@ -203,7 +203,7 @@ describe('MessageBubble reply quote', () => {
     expect(onJumpTo).toHaveBeenCalledWith('orig-1', 'm9');
   });
 
-  it('labels my own quoted message "You" and falls back to MDG Support', () => {
+  it('labels my own quoted message "You" and falls back to MDG, never "MDG Support"', () => {
     render(
       <MessageBubble
         message={makeMessage({
@@ -228,7 +228,8 @@ describe('MessageBubble reply quote', () => {
         currentUserId="me"
       />,
     );
-    expect(screen.getByText('MDG Support')).toBeInTheDocument();
+    expect(screen.getByText('MDG')).toBeInTheDocument();
+    expect(screen.queryByText('MDG Support')).toBeNull();
   });
 
   it('renders old messages without reply/reactions exactly as before', () => {
@@ -355,17 +356,17 @@ describe('MessageBubble — a message MDG shared (system: true)', () => {
     expect(container.querySelector('p.rounded-lg, .bg-surface-2')).toBeNull();
   });
 
-  it('shows the picture and its caption in the SAME bubble', () => {
+  it('draws a report as its words only — the card is on Today, not a picture in the chat (ADR 0055)', () => {
     const { container } = render(
       <MessageBubble message={shared()} mine={false} currentUserId="me" />,
     );
-    const img = screen.getByAltText(card.filename);
-    expect(img).toHaveAttribute('src', card.url);
+    expect(screen.queryByAltText(card.filename)).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
     const bubbles = container.querySelectorAll('.bg-wa-in');
     expect(bubbles).toHaveLength(1);
-    expect(bubbles[0]!.contains(img)).toBe(true);
+    // The old "DSR ·" label turns into plain words at render time; the words and figures stay.
     expect(
-      bubbles[0]!.contains(screen.getByText('DSR · 13 Aug — stock variation within limit')),
+      bubbles[0]!.contains(screen.getByText('DSR, 13 Aug — stock variation within limit')),
     ).toBe(true);
   });
 
@@ -377,21 +378,22 @@ describe('MessageBubble — a message MDG shared (system: true)', () => {
     expect(container.querySelector('.bg-wa-in')!.contains(time)).toBe(true);
   });
 
-  it('opens the viewer when its picture is tapped, with the message riding along', () => {
+  it('an admin picture that is NOT a report keeps its picture, and opens the viewer with the message riding along', () => {
     const onOpenImage = vi.fn();
+    const photo: Attachment = { ...card, filename: 'site-visit.png', storageKey: 'admin/site-visit.png' };
     render(
       <MessageBubble
-        message={shared({ id: 'sys-2' })}
+        message={shared({ id: 'sys-2', body: 'Please look at this', attachments: [photo] })}
         mine={false}
         currentUserId="me"
         onOpenImage={onOpenImage}
       />,
     );
-    fireEvent.click(screen.getByAltText(card.filename));
-    // The MESSAGE rides along with the picture: presigning a fresh URL for a
-    // service card is authorised through the message that carries the key.
+    fireEvent.click(screen.getByAltText(photo.filename));
+    // The MESSAGE rides along with the picture: presigning a fresh URL is authorised
+    // through the message that carries the key.
     expect(onOpenImage).toHaveBeenCalledWith(
-      card,
+      photo,
       expect.objectContaining({ id: 'sys-2', conversationId: 'c1' }),
     );
   });
@@ -1045,10 +1047,13 @@ describe('MessageBubble — voice notes', () => {
   });
 
   describe('what the note says', () => {
+    // The dealer app shows a transcript only under a voice note MDG sent: under a dealer's
+    // own it would tell them a machine listened (ADR 0055). Admin-sent unless `mine`.
     const spoken = (transcript?: string, mine = false) =>
       makeMessage({
         id: 'vt',
         senderId: mine ? 'me' : 'x',
+        senderRole: mine ? 'dealer-owner' : 'admin',
         senderName: mine ? 'Ramesh' : 'MDG',
         body: undefined,
         attachments: [note('nt', { transcript })],
@@ -1059,7 +1064,7 @@ describe('MessageBubble — voice notes', () => {
       'ki tanker kab tak pahunchega.';
 
     it('shows it under the player with a small label, once MDG has written it down', () => {
-      render(<MessageBubble message={spoken('tanki mein diesel kam hai', true)} mine />);
+      render(<MessageBubble message={spoken('tanki mein diesel kam hai')} mine={false} />);
       const block = screen.getByTestId('voice-transcript');
       expect(within(block).getByText('Transcript')).toBeInTheDocument();
       expect(within(block).getByText('tanki mein diesel kam hai')).toBeInTheDocument();
@@ -1086,6 +1091,30 @@ describe('MessageBubble — voice notes', () => {
       expect(screen.queryByTestId('voice-transcript')).toBeNull();
       first.unmount();
       render(<MessageBubble message={spoken('   ')} mine={false} />);
+      expect(screen.queryByTestId('voice-transcript')).toBeNull();
+    });
+
+    it("shows none under a dealer's own voice note, however much was written down", () => {
+      render(<MessageBubble message={spoken('tanki mein diesel kam hai', true)} mine />);
+      expect(screen.getByRole('button', { name: 'Play voice message' })).toBeInTheDocument();
+      expect(screen.queryByTestId('voice-transcript')).toBeNull();
+      expect(screen.queryByText('tanki mein diesel kam hai')).toBeNull();
+    });
+
+    it("shows none under a co-owner's or manager's voice note either: it is a dealer's, not MDG's", () => {
+      render(
+        <MessageBubble
+          message={makeMessage({
+            id: 'vt-co',
+            senderId: 'co-owner',
+            senderRole: 'dealer-owner',
+            senderName: 'Priya',
+            body: undefined,
+            attachments: [note('nt', { transcript: 'kal tanker aayega' })],
+          })}
+          mine={false}
+        />,
+      );
       expect(screen.queryByTestId('voice-transcript')).toBeNull();
     });
 
@@ -1124,6 +1153,7 @@ describe('MessageBubble — voice notes', () => {
           message={makeMessage({
             id: 'two',
             senderId: 'x',
+            senderRole: 'admin',
             body: undefined,
             attachments: [note('a', { transcript: 'pehla' }), note('b'), note('c', { transcript: 'teesra' })],
           })}
@@ -1202,6 +1232,7 @@ describe('MessageBubble — voice notes', () => {
         id: 'm-real',
         conversationId: 'c1',
         senderId: 'x',
+        senderRole: 'admin',
         body: undefined,
         attachments: [note('u2', { transcript: 'tanki mein diesel kam hai' })],
       });
@@ -1403,16 +1434,28 @@ describe('MessageBubble — a reply the first line wrote', () => {
     });
   }
 
-  it('marks the reply as instant, and leaves the bubble itself alone', () => {
+  it('carries no "Instant reply" footnote: the bubble is the same incoming bubble a person gets (ADR 0055)', () => {
     const { container } = render(
       <MessageBubble message={aiMessage()} mine={false} currentUserId="me" />,
     );
-    expect(screen.getByText('Instant reply')).toBeInTheDocument();
-    // Not a badge, not a colour change: the bubble is the same incoming bubble a
-    // person's reply gets, because a dealer should not have to care which desk
-    // answered.
+    // The footnote told dealers a machine was answering, so they took the answer less
+    // seriously. The admin's mirror of the thread shows its own "AI" chip.
+    expect(screen.queryByText('Instant reply')).toBeNull();
+    expect(container.querySelector('.lucide-zap')).toBeNull();
+    expect(screen.getByText('Aaj ki DSR bhej di gayi hai.')).toBeInTheDocument();
     expect(container.querySelector('.bg-wa-in')).toBeTruthy();
     expect(container.querySelector('.bg-wa-out')).toBeFalsy();
+  });
+
+  it('still lays the time out as it does for any reply: in the last line of the words', () => {
+    const { container } = render(
+      <MessageBubble message={aiMessage()} mine={false} currentUserId="me" />,
+    );
+    // With the footnote gone the time sits at the bubble's corner like any text bubble's,
+    // not on a row of its own.
+    expect(container.querySelector('.justify-between')).toBeNull();
+    const time = screen.getByText(/^12:0\d/);
+    expect(container.querySelector('.bg-wa-in')!.contains(time)).toBe(true);
   });
 
   it('says nothing at all on an ordinary Support reply', () => {
@@ -1460,7 +1503,7 @@ describe('MessageBubble — a reply the first line wrote', () => {
     expect(container.querySelectorAll('button').length).toBe(0);
   });
 
-  it('labels a re-sent report too — it is still the machine that answered', () => {
+  it('labels nothing on a re-sent report either', () => {
     render(
       <MessageBubble
         message={aiMessage({ ...aiAnswer, kind: 'reshare' })}
@@ -1468,7 +1511,7 @@ describe('MessageBubble — a reply the first line wrote', () => {
         currentUserId="me"
       />,
     );
-    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    expect(screen.queryByText('Instant reply')).toBeNull();
   });
 
   /**
@@ -1481,7 +1524,7 @@ describe('MessageBubble — a reply the first line wrote', () => {
    * bubble has no fixed height, no line clamp and `whitespace-pre-wrap`, so all
    * three are already handled; these tests are here to keep it that way.
    */
-  it('labels prose the writer composed', () => {
+  it('labels nothing on prose the writer composed', () => {
     render(
       <MessageBubble
         message={aiMessage({ ...aiAnswer, kind: 'written' })}
@@ -1489,7 +1532,8 @@ describe('MessageBubble — a reply the first line wrote', () => {
         currentUserId="me"
       />,
     );
-    expect(screen.getByText('Instant reply')).toBeInTheDocument();
+    expect(screen.queryByText('Instant reply')).toBeNull();
+    expect(screen.getByText('Aaj ki DSR bhej di gayi hai.')).toBeInTheDocument();
   });
 
   it('draws a long Hindi reply whole, and keeps the appended line', () => {
@@ -1537,14 +1581,11 @@ describe('MessageBubble — a reply the first line wrote', () => {
 });
 
 /**
- * The line under a bubble that raised a ticket.
- *
- * MessageList decides WHICH bubble gets one (the message names a ticket and the
- * conversation still lists it) and hands the bubble a status word and a number.
- * What is tested here is only what the bubble does with them: say it quietly,
- * in the app's language, and say nothing when it is given nothing.
+ * The line under a bubble that raised a ticket is GONE (ADR 0055): "#42 · Sent to the MDG
+ * team" under a message told the dealer a machine had passed their question on. Where it
+ * stands is told by the pinned bar under the header, in the team's own words.
  */
-describe('MessageBubble — the ticket status line', () => {
+describe('MessageBubble — no ticket line under a bubble', () => {
   const raising = {
     turnId: 'turn-9',
     kind: 'handoff' as const,
@@ -1559,172 +1600,35 @@ describe('MessageBubble — the ticket status line', () => {
       senderId: 'system-user',
       senderRole: 'admin',
       senderName: 'MDG',
-      body: 'Maine ye MDG team ko bhej diya hai.',
+      body: 'Ek minute, hum dekh kar yahin batate hain.',
       ai: raising,
     });
   }
 
-  it.each([
-    ['raised', '#42 · Sent to the MDG team'],
-    ['looking', '#42 · MDG team is looking at it'],
-    ['resolved', '#42 · Closed by the MDG team'],
-  ] as const)('says "%s" in plain words, prefixed with the ticket ref', (status, text) => {
-    render(
-      <MessageBubble
-        message={raisingMessage()}
-        mine={false}
-        currentUserId="me"
-        ticketStatus={status}
-        ticketNumber={42}
-      />,
-    );
-    expect(screen.getByText(text)).toBeInTheDocument();
-  });
-
-  it('speaks Hindi on the Hindi screen', () => {
-    useLangStore.setState({ lang: 'hi', explicit: true });
-    render(
-      <MessageBubble
-        message={raisingMessage()}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="looking"
-        ticketNumber={42}
-      />,
-    );
-    expect(screen.getByText('#42 · MDG टीम देख रही है')).toBeInTheDocument();
-  });
-
-  describe('while a person is working on it', () => {
-    // 15:30 IST. Only the clock is faked: the bubble reads it when it draws.
-    beforeEach(() => {
-      vi.useFakeTimers({ toFake: ['Date'] });
-      vi.setSystemTime(new Date('2026-10-30T10:00:00.000Z'));
-    });
-    const SIX_PM = '2026-10-30T12:30:00.000Z';
-    const TOMORROW_TEN = '2026-10-31T04:30:00.000Z';
-
-    it('says who is on it and when to expect an update', () => {
-      render(
-        <MessageBubble
-          message={raisingMessage()}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="working"
-          ticketNumber={3}
-          ticketUntil={SIX_PM}
-        />,
-      );
-      expect(
-        screen.getByText('#3 · MDG team is working on it · update by 6:00 pm'),
-      ).toBeInTheDocument();
-    });
-
-    it('speaks Hindi on the Hindi screen', () => {
-      useLangStore.setState({ lang: 'hi', explicit: true });
-      render(
-        <MessageBubble
-          message={raisingMessage()}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="working"
-          ticketNumber={3}
-          ticketUntil={SIX_PM}
-        />,
-      );
-      expect(
-        screen.getByText('#3 · MDG टीम इस पर काम कर रही है · आज शाम 6 बजे तक अपडेट'),
-      ).toBeInTheDocument();
-    });
-
-    it('says tomorrow for a time on the next day', () => {
-      render(
-        <MessageBubble
-          message={raisingMessage()}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="working"
-          ticketNumber={3}
-          ticketUntil={TOMORROW_TEN}
-        />,
-      );
-      expect(
-        screen.getByText('#3 · MDG team is working on it · update by tomorrow 10:00 am'),
-      ).toBeInTheDocument();
-    });
-
-    it('is still one quiet line, with no button, when it carries a time', () => {
-      const { container } = render(
-        <MessageBubble
-          message={raisingMessage()}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="working"
-          ticketNumber={3}
-          ticketUntil={SIX_PM}
-        />,
-      );
-      const line = screen.getByText(/update by 6:00 pm/);
-      expect(line.closest('button')).toBeNull();
-      expect(container.querySelectorAll('button').length).toBe(0);
-      expect(line.getAttribute('class')).toContain('text-wa-meta');
-    });
-
-    it('follows the ticket into working and back out when the time runs out', () => {
-      const message = raisingMessage();
-      const view = render(
-        <MessageBubble
-          message={message}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="looking"
-          ticketNumber={3}
-        />,
-      );
-      expect(screen.getByText('#3 · MDG team is looking at it')).toBeInTheDocument();
-
-      view.rerender(
-        <MessageBubble
-          message={message}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="working"
-          ticketNumber={3}
-          ticketUntil={SIX_PM}
-        />,
-      );
-      expect(screen.queryByText('#3 · MDG team is looking at it')).toBeNull();
-      expect(
-        screen.getByText('#3 · MDG team is working on it · update by 6:00 pm'),
-      ).toBeInTheDocument();
-
-      view.rerender(
-        <MessageBubble
-          message={message}
-          mine={false}
-          currentUserId="me"
-          ticketStatus="looking"
-          ticketNumber={3}
-        />,
-      );
-      expect(screen.getByText('#3 · MDG team is looking at it')).toBeInTheDocument();
-      expect(screen.queryByText(/update by/)).toBeNull();
-    });
-  });
-
-  it('draws nothing when the bubble is not handed a status', () => {
-    // The message names a ticket but the conversation no longer lists it — a
-    // resolved ticket past the server's seven-day window. The line is simply
-    // gone; the message that raised it is not.
+  it('draws the words of a message that raised a ticket, and no number, status or footnote', () => {
     const { container } = render(
       <MessageBubble message={raisingMessage()} mine={false} currentUserId="me" />,
     );
-    expect(screen.getByText('Maine ye MDG team ko bhej diya hai.')).toBeInTheDocument();
+    expect(screen.getByText('Ek minute, hum dekh kar yahin batate hain.')).toBeInTheDocument();
     expect(container.textContent).not.toContain('#');
-    expect(container.textContent).not.toContain('MDG team is looking');
+    expect(container.textContent).not.toMatch(/Sent to|looking at it|Instant reply/);
+    expect(container.querySelectorAll('button').length).toBe(0);
   });
 
-  it('draws nothing on an ordinary message', () => {
+  it('does not even accept a ticket status: the props are gone', () => {
+    const { container } = render(
+      <MessageBubble
+        message={raisingMessage()}
+        mine={false}
+        currentUserId="me"
+        // Extra props an old caller might still pass are ignored, not drawn.
+        {...({ ticketStatus: 'raised', ticketNumber: 42 } as object)}
+      />,
+    );
+    expect(container.textContent).not.toContain('#42');
+  });
+
+  it('draws nothing extra on an ordinary message', () => {
     const { container } = render(
       <MessageBubble
         message={makeMessage({ id: 'plain', senderId: 'u1', body: 'kal ka DSR' })}
@@ -1733,79 +1637,6 @@ describe('MessageBubble — the ticket status line', () => {
       />,
     );
     expect(container.textContent).not.toContain('#');
-  });
-
-  it('is a quiet line, not a button and not green', () => {
-    const { container } = render(
-      <MessageBubble
-        message={raisingMessage()}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="resolved"
-        ticketNumber={42}
-      />,
-    );
-    const line = screen.getByText('#42 · Closed by the MDG team');
-    expect(line.closest('button')).toBeNull();
-    expect(container.querySelectorAll('button').length).toBe(0);
-    // Same size and colour as the time inside the bubble above it.
-    const cls = line.getAttribute('class') ?? '';
-    expect(cls).toContain('text-[11px]');
-    expect(cls).toContain('text-wa-meta');
-    expect(cls).not.toMatch(/green|success|accent|badge/);
-  });
-
-  it('sits with the footnote under a handoff, and still says no "Instant reply"', () => {
-    render(
-      <MessageBubble
-        message={raisingMessage()}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="raised"
-        ticketNumber={7}
-      />,
-    );
-    expect(screen.getByText('#7 · Sent to the MDG team')).toBeInTheDocument();
-    expect(screen.queryByText('Instant reply')).toBeNull();
-  });
-
-  it('follows the ticket when its state changes under an already-drawn bubble', () => {
-    // The bubble is React.memo'd, so this is the proof that new primitives are
-    // enough to re-render it — no object identity involved.
-    const message = raisingMessage();
-    const view = render(
-      <MessageBubble
-        message={message}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="raised"
-        ticketNumber={42}
-      />,
-    );
-    expect(screen.getByText('#42 · Sent to the MDG team')).toBeInTheDocument();
-
-    view.rerender(
-      <MessageBubble
-        message={message}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="looking"
-        ticketNumber={42}
-      />,
-    );
-    expect(screen.queryByText('#42 · Sent to the MDG team')).toBeNull();
-    expect(screen.getByText('#42 · MDG team is looking at it')).toBeInTheDocument();
-
-    view.rerender(
-      <MessageBubble
-        message={message}
-        mine={false}
-        currentUserId="me"
-        ticketStatus="resolved"
-        ticketNumber={42}
-      />,
-    );
-    expect(screen.getByText('#42 · Closed by the MDG team')).toBeInTheDocument();
   });
 });
 

@@ -247,7 +247,7 @@ export function ChatMediaPage() {
       <button
         type="button"
         onClick={fetchNext}
-        className="rounded-full border border-wa-divider bg-wa-chip px-4 py-2 text-[13px] text-wa-meta active:bg-wa-row-active"
+        className="rounded-full border border-wa-divider bg-wa-chip px-4 py-2 text-meta text-wa-meta active:bg-wa-row-active"
       >
         {t('media.loadMoreFailed')}
       </button>
@@ -262,7 +262,7 @@ export function ChatMediaPage() {
         <button
           type="button"
           onClick={fetchNext}
-          className="rounded-full border border-wa-divider bg-wa-chip px-3 py-1 text-xs text-wa-meta active:bg-wa-row-active"
+          className="rounded-full border border-wa-divider bg-wa-chip px-3 py-1 text-meta text-wa-meta active:bg-wa-row-active"
         >
           {t('chat.loadMore')}
         </button>
@@ -308,7 +308,7 @@ export function ChatMediaPage() {
             <button
               type="button"
               onClick={() => void query.refetch()}
-              className="rounded-full bg-wa-accent px-5 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+              className="rounded-full bg-wa-accent px-5 py-2 text-cta text-text-inverse active:opacity-90"
             >
               {t('common.retry')}
             </button>
@@ -344,7 +344,7 @@ export function ChatMediaPage() {
             <section key={month.key}>
               <h2
                 className={cn(
-                  'px-4 pb-2 text-[14px] font-medium text-wa-meta',
+                  'px-4 pb-2 text-meta font-medium text-wa-meta',
                   m === 0 ? 'pt-3' : 'pt-5',
                 )}
               >
@@ -403,10 +403,10 @@ export function ChatMediaPage() {
                     contentType={item.attachment.contentType}
                   />
                   <span className="min-w-0 flex-1 border-b border-wa-divider pb-3 pt-0.5">
-                    <span className="block truncate text-[15px] text-wa-bubble-text">
+                    <span className="block truncate text-body text-wa-bubble-text">
                       {item.attachment.filename}
                     </span>
-                    <span className="block text-[13px] text-wa-meta">
+                    <span className="block text-meta text-wa-meta">
                       {formatBytes(item.attachment.size)} ·{' '}
                       {shortDate(item.createdAt, lang)}
                     </span>
@@ -435,13 +435,13 @@ export function ChatMediaPage() {
                   <LinkIcon width={18} strokeWidth={1.75} />
                 </span>
                 <span className="min-w-0 flex-1 border-b border-wa-divider pb-3 pt-0.5">
-                  <span className="block truncate text-[15px] font-medium text-wa-bubble-text">
+                  <span className="block truncate text-body font-medium text-wa-bubble-text">
                     {domainOf(row.url)}
                   </span>
-                  <span className="block truncate text-[13px] text-wa-accent-strong">
+                  <span className="block truncate text-meta text-wa-accent-strong">
                     {row.url}
                   </span>
-                  <span className="block text-[13px] text-wa-meta">
+                  <span className="block text-meta text-wa-meta">
                     {shortDate(row.createdAt, lang)}
                   </span>
                 </span>
@@ -472,7 +472,7 @@ export function ChatMediaPage() {
             aria-selected={tab === value}
             onClick={() => setTab(value)}
             className={cn(
-              'flex-1 border-b-[3px] py-3 text-[14px] font-medium transition-colors',
+              'flex-1 border-b-[3px] py-3 text-meta font-medium transition-colors',
               tab === value
                 ? 'border-wa-accent-strong text-wa-accent-strong'
                 : 'border-transparent text-wa-meta active:bg-wa-row-active',

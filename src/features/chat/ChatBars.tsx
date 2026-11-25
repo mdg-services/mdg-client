@@ -80,7 +80,7 @@ export function ChatSearchBar({
         }}
         placeholder={t('chat.searchPlaceholder')}
         aria-label={t('chat.searchPlaceholder')}
-        className="h-10 min-w-0 flex-1 bg-transparent px-1 text-[17px] text-wa-bar-text placeholder:text-wa-meta focus:outline-none [&::-webkit-search-cancel-button]:appearance-none"
+        className="h-10 min-w-0 flex-1 bg-transparent px-1 text-subheading text-wa-bar-text placeholder:text-wa-meta focus:outline-none [&::-webkit-search-cancel-button]:appearance-none"
       />
       {value ? (
         <AppBarIconButton
@@ -94,7 +94,7 @@ export function ChatSearchBar({
           <button
             type="button"
             onClick={onRetry}
-            className="shrink-0 rounded-full px-2 py-1 text-[13px] text-danger active:bg-wa-row-active"
+            className="shrink-0 rounded-full px-2 py-1 text-meta text-danger active:bg-wa-row-active"
           >
             {status}
           </button>
@@ -102,7 +102,7 @@ export function ChatSearchBar({
           <span
             role="status"
             className={cn(
-              'shrink-0 px-1 text-[13px] tabular-nums',
+              'shrink-0 px-1 text-meta tabular-nums',
               statusTone === 'error' ? 'text-danger' : 'text-wa-meta',
             )}
           >
@@ -162,7 +162,7 @@ export function ChatSelectionBar({
         icon={<X width={24} strokeWidth={2} />}
       />
       <span
-        className="min-w-0 flex-1 px-1 text-[20px] font-medium tabular-nums text-wa-bar-text"
+        className="min-w-0 flex-1 px-1 text-heading tabular-nums text-wa-bar-text"
         aria-live="polite"
       >
         {count}

@@ -171,7 +171,7 @@ export function FinalizeSubmitSheet({
       <div className="relative mx-auto flex max-h-[92vh] w-full max-w-md flex-col rounded-t-2xl border border-border bg-surface shadow-lg">
         <header className="flex items-center gap-2 border-b border-border px-3 py-3">
           <span className="h-11 w-11" />
-          <h2 className="flex-1 text-center text-sm font-semibold text-text">
+          <h2 className="flex-1 text-center text-meta font-semibold text-text">
             {t('staff.finalizeTitle')}
           </h2>
           <button
@@ -187,18 +187,18 @@ export function FinalizeSubmitSheet({
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="flex flex-col gap-4">
             <div className="rounded-2xl bg-brand-soft px-4 py-3 text-center">
-              <p className="text-2xl font-bold tabular-nums text-brand">
+              <p className="text-title font-bold tabular-nums text-brand">
                 {fmtPoints(totalPoints)}
               </p>
-              <p className="text-xs text-text-muted">{t('staff.points')}</p>
+              <p className="text-meta text-text-muted">{t('staff.points')}</p>
             </div>
 
             {/* Mandatory hardcopy photo */}
             <div className="flex flex-col gap-2">
-              <p className="px-1 text-xs font-semibold text-text-muted">
+              <p className="px-1 text-meta font-semibold text-text-muted">
                 {t('staff.hardcopyPhoto')}
               </p>
-              <p className="px-1 text-xs text-text-subtle">
+              <p className="px-1 text-meta text-text-subtle">
                 {t('staff.hardcopyHint')}
               </p>
 
@@ -261,7 +261,7 @@ export function FinalizeSubmitSheet({
 
             {/* Day + optional note */}
             <div className="flex flex-col gap-1.5">
-              <label className="px-1 text-xs font-semibold text-text-muted">
+              <label className="px-1 text-subheading text-text-muted">
                 {t('staff.give.date')}
               </label>
               <Input
@@ -273,7 +273,7 @@ export function FinalizeSubmitSheet({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="px-1 text-xs font-semibold text-text-muted">
+              <label className="px-1 text-subheading text-text-muted">
                 {t('staff.finalizeNote')}
               </label>
               <Input
@@ -287,19 +287,19 @@ export function FinalizeSubmitSheet({
 
         <footer className="flex flex-col gap-2 border-t border-border p-3">
           {rejected ? (
-            <p className="px-1 text-center text-xs text-danger">
+            <p className="px-1 text-center text-meta text-danger">
               {t('staff.rejectedSubmit')}
             </p>
           ) : offline ? (
-            <p className="px-1 text-center text-xs text-warning">
+            <p className="px-1 text-center text-meta text-warning">
               {t('staff.offlineSubmit')}
             </p>
           ) : notSynced ? (
-            <p className="px-1 text-center text-xs text-text-muted">
+            <p className="px-1 text-center text-meta text-text-muted">
               {t('staff.waitSaving')}
             </p>
           ) : !file ? (
-            <p className="px-1 text-center text-xs text-text-muted">
+            <p className="px-1 text-center text-meta text-text-muted">
               {t('staff.photoRequired')}
             </p>
           ) : null}

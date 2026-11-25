@@ -261,7 +261,7 @@ export function GivePointsFlow({
           ) : (
             <span className="h-11 w-11" />
           )}
-          <h2 className="flex-1 text-center text-sm font-semibold text-text">
+          <h2 className="flex-1 text-center text-meta font-semibold text-text">
             {title}
           </h2>
           <button
@@ -316,7 +316,7 @@ export function GivePointsFlow({
         {step === 'work' ? (
           <footer className="flex flex-col gap-2 border-t border-border p-3">
             {selectedCodes.length > 0 ? (
-              <p className="px-1 text-center text-xs text-text-muted">
+              <p className="px-1 text-center text-meta text-text-muted">
                 {t('staff.give.selectedSummary', {
                   count: selectedCodes.length,
                   points: fmtPoints(previewTotal),
@@ -363,7 +363,7 @@ function WorkerPicker({
 }) {
   if (employees.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-text-muted">
+      <p className="py-8 text-center text-meta text-text-muted">
         {t('staff.give.noWorkers')}
       </p>
     );
@@ -379,11 +379,11 @@ function WorkerPicker({
           >
             <Avatar name={e.name} size={40} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-text">
+              <span className="block truncate text-meta font-medium text-text">
                 {e.name}
               </span>
               {e.designation ? (
-                <span className="block truncate text-xs text-text-muted">
+                <span className="block truncate text-meta text-text-muted">
                   {e.designation}
                 </span>
               ) : null}
@@ -458,7 +458,7 @@ function WorkPicker({
           />
         </div>
         {!q ? (
-          <p className="px-1 pt-2 text-xs text-text-subtle">
+          <p className="px-1 pt-2 text-meta text-text-subtle">
             {t('staff.give.pickWorkHint')}
           </p>
         ) : null}
@@ -469,13 +469,13 @@ function WorkPicker({
           <Spinner size={18} />
         </div>
       ) : groups.length === 0 ? (
-        <p className="py-8 text-center text-sm text-text-muted">
+        <p className="py-8 text-center text-meta text-text-muted">
           {t('staff.give.noWork')}
         </p>
       ) : (
         groups.map((g) => (
           <section key={g.domain} className="flex flex-col gap-1.5">
-            <h3 className="px-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
+            <h3 className="px-1 text-meta font-semibold uppercase tracking-wide text-text-subtle">
               {t(DOMAIN_LABEL_KEY[g.domain])}
             </h3>
             {g.items.map((item) => {
@@ -503,10 +503,10 @@ function WorkPicker({
                   >
                     <Check width={14} strokeWidth={2.5} />
                   </span>
-                  <span className="min-w-0 flex-1 text-sm font-medium text-text">
+                  <span className="min-w-0 flex-1 text-meta font-medium text-text">
                     {pick(lang, item.labelEn, item.labelHi)}
                   </span>
-                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
                     {fmtPoints(item.points)}
                   </span>
                 </button>
@@ -573,7 +573,7 @@ function Configure({
       {/* Who did it — a single chip, or a checklist to add co-workers */}
       {canPickWorkers ? (
         <div className="flex flex-col gap-1.5">
-          <p className="px-1 text-xs font-semibold text-text-muted">
+          <p className="px-1 text-meta font-semibold text-text-muted">
             {t('staff.give.whoTogether')}
           </p>
           <ul className="flex flex-col gap-1.5">
@@ -593,7 +593,7 @@ function Configure({
                     )}
                   >
                     <Avatar name={e.name} size={36} />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-text">
+                    <span className="min-w-0 flex-1 truncate text-meta font-medium text-text">
                       {e.name}
                     </span>
                     <span
@@ -620,7 +620,7 @@ function Configure({
               className="inline-flex items-center gap-2 rounded-full bg-surface-2 py-1 pl-1 pr-3"
             >
               <Avatar name={e.name} size={28} />
-              <span className="text-sm font-medium text-text">{e.name}</span>
+              <span className="text-meta font-medium text-text">{e.name}</span>
             </span>
           ))}
         </div>
@@ -629,13 +629,13 @@ function Configure({
       {/* The work(s) they did */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between px-1">
-          <p className="text-xs font-semibold text-text-muted">
+          <p className="text-meta font-semibold text-text-muted">
             {t('staff.give.worksHeader')}
           </p>
           <button
             type="button"
             onClick={onAddMore}
-            className="text-xs font-semibold text-brand active:opacity-70"
+            className="text-cta text-brand active:opacity-70"
           >
             {t('staff.give.addMoreWork')}
           </button>
@@ -664,7 +664,7 @@ function Configure({
 
       {/* Day (defaults to today; tap to change to a recent day) */}
       <div className="flex flex-col gap-1.5">
-        <label className="px-1 text-xs font-semibold text-text-muted">
+        <label className="px-1 text-subheading text-text-muted">
           {t('staff.give.date')}
         </label>
         <Input
@@ -735,10 +735,10 @@ function WorkRow({
   return (
     <li className="rounded-2xl border border-border bg-surface p-3">
       <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 text-sm font-medium text-text">
+        <span className="min-w-0 flex-1 text-meta font-medium text-text">
           {pick(lang, item.labelEn, item.labelHi)}
         </span>
-        <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
+        <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
           {t('staff.give.perEach', { points: fmtPoints(per) })}
         </span>
         {canRemove ? (
@@ -753,7 +753,7 @@ function WorkRow({
         ) : null}
       </div>
 
-      {hint ? <p className="mt-1 text-xs text-text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-meta text-text-muted">{hint}</p> : null}
 
       {isRupee ? (
         <div className="mt-2">
@@ -763,25 +763,25 @@ function WorkRow({
               showAmountError ? 'border-danger' : 'border-border-strong',
             )}
           >
-            <span className="text-base font-semibold text-text-muted">₹</span>
+            <span className="text-body font-semibold text-text-muted">₹</span>
             <input
               value={amount}
               onChange={(e) => onAmount(item.code, e.target.value)}
               inputMode="decimal"
               placeholder={t('staff.enterAmount')}
               aria-label={t('staff.amountRupees')}
-              className="h-11 w-full bg-transparent text-base text-text outline-none placeholder:text-text-subtle"
+              className="h-11 w-full bg-transparent text-body text-text outline-none placeholder:text-text-subtle"
             />
           </div>
           {showAmountError ? (
-            <p className="mt-1 px-1 text-xs text-danger">
+            <p className="mt-1 px-1 text-meta text-danger">
               {t('staff.amountRequired')}
             </p>
           ) : null}
         </div>
       ) : isPerUnit ? (
         <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2">
-          <span className="text-sm font-medium text-text">{unitLabel}</span>
+          <span className="text-meta font-medium text-text">{unitLabel}</span>
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -791,7 +791,7 @@ function WorkRow({
             >
               <Minus width={18} strokeWidth={2} />
             </button>
-            <span className="w-8 text-center text-lg font-semibold text-text">
+            <span className="w-8 text-center text-subheading text-text">
               {qty}
             </span>
             <button
@@ -816,7 +816,7 @@ function WorkRow({
         <div className="mt-2">
           <label
             htmlFor={`note-${item.code}`}
-            className="mb-1 block px-1 text-xs font-semibold text-text-muted"
+            className="mb-1 block px-1 text-subheading text-text-muted"
           >
             {t('staff.workNote')}
           </label>
@@ -829,13 +829,13 @@ function WorkRow({
             placeholder={t('staff.workNotePlaceholder')}
             aria-invalid={showNoteError || undefined}
             className={cn(
-              'w-full resize-none rounded-xl border bg-surface-2 px-3 py-2 text-base text-text outline-none placeholder:text-text-subtle',
+              'w-full resize-none rounded-xl border bg-surface-2 px-3 py-2 text-body text-text outline-none placeholder:text-text-subtle',
               showNoteError ? 'border-danger' : 'border-border-strong',
             )}
           />
           <p
             className={cn(
-              'mt-1 px-1 text-xs',
+              'mt-1 px-1 text-meta',
               showNoteError ? 'text-danger' : 'text-text-muted',
             )}
           >

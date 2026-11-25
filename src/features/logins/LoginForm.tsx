@@ -68,9 +68,9 @@ export function LoginForm({
 
   return (
     <form onSubmit={(e) => void submit(e)} autoComplete="off" noValidate className="flex flex-col gap-3">
-      {lead ? <p className="text-sm font-medium text-text">{lead}</p> : null}
+      {lead ? <p className="text-meta font-medium text-text">{lead}</p> : null}
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${ids}-id`} className="text-xs font-medium text-text-muted">
+        <label htmlFor={`${ids}-id`} className="text-subheading text-text-muted">
           {t('chat.portalUserId')}
         </label>
         <Input
@@ -87,7 +87,7 @@ export function LoginForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${ids}-pw`} className="text-xs font-medium text-text-muted">
+        <label htmlFor={`${ids}-pw`} className="text-subheading text-text-muted">
           {t('chat.portalPassword')}
         </label>
         <div className="relative">
@@ -120,7 +120,7 @@ export function LoginForm({
         </div>
       </div>
       {errorKey ? (
-        <p role="alert" className="rounded-lg bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+        <p role="alert" className="rounded-lg bg-warning-soft px-3 py-2 text-meta text-warning-strong">
           {t(errorKey)}
         </p>
       ) : null}

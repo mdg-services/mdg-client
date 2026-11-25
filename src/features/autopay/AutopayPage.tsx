@@ -51,9 +51,9 @@ function ChatRow({ title, description }: { title: string; description?: string }
           aria-hidden
         />
         <span className="min-w-0 flex-1">
-          <span className="block text-base font-medium text-text">{title}</span>
+          <span className="block text-body font-medium text-text">{title}</span>
           {description ? (
-            <span className="block text-base text-text-muted">{description}</span>
+            <span className="block text-body text-text-muted">{description}</span>
           ) : null}
         </span>
         <ChevronRight width={20} height={20} className="shrink-0 text-text-subtle" aria-hidden />
@@ -107,12 +107,12 @@ function AutopayDetail({ autopay }: { autopay: DealerAutopay }) {
             </p>
             <AutopayChip state={autopay.state} />
           </div>
-          <p className="text-base font-medium text-text-muted">
+          <p className="text-body font-medium text-text-muted">
             {t('autopay.pump', { code: dealerCodeLabel(autopay.outletCode) })}
           </p>
-          <p className="text-base text-text">{autopayBody(t, lang, autopay)}</p>
+          <p className="text-body text-text">{autopayBody(t, lang, autopay)}</p>
           {paidTillLine(t, lang, autopay) ? (
-            <p className="text-base font-medium text-text">{paidTillLine(t, lang, autopay)}</p>
+            <p className="text-body font-medium text-text">{paidTillLine(t, lang, autopay)}</p>
           ) : null}
         </CardContent>
       </Card>

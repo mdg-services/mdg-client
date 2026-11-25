@@ -136,7 +136,7 @@ export function EditWorkerDialog({
 
       <div className="animate-in relative w-full max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-lg">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-text">
+          <h2 className="text-meta font-semibold text-text">
             {t('staff.editWorker')}
           </h2>
           <button
@@ -155,10 +155,10 @@ export function EditWorkerDialog({
           {employee.onLeaveToday ? (
             <div className="flex items-center justify-between gap-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-[11px] font-medium text-warning">
+                <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
                   {t('staff.onLeave')}
                 </span>
-                <span className="truncate text-xs text-text-muted">
+                <span className="truncate text-meta text-text-muted">
                   {t('staff.leaveTodayHint')}
                 </span>
               </div>
@@ -174,7 +174,7 @@ export function EditWorkerDialog({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <p className="text-xs text-text-muted">{t('staff.markLeaveHint')}</p>
+              <p className="text-meta text-text-muted">{t('staff.markLeaveHint')}</p>
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -201,7 +201,7 @@ export function EditWorkerDialog({
         </div>
 
         <form onSubmit={onSave} className="flex flex-col gap-2" noValidate>
-          <label className="px-1 text-xs font-semibold text-text-muted">
+          <label className="px-1 text-subheading text-text-muted">
             {t('staff.workerName')}
           </label>
           <Input
@@ -214,12 +214,12 @@ export function EditWorkerDialog({
             {...register('name')}
           />
           {errors.name ? (
-            <p className="px-1 text-xs text-danger">
+            <p className="px-1 text-meta text-danger">
               {t('staff.form.nameRequired')}
             </p>
           ) : null}
 
-          <label className="mt-1 px-1 text-xs font-semibold text-text-muted">
+          <label className="mt-1 px-1 text-subheading text-text-muted">
             {t('staff.workerDesignation')}
           </label>
           <Input
@@ -229,7 +229,7 @@ export function EditWorkerDialog({
             {...register('designation')}
           />
 
-          <label className="mt-1 px-1 text-xs font-semibold text-text-muted">
+          <label className="mt-1 px-1 text-subheading text-text-muted">
             {t('staff.workerPhone')}
           </label>
           <Input
@@ -253,7 +253,7 @@ export function EditWorkerDialog({
         <div className="mt-3 border-t border-border pt-3">
           {confirmRemove ? (
             <div className="flex flex-col gap-2">
-              <p className="text-xs text-text-muted">
+              <p className="text-meta text-text-muted">
                 {t('staff.removeWorkerConfirm', { name: employee.name })}
               </p>
               <div className="flex gap-2">

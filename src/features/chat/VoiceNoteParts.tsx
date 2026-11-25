@@ -81,8 +81,8 @@ export function MicStatusStrip({
     >
       <MicOff width={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-danger" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium leading-snug">{title}</p>
-        {hint ? <p className="mt-0.5 text-[13px] leading-snug text-wa-meta">{hint}</p> : null}
+        <p className="text-body font-medium leading-snug">{title}</p>
+        {hint ? <p className="mt-0.5 text-meta leading-snug text-wa-meta">{hint}</p> : null}
         {actions.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-2">
             {actions.map((a) => (
@@ -91,7 +91,7 @@ export function MicStatusStrip({
                 type="button"
                 onClick={a.onClick}
                 className={cn(
-                  'rounded-full px-3.5 py-1.5 text-sm font-medium active:opacity-70',
+                  'rounded-full px-3.5 py-1.5 text-meta font-medium active:opacity-70',
                   a.primary
                     ? 'bg-wa-accent text-white'
                     : 'border border-wa-divider bg-transparent text-wa-bubble-text',
@@ -166,7 +166,7 @@ export function VoiceReviewBar({
         role="status"
         aria-live="polite"
         className={cn(
-          'mb-1.5 rounded-xl px-3 py-1.5 text-[13px] leading-snug',
+          'mb-1.5 rounded-xl px-3 py-1.5 text-meta leading-snug',
           warn ? 'bg-warning-soft text-warning-strong' : 'bg-wa-chip text-wa-meta',
         )}
       >
@@ -190,7 +190,7 @@ export function VoiceReviewBar({
           >
             {playing ? <Pause width={20} strokeWidth={1.75} /> : <Play width={20} strokeWidth={1.75} />}
           </button>
-          <span className="shrink-0 text-sm font-medium tabular-nums text-wa-bubble-text">
+          <span className="shrink-0 text-meta font-medium tabular-nums text-wa-bubble-text">
             {formatDuration(clip.durationMs)}
           </span>
           <audio
@@ -220,7 +220,7 @@ export function VoiceReviewBar({
           <button
             type="button"
             onClick={onRecordAgain}
-            className="rounded-full bg-wa-accent px-3.5 py-1.5 text-sm font-medium text-white active:opacity-70"
+            className="rounded-full bg-wa-accent px-3.5 py-1.5 text-meta font-medium text-white active:opacity-70"
           >
             {t('chat.voiceRecordAgain')}
           </button>
@@ -228,7 +228,7 @@ export function VoiceReviewBar({
             type="button"
             onClick={onSend}
             disabled={sending}
-            className="rounded-full border border-wa-divider px-3.5 py-1.5 text-sm font-medium text-wa-bubble-text active:opacity-70"
+            className="rounded-full border border-wa-divider px-3.5 py-1.5 text-meta font-medium text-wa-bubble-text active:opacity-70"
           >
             {t('chat.voiceSendAnyway')}
           </button>
@@ -266,12 +266,12 @@ export function MicExplainerSheet({ onOk, onClose }: { onOk: () => void; onClose
       />
       <div className="safe-bottom relative mx-auto w-full max-w-md px-3">
         <div className="rounded-2xl bg-wa-chip px-5 py-5 shadow-lg animate-in">
-          <p className="text-base leading-snug text-wa-bubble-text">{t(line)}</p>
+          <p className="text-body leading-snug text-wa-bubble-text">{t(line)}</p>
           <div className="mt-4 flex justify-end">
             <button
               type="button"
               onClick={onOk}
-              className="rounded-full bg-wa-accent px-5 py-2 text-sm font-medium text-white active:opacity-70"
+              className="rounded-full bg-wa-accent px-5 py-2 text-cta text-white active:opacity-70"
             >
               {t('chat.micExplainerOk')}
             </button>
@@ -292,7 +292,7 @@ export function LockPill() {
     <div className="pointer-events-none absolute -top-[6.5rem] right-1 z-10 flex w-[4.5rem] flex-col items-center gap-0.5 rounded-3xl bg-wa-chip px-1 py-2 text-wa-meta shadow-md">
       <Lock width={16} strokeWidth={2} aria-hidden />
       <ChevronUp width={16} strokeWidth={2} className="animate-bounce" aria-hidden />
-      <span className="text-center text-[11px] leading-tight">{t('chat.slideToLock')}</span>
+      <span className="text-center text-meta leading-tight">{t('chat.slideToLock')}</span>
     </div>
   );
 }

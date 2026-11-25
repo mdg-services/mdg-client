@@ -27,7 +27,7 @@ import { useOutletDetails, useSaveOutletDetails } from './useOutletDetails';
 
 /** 16px text, so an iPhone does not zoom in on the box; 44px tall, so a thumb finds it. */
 const FIELD_CLASS =
-  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60';
+  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60';
 
 /**
  * The Pump details form inside an MDG message (`message.outletDetails`): the
@@ -106,12 +106,12 @@ function Form({ view }: { view: OutletDetailsView }) {
               const text = answerText(question, lang, words);
               return (
                 <div key={question.id} data-question={question.id} className="min-w-0">
-                  <dt className="break-words text-[12px] leading-tight text-wa-meta">
+                  <dt className="break-words text-meta leading-tight text-wa-meta">
                     {pickWords(question.label, lang)}
                   </dt>
                   <dd
                     className={cn(
-                      'flex items-center gap-1.5 break-words text-[14px] leading-snug',
+                      'flex items-center gap-1.5 break-words text-meta leading-snug',
                       text === null ? 'text-wa-meta' : 'font-medium',
                     )}
                   >
@@ -213,7 +213,7 @@ function Form({ view }: { view: OutletDetailsView }) {
               setEdits({});
               setEditing(false);
             }}
-            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10 disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10 disabled:opacity-60"
           >
             {t('common.cancel')}
           </button>
@@ -226,7 +226,7 @@ function Form({ view }: { view: OutletDetailsView }) {
 function Heading({ title, intro }: { title: string; intro: string }) {
   return (
     <>
-      {title ? <p className="break-words text-[14px] font-medium leading-snug">{title}</p> : null}
+      {title ? <p className="break-words text-meta font-medium leading-snug">{title}</p> : null}
       {intro ? <Note className="break-words">{intro}</Note> : null}
     </>
   );
@@ -236,7 +236,7 @@ function Heading({ title, intro }: { title: string; intro: string }) {
 function SavedLine() {
   const t = useT();
   return (
-    <p role="status" className="flex items-center gap-1.5 text-[13px] leading-snug text-wa-meta">
+    <p role="status" className="flex items-center gap-1.5 text-meta leading-snug text-wa-meta">
       <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
       {t('outletDetails.saved')}
     </p>
@@ -267,14 +267,14 @@ function QuestionRow({
 
   return (
     <div data-question={question.id} data-kind={question.kind} className="min-w-0">
-      <p id={`${fieldId}-label`} className="mb-1 break-words text-[14px] font-medium leading-snug">
+      <p id={`${fieldId}-label`} className="mb-1 break-words text-meta font-medium leading-snug">
         {label}
         {question.required ? (
-          <span className="ml-1.5 text-[12px] font-normal text-wa-meta">{t('common.required')}</span>
+          <span className="ml-1.5 text-meta font-normal text-wa-meta">{t('common.required')}</span>
         ) : null}
       </p>
       {help ? (
-        <p id={helpId} className="mb-1 break-words text-[13px] leading-snug text-wa-meta">
+        <p id={helpId} className="mb-1 break-words text-meta leading-snug text-wa-meta">
           {help}
         </p>
       ) : null}
@@ -292,7 +292,7 @@ function QuestionRow({
       ) : (
         // A kind this app does not know: the label (above) and what is saved, as words.
         <Block>
-          <p className="break-words text-[14px] leading-snug">
+          <p className="break-words text-meta leading-snug">
             {answerText(question, lang, { yes: t('outletDetails.yes'), no: t('outletDetails.no') }) ??
               t('outletDetails.notAnswered')}
           </p>
@@ -325,7 +325,7 @@ function BigButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border-2 px-3 py-1.5 text-left text-[16px] font-medium leading-snug text-wa-bubble-text active:bg-black/10 disabled:opacity-60',
+        'flex min-h-11 w-full items-center justify-between gap-2 rounded-lg border-2 px-3 py-1.5 text-left text-body font-medium leading-snug text-wa-bubble-text active:bg-black/10 disabled:opacity-60',
         chosen ? 'border-wa-accent bg-wa-row-active' : 'border-wa-divider bg-wa-in',
       )}
     >

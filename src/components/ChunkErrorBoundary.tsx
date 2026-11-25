@@ -47,7 +47,7 @@ export class ChunkErrorBoundary extends React.Component<
     if (this.state.failed) {
       return (
         <div className="flex min-h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm text-text-muted">
+          <p className="text-body text-text-muted">
             कुछ लोड नहीं हो पाया।
             <br />
             <span className="text-text-subtle">Something didn’t load.</span>
@@ -55,7 +55,7 @@ export class ChunkErrorBoundary extends React.Component<
           <button
             type="button"
             onClick={this.handleReload}
-            className="rounded-full bg-brand px-5 py-2 text-sm font-medium text-text-inverse"
+            className="rounded-full bg-brand px-5 py-2 text-cta text-text-inverse"
           >
             दोबारा कोशिश करें · Try again
           </button>

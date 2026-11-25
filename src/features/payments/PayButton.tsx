@@ -51,7 +51,7 @@ export function PayButton({
     return wrap(
       <p
         role="status"
-        className="rounded-lg bg-success-soft p-3 text-base font-medium text-emerald-800"
+        className="rounded-lg bg-success-soft p-3 text-body font-medium text-emerald-800"
       >
         {t('payments.paidNow')}
       </p>,
@@ -62,7 +62,7 @@ export function PayButton({
     // A `processing` row already says this itself, in the same words.
     if (!payable) return null;
     return wrap(
-      <p role="status" className="rounded-lg bg-warning-soft p-3 text-base text-warning-strong">
+      <p role="status" className="rounded-lg bg-warning-soft p-3 text-body text-warning-strong">
         {t('payments.confirmingNote')}
       </p>,
     );
@@ -70,7 +70,7 @@ export function PayButton({
 
   if (phase.name === 'confirming' || phase.name === 'checking') {
     return wrap(
-      <p role="status" className="flex items-center gap-2 py-2 text-base text-text-muted">
+      <p role="status" className="flex items-center gap-2 py-2 text-body text-text-muted">
         <Loader2 width={18} height={18} strokeWidth={1.75} className="animate-spin" aria-hidden />
         {t(phase.name === 'confirming' ? 'payments.confirming' : 'payments.checking')}
       </p>,
@@ -82,7 +82,7 @@ export function PayButton({
   return wrap(
     <div className="flex flex-col gap-2">
       {phase.name === 'failed' ? (
-        <p role="alert" className="text-base text-danger">
+        <p role="alert" className="text-body text-danger">
           {t(phase.key, phase.vars)}
         </p>
       ) : null}

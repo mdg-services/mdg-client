@@ -32,7 +32,7 @@ export function PaymentStatusChip({ status }: { status: PaymentStatus }) {
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-base font-medium',
+        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-body font-medium',
         TONE_CLASS[STATUS_TONE[status]],
       )}
     >

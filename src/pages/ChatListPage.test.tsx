@@ -37,8 +37,11 @@ vi.mock('@/hooks/api/useMyConversations', () => ({
   myConversationsKey: ['conversations', 'mine'],
   useMyConversations: () => h.result,
 }));
+// The tab bar's badge reads the Today feed; nothing here is about it.
+vi.mock('@/hooks/api/useTodayFeed', () => ({ useTodayFeed: () => ({ data: undefined }) }));
 
 const { ChatListPage } = await import('./ChatListPage');
+const { TabBar } = await import('@/features/tabs/TabBar');
 
 /** A Wednesday afternoon (local time), so "today", "yesterday" and a weekday are all reachable. */
 const NOW = new Date(2026, 9, 14, 15, 30);
@@ -92,14 +95,14 @@ afterEach(() => {
   h.refetch.mockReset();
 });
 
-describe('ChatListPage — the first screen', () => {
+describe('ChatListPage — the Chats tab', () => {
   it('is headed by the app name, with a search icon and a ⋮ menu', () => {
     h.result = loaded([support()]);
     renderList();
     expect(screen.getByText('Dealer Kavach')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'More options' })).toBeInTheDocument();
-    // No back arrow: this is where the app starts.
+    // No back arrow: it is a root screen, one of the two tabs.
     expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
   });
 
@@ -112,8 +115,8 @@ describe('ChatListPage — the first screen', () => {
   });
 
   /**
-   * It used to skip the list for a member with exactly one thread. With no tab
-   * bar the list is the only place Settings can hang from, and WhatsApp itself
+   * It used to skip the list for a member with exactly one thread. The list is
+   * the Chats tab and carries the search and the ⋮ menu, and WhatsApp itself
    * always opens on its list.
    */
   it('shows the list even when there is exactly one chat — no auto-forward', () => {
@@ -353,6 +356,40 @@ describe('ChatListPage — the chips', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Groups' }));
     expect(screen.getByText('Manager chat')).toBeInTheDocument();
     expect(screen.queryByText('Support')).not.toBeInTheDocument();
+  });
+});
+
+describe('ChatListPage — the tab bar', () => {
+  function renderWithBar() {
+    signIn({ id: 'owner' });
+    useLangStore.setState({ lang: 'en', explicit: true });
+    return renderWithProviders(
+      <Routes>
+        <Route
+          path="/chat"
+          element={
+            <>
+              <ChatListPage />
+              <TabBar />
+            </>
+          }
+        />
+      </Routes>,
+      { route: '/chat', withRouter: true },
+    );
+  }
+
+  it('shows the bar with Chats selected, and puts it away while the search is open', async () => {
+    h.result = loaded([support()]);
+    renderWithBar();
+    expect(screen.getByRole('tab', { name: /^Chats/ })).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+    expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByRole('tablist')).toBeInTheDocument();
   });
 });
 

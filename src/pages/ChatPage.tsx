@@ -26,6 +26,7 @@ import {
   dealerSideIdsOf,
   senderDisplayName,
 } from '@/features/chat/replyContext';
+import { chatAttachments } from '@/features/chat/reportBubble';
 import { TicketBar } from '@/features/chat/TicketBar';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
@@ -280,7 +281,8 @@ export function ChatPage() {
     if (!sole) return;
     clearSelection();
     const source = { conversationId: sole.conversationId, messageId: sole.id };
-    for (const a of sole.attachments) {
+    // A report's card is downloaded from Today, with the picture open; here it is words.
+    for (const a of chatAttachments(sole)) {
       await download(a, source);
     }
   };
@@ -358,6 +360,15 @@ export function ChatPage() {
       navigate(location.pathname, { replace: true, state: null });
     }
   }, [wantedMessage, threadReady, navigate, location.pathname]);
+
+  // A sentence another screen wants typed in the message box and NOT sent (a report's "Order now").
+  // Spent the moment it is taken, so coming back to the chat does not type it again.
+  const wantedDraft = (location.state as { draftText?: string } | null)?.draftText;
+  React.useEffect(() => {
+    if (!wantedDraft) return;
+    setComposerSeed((prev) => ({ text: wantedDraft, n: (prev?.n ?? 0) + 1 }));
+    navigate(location.pathname, { replace: true, state: null });
+  }, [wantedDraft, navigate, location.pathname]);
 
   // Sheets hold a message SNAPSHOT; keep them live against the cache so e.g.
   // the who-reacted list updates in place as reactions land.
@@ -513,11 +524,11 @@ export function ChatPage() {
       <>
         <AppBar title={t('chat.support')} onBack={goBack} backLabel={t('chat.backToChats')} />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4">
-          <p className="text-sm text-text-muted">{t('chat.conversationNotFound')}</p>
+          <p className="text-meta text-text-muted">{t('chat.conversationNotFound')}</p>
           <button
             type="button"
             onClick={() => navigate('/chat', { replace: true })}
-            className="rounded-full border border-border bg-surface px-4 py-1.5 text-sm text-text hover:bg-surface-2"
+            className="rounded-full border border-border bg-surface px-4 py-1.5 text-meta text-text hover:bg-surface-2"
           >
             {t('chat.backToChats')}
           </button>
@@ -570,7 +581,7 @@ export function ChatPage() {
               : undefined
           }
           onCopy={hasWordsSelected ? () => void copySelected() : undefined}
-          onDownload={sole && sole.attachments.length > 0 ? () => void downloadSelected() : undefined}
+          onDownload={sole && chatAttachments(sole).length > 0 ? () => void downloadSelected() : undefined}
           onInfo={sole && isSoleMine ? infoForSelected : undefined}
         />
       ) : searching ? (
@@ -655,7 +666,6 @@ export function ChatPage() {
         onReact={reactFromStrip}
         onOpenReactions={handleOpenReactions}
         onReply={handleReply}
-        tickets={conversation?.tickets}
         unread={unread}
         jumpTo={jump}
         highlight={searching ? search.term : undefined}

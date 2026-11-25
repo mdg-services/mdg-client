@@ -14,7 +14,7 @@ export function roleLabel(role: User['role'], t: TFunction): string {
 export function RoleBadge({ role }: { role: User['role'] }) {
   const t = useT();
   return (
-    <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-text-muted">
+    <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-meta font-medium text-text-muted">
       {roleLabel(role, t)}
     </span>
   );

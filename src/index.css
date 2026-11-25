@@ -76,6 +76,126 @@
   --color-online: #14b8a6;
 }
 
+/* The report families and statuses (ADR 0056). */
+:root {
+  /* Report families (ADR 0056). `fill` carries white text (>= 7:1); `soft` sits behind a
+     drawing; `ink` is the colour of text and lines on the page. One family colour never
+     means a status: status has its own tokens below and is always drawn with a shape and a word. */
+  --kind-dsr: #1e3a8a;
+  --kind-dsr-soft: #e0e7ff;
+  --kind-dsr-ink: #1e3a8a;
+  --kind-stock: #075985;
+  --kind-stock-soft: #e0f2fe;
+  --kind-stock-ink: #075985;
+  --kind-tanker: #155e75;
+  --kind-tanker-soft: #cffafe;
+  --kind-tanker-ink: #155e75;
+  --kind-credit: #3730a3;
+  --kind-credit-soft: #e0e7ff;
+  --kind-credit-ink: #3730a3;
+  --kind-ledger: #5b21b6;
+  --kind-ledger-soft: #ede9fe;
+  --kind-ledger-ink: #5b21b6;
+  --kind-claim: #6d28d9;
+  --kind-claim-soft: #ede9fe;
+  --kind-claim-ink: #6d28d9;
+  --kind-water: #115e59;
+  --kind-water-soft: #ccfbf1;
+  --kind-water-ink: #115e59;
+  --kind-supply: #334155;
+  --kind-supply-soft: #e2e8f0;
+  --kind-supply-ink: #334155;
+  --kind-paper: #3f3f46;
+  --kind-paper-soft: #e4e4e7;
+  --kind-paper-ink: #3f3f46;
+  --kind-paperwork: #86198f;
+  --kind-paperwork-soft: #fae8ff;
+  --kind-paperwork-ink: #86198f;
+  --kind-kavach: #18181b;
+  --kind-kavach-soft: #f4f4f5;
+  --kind-kavach-ink: #18181b;
+  --kind-news: #44403c;
+  --kind-news-soft: #e7e5e4;
+  --kind-news-ink: #44403c;
+  /* Status (ADR 0056): `fill` takes white text; `soft` is the tint of an alert; `ink` is text on the page. */
+  --status-problem: #b91c1c;
+  --status-problem-soft: #fee2e2;
+  --status-problem-ink: #b91c1c;
+  --status-attention: #92400e;
+  --status-attention-soft: #fef3c7;
+  --status-attention-ink: #92400e;
+  --status-waiting: #1d4ed8;
+  --status-waiting-soft: #dbeafe;
+  --status-waiting-ink: #1d4ed8;
+  --status-ok: #166534;
+  --status-ok-soft: #dcfce7;
+  --status-ok-ink: #166534;
+  --status-info: #475569;
+  --status-info-soft: #e2e8f0;
+  --status-info-ink: #475569;
+  /* Fuel swatches: a 10 px chip beside the fuel letters, never the only cue. */
+  --fuel-diesel: #2f5fa8;
+  --fuel-petrol: #9a3412;
+  --fuel-other: #57534e;
+}
+
+.dark {
+  --kind-dsr: #1e3a8a;
+  --kind-dsr-soft: #172554;
+  --kind-dsr-ink: #c7d2fe;
+  --kind-stock: #075985;
+  --kind-stock-soft: #082f49;
+  --kind-stock-ink: #bae6fd;
+  --kind-tanker: #155e75;
+  --kind-tanker-soft: #083344;
+  --kind-tanker-ink: #a5f3fc;
+  --kind-credit: #3730a3;
+  --kind-credit-soft: #1e1b4b;
+  --kind-credit-ink: #c7d2fe;
+  --kind-ledger: #5b21b6;
+  --kind-ledger-soft: #2e1065;
+  --kind-ledger-ink: #ddd6fe;
+  --kind-claim: #6d28d9;
+  --kind-claim-soft: #2e1065;
+  --kind-claim-ink: #ddd6fe;
+  --kind-water: #115e59;
+  --kind-water-soft: #042f2e;
+  --kind-water-ink: #99f6e4;
+  --kind-supply: #334155;
+  --kind-supply-soft: #1e293b;
+  --kind-supply-ink: #cbd5e1;
+  --kind-paper: #3f3f46;
+  --kind-paper-soft: #27272a;
+  --kind-paper-ink: #d4d4d8;
+  --kind-paperwork: #86198f;
+  --kind-paperwork-soft: #4a044e;
+  --kind-paperwork-ink: #f5d0fe;
+  --kind-kavach: #27272a;
+  --kind-kavach-soft: #27272a;
+  --kind-kavach-ink: #e4e4e7;
+  --kind-news: #44403c;
+  --kind-news-soft: #292524;
+  --kind-news-ink: #d6d3d1;
+  --status-problem: #b91c1c;
+  --status-problem-soft: #450a0a;
+  --status-problem-ink: #fca5a5;
+  --status-attention: #92400e;
+  --status-attention-soft: #451a03;
+  --status-attention-ink: #fcd34d;
+  --status-waiting: #1d4ed8;
+  --status-waiting-soft: #172554;
+  --status-waiting-ink: #93c5fd;
+  --status-ok: #166534;
+  --status-ok-soft: #052e16;
+  --status-ok-ink: #86efac;
+  --status-info: #475569;
+  --status-info-soft: #1e293b;
+  --status-info-ink: #cbd5e1;
+  --fuel-diesel: #6f9ce0;
+  --fuel-petrol: #fb923c;
+  --fuel-other: #a8a29e;
+}
+
 @layer base {
   html,
   body,

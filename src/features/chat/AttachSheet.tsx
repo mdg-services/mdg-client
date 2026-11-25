@@ -68,7 +68,7 @@ export function AttachSheet({
               >
                 <Icon width={26} strokeWidth={1.75} />
               </span>
-              <span className="text-[13px] text-wa-chip-text">
+              <span className="text-meta text-wa-chip-text">
                 {t(choice === 'gallery' && ios ? 'composer.attachPhotos' : labelKey)}
               </span>
             </button>

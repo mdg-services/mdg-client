@@ -1889,7 +1889,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
               // beside the box has already turned into Send by the time the
               // keyboard would have finished animating in.
               onClick={() => setText(label)}
-              className="shrink-0 rounded-full border border-wa-divider bg-wa-chip px-3.5 py-1.5 text-sm text-wa-bubble-text shadow-sm active:bg-wa-row-active"
+              className="shrink-0 rounded-full border border-wa-divider bg-wa-chip px-3.5 py-1.5 text-meta text-wa-bubble-text shadow-sm active:bg-wa-row-active"
             >
               {label}
             </button>
@@ -1978,7 +1978,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
           {/* Says, in words, that the phone is recording. A plain tap starts a
               hands-free recording, and without this line a dealer who tapped
               did not know the mic was on. */}
-          <p className="mb-1 flex items-center gap-1.5 px-2 text-[13px] text-wa-meta" aria-live="polite">
+          <p className="mb-1 flex items-center gap-1.5 px-2 text-meta text-wa-meta" aria-live="polite">
             {micOpen ? <RecordingDot /> : null}
             <span className="truncate">
               {micOpen ? t('chat.recordingLocked') : t('chat.micStarting')}
@@ -2003,7 +2003,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                     active={recorder.status === 'recording'}
                     bars={22}
                   />
-                  <span className="shrink-0 text-sm font-medium tabular-nums text-wa-bubble-text">
+                  <span className="shrink-0 text-meta font-medium tabular-nums text-wa-bubble-text">
                     {formatDuration(recorder.elapsedMs)}
                   </span>
                 </>
@@ -2035,10 +2035,10 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 className="m-1.5 mb-0 flex items-center gap-2 rounded-2xl border-l-4 border-wa-accent-strong bg-wa-row-active py-1.5 pl-3 pr-1"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-medium text-wa-accent-strong">
+                  <p className="truncate text-meta font-medium text-wa-accent-strong">
                     {replyingTo.senderLabel}
                   </p>
-                  <p className="flex items-center gap-1 text-[13px] text-wa-meta">
+                  <p className="flex items-center gap-1 text-meta text-wa-meta">
                     {ReplyIcon ? (
                       <ReplyIcon width={13} strokeWidth={1.75} className="shrink-0" />
                     ) : null}
@@ -2071,7 +2071,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 placeholder={t('composer.message')}
                 className={cn(
                   'min-h-[48px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent py-3 pl-4 pr-1',
-                  'text-base leading-snug text-wa-bubble-text placeholder:text-wa-meta',
+                  'text-body leading-snug text-wa-bubble-text placeholder:text-wa-meta',
                   'focus:outline-none',
                 )}
                 disabled={disabled}
@@ -2182,7 +2182,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                       bars={10}
                     />
                   </div>
-                  <span className="shrink-0 text-sm font-medium tabular-nums text-wa-bubble-text">
+                  <span className="shrink-0 text-meta font-medium tabular-nums text-wa-bubble-text">
                     {formatDuration(recorder.elapsedMs)}
                   </span>
                 </>
@@ -2190,7 +2190,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 // No clock until the mic is really open: a clock counting from
                 // the press told the dealer to speak while nothing was recording,
                 // and their first words were lost.
-                <span className="shrink-0 text-sm text-wa-meta">{t('chat.micStarting')}</span>
+                <span className="shrink-0 text-meta text-wa-meta">{t('chat.micStarting')}</span>
               )}
               <div
                 ref={hintRef}
@@ -2200,7 +2200,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 )}
               >
                 <ChevronLeft width={16} strokeWidth={2} className="shrink-0" />
-                <span className="truncate text-sm">
+                <span className="truncate text-meta">
                   {cancelArmed ? t('chat.releaseToCancel') : t('chat.slideToCancel')}
                 </span>
               </div>

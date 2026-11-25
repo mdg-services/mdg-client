@@ -18,7 +18,7 @@ function renderAt(route: string, lang: 'en' | 'hi' = 'en') {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
-      <Route path="/chat" element={<div>chat-list</div>} />
+      <Route path="/" element={<div>today-page</div>} />
     </Routes>,
     { route },
   );
@@ -261,7 +261,7 @@ describe('RegisterPage', () => {
       renderAt('/register');
       await send(user);
 
-      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+      expect(await screen.findByText('today-page')).toBeInTheDocument();
       expect(useAuthStore.getState().token).toBe('new-token');
       const [url, init] = fetchMock.mock.calls[1] as [string, RequestInit];
       expect(url).toMatch(/\/v1\/auth\/login$/);
@@ -322,7 +322,7 @@ describe('RegisterPage', () => {
       await user.type(screen.getByLabelText('The 6-digit code'), '123 456');
       await user.click(screen.getByRole('button', { name: 'Open my account' }));
 
-      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+      expect(await screen.findByText('today-page')).toBeInTheDocument();
       expect(useAuthStore.getState().token).toBe('old-dealer');
       const [[, verify]] = callTo(/\/password-reset\/verify$/);
       expect(JSON.parse(verify!.body as string)).toEqual({ identifier: '9876543210', code: '123456' });
@@ -352,7 +352,7 @@ describe('RegisterPage', () => {
 
       await user.type(screen.getByLabelText('The 6-digit code'), '654321');
       await user.click(screen.getByRole('button', { name: 'Open my account' }));
-      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+      expect(await screen.findByText('today-page')).toBeInTheDocument();
     });
 
     it('the password is set but the sign-in did not go through: Sign in, with the number in', async () => {

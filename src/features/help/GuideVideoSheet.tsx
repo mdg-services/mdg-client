@@ -102,7 +102,7 @@ export function GuideVideoSheet({
         >
           <X width={24} height={24} strokeWidth={1.75} aria-hidden />
         </button>
-        <p className="min-w-0 flex-1 truncate pr-4 text-[16px]">{title}</p>
+        <p className="min-w-0 flex-1 truncate pr-4 text-body">{title}</p>
       </div>
 
       <div className="relative min-h-0 flex-1">
@@ -139,7 +139,7 @@ export function GuideVideoSheet({
             className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-8 text-center text-white/85"
           >
             <VideoOff width={32} strokeWidth={1.5} aria-hidden />
-            <span className="text-[16px] leading-snug">{t('help.playerFailed')}</span>
+            <span className="text-body leading-snug">{t('help.playerFailed')}</span>
           </button>
         ) : null}
       </div>

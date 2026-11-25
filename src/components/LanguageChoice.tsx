@@ -50,10 +50,10 @@ export function LanguageOptions({
               {on ? <span className="h-2.5 w-2.5 rounded-full bg-wa-accent" /> : null}
             </span>
             <span className="min-w-0">
-              <span className="block text-[17px] font-medium leading-snug text-wa-bar-text">
+              <span className="block text-subheading leading-snug text-wa-bar-text">
                 {info.name}
               </span>
-              <span className="block text-[13px] leading-snug text-wa-meta">{info.hint}</span>
+              <span className="block text-meta leading-snug text-wa-meta">{info.hint}</span>
             </span>
           </button>
         );
@@ -75,10 +75,10 @@ export function LanguageSample({ lang }: { lang: Lang }) {
       aria-live="polite"
       className="rounded-lg bg-wa-wallpaper p-3"
     >
-      <p className="text-[14px] leading-snug text-wa-bubble-text">{info.sample.explain}</p>
+      <p className="text-meta leading-snug text-wa-bubble-text">{info.sample.explain}</p>
       <div className="mt-2 max-w-[85%] rounded-lg rounded-tl-none bg-wa-in px-3 py-2 shadow-sm">
-        <p className="text-[12px] font-medium text-wa-accent">MDG</p>
-        <p className="text-[15px] leading-snug text-wa-bubble-text">{info.sample.example}</p>
+        <p className="text-meta font-medium text-wa-accent">MDG</p>
+        <p className="text-body leading-snug text-wa-bubble-text">{info.sample.example}</p>
       </div>
     </div>
   );

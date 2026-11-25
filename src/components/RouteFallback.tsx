@@ -11,12 +11,12 @@ function SlowNote() {
   React.useEffect(() => recordSlowNote(), []);
   return (
     <>
-      <p className="text-center text-sm text-text-muted">{t('app.stillLoading')}</p>
+      <p className="text-center text-body text-text-muted">{t('app.stillLoading')}</p>
       <button
         type="button"
         // The address already holds the screen asked for, so a reload opens it.
         onClick={() => window.location.reload()}
-        className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+        className="rounded-full bg-brand px-4 py-2 text-cta text-text-inverse active:opacity-90"
       >
         {t('common.retry')}
       </button>

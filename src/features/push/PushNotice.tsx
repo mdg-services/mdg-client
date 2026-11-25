@@ -31,8 +31,8 @@ export function PushNotice() {
     >
       <BellOff width={20} strokeWidth={1.75} aria-hidden className="shrink-0 text-wa-bar-icon" />
       <div className="min-w-0 flex-1">
-        <p className="text-[14px] font-medium text-wa-bar-text">{t('push.offTitle')}</p>
-        <p className="text-[13px] leading-snug text-wa-meta">
+        <p className="text-meta font-medium text-wa-bar-text">{t('push.offTitle')}</p>
+        <p className="text-meta leading-snug text-wa-meta">
           {canAskAgain ? t('push.offDescAsk') : t('push.offDesc')}
         </p>
       </div>

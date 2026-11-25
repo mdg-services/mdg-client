@@ -166,8 +166,8 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     hi: 'टैंक में पानी की जाँच, समय पर अपडेट',
   },
   'tt-density': {
-    en: 'the density of each new tanker, sent to your chat as a card',
-    hi: 'हर नए टैंकर की डेंसिटी, चैट में कार्ड के रूप में',
+    en: "the density of each new tanker, as a report that opens from the team's note in your chat",
+    hi: 'हर नए टैंकर की डेंसिटी, एक रिपोर्ट में जो चैट में टीम के संदेश के बटन से खुलती है',
   },
   'tanker-documents': {
     en: "your tanker's papers, such as the road permit, insurance and licences, kept in one place, with a warning in your chat before any of them runs out",
@@ -226,16 +226,16 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     hi: 'इंडियन ऑयल पोर्टल के डीलर डिक्लेरेशन मालिक की ओर से समय पर भरना — रोज़ का सेफ्टी डिक्लेरेशन, हर हफ़्ते दो फ़ोटो से वॉशरूम की सफ़ाई का डिक्लेरेशन और एक बार का स्टैंडर्ड फ़ॉर्म; ब्रांडेड फ्यूल का फ़ॉर्म खाली हो तो MDG की टीम को बताना',
   },
   'tt-acknowledgement': {
-    en: "the day's tanker receipts acknowledged on IndianOil's portal for the owner, with the vehicle condition entered as excellent and not inspected by MDG, and the portal's confirmation sent to your chat",
-    hi: 'दिन के टैंकरों की पावती इंडियन ऑयल पोर्टल पर मालिक की ओर से, गाड़ी की हालत Excellent भरकर (MDG गाड़ी की जाँच नहीं करता), और पोर्टल की पुष्टि आपकी चैट में',
+    en: "the day's tanker receipts acknowledged on IndianOil's portal for the owner, with the vehicle condition entered as excellent and not inspected by MDG, and the portal's confirmation told to you in the chat and listed on your Today page under Done for you",
+    hi: 'दिन के टैंकरों की पावती इंडियन ऑयल पोर्टल पर मालिक की ओर से, गाड़ी की हालत Excellent भरकर (MDG गाड़ी की जाँच नहीं करता), और पोर्टल की पुष्टि चैट में बताना और आज पेज पर "आज MDG ने किया" में दिखाना',
   },
   'fuel-indent': {
     en: "fuel orders (indents) placed on IndianOil's portal for the owner after the owner says yes to the order read back in the chat, every order tracked, and the owners and manager told in the chat the moment a tanker is assigned, with its number and shipment time",
     hi: 'इंडियन ऑयल पोर्टल पर लोड ऑर्डर (इंडेंट) — चैट में ऑर्डर पढ़कर सुनाने के बाद मालिक की "हाँ" पर मालिक की ओर से लगाना, हर ऑर्डर पर नज़र रखना, और टैंकर लगते ही उसका नंबर और शिपमेंट का समय मालिकों और मैनेजर को चैट में बताना',
   },
   'stock-check': {
-    en: 'the fuel in each tank right now, read from IRAS whenever the owner or manager asks in the chat, and sent back as a card with each tank, its litres and the time of the reading',
-    hi: 'हर टैंक में अभी कितना तेल है — मालिक या मैनेजर के चैट में पूछते ही IRAS से निकालकर, हर टैंक, उसके लीटर और रीडिंग के समय के साथ कार्ड में',
+    en: "the fuel in each tank right now, read from IRAS whenever the owner or manager asks in the chat, and shown as a report with each tank, its litres and the time of the reading, which opens from the team's note in the chat",
+    hi: 'हर टैंक में अभी कितना तेल है — मालिक या मैनेजर के चैट में पूछते ही IRAS से निकालकर, हर टैंक, उसके लीटर और रीडिंग के समय के साथ एक रिपोर्ट में, जो चैट में टीम के संदेश के बटन से खुलती है',
   },
   'electrical-audit': {
     en: "the open points of IndianOil's electrical audit closed on the portal for the owner when the owner or manager asks in the chat: every point marked complied with the action taken as done, saved and submitted, and what was filed told in the chat",

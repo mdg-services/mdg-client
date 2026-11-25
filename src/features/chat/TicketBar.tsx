@@ -7,8 +7,8 @@ import { msUntilBarChange, ticketBarView } from './ticketBarView';
 
 /**
  * The pinned bar under the chat header: where the dealer's open question stands,
- * in one quiet line — "#3 · Being worked on · update by 6:00 pm". For 24 hours
- * after a ticket is closed it says "#3 · Done ✓", then it goes.
+ * in one quiet line — "We are on it · update by 6:00 pm". For 24 hours
+ * after a ticket is closed it says "Done ✓", then it goes.
  *
  * Not a button, and the same white and grey as the header it hangs from: it
  * tells, it does not ask for anything. The line under the bubble that raised the
@@ -62,7 +62,7 @@ export function TicketBar({
       data-ticket-bar
       data-phase={bar.phase}
       role="status"
-      className="shrink-0 border-b border-wa-divider bg-wa-bar px-4 py-1.5 text-[13px] leading-snug text-wa-meta"
+      className="shrink-0 border-b border-wa-divider bg-wa-bar px-4 py-1.5 text-meta leading-snug text-wa-meta"
     >
       <span className="break-words">{bar.text}</span>
     </div>

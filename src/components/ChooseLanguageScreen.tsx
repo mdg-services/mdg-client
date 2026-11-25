@@ -1,6 +1,8 @@
+import { QueryClientContext } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { LanguageOptions, LanguageSample } from '@/components/LanguageChoice';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore, type Lang } from '@/store/lang';
@@ -22,24 +24,30 @@ export function ChooseLanguageScreen() {
   const setUser = useAuthStore((s) => s.setUser);
   const setLang = useLangStore((s) => s.setLang);
   const [picked, setPicked] = React.useState<Lang | null>(null);
+  const qc = React.useContext(QueryClientContext);
 
   const confirm = React.useCallback(() => {
     if (!picked) return;
     setLang(picked);
     // Show the app straight away; the save follows the person across phones.
     if (user) setUser({ ...user, lang: picked, langChosenAt: new Date().toISOString() });
+    // Today mounts the moment the choice is confirmed and asks for its feed in parallel with
+    // this save, so it may be answered in the old language: ask again once the save is done.
     void api
       .patch<{ ok: boolean; data: typeof user }>('/v1/me', { lang: picked })
+      .then(() => {
+        if (qc) invalidateTodayFeed(qc);
+      })
       .catch(() => undefined);
-  }, [picked, setLang, setUser, user]);
+  }, [picked, setLang, setUser, user, qc]);
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-wa-bar safe-bottom">
       <div className="flex-1 px-5 pb-4 pt-10">
-        <h1 lang="hi" className="text-[24px] font-semibold leading-tight text-wa-bar-text">
+        <h1 lang="hi" className="text-title leading-tight text-wa-bar-text">
           अपनी भाषा चुनें
         </h1>
-        <p lang="en" className="mt-1 text-[15px] leading-snug text-wa-meta">
+        <p lang="en" className="mt-1 text-body leading-snug text-wa-meta">
           Apni bhasha chuniye · Choose your language
         </p>
 
@@ -59,7 +67,7 @@ export function ChooseLanguageScreen() {
           type="button"
           disabled={!picked}
           onClick={confirm}
-          className="flex h-12 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-[16px] font-medium text-white active:opacity-90 disabled:opacity-40"
+          className="flex h-12 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-40"
         >
           {picked ? DEALER_LANGUAGES[picked].confirm : 'आगे बढ़ें · Continue'}
         </button>

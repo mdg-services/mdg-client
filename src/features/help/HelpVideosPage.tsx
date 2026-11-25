@@ -58,7 +58,7 @@ export function HelpVideosPage() {
         {q.data ? (
           videos.length > 0 ? (
             <>
-              <p className="px-5 pb-1 pt-4 text-[14px] text-wa-meta">{t('help.intro')}</p>
+              <p className="px-5 pb-1 pt-4 text-meta text-wa-meta">{t('help.intro')}</p>
               <ul data-testid="help-videos">
                 {videos.map((v) => (
                   <li key={v.id}>
@@ -97,10 +97,10 @@ export function HelpVideosPage() {
                 <MessageCircle width={24} height={24} strokeWidth={1.75} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[16px] text-wa-bar-text">
+                <span className="block truncate text-body text-wa-bar-text">
                   {t('help.askInChat')}
                 </span>
-                <span className="block truncate text-[14px] text-wa-meta">
+                <span className="block truncate text-meta text-wa-meta">
                   {t('help.askInChatDesc')}
                 </span>
               </span>
@@ -148,13 +148,13 @@ function VideoRow({
         <PlayCircle width={28} height={28} strokeWidth={1.75} />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-[16px] leading-snug text-wa-bar-text">{title}</span>
+        <span className="block text-body leading-snug text-wa-bar-text">{title}</span>
         {summary ? (
-          <span className="line-clamp-2 text-[14px] leading-snug text-wa-meta">{summary}</span>
+          <span className="line-clamp-2 text-meta leading-snug text-wa-meta">{summary}</span>
         ) : null}
       </span>
       {length ? (
-        <span className="shrink-0 text-[13px] tabular-nums text-wa-meta">{length}</span>
+        <span className="shrink-0 text-meta tabular-nums text-wa-meta">{length}</span>
       ) : null}
     </button>
   );
@@ -178,8 +178,8 @@ function Notice({
       >
         <VideoOff width={28} strokeWidth={1.5} />
       </span>
-      <p className="text-[18px] font-medium text-wa-bar-text">{title}</p>
-      <p className="max-w-xs text-[15px] text-wa-meta">{description}</p>
+      <p className="text-heading text-wa-bar-text">{title}</p>
+      <p className="max-w-xs text-body text-wa-meta">{description}</p>
       {action ? <div className="mt-2">{action}</div> : null}
     </div>
   );

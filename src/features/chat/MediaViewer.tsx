@@ -121,11 +121,11 @@ function Slide({
       />
       {failed ? (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-8">
-          <p className="text-center text-sm text-white/85">{t('chat.imageFailed')}</p>
+          <p className="text-center text-body text-white/85">{t('chat.imageFailed')}</p>
           <button
             type="button"
             onClick={retry}
-            className="rounded-full bg-white/15 px-5 py-2.5 text-sm font-medium text-white active:bg-white/25"
+            className="rounded-full bg-white/15 px-5 py-2.5 text-cta text-white active:bg-white/25"
           >
             {t('common.retry')}
           </button>
@@ -444,10 +444,10 @@ export function MediaViewer({
               <ArrowLeft width={24} strokeWidth={2} />
             </button>
             <div className="min-w-0 flex-1 pl-1">
-              <p className="truncate text-[17px] font-medium leading-tight text-white">
+              <p className="truncate text-subheading leading-tight text-white">
                 {current.senderLabel}
               </p>
-              <p className="truncate text-[13px] leading-tight text-white/70">
+              <p className="truncate text-meta leading-tight text-white/70">
                 {viewerWhen(current.createdAt, lang, t)}
               </p>
             </div>
@@ -493,7 +493,7 @@ export function MediaViewer({
                           setMenuOpen(false);
                           onShowInChat(current);
                         }}
-                        className="flex w-full items-center px-5 py-3 text-left text-[15px] text-wa-bar-text active:bg-wa-row-active"
+                        className="flex w-full items-center px-5 py-3 text-left text-body text-wa-bar-text active:bg-wa-row-active"
                       >
                         {t('media.viewer.showInChat')}
                       </button>
@@ -517,7 +517,7 @@ export function MediaViewer({
                 type="button"
                 onClick={() => setCaptionOpen((v) => !v)}
                 aria-expanded={captionOpen}
-                className="block w-full text-left text-[15px] leading-snug text-white"
+                className="block w-full text-left text-body leading-snug text-white"
               >
                 <span
                   className={cn(
@@ -536,7 +536,7 @@ export function MediaViewer({
 
         {loadingOlder && index === 0 ? (
           <div className="pointer-events-none absolute inset-x-0 top-24 flex justify-center">
-            <span className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs text-white">
+            <span className="flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-meta text-white">
               <Spinner size={14} />
               {t('media.viewer.loadingOlder')}
             </span>

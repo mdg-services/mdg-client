@@ -10,7 +10,7 @@ export function StartedCard() {
   return (
     <CardBox kind="started">
       <Block>
-        <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+        <p className="flex items-center gap-1.5 text-meta font-medium leading-snug">
           <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
           {t('setup.started')}
         </p>

@@ -80,7 +80,7 @@ export function PasswordValue({
       <div className="flex items-center gap-1">
         <span
           data-testid="password-value"
-          className="min-w-0 flex-1 select-text break-all font-mono text-[15px] text-text"
+          className="min-w-0 flex-1 select-text break-all font-mono text-body text-text"
         >
           {isShown ? shown : DOTS}
         </span>
@@ -100,7 +100,7 @@ export function PasswordValue({
           disabled={busy}
           aria-label={isShown ? t('logins.hideFor', { name }) : t('logins.showFor', { name })}
           aria-pressed={isShown}
-          className="flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-sm font-medium text-brand active:bg-surface-2 disabled:opacity-60"
+          className="flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-meta font-medium text-brand active:bg-surface-2 disabled:opacity-60"
         >
           {busy ? (
             <Spinner size={16} />
@@ -113,7 +113,7 @@ export function PasswordValue({
         </button>
       </div>
       {failed ? (
-        <p role="alert" className="mt-1 text-sm text-danger">
+        <p role="alert" className="mt-1 text-meta text-danger">
           {t('logins.showFailed')}
         </p>
       ) : null}

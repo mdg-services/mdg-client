@@ -4,6 +4,7 @@ import { SubPage } from '@/components/SubPage';
 import { Button } from '@/components/ui';
 import { useOwnerAutopay } from '@/features/autopay/api';
 import { AutopayCard } from '@/features/autopay/AutopayCard';
+import { isEmbedded } from '@/lib/embedMode';
 import { useT } from '@/lib/i18n';
 
 import { usePaymentsList } from './api';
@@ -87,18 +88,18 @@ export function PaymentsPage() {
     body = (
       <>
         <section aria-labelledby="payments-due" className="flex flex-col gap-3">
-          <h2 id="payments-due" className="text-lg font-semibold text-text">
+          <h2 id="payments-due" className="text-heading text-text">
             {t('payments.sectionDue')}
           </h2>
           {due.length === 0 ? (
-            <p className="text-base text-text-muted">{t('payments.nothingDue')}</p>
+            <p className="text-body text-text-muted">{t('payments.nothingDue')}</p>
           ) : (
             due.map((p) => <PaymentCard key={p.id} payment={p} interactive={interactive} />)
           )}
         </section>
         {history.length > 0 ? (
           <section aria-labelledby="payments-history" className="flex flex-col gap-3">
-            <h2 id="payments-history" className="text-lg font-semibold text-text">
+            <h2 id="payments-history" className="text-heading text-text">
               {t('payments.sectionHistory')}
             </h2>
             {history.map((p) => (
@@ -111,7 +112,9 @@ export function PaymentsPage() {
   }
 
   return (
-    <SubPage title={t('payments.title')} fallback="/chat" className="gap-6 pb-10">
+    // Opened cold (a payment notification) there is nothing behind it: home is Today, and the
+    // extension's panel, which has no Today, goes back to its chat.
+    <SubPage title={t('payments.title')} fallback={isEmbedded() ? '/chat' : '/'} className="gap-6 pb-10">
       {/* The owner's autopay, above the bills, when there is one. Its own query: the
           list never waits on it, and a failed answer still leaves a card that opens
           the Autopay screen, which has its own Try again. */}

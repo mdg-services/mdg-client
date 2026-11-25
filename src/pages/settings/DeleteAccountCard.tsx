@@ -54,8 +54,8 @@ export function DeleteAccountCard() {
     <>
       <Card>
         <CardContent>
-          <p className="mb-1 text-sm font-semibold text-text">{t('account.delete')}</p>
-          <p className="mb-3 text-sm text-text-muted">
+          <p className="mb-1 text-subheading text-text">{t('account.delete')}</p>
+          <p className="mb-3 text-meta text-text-muted">
             {t('account.deleteDesc', { days: ACCOUNT_WIPE_AFTER_DAYS })}
           </p>
           <Button variant="danger" onClick={() => setConfirming(true)}>
@@ -106,10 +106,10 @@ function DeleteConfirm({
         tabIndex={-1}
         className="relative w-full max-w-sm rounded-2xl bg-wa-bar p-6 shadow-lg outline-none animate-in"
       >
-        <p id="delete-account-title" className="text-[18px] font-medium text-wa-bar-text">
+        <p id="delete-account-title" className="text-heading text-wa-bar-text">
           {t('account.deleteTitle')}
         </p>
-        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-[15px] text-wa-meta">
+        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-meta text-wa-meta">
           <li>{t('account.deleteNow')}</li>
           {allOutlets ? <li>{t('account.deleteAllOutlets')}</li> : null}
           <li>{t('account.deleteWipe', { days })}</li>

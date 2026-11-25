@@ -60,7 +60,7 @@ describe('TicketBar — what it draws', () => {
   it('is one quiet line of text: not a button, not a link', () => {
     clockAt(ist(30, 15, 30));
     render(<TicketBar tickets={[ticket({ seen: true })]} />);
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
     expect(bar()).toHaveAttribute('role', 'status');
     expect(bar()!.querySelector('button, a, [role="button"]')).toBeNull();
     expect(screen.queryByRole('button')).toBeNull();
@@ -84,45 +84,45 @@ describe('TicketBar — what it draws', () => {
   });
 
   it.each([
-    ['new', {}, 'en', '#3 · Sent to the MDG team'],
-    ['new', {}, 'hi', '#3 · MDG टीम को भेज दिया है'],
-    ['looking', { seen: true }, 'en', '#3 · MDG team is looking at it'],
-    ['looking', { seen: true }, 'hi', '#3 · MDG टीम देख रही है'],
+    ['new', {}, 'en', 'We have your message'],
+    ['new', {}, 'hi', 'आपकी बात हमें मिल गई है'],
+    ['looking', { seen: true }, 'en', 'We are looking at it'],
+    ['looking', { seen: true }, 'hi', 'हम देख रहे हैं'],
     [
       'working',
       { seen: true, promiseUntil: ist(30, 18).toISOString() },
       'en',
-      '#3 · Being worked on · update by 6:00 pm',
+      'We are on it · update by 6:00 pm',
     ],
     [
       'working',
       { seen: true, promiseUntil: ist(30, 18).toISOString() },
       'hi',
-      '#3 · काम चल रहा है · आज शाम 6 बजे तक अपडेट',
+      'हम इस पर काम कर रहे हैं · आज शाम 6 बजे तक अपडेट',
     ],
     [
       'late',
       { seen: true, promiseUntil: ist(30, 15).toISOString(), teamReminded: true },
       'en',
-      '#3 · Taking a little longer · team reminded',
+      'Taking a little longer than we said',
     ],
     [
       'late',
       { seen: true, promiseUntil: ist(30, 15).toISOString(), teamReminded: true },
       'hi',
-      '#3 · थोड़ा और समय लग रहा है · टीम को याद दिलाया',
+      'थोड़ा और समय लग रहा है',
     ],
     [
       'closed',
       { state: 'RESOLVED', seen: true, resolvedAt: ist(30, 14, 30).toISOString() },
       'en',
-      '#3 · Done ✓',
+      'Done ✓',
     ],
     [
       'closed',
       { state: 'RESOLVED', seen: true, resolvedAt: ist(30, 14, 30).toISOString() },
       'hi',
-      '#3 · पूरा हुआ ✓',
+      'पूरा हुआ ✓',
     ],
   ] as const)('%s, in %s language', (phase, over, lang, words) => {
     clockAt(ist(30, 15, 30));
@@ -137,7 +137,7 @@ describe('TicketBar — what it draws', () => {
     const view = render(
       <TicketBar tickets={[ticket({ seen: true, promiseUntil: ist(30, 15).toISOString() })]} />,
     );
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
     expect(bar()).toHaveAttribute('data-phase', 'looking');
     // The same ticket, once the server says the team was reminded.
     view.rerender(
@@ -145,7 +145,7 @@ describe('TicketBar — what it draws', () => {
         tickets={[ticket({ seen: true, promiseUntil: ist(30, 15).toISOString(), teamReminded: true })]}
       />,
     );
-    expect(text()).toBe('#3 · Taking a little longer · team reminded');
+    expect(text()).toBe('Taking a little longer than we said');
     expect(bar()).toHaveAttribute('data-phase', 'late');
     // And an explicit false is the same as no field.
     view.rerender(
@@ -159,18 +159,18 @@ describe('TicketBar — what it draws', () => {
   it('night — a ticket raised at 7 am is told the team looks from 9', () => {
     clockAt(ist(30, 7));
     render(<TicketBar tickets={[ticket()]} />);
-    expect(text()).toBe('#3 · The team will see this from 9 am');
+    expect(text()).toBe('We will look at this from 9 am');
     expect(bar()).toHaveAttribute('data-phase', 'night');
     act(() => useLangStore.setState({ lang: 'hi', explicit: true }));
-    expect(text()).toBe('#3 · टीम सुबह 9 बजे से देखेगी');
+    expect(text()).toBe('हम सुबह 9 बजे से देखेंगे');
   });
 
   it('follows a language switch in place', () => {
     clockAt(ist(30, 15, 30));
     render(<TicketBar tickets={[ticket({ seen: true })]} />);
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
     act(() => useLangStore.setState({ lang: 'hi', explicit: true }));
-    expect(text()).toBe('#3 · MDG टीम देख रही है');
+    expect(text()).toBe('हम देख रहे हैं');
   });
 
   it('steps aside when asked, and keeps nothing on screen', () => {
@@ -178,27 +178,27 @@ describe('TicketBar — what it draws', () => {
     const view = render(<TicketBar tickets={[ticket({ seen: true })]} hidden />);
     expect(bar()).toBeNull();
     view.rerender(<TicketBar tickets={[ticket({ seen: true })]} />);
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
   });
 
   it('updates in place when the conversation’s ticket changes', () => {
     clockAt(ist(30, 15, 30));
     const view = render(<TicketBar tickets={[ticket()]} />);
-    expect(text()).toBe('#3 · Sent to the MDG team');
+    expect(text()).toBe('We have your message');
     view.rerender(<TicketBar tickets={[ticket({ seen: true })]} />);
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
     view.rerender(
       <TicketBar
         tickets={[ticket({ seen: true, promiseUntil: ist(30, 18).toISOString() })]}
       />,
     );
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
     view.rerender(
       <TicketBar
         tickets={[ticket({ state: 'RESOLVED', seen: true, resolvedAt: ist(30, 15, 29).toISOString() })]}
       />,
     );
-    expect(text()).toBe('#3 · Done ✓');
+    expect(text()).toBe('Done ✓');
     view.rerender(<TicketBar tickets={[]} />);
     expect(bar()).toBeNull();
   });
@@ -208,18 +208,18 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
   it('a promise running out: "being worked on" becomes "looking" at the moment', () => {
     clockAt(ist(30, 15, 30));
     render(<TicketBar tickets={[ticket({ seen: true, promiseUntil: ist(30, 18).toISOString() })]} />);
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     act(() => {
       vi.advanceTimersByTime(2.5 * HOUR - MIN);
     });
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     act(() => {
       vi.advanceTimersByTime(MIN);
     });
     // Nothing says the team was reminded yet, so the bar does not claim it.
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
     expect(bar()).toHaveAttribute('data-phase', 'looking');
   });
 
@@ -230,17 +230,17 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
         tickets={[ticket({ seen: true, promiseUntil: ist(30, 18).toISOString(), teamReminded: true })]}
       />,
     );
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     act(() => {
       vi.advanceTimersByTime(2.5 * HOUR - MIN);
     });
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     act(() => {
       vi.advanceTimersByTime(MIN);
     });
-    expect(text()).toBe('#3 · Taking a little longer · team reminded');
+    expect(text()).toBe('Taking a little longer than we said');
     expect(bar()).toHaveAttribute('data-phase', 'late');
   });
 
@@ -257,7 +257,7 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
         tickets={[ticket({ seen: true, promiseUntil: ist(30, 18).toISOString(), teamReminded: true })]}
       />,
     );
-    expect(text()).toBe('#3 · Taking a little longer · team reminded');
+    expect(text()).toBe('Taking a little longer than we said');
     expect(bar()).toHaveAttribute('data-phase', 'late');
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -279,33 +279,33 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
     act(() => {
       vi.advanceTimersByTime(2.5 * HOUR);
     });
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
   });
 
   it('team hours starting: "from 9 am" becomes "sent" at 9:00', () => {
     clockAt(ist(30, 8, 59, 30));
     render(<TicketBar tickets={[ticket()]} />);
-    expect(text()).toBe('#3 · The team will see this from 9 am');
+    expect(text()).toBe('We will look at this from 9 am');
 
     act(() => {
       vi.advanceTimersByTime(29_999);
     });
-    expect(text()).toBe('#3 · The team will see this from 9 am');
+    expect(text()).toBe('We will look at this from 9 am');
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(text()).toBe('#3 · Sent to the MDG team');
+    expect(text()).toBe('We have your message');
     expect(bar()).toHaveAttribute('data-phase', 'new');
   });
 
   it('team hours ending: "sent" becomes "from 9 am" at 11 pm', () => {
     clockAt(ist(30, 22, 59, 30));
     render(<TicketBar tickets={[ticket()]} />);
-    expect(text()).toBe('#3 · Sent to the MDG team');
+    expect(text()).toBe('We have your message');
     act(() => {
       vi.advanceTimersByTime(30_000);
     });
-    expect(text()).toBe('#3 · The team will see this from 9 am');
+    expect(text()).toBe('We will look at this from 9 am');
   });
 
   it('keeps flipping: through the night, and into the morning', () => {
@@ -333,19 +333,19 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
         tickets={[ticket({ state: 'RESOLVED', seen: true, resolvedAt: ist(30, 9).toISOString() })]}
       />,
     );
-    expect(text()).toBe('#3 · Done ✓');
+    expect(text()).toBe('Done ✓');
 
     // 19 hours after it was closed: still there.
     act(() => {
       vi.advanceTimersByTime(14 * HOUR);
     });
-    expect(text()).toBe('#3 · Done ✓');
+    expect(text()).toBe('Done ✓');
 
     // Exactly 24 hours: the window includes its last moment.
     act(() => {
       vi.advanceTimersByTime(5 * HOUR);
     });
-    expect(text()).toBe('#3 · Done ✓');
+    expect(text()).toBe('Done ✓');
 
     // One millisecond more: gone.
     act(() => {
@@ -357,11 +357,11 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
   it('"tomorrow 10:00 am" stops saying tomorrow when India’s midnight passes', () => {
     clockAt(ist(30, 23, 30));
     render(<TicketBar tickets={[ticket({ seen: true, promiseUntil: ist(31, 10).toISOString() })]} />);
-    expect(text()).toBe('#3 · Being worked on · update by tomorrow 10:00 am');
+    expect(text()).toBe('We are on it · update by tomorrow 10:00 am');
     act(() => {
       vi.advanceTimersByTime(30 * MIN);
     });
-    expect(text()).toBe('#3 · Being worked on · update by 10:00 am');
+    expect(text()).toBe('We are on it · update by 10:00 am');
     // And it is still being worked on at 10 — one more timer, for the promise itself.
     act(() => {
       vi.advanceTimersByTime(10 * HOUR);
@@ -381,7 +381,7 @@ describe('TicketBar — it changes by itself, nothing is sent to the phone', () 
     act(() => {
       vi.advanceTimersByTime(HOUR);
     });
-    expect(text()).toBe('#3 · Being worked on · update by 8:00 pm');
+    expect(text()).toBe('We are on it · update by 8:00 pm');
     expect(vi.getTimerCount()).toBe(1);
     act(() => {
       vi.advanceTimersByTime(3 * HOUR + 30 * MIN);
@@ -445,17 +445,17 @@ describe('TicketBar — a phone that slept past the time', () => {
   it('works the bar out again the moment the screen is back', () => {
     clockAt(ist(30, 15, 30));
     render(<TicketBar tickets={[ticket({ seen: true, promiseUntil: ist(30, 18).toISOString() })]} />);
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     // The phone sleeps and its timers do not run: the clock jumps, no timer fires.
     vi.setSystemTime(ist(30, 19));
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
 
     tab('visible');
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(text()).toBe('#3 · MDG team is looking at it');
+    expect(text()).toBe('We are looking at it');
   });
 
   it('also catches the team’s hours and the closed window', () => {
@@ -476,7 +476,7 @@ describe('TicketBar — a phone that slept past the time', () => {
         tickets={[ticket({ state: 'RESOLVED', seen: true, resolvedAt: ist(30, 8).toISOString() })]}
       />,
     );
-    expect(text()).toBe('#3 · Done ✓');
+    expect(text()).toBe('Done ✓');
     vi.setSystemTime(ist(31, 12));
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
@@ -492,7 +492,7 @@ describe('TicketBar — a phone that slept past the time', () => {
     act(() => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
-    expect(text()).toBe('#3 · Being worked on · update by 6:00 pm');
+    expect(text()).toBe('We are on it · update by 6:00 pm');
   });
 
   it('listens for none of it in a chat with no ticket', () => {

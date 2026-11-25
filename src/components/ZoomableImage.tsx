@@ -474,7 +474,7 @@ export function ZoomableImage({
             e.stopPropagation();
             setZoom(IDENTITY);
           }}
-          className="safe-bottom absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-4 py-2 text-sm font-medium text-white active:bg-white/25"
+          className="safe-bottom absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-4 py-2 text-cta text-white active:bg-white/25"
         >
           {t('chat.resetZoom')}
         </button>

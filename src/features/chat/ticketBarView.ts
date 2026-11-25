@@ -13,7 +13,7 @@ import { MAX_TIMER_MS } from './ticketLine';
 
 /**
  * What the pinned bar under the chat header draws: the phase (which the page
- * styles and tests read) and the whole line, "#3 · Being worked on · update by
+ * styles and tests read) and the whole line, "We are on it · update by
  * 6:00 pm", in the app's language.
  */
 export interface TicketBarView {

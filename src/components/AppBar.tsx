@@ -46,6 +46,11 @@ export interface AppBarProps {
    * the way WhatsApp prints "WhatsApp" on its first screen.
    */
   variant?: 'default' | 'home';
+  /**
+   * The title is the screen's own heading (`h1`) — Today's greeting is the page's first line
+   * and nothing below repeats it. Default: a plain line, the screen draws its own h1.
+   */
+  titleAsHeading?: boolean;
   className?: string;
 }
 
@@ -60,6 +65,7 @@ export function AppBar({
   actions,
   menu,
   variant = 'default',
+  titleAsHeading = false,
   className,
 }: AppBarProps) {
   const t = useT();
@@ -67,18 +73,22 @@ export function AppBar({
     <>
       {leading ? <span className="shrink-0">{leading}</span> : null}
       <span className="flex min-w-0 flex-1 flex-col justify-center">
-        <span
-          className={cn(
-            'truncate leading-tight',
-            variant === 'home'
-              ? 'text-[22px] font-semibold tracking-tight text-wa-accent-strong'
-              : 'text-[17px] font-medium text-wa-bar-text',
-          )}
-        >
-          {title}
-        </span>
+        {React.createElement(
+          titleAsHeading ? 'h1' : 'span',
+          {
+            className: cn(
+              // A screen's own heading (Today's greeting) wraps at large text: a name cut to
+              // "नमस्ते, Ram…" greets nobody. Other bars keep one line.
+              titleAsHeading ? 'break-words' : 'truncate',
+              variant === 'home'
+                ? 'text-title text-wa-accent-strong'
+                : 'text-heading font-medium text-wa-bar-text',
+            ),
+          },
+          title,
+        )}
         {subtitle ? (
-          <span className="truncate text-[13px] leading-tight text-wa-meta">
+          <span className="truncate text-meta text-wa-meta">
             {subtitle}
           </span>
         ) : null}
@@ -91,7 +101,7 @@ export function AppBar({
       <div className="border-b border-wa-divider bg-wa-bar">
         <div
           className={cn(
-            'mx-auto flex h-14 w-full max-w-md items-center gap-1 md:max-w-2xl lg:max-w-3xl',
+            'mx-auto flex min-h-14 w-full max-w-md items-center gap-1 md:max-w-2xl lg:max-w-3xl',
             onBack ? 'pl-1 pr-1' : 'pl-4 pr-1',
           )}
         >
@@ -225,7 +235,7 @@ export function OverflowMenu({
                 role="menuitem"
                 onClick={() => select(item)}
                 className={cn(
-                  'flex w-full items-center gap-3 px-5 py-3 text-left text-[15px] active:bg-wa-row-active',
+                  'flex w-full items-center gap-3 px-5 py-3 text-left text-body active:bg-wa-row-active',
                   item.danger ? 'text-danger' : 'text-wa-bar-text',
                 )}
               >

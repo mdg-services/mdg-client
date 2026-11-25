@@ -27,30 +27,30 @@ const HOUR = 3_600_000;
 describe('ticketBarView — every phase, in English and in Hindi', () => {
   // Inside the team's hours (15:30 IST) so "new" is not "night".
   const CASES: Array<[string, Partial<TicketDealerView>, string, string]> = [
-    ['new', {}, '#3 · Sent to the MDG team', '#3 · MDG टीम को भेज दिया है'],
+    ['new', {}, 'We have your message', 'आपकी बात हमें मिल गई है'],
     [
       'looking',
       { seen: true },
-      '#3 · MDG team is looking at it',
-      '#3 · MDG टीम देख रही है',
+      'We are looking at it',
+      'हम देख रहे हैं',
     ],
     [
       'working',
       { seen: true, promiseUntil: ist(30, 18).toISOString() },
-      '#3 · Being worked on · update by 6:00 pm',
-      '#3 · काम चल रहा है · आज शाम 6 बजे तक अपडेट',
+      'We are on it · update by 6:00 pm',
+      'हम इस पर काम कर रहे हैं · आज शाम 6 बजे तक अपडेट',
     ],
     [
       'late',
       { seen: true, promiseUntil: ist(30, 15).toISOString(), teamReminded: true },
-      '#3 · Taking a little longer · team reminded',
-      '#3 · थोड़ा और समय लग रहा है · टीम को याद दिलाया',
+      'Taking a little longer than we said',
+      'थोड़ा और समय लग रहा है',
     ],
     [
       'closed',
       { state: 'RESOLVED', seen: true, resolvedAt: ist(30, 14, 30).toISOString() },
-      '#3 · Done ✓',
-      '#3 · पूरा हुआ ✓',
+      'Done ✓',
+      'पूरा हुआ ✓',
     ],
   ];
 
@@ -65,21 +65,21 @@ describe('ticketBarView — every phase, in English and in Hindi', () => {
     const sevenAm = ist(30, 7);
     expect(ticketBarView(tickets, 'en', sevenAm)).toEqual({
       phase: 'night',
-      text: '#3 · The team will see this from 9 am',
+      text: 'We will look at this from 9 am',
     });
     expect(ticketBarView(tickets, 'hi', sevenAm)).toEqual({
       phase: 'night',
-      text: '#3 · टीम सुबह 9 बजे से देखेगी',
+      text: 'हम सुबह 9 बजे से देखेंगे',
     });
   });
 
   it('names tomorrow when the promised time is on the next day', () => {
     const tickets = [ticket({ seen: true, promiseUntil: ist(31, 10).toISOString() })];
     expect(ticketBarView(tickets, 'en', NOW)?.text).toBe(
-      '#3 · Being worked on · update by tomorrow 10:00 am',
+      'We are on it · update by tomorrow 10:00 am',
     );
     expect(ticketBarView(tickets, 'hi', NOW)?.text).toBe(
-      '#3 · काम चल रहा है · कल सुबह 10 बजे तक अपडेट',
+      'हम इस पर काम कर रहे हैं · कल सुबह 10 बजे तक अपडेट',
     );
   });
 
@@ -117,7 +117,7 @@ describe('ticketBarView — what is shown, and when nothing is', () => {
       'en',
       NOW,
     );
-    expect(view).toEqual({ phase: 'looking', text: '#3 · MDG team is looking at it' });
+    expect(view).toEqual({ phase: 'looking', text: 'We are looking at it' });
   });
 
   it('with none open, shows the most recently closed one', () => {
@@ -129,7 +129,7 @@ describe('ticketBarView — what is shown, and when nothing is', () => {
       'en',
       NOW,
     );
-    expect(view?.text).toBe('#2 · Done ✓');
+    expect(view?.text).toBe('Done ✓');
   });
 });
 
@@ -161,12 +161,12 @@ describe('ticketBarView — the 24 hours a closed ticket stays', () => {
   const at = (offsetMs: number) => ticketBarView(tickets, 'en', new Date(closedAt.getTime() + offsetMs));
 
   it('is there a moment after it was closed, and an hour before the end', () => {
-    expect(at(0)?.text).toBe('#3 · Done ✓');
-    expect(at(23 * HOUR)?.text).toBe('#3 · Done ✓');
+    expect(at(0)?.text).toBe('Done ✓');
+    expect(at(23 * HOUR)?.text).toBe('Done ✓');
   });
 
   it('is still there at exactly 24 hours, and gone a millisecond later', () => {
-    expect(at(24 * HOUR)?.text).toBe('#3 · Done ✓');
+    expect(at(24 * HOUR)?.text).toBe('Done ✓');
     expect(at(24 * HOUR + 1)).toBeNull();
   });
 
@@ -187,14 +187,14 @@ describe('ticketBarView — the flip when the promised time passes', () => {
     expect(ticketBarView(tickets, 'en', new Date(until.getTime() - 1))?.phase).toBe('working');
     const atIt = ticketBarView(tickets, 'en', until);
     expect(atIt?.phase).toBe('looking');
-    expect(atIt?.text).toBe('#3 · MDG team is looking at it');
+    expect(atIt?.text).toBe('We are looking at it');
   });
 
   it('stays "looking" however long the lapsed time has been left, until the server says the team was reminded', () => {
     // Four hours on, with no `teamReminded` from the server: the bar does not claim a reminder.
     const later = new Date(until.getTime() + 4 * HOUR);
     expect(ticketBarView(tickets, 'en', later)?.phase).toBe('looking');
-    expect(ticketBarView(tickets, 'hi', later)?.text).toBe('#3 · MDG टीम देख रही है');
+    expect(ticketBarView(tickets, 'hi', later)?.text).toBe('हम देख रहे हैं');
   });
 
   it('is "taking longer · team reminded" from the moment, once the server says the team was reminded', () => {
@@ -202,10 +202,10 @@ describe('ticketBarView — the flip when the promised time passes', () => {
     expect(ticketBarView(reminded, 'en', new Date(until.getTime() - 1))?.phase).toBe('working');
     expect(ticketBarView(reminded, 'en', until)).toEqual({
       phase: 'late',
-      text: '#3 · Taking a little longer · team reminded',
+      text: 'Taking a little longer than we said',
     });
     expect(ticketBarView(reminded, 'hi', until)?.text).toBe(
-      '#3 · थोड़ा और समय लग रहा है · टीम को याद दिलाया',
+      'थोड़ा और समय लग रहा है',
     );
   });
 

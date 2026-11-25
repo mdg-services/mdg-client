@@ -16,7 +16,7 @@ function formatWhen(iso: string): string {
 /**
  * Resolve display rows for a set of recipient ids: dealer-side participants by
  * name, and ALL unknown ids (the MDG admin pool, never in the participant
- * list) collapsed into one localized "MDG Support" row.
+ * list) collapsed into one localized "MDG" row.
  */
 function recipientRows(
   ids: string[],
@@ -72,7 +72,7 @@ export function MessageInfoSheet({
       <div className="relative mx-auto flex max-h-[70vh] w-full max-w-md flex-col rounded-t-2xl bg-wa-bar shadow-lg safe-bottom animate-in">
         <header className="flex items-center gap-2 border-b border-wa-divider px-3 py-2.5">
           <span className="h-9 w-9" />
-          <h2 className="flex-1 text-center text-sm font-semibold text-wa-bar-text">
+          <h2 className="flex-1 text-center text-subheading text-wa-bar-text">
             {t('chat.messageInfo')}
           </h2>
           <button
@@ -86,18 +86,18 @@ export function MessageInfoSheet({
         </header>
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
-          <p className="pb-2 text-xs text-wa-meta">
+          <p className="pb-2 text-meta text-wa-meta">
             {t('chat.sentLabel')} · {formatWhen(message.createdAt)}
           </p>
 
           {readRows.length > 0 ? (
             <section className="pb-2">
-              <p className="flex items-center gap-1.5 py-1.5 text-xs font-semibold text-wa-meta">
+              <p className="flex items-center gap-1.5 py-1.5 text-meta font-semibold text-wa-meta">
                 <CheckCheck width={14} strokeWidth={2} className="text-wa-tick-read" />
                 {t('chat.readBy')}
               </p>
               {readRows.map((name, i) => (
-                <p key={`r-${i}`} className="py-1.5 text-sm text-wa-bar-text">
+                <p key={`r-${i}`} className="py-1.5 text-meta text-wa-bar-text">
                   {name}
                 </p>
               ))}
@@ -106,12 +106,12 @@ export function MessageInfoSheet({
 
           {deliveredRows.length > 0 ? (
             <section className="pb-2">
-              <p className="flex items-center gap-1.5 py-1.5 text-xs font-semibold text-wa-meta">
+              <p className="flex items-center gap-1.5 py-1.5 text-meta font-semibold text-wa-meta">
                 <CheckCheck width={14} strokeWidth={2} />
                 {t('chat.deliveredTo')}
               </p>
               {deliveredRows.map((name, i) => (
-                <p key={`d-${i}`} className="py-1.5 text-sm text-wa-bar-text">
+                <p key={`d-${i}`} className="py-1.5 text-meta text-wa-bar-text">
                   {name}
                 </p>
               ))}
@@ -119,7 +119,7 @@ export function MessageInfoSheet({
           ) : null}
 
           {readRows.length === 0 && deliveredRows.length === 0 ? (
-            <p className="flex items-center gap-1.5 py-1.5 text-sm text-wa-meta">
+            <p className="flex items-center gap-1.5 py-1.5 text-meta text-wa-meta">
               <Check width={14} strokeWidth={2} />
               {t('chat.sentLabel')}
             </p>

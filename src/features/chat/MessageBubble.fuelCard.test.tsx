@@ -42,12 +42,16 @@ const tanker = (over: Partial<Parameters<typeof makeMessage>[0]> = {}) =>
   });
 
 describe('a tanker message', () => {
-  it('is drawn as a card: strip, the tanker number large, then one fact per line', () => {
+  it('is drawn as a plain card: the title, the tanker number large, then one fact per line', () => {
     render(<MessageBubble message={tanker()} mine={false} first />);
-    expect(screen.getByTestId('fuel-order-card-strip')).toHaveTextContent('Tanker lag gaya');
+    // No coloured strip with a truck and "MDG" on it (ADR 0055): the title is a bold line.
+    expect(screen.queryByTestId('fuel-order-card-strip')).toBeNull();
+    const title = screen.getByTestId('fuel-order-card-title');
+    expect(title).toHaveTextContent('Tanker lag gaya');
+    expect(title.className).toContain('text-subheading');
     const hero = screen.getByTestId('fuel-order-card-hero');
     expect(hero).toHaveTextContent('BR10GC5000');
-    expect(hero.className).toContain('font-bold');
+    expect(hero.className).toContain('text-title');
     const card = screen.getByTestId('fuel-order-card');
     for (const text of ['Order number', '0916430987', 'Diesel (HSD)', '14 KL', '23 Nov, 07:48', '23 Nov (Monday)']) {
       expect(card).toHaveTextContent(text);
@@ -64,8 +68,30 @@ describe('a tanker message', () => {
   it("speaks the reader's own language", () => {
     useLangStore.setState({ lang: 'hi', explicit: true });
     render(<MessageBubble message={tanker()} mine={false} first />);
-    expect(screen.getByTestId('fuel-order-card-strip')).toHaveTextContent('टैंकर लग गया');
+    expect(screen.getByTestId('fuel-order-card-title')).toHaveTextContent('टैंकर लग गया');
     expect(screen.getByTestId('fuel-order-card')).toHaveTextContent('23 नवंबर (सोमवार)');
+  });
+
+  it('a changed tanker reads the same plain way, and says what it is by its words', () => {
+    render(
+      <MessageBubble
+        message={tanker({
+          fuelCard: { ...CARD, kind: 'tanker_changed', title: { hi: 'टैंकर बदल गया', hl: 'Tanker badal gaya', en: 'Tanker changed' } },
+        })}
+        mine={false}
+        first
+      />,
+    );
+    expect(screen.getByTestId('fuel-order-card-title')).toHaveTextContent('Tanker badal gaya');
+    expect(screen.queryByTestId('fuel-order-card-strip')).toBeNull();
+  });
+
+  it('names the sender "MDG", not "MDG System", where a name shows', () => {
+    render(
+      <MessageBubble message={tanker({ senderName: 'MDG System' })} mine={false} first showSender />,
+    );
+    expect(screen.queryByText('MDG System')).toBeNull();
+    expect(screen.getByText('MDG')).toBeInTheDocument();
   });
 
   it('without a card, is the ordinary message it always was', () => {

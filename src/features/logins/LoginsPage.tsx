@@ -43,7 +43,7 @@ export function LoginsPage() {
         />
       ) : (
         <>
-          <p className="text-base text-text-muted">{t('logins.intro')}</p>
+          <p className="text-body text-text-muted">{t('logins.intro')}</p>
           {q.data.rows.length === 0 ? (
             <EmptyState
               icon={<KeyRound width={28} strokeWidth={1.5} />}
@@ -53,7 +53,7 @@ export function LoginsPage() {
           ) : (
             q.data.rows.map((row) => <LoginCard key={row.portal} row={row} />)
           )}
-          <p className="pb-4 text-sm text-text-subtle">{t('logins.safe')}</p>
+          <p className="pb-4 text-meta text-text-subtle">{t('logins.safe')}</p>
         </>
       )}
     </SubPage>

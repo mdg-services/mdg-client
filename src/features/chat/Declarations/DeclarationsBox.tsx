@@ -19,7 +19,7 @@ import { declarationsErrorText, lastFiledDay, nextDueDay } from './declarationsV
 
 /** The words under the box while nothing is being asked. */
 function Quiet({ text }: { text: string }) {
-  return <p className="break-words text-[14px] leading-snug">{text}</p>;
+  return <p className="break-words text-meta leading-snug">{text}</p>;
 }
 
 /**
@@ -108,7 +108,7 @@ export function DeclarationsBox() {
     >
       <div className="rounded-md bg-wa-row-active px-2.5 py-2">
         <div className="flex items-center justify-between gap-2">
-          <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+          <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
             <ClipboardCheck
               width={14}
               strokeWidth={2}
@@ -122,7 +122,7 @@ export function DeclarationsBox() {
 
         {loadFailed ? (
           <div className="mt-1 flex items-center justify-between gap-2">
-            <span className="text-[13px] leading-snug text-wa-meta">
+            <span className="text-meta leading-snug text-wa-meta">
               {t('chat.askStateFailed')}
             </span>
             <button type="button" onClick={() => void refetch()} className={TEXT_BUTTON}>
@@ -205,7 +205,7 @@ function Screen({
     case 'done': {
       const date = lastFiledDay(view);
       return (
-        <p className="flex items-start gap-1.5 break-words text-[14px] leading-snug">
+        <p className="flex items-start gap-1.5 break-words text-meta leading-snug">
           <Check
             width={16}
             strokeWidth={2.5}

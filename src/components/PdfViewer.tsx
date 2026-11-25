@@ -97,9 +97,9 @@ export function PdfViewer({ title, load, onSave, onClose }: PdfViewerProps) {
           <X width={22} strokeWidth={2} />
         </button>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[15px] font-medium">{title}</p>
+          <p className="truncate text-body font-medium">{title}</p>
           {state.status === 'ready' ? (
-            <p className="text-[12px] text-white/70">
+            <p className="text-meta text-white/70">
               {t('pdf.pageCount', { n: state.doc.numPages })}
             </p>
           ) : null}
@@ -108,7 +108,7 @@ export function PdfViewer({ title, load, onSave, onClose }: PdfViewerProps) {
           <button
             type="button"
             onClick={onSave}
-            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-[14px] font-medium active:bg-white/15"
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-meta font-medium active:bg-white/15"
           >
             <Download width={18} strokeWidth={2} aria-hidden />
             {t('pdf.save')}
@@ -120,18 +120,18 @@ export function PdfViewer({ title, load, onSave, onClose }: PdfViewerProps) {
         {state.status === 'loading' ? (
           <div role="status" className="flex h-full flex-col items-center justify-center gap-3">
             <Spinner size={24} />
-            <p className="text-[14px] text-white/80">{t('pdf.loading')}</p>
+            <p className="text-meta text-white/80">{t('pdf.loading')}</p>
           </div>
         ) : state.status === 'failed' ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-            <p role="alert" className="text-[15px]">
+            <p role="alert" className="text-body">
               {t('pdf.failed')}
             </p>
             <div className="flex flex-wrap justify-center gap-2">
               <button
                 type="button"
                 onClick={() => setAttempt((n) => n + 1)}
-                className="min-h-11 rounded-full bg-white px-4 text-[14px] font-medium text-neutral-900 active:bg-white/80"
+                className="min-h-11 rounded-full bg-white px-4 text-meta font-medium text-neutral-900 active:bg-white/80"
               >
                 {t('common.retry')}
               </button>
@@ -139,7 +139,7 @@ export function PdfViewer({ title, load, onSave, onClose }: PdfViewerProps) {
                 <button
                   type="button"
                   onClick={onSave}
-                  className="min-h-11 rounded-full border border-white/40 px-4 text-[14px] font-medium active:bg-white/15"
+                  className="min-h-11 rounded-full border border-white/40 px-4 text-meta font-medium active:bg-white/15"
                 >
                   {t('pdf.save')}
                 </button>
@@ -160,7 +160,7 @@ export function PdfViewer({ title, load, onSave, onClose }: PdfViewerProps) {
               />
             ))}
             {cut ? (
-              <p className="max-w-xs text-center text-[13px] text-white/80">
+              <p className="max-w-xs text-center text-meta text-white/80">
                 {t('pdf.firstPagesOnly', { n: MAX_PDF_PAGES })}
               </p>
             ) : null}

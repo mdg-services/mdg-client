@@ -30,15 +30,15 @@ export function PaymentCard({ view }: { view: OutletSetupView }) {
     return (
       <CardBox kind="payment">
         <Block>
-          <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+          <p className="flex items-center gap-1.5 text-meta font-medium leading-snug">
             <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
             {t('setup.payPaid')}
           </p>
-          {on ? <p className="text-[13px] leading-snug text-wa-meta">{t('setup.payPaidOn', { date: on })}</p> : null}
+          {on ? <p className="text-meta leading-snug text-wa-meta">{t('setup.payPaidOn', { date: on })}</p> : null}
           {paymentId ? (
             <Link
               to={`/payments/${paymentId}`}
-              className="mt-1 inline-block text-[14px] font-medium text-wa-bubble-text underline decoration-wa-meta underline-offset-2"
+              className="mt-1 inline-block text-meta font-medium text-wa-bubble-text underline decoration-wa-meta underline-offset-2"
             >
               {t('setup.viewReceipt')}
             </Link>
@@ -53,17 +53,17 @@ export function PaymentCard({ view }: { view: OutletSetupView }) {
     return (
       <CardBox kind="payment">
         <Block>
-          <p className="text-[14px] font-medium leading-snug">
+          <p className="text-meta font-medium leading-snug">
             {due
               ? t('setup.billLine', { amount: formatRupees(amountPaise), date: due })
               : t('setup.billLineNoDate', { amount: formatRupees(amountPaise) })}
           </p>
           {/* A fact about the bill, not a nudge: the day has gone by. */}
           {isPastDue(dueOn, istToday()) ? (
-            <p className="text-[13px] font-medium leading-snug text-danger">{t('setup.billOverdue')}</p>
+            <p className="text-meta font-medium leading-snug text-danger">{t('setup.billOverdue')}</p>
           ) : due ? (
             // Nothing waits for the money: the owner carries on with the setup meanwhile.
-            <p className="text-[13px] leading-snug text-wa-meta">{t('setup.billMeanwhile', { date: due })}</p>
+            <p className="text-meta leading-snug text-wa-meta">{t('setup.billMeanwhile', { date: due })}</p>
           ) : null}
         </Block>
       </CardBox>
@@ -74,7 +74,7 @@ export function PaymentCard({ view }: { view: OutletSetupView }) {
   return (
     <CardBox kind="payment">
       <Block>
-        <p className="text-[14px] leading-snug">{t('setup.payPreparing')}</p>
+        <p className="text-meta leading-snug">{t('setup.payPreparing')}</p>
       </Block>
     </CardBox>
   );

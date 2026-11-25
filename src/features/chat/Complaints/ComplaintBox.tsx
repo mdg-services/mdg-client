@@ -38,7 +38,7 @@ type Send = (body: ComplaintAnswerInput) => void;
 
 /** One option as a big tappable row: the label, and under it the small line (a machine's make and serial). */
 const CHIP =
-  'flex min-h-11 w-full items-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-left text-[15px] text-wa-bubble-text transition-colors duration-150 active:bg-wa-row-active disabled:opacity-60';
+  'flex min-h-11 w-full items-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 py-2 text-left text-body text-wa-bubble-text transition-colors duration-150 active:bg-wa-row-active disabled:opacity-60';
 
 function Chip({
   option,
@@ -76,7 +76,7 @@ function Chip({
           {sayIn(option.label, lang)}
         </span>
         {hint ? (
-          <span className="min-w-0 break-words text-[13px] font-normal leading-snug text-wa-meta">
+          <span className="min-w-0 break-words text-meta font-normal leading-snug text-wa-meta">
             {hint}
           </span>
         ) : null}
@@ -193,7 +193,7 @@ function Asking({ view, busy, onAnswer }: { view: ComplaintDealerView; busy: boo
   return (
     // Keyed on the question by the caller: a new question starts with nothing picked.
     <div className="flex flex-col gap-2">
-      <p className="break-words text-[15px] font-medium leading-snug">{sayIn(q.prompt, lang)}</p>
+      <p className="break-words text-subheading leading-snug">{sayIn(q.prompt, lang)}</p>
       <div className="flex flex-col gap-1.5">
         {q.options.map((o) => {
           const isMore = o.id === more;
@@ -247,8 +247,8 @@ function Confirm({ view, busy, onAnswer }: { view: ComplaintDealerView; busy: bo
         <dl className="m-0 flex flex-col divide-y divide-wa-divider rounded-lg bg-wa-in px-3 py-0.5">
           {view.summary.map((row, i) => (
             <div key={i} className="flex flex-col gap-0.5 py-1.5">
-              <dt className="text-[12px] leading-snug text-wa-meta">{sayIn(row.label, lang)}</dt>
-              <dd className="m-0 min-w-0 break-words text-[14px] leading-snug">
+              <dt className="text-meta leading-snug text-wa-meta">{sayIn(row.label, lang)}</dt>
+              <dd className="m-0 min-w-0 break-words text-meta leading-snug">
                 {sayIn(row.value, lang)}
               </dd>
             </div>
@@ -317,7 +317,7 @@ function StepRow({ step, last }: { step: ComplaintStep; last: boolean }) {
       <span className={cn('flex min-w-0 flex-col pb-2', last && 'pb-0')}>
         <span
           className={cn(
-            'min-w-0 break-words text-[14px] leading-5',
+            'min-w-0 break-words text-meta leading-5',
             state === 'current' && 'font-medium',
             state === 'todo' && 'text-wa-meta',
             state === 'failed' && 'font-medium text-danger',
@@ -325,7 +325,7 @@ function StepRow({ step, last }: { step: ComplaintStep; last: boolean }) {
         >
           {sayIn(step.label, lang)}
         </span>
-        {at ? <span className="text-[12px] leading-snug text-wa-meta">{at}</span> : null}
+        {at ? <span className="text-meta leading-snug text-wa-meta">{at}</span> : null}
       </span>
     </li>
   );
@@ -357,13 +357,13 @@ function Engineer({ view }: { view: ComplaintDealerView }) {
   if (!e || (!e.name && !e.phone && !e.etaHours)) return null;
   return (
     <div data-complaint-engineer className="flex flex-col gap-0.5 rounded-lg bg-wa-in px-3 py-2">
-      <span className="text-[12px] leading-snug text-wa-meta">{t('chat.complaintsEngineer')}</span>
-      {e.name ? <span className="break-words text-[14px] font-medium leading-snug">{e.name}</span> : null}
+      <span className="text-meta leading-snug text-wa-meta">{t('chat.complaintsEngineer')}</span>
+      {e.name ? <span className="break-words text-meta font-medium leading-snug">{e.name}</span> : null}
       {e.phone ? (
-        <span className="select-text break-all text-[14px] leading-snug tabular-nums">{e.phone}</span>
+        <span className="select-text break-all text-meta leading-snug tabular-nums">{e.phone}</span>
       ) : null}
       {e.etaHours ? (
-        <span className="text-[13px] leading-snug text-wa-meta">
+        <span className="text-meta leading-snug text-wa-meta">
           {t('chat.complaintsEta', { hours: e.etaHours })}
         </span>
       ) : null}
@@ -403,7 +403,7 @@ function Screen({
         <div className="flex flex-col gap-2">
           <Tracker steps={view.steps} />
           <Engineer view={view} />
-          <p className="break-words text-[15px] font-medium leading-snug">
+          <p className="break-words text-subheading leading-snug">
             {t('chat.complaintsAckQuestion')}
           </p>
           <button
@@ -435,7 +435,7 @@ function Screen({
         <div className="flex flex-col gap-2">
           <Tracker steps={view.steps} />
           {view.screen === 'tracking' ? <Engineer view={view} /> : null}
-          {status ? <p className="break-words text-[14px] leading-snug">{status}</p> : null}
+          {status ? <p className="break-words text-meta leading-snug">{status}</p> : null}
           {/* "It has not moved": the step tracker above stays; the question and, when the owner sends
               the reminder himself, the e-mail to copy come under it. */}
           {view.screen === 'tracking' && view.reminderMail ? <VendorMailCard mail={view.reminderMail} /> : null}
@@ -539,11 +539,11 @@ export function ComplaintBox({ complaintId, messageId }: { complaintId: string; 
             <Wrench width={15} strokeWidth={2} />
           </span>
           <div className="flex min-w-0 flex-1 flex-col">
-            <span className="text-[12px] leading-snug text-wa-meta">
+            <span className="text-meta leading-snug text-wa-meta">
               {sayIn(view.routeLabel, lang)}
               {view.number ? ` · ${t('chat.complaintsNumber', { number: view.number })}` : ''}
             </span>
-            <span className="min-w-0 break-words text-[15px] font-medium leading-snug">
+            <span className="min-w-0 break-words text-subheading leading-snug">
               {sayIn(view.title, lang)}
             </span>
           </div>

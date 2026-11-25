@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AI_HANDOFF_REASONS,
   TICKET_DANGER_MINUTES,
+  TICKET_BAR_TEXT,
   TICKET_DEALER_STATUS_TEXT,
   TICKET_FOLLOW_UPS_MAX,
   TICKET_NOTE_MAX,
@@ -208,15 +209,25 @@ describe('TICKET_TRIGGER_FOR_REASON', () => {
     on_it: null,
     // The dealer's typed answer went to the complaint box (ADR 0052): nothing to ticket.
     complaint_answer: null,
+    // Likewise a typed answer to a work-permit question (ADR 0053).
+    work_permit_answer: null,
   };
 
   it('covers every handoff reason the first line can give, and no other key', () => {
     expect(keysOf(TICKET_TRIGGER_FOR_REASON)).toEqual([...AI_HANDOFF_REASONS].sort());
   });
 
-  it('opens a ticket for every reason except the six that post nothing new', () => {
+  it('opens a ticket for every reason except the seven that post nothing new', () => {
     const noTicket = AI_HANDOFF_REASONS.filter((r) => TICKET_TRIGGER_FOR_REASON[r] === null);
-    expect(noTicket.sort()).toEqual(['ack', 'complaint_answer', 'follow_up', 'group_thread', 'on_it', 'quiet_reply']);
+    expect(noTicket.sort()).toEqual([
+      'ack',
+      'complaint_answer',
+      'follow_up',
+      'group_thread',
+      'on_it',
+      'quiet_reply',
+      'work_permit_answer',
+    ]);
   });
 
   it.each(['ack', 'quiet_reply', 'on_it'] as const)(
@@ -502,12 +513,11 @@ describe('TICKET_DEALER_STATUS_TEXT', () => {
     }
   });
 
-  it('says who is acting, and never says "done"', () => {
+  it('speaks as the team ("we"), and never says "done"', () => {
     // RESOLVED means a person closed it and the reply they wrote is the answer.
     // The line says it is closed, not that the dealer's problem is solved.
-    for (const status of STATUSES) {
-      expect(TICKET_DEALER_STATUS_TEXT[status].en).toMatch(/MDG team/);
-      expect(TICKET_DEALER_STATUS_TEXT[status].hi).toMatch(/MDG/);
+    for (const status of ['looking', 'working'] as const) {
+      expect(TICKET_DEALER_STATUS_TEXT[status].en).toMatch(/^We /);
     }
     for (const lang of ['en', 'hi'] as const) {
       for (const status of STATUSES) {
@@ -516,28 +526,52 @@ describe('TICKET_DEALER_STATUS_TEXT', () => {
     }
   });
 
-  it('never tells a dealer about our machinery', () => {
+  it('never tells a dealer about our machinery, or that their question was handed on', () => {
+    // ADR 0055: "Sent to the MDG team" and "team reminded" tell a dealer a machine passed
+    // their question along. The words are the team's own note.
     for (const status of STATUSES) {
-      for (const lang of ['en', 'hi'] as const) {
+      for (const lang of ['en', 'hi', 'hl'] as const) {
         expect(TICKET_DEALER_STATUS_TEXT[status][lang]).not.toMatch(
-          /\bAI\b|\bbot\b|automatic|ticket|escalat/i,
+          /\bAI\b|\bbot\b|automatic|ticket|escalat|sent to|reminded|MDG team|MDG टीम|MDG team ko/i,
         );
       }
     }
   });
 
-  it('reads as the line under a bubble once prefixed with the ticket ref', () => {
-    expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.en}`).toBe(
-      '#42 · MDG team is looking at it',
-    );
-    expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.hi}`).toBe(
-      '#42 · MDG टीम देख रही है',
-    );
+  it('reads as a short note once prefixed with the ticket ref', () => {
+    expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.en}`).toBe('#42 · We are looking at it');
+    expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.hi}`).toBe('#42 · हम देख रहे हैं');
+    expect(`${ticketRef(42)} · ${TICKET_DEALER_STATUS_TEXT.looking.hl}`).toBe('#42 · Hum dekh rahe hain');
   });
 
   it('says in plain words that the team is on it, and promises nothing but an update', () => {
-    expect(TICKET_DEALER_STATUS_TEXT.working.en).toBe('MDG team is working on it');
-    expect(TICKET_DEALER_STATUS_TEXT.working.hi).toBe('MDG टीम इस पर काम कर रही है');
+    expect(TICKET_DEALER_STATUS_TEXT.working.en).toBe('We are on it');
+    expect(TICKET_DEALER_STATUS_TEXT.working.hi).toBe('हम इस पर काम कर रहे हैं');
+  });
+});
+
+describe('TICKET_BAR_TEXT', () => {
+  const PHASES = ['new', 'night', 'looking', 'working', 'late', 'closed'] as const;
+
+  it('is the team\'s own note in all three languages, with the same {when} placeholder in each', () => {
+    for (const phase of PHASES) {
+      const { en, hi, hl } = TICKET_BAR_TEXT[phase];
+      for (const text of [en, hi, hl]) expect(text.trim().length).toBeGreaterThan(0);
+      expect(hi).not.toBe(en);
+      expect(hl).not.toBe(en);
+      expect(en.includes('{when}')).toBe(hi.includes('{when}'));
+      expect(en.includes('{when}')).toBe(hl.includes('{when}'));
+    }
+  });
+
+  it('never says a question was "sent to" the team or that the team was "reminded"', () => {
+    for (const phase of PHASES) {
+      for (const lang of ['en', 'hi', 'hl'] as const) {
+        expect(TICKET_BAR_TEXT[phase][lang]).not.toMatch(
+          /sent to|reminded|MDG team|MDG टीम|team ko|team ne|bhej diya|भेज/i,
+        );
+      }
+    }
   });
 });
 

@@ -13,7 +13,7 @@ import { checkGstin, stateLabel, stateOptions } from './cardView';
 import { useSaveSetupBilling } from './useOutletSetup';
 
 const FIELD_CLASS =
-  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60';
+  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring disabled:opacity-60';
 
 /** The shortest a name and an address may be: what the server accepts. */
 const MIN_NAME = 2;
@@ -87,7 +87,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
     return (
       <CardBox kind="billing">
         <Block>
-          <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+          <p className="flex items-center gap-1.5 text-meta font-medium leading-snug">
             <Check width={14} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
             {t('setup.billSaved')}
           </p>
@@ -147,7 +147,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
     <CardBox kind="billing">
       <form onSubmit={(e) => void submit(e)} noValidate autoComplete="off" className="flex flex-col gap-2">
         <div>
-          <label htmlFor={nameId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+          <label htmlFor={nameId} className="mb-0.5 block text-subheading leading-tight text-wa-meta">
             {t('setup.billName')}
           </label>
           <input
@@ -165,7 +165,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
         </div>
 
         <div>
-          <label htmlFor={addressId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+          <label htmlFor={addressId} className="mb-0.5 block text-subheading leading-tight text-wa-meta">
             {t('setup.billAddress')}
           </label>
           <input
@@ -183,7 +183,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
         </div>
 
         <div>
-          <label htmlFor={stateId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+          <label htmlFor={stateId} className="mb-0.5 block text-subheading leading-tight text-wa-meta">
             {t('setup.billState')}
           </label>
           <select
@@ -207,7 +207,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
         </div>
 
         <div>
-          <label htmlFor={gstinId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+          <label htmlFor={gstinId} className="mb-0.5 block text-subheading leading-tight text-wa-meta">
             {t('setup.billGstin')}
           </label>
           <input
@@ -229,7 +229,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
           <p
             id={`${gstinId}-hint`}
             className={cn(
-              'mt-0.5 text-[13px] leading-snug',
+              'mt-0.5 text-meta leading-snug',
               gst.state === 'ok'
                 ? 'font-medium text-wa-bubble-text'
                 : gst.state === 'bad' || (tried && !gstOk)
@@ -246,7 +246,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
                   ? t('setup.gstinCount', { n: gst.length })
                   : t('setup.gstinHelp')}
           </p>
-          <label className="mt-0.5 flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] leading-snug">
+          <label className="mt-0.5 flex min-h-11 cursor-pointer items-center gap-2.5 text-meta leading-snug">
             <input
               type="checkbox"
               checked={noGst}
@@ -281,7 +281,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
               setTried(false);
               setEditing(false);
             }}
-            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('common.cancel')}
           </button>
@@ -293,7 +293,7 @@ export function BillingCard({ view }: { view: OutletSetupView }) {
 
 function FieldError({ children }: { children: React.ReactNode }) {
   return (
-    <p role="alert" className="mt-0.5 text-[13px] leading-snug text-wa-bubble-text">
+    <p role="alert" className="mt-0.5 text-meta leading-snug text-wa-bubble-text">
       <span className="rounded-sm bg-wa-notice px-1.5 py-0.5">{children}</span>
     </p>
   );
@@ -303,7 +303,7 @@ function FieldError({ children }: { children: React.ReactNode }) {
 function SavedLines({ billing, lang }: { billing: SetupBilling; lang: Lang }) {
   const t = useT();
   return (
-    <dl className="mt-1 flex flex-col gap-0.5 text-[14px] leading-snug">
+    <dl className="mt-1 flex flex-col gap-0.5 text-meta leading-snug">
       <div>
         <dt className="sr-only">{t('setup.billName')}</dt>
         <dd className="break-words font-medium">{billing.name}</dd>

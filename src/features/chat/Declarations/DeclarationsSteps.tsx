@@ -93,16 +93,16 @@ function PhotoSlot({
     >
       <PhotoThumb url={photo?.url} label={label} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <p className="flex flex-wrap items-center gap-x-1.5 text-[14px] font-medium leading-snug">
+        <p className="flex flex-wrap items-center gap-x-1.5 text-meta font-medium leading-snug">
           {label}
           {photo && !stale && !uploading ? (
-            <span className="flex items-center gap-1 text-[12px] font-normal text-wa-meta">
+            <span className="flex items-center gap-1 text-meta font-normal text-wa-meta">
               <Check width={13} strokeWidth={2.5} className="text-success" aria-hidden />
               {t('chat.declPhotoAdded')}
               {photo.reused ? (
                 <span
                   data-photo-reused
-                  className="ml-1 rounded-full bg-wa-chip px-1.5 py-0.5 text-[11px] leading-none"
+                  className="ml-1 rounded-full bg-wa-chip px-1.5 py-0.5 text-micro leading-none"
                 >
                   {t('chat.declPhotoReused')}
                 </span>
@@ -111,7 +111,7 @@ function PhotoSlot({
           ) : null}
         </p>
         {photo && stale && !uploading ? (
-          <p className="text-[13px] font-normal leading-snug text-danger">
+          <p className="text-meta font-normal leading-snug text-danger">
             {photo.reused === true && canReuse
               ? // A photo put back on an earlier day: the same-photos button dates it today
                 // again, so say that, not only "take it again".
@@ -183,9 +183,9 @@ function ReuseCard({
       className="flex flex-col gap-2.5 rounded-md border border-wa-divider bg-wa-in px-3 py-2.5"
     >
       <div>
-        <p className="text-[15px] font-medium leading-snug">{t('chat.declLastTitle')}</p>
+        <p className="text-subheading leading-snug">{t('chat.declLastTitle')}</p>
         {day ? (
-          <p className="text-[13px] leading-snug text-wa-meta">
+          <p className="text-meta leading-snug text-wa-meta">
             {t('chat.declLastWhen', { date: day })}
           </p>
         ) : null}
@@ -198,7 +198,7 @@ function ReuseCard({
             className="flex min-w-0 flex-1 flex-col items-center gap-1"
           >
             <PhotoThumb url={last[slot].url} label={t(LAST_LABEL_KEY[slot])} />
-            <figcaption className="text-center text-[13px] leading-snug">
+            <figcaption className="text-center text-meta leading-snug">
               {t(LAST_LABEL_KEY[slot])}
             </figcaption>
           </figure>
@@ -251,7 +251,7 @@ export function CollectScreen({
 
   return (
     <div data-declarations-step="collect" className="flex flex-col gap-2">
-      <p className="text-[15px] font-medium leading-snug">{t('chat.declCollectLine')}</p>
+      <p className="text-subheading leading-snug">{t('chat.declCollectLine')}</p>
       {offerReuse ? (
         <>
           <ReuseCard
@@ -261,7 +261,7 @@ export function CollectScreen({
             reusing={reusing}
             onReuse={onReuse}
           />
-          <p className="text-[13px] font-medium leading-snug text-wa-meta">{t('chat.declOrNew')}</p>
+          <p className="text-meta font-medium leading-snug text-wa-meta">{t('chat.declOrNew')}</p>
         </>
       ) : null}
       <div className="flex flex-col gap-3">
@@ -282,7 +282,7 @@ export function CollectScreen({
         })}
       </div>
 
-      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-wa-divider bg-wa-in px-3 py-1.5 text-[15px] leading-snug">
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-md border border-wa-divider bg-wa-in px-3 py-1.5 text-body leading-snug">
         <input
           type="checkbox"
           checked={fresh}
@@ -310,12 +310,12 @@ export function CollectScreen({
         {t('chat.declSend')}
       </button>
       {!busy && hint === 'photos' ? (
-        <p className="text-[12px] leading-snug text-wa-meta">{t('chat.declSendNeeds')}</p>
+        <p className="text-meta leading-snug text-wa-meta">{t('chat.declSendNeeds')}</p>
       ) : null}
       {/* Both photos are in and only the box is not ticked: say Send is still to be pressed,
           so a tap on "use the same photos" does not read as if it had sent them. */}
       {!busy && hint === 'tick' ? (
-        <p data-send-hint="tick" className="text-[13px] font-medium leading-snug text-wa-meta">
+        <p data-send-hint="tick" className="text-meta font-medium leading-snug text-wa-meta">
           {t('chat.declSendTick')}
         </p>
       ) : null}

@@ -51,7 +51,7 @@ export function Block({
 /** The small grey line: a note, a hint, who fills this. */
 export function Note({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <p className={cn('text-[13px] leading-snug text-wa-meta', className)}>{children}</p>
+    <p className={cn('text-meta leading-snug text-wa-meta', className)}>{children}</p>
   );
 }
 
@@ -60,7 +60,7 @@ export function Alert({ children }: { children: React.ReactNode }) {
   return (
     <p
       role="alert"
-      className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text"
+      className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text"
     >
       {children}
     </p>
@@ -82,7 +82,7 @@ export function SaveButton({
       type="submit"
       disabled={busy || disabled}
       aria-busy={busy}
-      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+      className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60"
     >
       {busy ? <Spinner size={16} /> : null}
       {children}
@@ -102,7 +102,7 @@ export function LinkButton({
     <button
       type="button"
       onClick={onClick}
-      className="min-h-11 shrink-0 rounded-md px-2 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+      className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
     >
       {children}
     </button>
@@ -127,7 +127,7 @@ export function CardPending({
   }
   return (
     <div className="mt-1 flex items-center justify-between gap-2">
-      <span className="text-[13px] leading-snug text-wa-meta">{t('setup.loadFailed')}</span>
+      <span className="text-meta leading-snug text-wa-meta">{t('setup.loadFailed')}</span>
       <LinkButton onClick={onRetry}>{t('common.retry')}</LinkButton>
     </div>
   );

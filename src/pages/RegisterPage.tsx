@@ -198,7 +198,7 @@ export function RegisterPage() {
       markAccountHere();
       if (session) {
         startSession(session);
-        navigate('/chat', { replace: true });
+        navigate('/', { replace: true });
         return;
       }
       chosenPassword.current = account === 'existing' ? v.password : null;
@@ -226,7 +226,7 @@ export function RegisterPage() {
           >
             <ArrowLeft width={22} strokeWidth={1.75} />
           </button>
-          <h1 className="min-w-0 flex-1 text-xl font-semibold tracking-tight text-text">
+          <h1 className="min-w-0 flex-1 text-title text-text">
             {t('register.title')}
           </h1>
           {/* The language is changeable here too: a dealer who opens the app for
@@ -235,7 +235,7 @@ export function RegisterPage() {
             type="button"
             onClick={() => setLanguageOpen(true)}
             aria-label={t('profile.language')}
-            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-text active:bg-surface-2"
+            className="flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3 text-meta font-medium text-text active:bg-surface-2"
           >
             <Globe width={18} strokeWidth={1.75} aria-hidden />
             {LANGUAGE_NAMES[lang]}
@@ -249,7 +249,7 @@ export function RegisterPage() {
             onSignedIn={(session) => {
               chosenPassword.current = null;
               startSession(session);
-              navigate('/chat', { replace: true });
+              navigate('/', { replace: true });
             }}
             onSignIn={() => {
               chosenPassword.current = null;
@@ -263,16 +263,16 @@ export function RegisterPage() {
                 <span className="grid h-7 w-7 place-items-center rounded-full bg-success text-white">
                   <Check width={16} strokeWidth={2.4} />
                 </span>
-                <span className="text-sm font-semibold">{t(SUCCESS_WORDS[sentTo.account].badge)}</span>
+                <span className="text-meta font-semibold">{t(SUCCESS_WORDS[sentTo.account].badge)}</span>
               </div>
-              <p className="mt-4 text-lg font-semibold leading-snug text-text">
+              <p className="mt-4 text-subheading leading-snug text-text">
                 {t(SUCCESS_WORDS[sentTo.account].title)}
               </p>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+              <p className="mt-2 text-meta leading-relaxed text-text-muted">
                 {t(SUCCESS_WORDS[sentTo.account].body)}
               </p>
               {sentTo.email ? (
-                <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                <p className="mt-2 text-meta leading-relaxed text-text-muted">
                   {t('register.successEmail', { email: sentTo.email })}
                 </p>
               ) : null}
@@ -289,10 +289,10 @@ export function RegisterPage() {
           </Card>
         ) : (
           <>
-            <p className="mt-2 text-sm leading-relaxed text-text-muted">{t('register.intro')}</p>
+            <p className="mt-2 text-meta leading-relaxed text-text-muted">{t('register.intro')}</p>
             {/* First, because this is the first screen on a new phone: anybody who
                 already has an account is one tap from signing in. */}
-            <p className="mt-3 text-sm text-text-muted">
+            <p className="mt-3 text-meta text-text-muted">
               {t('register.alreadyRegistered')}{' '}
               <button
                 type="button"
@@ -387,7 +387,7 @@ export function RegisterPage() {
                   </Field>
 
                   <fieldset className="flex flex-col gap-1.5">
-                    <legend className="mb-1.5 text-sm font-medium text-text">
+                    <legend className="mb-1.5 text-subheading text-text">
                       {t('register.siteType')}
                     </legend>
                     <div className="grid grid-cols-2 gap-2">
@@ -409,12 +409,12 @@ export function RegisterPage() {
                             className="h-4 w-4 accent-brand"
                             {...register('siteType')}
                           />
-                          <span className="text-base font-medium text-text">{value}</span>
+                          <span className="text-body font-medium text-text">{value}</span>
                         </label>
                       ))}
                     </div>
                     {errors.siteType ? (
-                      <p className="text-xs text-danger">{errors.siteType.message}</p>
+                      <p className="text-meta text-danger">{errors.siteType.message}</p>
                     ) : null}
                   </fieldset>
 
@@ -462,7 +462,7 @@ export function RegisterPage() {
                         className="mt-0.5 h-5 w-5 shrink-0 accent-brand"
                         {...register('agree')}
                       />
-                      <label htmlFor="reg-agree" className="text-sm leading-relaxed text-text">
+                      <label htmlFor="reg-agree" className="text-body leading-relaxed text-text">
                         {t('register.agreeLead')}{' '}
                         <button
                           type="button"
@@ -479,12 +479,12 @@ export function RegisterPage() {
                       </label>
                     </div>
                     {errors.agree ? (
-                      <p className="text-xs text-danger">{errors.agree.message}</p>
+                      <p className="text-meta text-danger">{errors.agree.message}</p>
                     ) : null}
                   </div>
 
                   {enroll.isError ? (
-                    <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+                    <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                       {t('register.failed')}
                     </p>
                   ) : null}
@@ -496,7 +496,7 @@ export function RegisterPage() {
               </CardContent>
             </Card>
 
-            <p className="mt-4 text-center text-xs text-text-subtle">
+            <p className="mt-4 text-center text-meta text-text-subtle">
               {t('register.privacy')}{' '}
               {/* Where the dealer is deciding what to hand over: the policy that
                   says what is done with it, one tap away. */}
@@ -539,15 +539,15 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-text" htmlFor={id}>
+      <label className="text-subheading text-text" htmlFor={id}>
         {label}
         {optional ? <span className="ml-1 font-normal text-text-subtle">{optional}</span> : null}
       </label>
       {children}
       {error ? (
-        <p className="text-xs text-danger">{error}</p>
+        <p className="text-meta text-danger">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-text-subtle">{hint}</p>
+        <p className="text-meta text-text-subtle">{hint}</p>
       ) : null}
     </div>
   );

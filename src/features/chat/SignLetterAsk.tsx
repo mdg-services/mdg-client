@@ -11,7 +11,7 @@ import { letterPdfOf } from './signLetterView';
 const STEPS: readonly MessageKey[] = ['chat.letterStep1', 'chat.letterStep2', 'chat.letterStep3'];
 
 const SECONDARY_BUTTON =
-  'flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 text-[15px] font-medium text-wa-bubble-text active:bg-wa-row-active';
+  'flex h-11 w-full items-center justify-center gap-2 rounded-lg border border-wa-divider bg-wa-chip px-3 text-body font-medium text-wa-bubble-text active:bg-wa-row-active';
 
 /**
  * What sits under the signed-letter request while it is the owner's turn: three
@@ -55,10 +55,10 @@ export function SignLetterOpen({
         className="flex list-none flex-col gap-1.5 rounded-md bg-wa-row-active px-2.5 py-2"
       >
         {STEPS.map((key, i) => (
-          <li key={key} className="flex items-start gap-2 text-[14px] leading-snug">
+          <li key={key} className="flex items-start gap-2 text-meta leading-snug">
             <span
               aria-hidden
-              className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/10 text-[12px] font-medium"
+              className="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black/10 text-meta font-medium"
             >
               {i + 1}
             </span>
@@ -71,7 +71,7 @@ export function SignLetterOpen({
           type="button"
           disabled={unsent}
           onClick={() => void download(letter, source)}
-          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60"
         >
           <Download width={18} strokeWidth={2} className="shrink-0" aria-hidden />
           {t('chat.letterDownload')}
@@ -92,7 +92,7 @@ export function SignLetterOpen({
       >
         {t('chat.askChooseFile')}
       </button>
-      <p className="px-0.5 text-[12px] leading-snug text-wa-meta">{t('chat.letterNoPrinter')}</p>
+      <p className="px-0.5 text-meta leading-snug text-wa-meta">{t('chat.letterNoPrinter')}</p>
     </div>
   );
 }

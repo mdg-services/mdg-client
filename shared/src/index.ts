@@ -62,6 +62,11 @@ export * from './lib/ticketView';
 export * from './lib/device';
 // Can a dealer member be reached on their phone (ADR 0040 §4)
 export * from './lib/reach';
+// Which messages are reports, and of what kind (ADR 0055): the server's Today feed
+// and the dealer app's chat both read one function, so a report the chat shows as
+// words with a "See it on Today" button is always one the page lists.
+export * from './lib/reportKind';
+export * from './lib/roSupplyWords';
 // Search over the video library (the admin's Videos page and "Send a video"):
 // both languages, romanised Hindi, chapters. Shared so the backend tests it.
 export * from './lib/videoSearch';
@@ -77,4 +82,6 @@ export * from './lib/mobile';
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.
 export * from './kavach/dealerFacing';
+// The one "what is new" video the app plays once per person on the next phone open (ADR 0056).
+export * from './lib/whatsNewVideo';
 export * as schemas from './schemas';

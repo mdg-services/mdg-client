@@ -73,7 +73,7 @@ const MAKER_NAME: Record<PhoneMaker, string> = {
 function Steps({ maker }: { maker: PhoneMaker }) {
   const t = useT();
   return (
-    <ol className="ml-5 list-decimal space-y-1 text-[14px] leading-snug text-wa-bar-text">
+    <ol className="ml-5 list-decimal space-y-1 text-meta leading-snug text-wa-bar-text">
       {STEPS[maker].map((key) => (
         <li key={key}>{t(key)}</li>
       ))}
@@ -103,8 +103,8 @@ export function BatteryGuideCard() {
       <div className="flex items-start gap-3">
         <BatteryWarning width={20} strokeWidth={1.75} aria-hidden className="mt-0.5 shrink-0 text-wa-bar-icon" />
         <div className="min-w-0 flex-1">
-          <p className="text-[14px] font-medium text-wa-bar-text">{t('battery.title')}</p>
-          <p className="text-[13px] leading-snug text-wa-meta">
+          <p className="text-meta font-medium text-wa-bar-text">{t('battery.title')}</p>
+          <p className="text-meta leading-snug text-wa-meta">
             {t('battery.why', { maker: MAKER_NAME[maker] })}
           </p>
           {open ? (
@@ -161,8 +161,8 @@ export function BatteryGuideSheet({ onClose }: { onClose: () => void }) {
         tabIndex={-1}
         className="relative mx-auto flex w-full max-w-md flex-col gap-3 rounded-t-2xl bg-wa-bar px-6 pb-4 pt-5 shadow-lg outline-none safe-bottom animate-in"
       >
-        <p className="text-[17px] font-medium text-wa-bar-text">{t('battery.title')}</p>
-        <p className="text-[14px] leading-snug text-wa-meta">
+        <p className="text-subheading text-wa-bar-text">{t('battery.title')}</p>
+        <p className="text-meta leading-snug text-wa-meta">
           {maker === 'other' ? t('battery.whyAny') : t('battery.why', { maker: MAKER_NAME[maker] })}
         </p>
         <Steps maker={maker} />

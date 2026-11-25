@@ -68,13 +68,13 @@ export function OutletSheet({
         tabIndex={-1}
         className="relative mx-auto flex w-full max-w-md flex-col rounded-t-2xl bg-wa-bar pb-2 shadow-lg outline-none safe-bottom animate-in"
       >
-        <p className="px-6 pb-2 pt-5 text-[17px] font-medium text-wa-bar-text">
+        <p className="px-6 pb-2 pt-5 text-subheading text-wa-bar-text">
           {t('outlets.title')}
         </p>
         {q.isLoading ? (
-          <p className="px-6 py-4 text-[15px] text-wa-meta">{t('outlets.loading')}</p>
+          <p className="px-6 py-4 text-body text-wa-meta">{t('outlets.loading')}</p>
         ) : q.isError ? (
-          <p role="alert" className="px-6 py-4 text-[15px] text-danger">
+          <p role="alert" className="px-6 py-4 text-body text-danger">
             {t('outlets.failed')}
           </p>
         ) : (
@@ -90,7 +90,7 @@ export function OutletSheet({
                   aria-checked={here}
                   disabled={switchOutlet.isPending && !busy}
                   onClick={() => go(pump)}
-                  className="flex min-h-[56px] w-full items-center gap-4 px-6 text-left text-[16px] text-wa-bar-text active:bg-wa-row-active disabled:opacity-50"
+                  className="flex min-h-[56px] w-full items-center gap-4 px-6 text-left text-body text-wa-bar-text active:bg-wa-row-active disabled:opacity-50"
                 >
                   <span
                     aria-hidden
@@ -104,7 +104,7 @@ export function OutletSheet({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{dealerCodeLabel(pump.code)}</span>
                     {here || busy ? (
-                      <span className="block truncate text-[14px] text-wa-meta">
+                      <span className="block truncate text-meta text-wa-meta">
                         {busy
                           ? t('outlets.opening', { code: dealerCodeLabel(pump.code) })
                           : t('outlets.here')}
@@ -117,7 +117,7 @@ export function OutletSheet({
           </div>
         )}
         {switchOutlet.isError ? (
-          <p role="alert" className="px-6 pb-3 pt-1 text-[14px] text-danger">
+          <p role="alert" className="px-6 pb-3 pt-1 text-meta text-danger">
             {t(failedKey)}
           </p>
         ) : null}

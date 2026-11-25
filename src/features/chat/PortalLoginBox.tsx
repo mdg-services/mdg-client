@@ -54,7 +54,7 @@ const NEEDS_ID_KEY: Partial<Record<PortalId, MessageKey>> = {
 };
 
 const INPUT_CLASS =
-  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
+  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 
 /**
  * The form for ONE login: user ID, password, Save.
@@ -151,9 +151,9 @@ function PortalForm({
       noValidate
       className="mt-2 flex flex-col gap-2"
     >
-      {lead ? <p className="text-[13px] font-medium leading-snug text-wa-bubble-text">{t(lead)}</p> : null}
+      {lead ? <p className="text-meta font-medium leading-snug text-wa-bubble-text">{t(lead)}</p> : null}
       <div>
-        <label htmlFor={userId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={userId} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.portalUserId')}
         </label>
         <input
@@ -171,11 +171,11 @@ function PortalForm({
           className={INPUT_CLASS}
         />
         {USER_ID_HINT[portal] ? (
-          <p className="mt-0.5 text-[12px] leading-snug text-wa-meta">{t(USER_ID_HINT[portal]!)}</p>
+          <p className="mt-0.5 text-meta leading-snug text-wa-meta">{t(USER_ID_HINT[portal]!)}</p>
         ) : null}
       </div>
       <div>
-        <label htmlFor={passId} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={passId} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.portalPassword')}
         </label>
         <div className="relative">
@@ -212,7 +212,7 @@ function PortalForm({
       {errorKey ? (
         <p
           role="alert"
-          className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text"
+          className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text"
         >
           {t(errorKey)}
         </p>
@@ -222,7 +222,7 @@ function PortalForm({
         type="submit"
         disabled={!canSubmit}
         aria-busy={busy}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60"
       >
         {busy ? (
           <Spinner size={16} />
@@ -235,12 +235,12 @@ function PortalForm({
         <button
           type="button"
           onClick={onCancel}
-          className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           {t('common.cancel')}
         </button>
       ) : null}
-      <p className="text-[12px] leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
       {onForgot ? (
         <button
           type="button"
@@ -253,7 +253,7 @@ function PortalForm({
             setErrorKey(null);
             onForgot(typed);
           }}
-          className="flex min-h-11 items-center gap-1.5 self-start rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="flex min-h-11 items-center gap-1.5 self-start rounded-md px-1 text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
           {t('chat.portalForgot')}
@@ -275,14 +275,14 @@ function StatusChip({
   const t = useT();
   if (notNeeded) {
     return (
-      <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-meta">
+      <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-meta font-medium leading-tight text-wa-meta">
         {t('chat.portalNotNeeded')}
       </span>
     );
   }
   if (status === 'saved') {
     return (
-      <span className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-bubble-text">
+      <span className="flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-meta font-medium leading-tight text-wa-bubble-text">
         <Check width={13} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
         {t('chat.portalSaved')}
       </span>
@@ -290,13 +290,13 @@ function StatusChip({
   }
   if (status === 'refused') {
     return (
-      <span className="rounded-full bg-wa-notice px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-bubble-text">
+      <span className="rounded-full bg-wa-notice px-2 py-0.5 text-meta font-medium leading-tight text-wa-bubble-text">
         {t('chat.portalRefused')}
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-[12px] font-medium leading-tight text-wa-meta">
+    <span className="rounded-full bg-black/[0.08] px-2 py-0.5 text-meta font-medium leading-tight text-wa-meta">
       {t('chat.portalNeeded')}
     </span>
   );
@@ -394,7 +394,7 @@ function PortalRow({
       className="rounded-md bg-wa-row-active px-2.5 py-2"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+        <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
           <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
           {/* A company portal is named by its company alone ("BPCL portal"): never by
               what MDG does on it. SDMS and IRAS keep "{name} login". */}
@@ -413,11 +413,11 @@ function PortalRow({
 
       {failed ? (
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="text-[13px] leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
+          <span className="text-meta leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
           <button
             type="button"
             onClick={onRetry}
-            className="min-h-11 shrink-0 rounded-md px-2 text-[13px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('common.retry')}
           </button>
@@ -425,14 +425,14 @@ function PortalRow({
       ) : null}
 
       {state && !canEdit && !notNeeded && state.status !== 'saved' ? (
-        <p className="mt-1 text-[13px] leading-snug text-wa-meta">{t('chat.portalOwnerFills')}</p>
+        <p className="mt-1 text-meta leading-snug text-wa-meta">{t('chat.portalOwnerFills')}</p>
       ) : null}
 
       {resetLine ? (
         <div
           role="status"
           className={cn(
-            'mt-1 rounded-md px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text',
+            'mt-1 rounded-md px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text',
             pReset?.state === 'failed' ? 'bg-wa-notice' : 'bg-black/[0.05]',
           )}
         >
@@ -441,7 +441,7 @@ function PortalRow({
             <span className="min-w-0 break-words">{t(resetLine)}</span>
           </p>
           {pReset?.portalWords && !resetRunning ? (
-            <p className="mt-0.5 break-words text-[12px] text-wa-meta">
+            <p className="mt-0.5 break-words text-meta text-wa-meta">
               {t('chat.portalResetSaid', { words: pReset.portalWords })}
             </p>
           ) : null}
@@ -481,7 +481,7 @@ function PortalRow({
 
       {state && state.status === 'saved' && !formOpen && !askingReset && !guiding ? (
         <div className="mt-0.5 flex items-center justify-between gap-2">
-          <div className="min-w-0 text-[13px] leading-snug text-wa-meta">
+          <div className="min-w-0 text-meta leading-snug text-wa-meta">
             <span className="break-words">
               {savedDate ? t('chat.portalSavedOn', { date: savedDate }) : t('chat.portalSaved')}
             </span>
@@ -496,7 +496,7 @@ function PortalRow({
               data-no-swipe
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setChanging(true)}
-              className="min-h-11 shrink-0 rounded-md px-2 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+              className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
             >
               {t('chat.portalChange')}
             </button>
@@ -555,7 +555,7 @@ function PortalRow({
               data-no-swipe
               onPointerDown={(e) => e.stopPropagation()}
               onClick={() => setForgot(true)}
-              className="mt-1 flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+              className="mt-1 flex min-h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
             >
               {t('chat.sdmsForgot')}
             </button>
@@ -569,7 +569,7 @@ function PortalRow({
           data-no-swipe
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => openIdReset('')}
-          className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
           {t('chat.portalForgot')}
@@ -586,7 +586,7 @@ function PortalRow({
             if (canGuide) setGuiding(true);
             else setAskingReset({ userId: '' });
           }}
-          className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="mt-1 flex min-h-11 items-center gap-1.5 rounded-md px-1 text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           <KeyRound width={15} strokeWidth={2} className="shrink-0" aria-hidden />
           {t('chat.portalForgot')}
@@ -620,8 +620,8 @@ function PortalResetGuide({ url }: { url: string }) {
       onPointerDown={(e) => e.stopPropagation()}
       className="mt-2 flex flex-col gap-2"
     >
-      <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.xtrapowerGuideIntro')}</p>
-      <ol className="flex list-decimal flex-col gap-1 pl-5 text-[13px] leading-snug text-wa-bubble-text">
+      <p className="text-meta leading-snug text-wa-bubble-text">{t('chat.xtrapowerGuideIntro')}</p>
+      <ol className="flex list-decimal flex-col gap-1 pl-5 text-meta leading-snug text-wa-bubble-text">
         {steps.map((step) => (
           <li key={step} className="break-words">
             {step}
@@ -631,7 +631,7 @@ function PortalResetGuide({ url }: { url: string }) {
       <button
         type="button"
         onClick={() => openPortalPage({ url, title: t('chat.xtrapowerPortalTitle'), steps })}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
       >
         <ExternalLink width={16} strokeWidth={2} className="shrink-0" aria-hidden />
         {t('chat.xtrapowerGuideOpen')}
@@ -737,7 +737,7 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
 
   const field = (id: string, label: MessageKey, input: React.ReactNode) => (
     <div>
-      <label htmlFor={id} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+      <label htmlFor={id} className="mb-0.5 block text-meta leading-tight text-wa-meta">
         {t(label)}
       </label>
       {input}
@@ -762,7 +762,7 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
           noValidate
           className="flex flex-col gap-2"
         >
-          <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.xtrapowerAssistIntro')}</p>
+          <p className="text-meta leading-snug text-wa-bubble-text">{t('chat.xtrapowerAssistIntro')}</p>
           {field(
             `${ids}-id`,
             'chat.portalUserId',
@@ -840,15 +840,15 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
               </button>
             </div>,
           )}
-          <p className="text-[12px] leading-snug text-wa-meta">{t('chat.xtrapowerRule')}</p>
+          <p className="text-meta leading-snug text-wa-meta">{t('chat.xtrapowerRule')}</p>
           {errorKey ? (
-            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text">
+            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text">
               {t(errorKey)}
             </p>
           ) : null}
           <button
             type="submit"
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
           >
             <ExternalLink width={16} strokeWidth={2} className="shrink-0" aria-hidden />
             {t('chat.xtrapowerStart')}
@@ -856,14 +856,14 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('common.cancel')}
           </button>
         </form>
       ) : phase === 'open' ? (
         <div role="status" className="flex flex-col gap-2">
-          <p className="flex items-start gap-1.5 text-[13px] leading-snug text-wa-bubble-text">
+          <p className="flex items-start gap-1.5 text-meta leading-snug text-wa-bubble-text">
             {busy ? <Spinner size={14} /> : null}
             <span className="min-w-0 break-words">{busy ? t('chat.xpaDone') : t('chat.xtrapowerOpenNow')}</span>
           </p>
@@ -871,7 +871,7 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
             <button
               type="button"
               onClick={start}
-              className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+              className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
             >
               {t('chat.xtrapowerOpenAgain')}
             </button>
@@ -879,9 +879,9 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <p className="text-[13px] font-medium leading-snug text-wa-bubble-text">{t('chat.xtrapowerClosedAsk')}</p>
+          <p className="text-meta font-medium leading-snug text-wa-bubble-text">{t('chat.xtrapowerClosedAsk')}</p>
           {errorKey ? (
-            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text">
+            <p role="alert" className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text">
               {t(errorKey)}
             </p>
           ) : null}
@@ -890,7 +890,7 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
             disabled={busy}
             aria-busy={busy}
             onClick={() => void keep()}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60"
           >
             {busy ? <Spinner size={16} /> : <Lock width={16} strokeWidth={2} className="shrink-0" aria-hidden />}
             {t('chat.xtrapowerYesSave')}
@@ -901,7 +901,7 @@ function XtraPowerAssist({ url, onSaved, onCancel }: { url: string; onSaved: () 
               setErrorKey(null);
               setPhase('form');
             }}
-            className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('chat.xtrapowerTryAgain')}
           </button>
@@ -941,11 +941,11 @@ function ResetConfirm({ portal, userId, onDone }: { portal: PortalId; userId: st
       onPointerDown={(e) => e.stopPropagation()}
       className="mt-2 flex flex-col gap-2"
     >
-      <p className="text-[13px] leading-snug text-wa-bubble-text">{t('chat.portalResetExplain')}</p>
+      <p className="text-meta leading-snug text-wa-bubble-text">{t('chat.portalResetExplain')}</p>
       {errorKey ? (
         <p
           role="alert"
-          className="rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text"
+          className="rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text"
         >
           {t(errorKey)}
         </p>
@@ -955,7 +955,7 @@ function ResetConfirm({ portal, userId, onDone }: { portal: PortalId; userId: st
         onClick={() => void go()}
         disabled={busy}
         aria-busy={busy}
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60"
       >
         {busy ? <Spinner size={16} /> : <KeyRound width={16} strokeWidth={2} className="shrink-0" aria-hidden />}
         {t('chat.portalResetGo')}
@@ -963,7 +963,7 @@ function ResetConfirm({ portal, userId, onDone }: { portal: PortalId; userId: st
       <button
         type="button"
         onClick={onDone}
-        className="flex h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+        className="flex h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10"
       >
         {t('common.cancel')}
       </button>
@@ -996,7 +996,7 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
   return (
     <div data-tanker-question className="rounded-md bg-wa-row-active px-2.5 py-2">
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
-        <p className="flex min-w-0 items-center gap-1.5 break-words text-[14px] font-medium leading-snug">
+        <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
           <Truck width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
           {open ? t('chat.tankerQuestion') : t(tanker.owns ? 'chat.tankerOwns' : 'chat.tankerNone')}
         </p>
@@ -1006,7 +1006,7 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
             data-no-swipe
             onPointerDown={(e) => e.stopPropagation()}
             onClick={() => setChanging(true)}
-            className="min-h-11 shrink-0 rounded-md px-2 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('chat.portalChange')}
           </button>
@@ -1015,7 +1015,7 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
       {open ? (
         canEdit ? (
           <>
-            <p className="mt-0.5 text-[13px] leading-snug text-wa-meta">{t('chat.tankerWhy')}</p>
+            <p className="mt-0.5 text-meta leading-snug text-wa-meta">{t('chat.tankerWhy')}</p>
             <div
               data-no-swipe
               onPointerDown={(e) => e.stopPropagation()}
@@ -1029,7 +1029,7 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
                   aria-pressed={tanker.owns === owns}
                   onClick={() => void answer(owns)}
                   className={cn(
-                    'flex h-11 items-center justify-center rounded-lg px-3 text-[15px] font-medium active:opacity-90 disabled:opacity-60',
+                    'flex h-11 items-center justify-center rounded-lg px-3 text-body font-medium active:opacity-90 disabled:opacity-60',
                     tanker.owns === owns
                       ? 'bg-wa-accent text-white'
                       : 'border border-wa-divider bg-wa-in text-wa-bubble-text',
@@ -1040,13 +1040,13 @@ function TankerQuestion({ tanker, canEdit }: { tanker: PortalTankerView; canEdit
               ))}
             </div>
             {failed ? (
-              <p role="alert" className="mt-1 text-[13px] leading-snug text-wa-bubble-text">
+              <p role="alert" className="mt-1 text-meta leading-snug text-wa-bubble-text">
                 {t('chat.tankerSaveFailed')}
               </p>
             ) : null}
           </>
         ) : (
-          <p className="mt-0.5 text-[13px] leading-snug text-wa-meta">{t('chat.tankerOwnerAnswers')}</p>
+          <p className="mt-0.5 text-meta leading-snug text-wa-meta">{t('chat.tankerOwnerAnswers')}</p>
         )
       ) : null}
     </div>
@@ -1060,14 +1060,14 @@ function AppPasswordChoice() {
   const t = useT();
   return (
     <div data-app-password className="rounded-md bg-wa-row-active px-2.5 py-2">
-      <p className="flex items-center gap-1.5 text-[14px] font-medium leading-snug">
+      <p className="flex items-center gap-1.5 text-meta font-medium leading-snug">
         <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
         {t('chat.pickerApp')}
       </p>
-      <p className="mt-1 text-[13px] leading-snug text-wa-bubble-text">{t('chat.pickerAppHow')}</p>
+      <p className="mt-1 text-meta leading-snug text-wa-bubble-text">{t('chat.pickerAppHow')}</p>
       <Link
         to="/settings/account"
-        className="mt-2 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90"
+        className="mt-2 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
       >
         {t('chat.pickerAppOpen')}
       </Link>
@@ -1104,7 +1104,7 @@ function PasswordPicker({
           data-no-swipe
           onPointerDown={(e) => e.stopPropagation()}
           onClick={() => setChosen(null)}
-          className="flex min-h-11 items-center gap-1 self-start rounded-md px-1 text-[14px] font-medium text-wa-accent-strong active:bg-black/10"
+          className="flex min-h-11 items-center gap-1 self-start rounded-md px-1 text-meta font-medium text-wa-accent-strong active:bg-black/10"
         >
           <ChevronLeft width={16} strokeWidth={2} className="shrink-0" aria-hidden />
           {t('chat.pickerBack')}
@@ -1150,11 +1150,11 @@ function PasswordPicker({
         >
           <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
           <span className="min-w-0 flex-1">
-            <span className="block break-words text-[14px] font-medium leading-snug">{c.label}</span>
+            <span className="block break-words text-meta font-medium leading-snug">{c.label}</span>
             {c.note ? (
               <span
                 className={cn(
-                  'block text-[12px] leading-snug',
+                  'block text-meta leading-snug',
                   c.note === 'chat.portalRefused' ? 'font-medium text-wa-bubble-text' : 'text-wa-meta',
                 )}
               >

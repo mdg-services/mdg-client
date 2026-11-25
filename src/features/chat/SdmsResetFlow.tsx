@@ -30,12 +30,12 @@ import {
 import { sayIn } from '@dk/shared/types';
 
 const INPUT_CLASS =
-  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-[16px] text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
+  'h-11 w-full rounded-md border border-wa-divider bg-wa-in px-2.5 text-body text-wa-bubble-text placeholder:text-wa-meta focus:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring';
 const PRIMARY_BUTTON =
-  'flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-[15px] font-medium text-white active:opacity-90 disabled:opacity-60';
+  'flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90 disabled:opacity-60';
 const TEXT_BUTTON =
-  'flex min-h-11 w-full items-center justify-center rounded-lg text-[14px] font-medium text-wa-accent-strong active:bg-black/10';
-const NOTICE_CLASS = 'rounded-md bg-wa-notice px-2.5 py-1.5 text-[13px] leading-snug text-wa-bubble-text';
+  'flex min-h-11 w-full items-center justify-center rounded-lg text-meta font-medium text-wa-accent-strong active:bg-black/10';
+const NOTICE_CLASS = 'rounded-md bg-wa-notice px-2.5 py-1.5 text-meta leading-snug text-wa-bubble-text';
 
 /**
  * The words that differ between the portals. The old SDMS (IndianOil's "Business Login")
@@ -106,7 +106,7 @@ function useTimeLeft(expiresAt: string | null): string | null {
 
 function BusyLine({ text }: { text: string }) {
   return (
-    <p role="status" className="mt-2 flex items-center gap-2 text-[14px] leading-snug">
+    <p role="status" className="mt-2 flex items-center gap-2 text-meta leading-snug">
       <Spinner size={16} />
       <span className="min-w-0 break-words">{text}</span>
     </p>
@@ -179,7 +179,7 @@ function OtpAndPasswordForm({
       noValidate
       className="mt-2 flex flex-col gap-2"
     >
-      <p className="text-[13px] leading-snug text-wa-bubble-text">
+      <p className="text-meta leading-snug text-wa-bubble-text">
         {reset.sentTo ?? t(WORDS[portal].sent)}
         {timeLeft ? <span className="block text-wa-meta">{t('chat.sdmsResetTimeLeft', { time: timeLeft })}</span> : null}
       </p>
@@ -188,14 +188,14 @@ function OtpAndPasswordForm({
           <p>{t(RETRY_KEY[reset.retry])}</p>
           {/* IndianOil's own words, where it gave any: the old SDMS prints its rule only now. */}
           {reset.retryWords ? (
-            <p className="mt-0.5 break-words text-[12px] text-wa-meta">
+            <p className="mt-0.5 break-words text-meta text-wa-meta">
               {t('chat.portalResetSaid', { words: reset.retryWords })}
             </p>
           ) : null}
         </div>
       ) : null}
       <div>
-        <label htmlFor={`${ids}-otp`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={`${ids}-otp`} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.sdmsResetOtp')}
         </label>
         <input
@@ -210,7 +210,7 @@ function OtpAndPasswordForm({
         />
       </div>
       <div>
-        <label htmlFor={`${ids}-new`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={`${ids}-new`} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.sdmsResetNew')}
         </label>
         <div className="relative">
@@ -238,7 +238,7 @@ function OtpAndPasswordForm({
         </div>
       </div>
       <div>
-        <label htmlFor={`${ids}-repeat`} className="mb-0.5 block text-[12px] leading-tight text-wa-meta">
+        <label htmlFor={`${ids}-repeat`} className="mb-0.5 block text-meta leading-tight text-wa-meta">
           {t('chat.sdmsResetRepeat')}
         </label>
         <input
@@ -254,7 +254,7 @@ function OtpAndPasswordForm({
           className={INPUT_CLASS}
         />
       </div>
-      <p className="text-[12px] leading-snug text-wa-meta">{t(WORDS[portal].rule)}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t(WORDS[portal].rule)}</p>
       {shown ? (
         <p role="alert" className={NOTICE_CLASS}>
           {t(shown)}
@@ -264,7 +264,7 @@ function OtpAndPasswordForm({
         {pending ? <Spinner size={16} /> : <Lock width={16} strokeWidth={2} className="shrink-0" aria-hidden />}
         {t('chat.sdmsResetSubmit')}
       </button>
-      <p className="text-[12px] leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
+      <p className="text-meta leading-snug text-wa-meta">{t('chat.portalKeptSafe')}</p>
     </form>
   );
 }
@@ -365,7 +365,7 @@ export function SdmsResetFlow({
   if (!resetId) {
     return (
       <div className="mt-2 flex flex-col gap-2" data-no-swipe onPointerDown={(e) => e.stopPropagation()}>
-        <p className="text-[13px] leading-snug text-wa-bubble-text">{t(WORDS[portal].intro)}</p>
+        <p className="text-meta leading-snug text-wa-bubble-text">{t(WORDS[portal].intro)}</p>
         {startError ? (
           <p role="alert" className={NOTICE_CLASS}>
             {t(startError)}
@@ -386,11 +386,11 @@ export function SdmsResetFlow({
     if (resetQuery.isError) {
       return (
         <div className="mt-2 flex items-center justify-between gap-2">
-          <span className="text-[13px] leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
+          <span className="text-meta leading-snug text-wa-meta">{t('chat.askStateFailed')}</span>
           <button
             type="button"
             onClick={() => void refetch()}
-            className="min-h-11 shrink-0 rounded-md px-2 text-[13px] font-medium text-wa-accent-strong active:bg-black/10"
+            className="min-h-11 shrink-0 rounded-md px-2 text-meta font-medium text-wa-accent-strong active:bg-black/10"
           >
             {t('common.retry')}
           </button>
@@ -432,13 +432,13 @@ export function SdmsResetFlow({
       return (
         <>
           <BusyLine text={t('chat.sdmsResetOpening')} />
-          {startedByOther ? <p className="mt-1 text-[12px] text-wa-meta">{startedByOther}</p> : null}
+          {startedByOther ? <p className="mt-1 text-meta text-wa-meta">{startedByOther}</p> : null}
         </>
       );
     case 'otp_sent':
       return (
         <>
-          {startedByOther ? <p className="mt-2 text-[12px] text-wa-meta">{startedByOther}</p> : null}
+          {startedByOther ? <p className="mt-2 text-meta text-wa-meta">{startedByOther}</p> : null}
           <OtpAndPasswordForm
             portal={portal}
             reset={reset}
@@ -460,7 +460,7 @@ export function SdmsResetFlow({
       );
     case 'done':
       return (
-        <p role="status" className="mt-2 flex items-start gap-2 text-[14px] font-medium leading-snug">
+        <p role="status" className="mt-2 flex items-start gap-2 text-meta font-medium leading-snug">
           <Check width={16} strokeWidth={2.5} className="mt-0.5 shrink-0 text-success" aria-hidden />
           <span className="min-w-0 break-words">{t(WORDS[portal].done)}</span>
         </p>

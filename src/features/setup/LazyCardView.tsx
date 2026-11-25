@@ -59,7 +59,7 @@ export function LazyCardView({
       key={attempt}
       fallback={
         <div className="mt-1 flex items-center justify-between gap-2">
-          <span className="text-[13px] leading-snug text-wa-meta">{t('setup.loadFailed')}</span>
+          <span className="text-meta leading-snug text-wa-meta">{t('setup.loadFailed')}</span>
           <LinkButton onClick={retry}>{t('common.retry')}</LinkButton>
         </div>
       }

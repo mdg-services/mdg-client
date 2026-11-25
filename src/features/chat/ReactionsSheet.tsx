@@ -53,7 +53,7 @@ export function ReactionsSheet({
       <div className="relative mx-auto flex max-h-[70vh] w-full max-w-md flex-col rounded-t-2xl bg-wa-bar shadow-lg safe-bottom animate-in">
         <header className="flex items-center gap-2 border-b border-wa-divider px-3 py-2.5">
           <span className="h-9 w-9" />
-          <h2 className="flex-1 text-center text-sm font-semibold text-wa-bar-text">
+          <h2 className="flex-1 text-center text-subheading text-wa-bar-text">
             {t('chat.reactions')}
           </h2>
           <button
@@ -72,11 +72,11 @@ export function ReactionsSheet({
             const row = (
               <>
                 <span className="min-w-0 flex-1 text-left">
-                  <span className="block truncate text-sm text-wa-bar-text">
+                  <span className="block truncate text-body text-wa-bar-text">
                     {nameFor(r.userId, r.userName)}
                   </span>
                   {own ? (
-                    <span className="block text-[11px] text-wa-meta">
+                    <span className="block text-micro text-wa-meta">
                       {t('chat.tapToRemove')}
                     </span>
                   ) : null}

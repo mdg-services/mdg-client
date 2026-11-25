@@ -4,6 +4,8 @@ import { useMatch } from 'react-router-dom';
 
 import { invalidateAllChatAskStates } from '@/hooks/api/useChatAskStates';
 import { myConversationsKey } from '@/hooks/api/useMyConversations';
+import { invalidateReportsSoon } from '@/features/reports/useReportHistory';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -114,8 +116,16 @@ export function useConversationsListSocket() {
         }
       }
       apply(p.conversation, bump);
+      // A new message can be a report or a box: the Today page reads the same chats, and a report
+      // open on screen (or the Reports tab) may have a newer or a corrected one.
+      invalidateTodayFeed(qc);
+      invalidateReportsSoon(qc);
     };
-    const onConvUpdated = (p: { conversation: Conversation }) => apply(p.conversation, false);
+    const onConvUpdated = (p: { conversation: Conversation }) => {
+      apply(p.conversation, false);
+      invalidateTodayFeed(qc);
+      invalidateReportsSoon(qc);
+    };
 
     // When *I* read a thread, the server clears me from unreadDealerUserIds but
     // only emits `read` (not conversation:updated), so the list badge would stay
@@ -143,6 +153,8 @@ export function useConversationsListSocket() {
     // server's own count replaces whatever this phone had been adding up).
     const offReconnect = onSocketReconnect(socket, () => {
       void qc.invalidateQueries({ queryKey: myConversationsKey });
+      invalidateTodayFeed(qc);
+      invalidateReportsSoon(qc);
     });
 
     // A paper MDG asked for was asked, nudged or settled. The same request can sit
@@ -150,18 +162,34 @@ export function useConversationsListSocket() {
     // "Received" reply lands in hears about it any other way — so every thread's
     // buttons ask again, whichever one is open. (The payload is the whole row; the
     // answer to "where does it stand" comes from the server, not from it.)
-    const onDocumentAskUpdated = () => invalidateAllChatAskStates(qc);
+    const onDocumentAskUpdated = () => {
+      invalidateAllChatAskStates(qc);
+      // An ask is one of the Today page's tasks.
+      invalidateTodayFeed(qc);
+    };
+
+    // A super admin deleted a message ("gone for everyone"). Only the open thread hears the delete
+    // itself, and the server sends conversation:updated only when it was the newest message, so
+    // without this a deleted report would stay on Today (picture, headline and all) until some
+    // other event: the wrong figures an admin took back would still open full screen.
+    const onMessageDeleted = () => {
+      invalidateTodayFeed(qc);
+      // The report open on screen may be the one that was deleted: ask again, so it says "removed".
+      invalidateReportsSoon(qc);
+    };
 
     socket.on('message:new', onNewMessage);
     socket.on('conversation:updated', onConvUpdated);
     socket.on('read', onRead);
     socket.on('document-ask:updated', onDocumentAskUpdated);
+    socket.on('message:deleted', onMessageDeleted);
     return () => {
       offReconnect();
       socket.off('message:new', onNewMessage);
       socket.off('conversation:updated', onConvUpdated);
       socket.off('read', onRead);
       socket.off('document-ask:updated', onDocumentAskUpdated);
+      socket.off('message:deleted', onMessageDeleted);
     };
   }, [token, myId, qc]);
 }

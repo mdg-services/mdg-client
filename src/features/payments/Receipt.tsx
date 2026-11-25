@@ -13,10 +13,10 @@ export const RECEIPT_FOOTER = `${COMPANY} · ${BRAND}`;
 function Line({ label, value, wrap }: { label: string; value: string; wrap?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 py-2.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-      <dt className="text-base text-text-muted">{label}</dt>
+      <dt className="text-body text-text-muted">{label}</dt>
       <dd
         className={
-          wrap ? 'break-all text-base font-medium text-text' : 'text-base font-medium text-text'
+          wrap ? 'break-all text-body font-medium text-text' : 'text-body font-medium text-text'
         }
       >
         {value}
@@ -42,7 +42,7 @@ export function Receipt({ payment }: { payment: DealerPayment }) {
   return (
     <Card role="region" aria-labelledby="payment-receipt-title">
       <CardContent className="p-5">
-        <h2 id="payment-receipt-title" className="text-lg font-semibold text-text">
+        <h2 id="payment-receipt-title" className="text-heading text-text">
           {t('payments.receipt.title')}
         </h2>
         <dl className="mt-1 divide-y divide-border">
@@ -67,7 +67,7 @@ export function Receipt({ payment }: { payment: DealerPayment }) {
         </dl>
         {/* Each name stays whole: on a narrow phone the line breaks between the
             two, never inside the company's name. */}
-        <p className="mt-3 border-t border-border pt-3 text-base text-text-muted">
+        <p className="mt-3 border-t border-border pt-3 text-body text-text-muted">
           <span className="whitespace-nowrap">{COMPANY}</span> ·{' '}
           <span className="whitespace-nowrap">{BRAND}</span>
         </p>

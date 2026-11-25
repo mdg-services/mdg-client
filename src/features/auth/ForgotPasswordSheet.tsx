@@ -300,7 +300,7 @@ export function ForgotPasswordSheet({
         className="relative mx-auto flex max-h-[92vh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl border border-border bg-surface pb-4 shadow-lg outline-none safe-bottom sm:rounded-2xl"
       >
         <div className="flex items-start justify-between gap-3 px-5 pb-1 pt-4">
-          <h2 id={titleId} className="text-lg font-semibold text-text">
+          <h2 id={titleId} className="text-heading text-text">
             {t('auth.forgotTitle')}
           </h2>
           <button
@@ -326,11 +326,11 @@ export function ForgotPasswordSheet({
         ) : stage === 'code' ? (
           <form onSubmit={submitCode} noValidate className="flex flex-col gap-3 px-5 pt-1">
             <div role="status" aria-live="polite" className="flex flex-col gap-0.5">
-              <p className="text-sm leading-relaxed text-text-muted">{t('auth.resetSent')}</p>
-              <p className="break-all text-sm font-medium text-text">{identifier}</p>
+              <p className="text-meta leading-relaxed text-text-muted">{t('auth.resetSent')}</p>
+              <p className="break-all text-meta font-medium text-text">{identifier}</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={codeId} className="text-sm font-medium text-text">
+              <label htmlFor={codeId} className="text-meta font-medium text-text">
                 {t('auth.resetCode')}
               </label>
               <Input
@@ -353,14 +353,14 @@ export function ForgotPasswordSheet({
                 className="tracking-[0.3em]"
                 autoFocus
               />
-              {codeShort ? <p className="text-xs text-danger">{t('auth.resetCodeShort')}</p> : null}
+              {codeShort ? <p className="text-meta text-danger">{t('auth.resetCodeShort')}</p> : null}
             </div>
             {verify.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t(resetErrorKey(verify.error))}
               </p>
             ) : request.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t(resetErrorKey(request.error))}
               </p>
             ) : null}
@@ -381,8 +381,8 @@ export function ForgotPasswordSheet({
           </form>
         ) : stage === 'channel' ? (
           <div className="flex flex-col gap-3 px-5 pt-1">
-            <p className="text-sm leading-relaxed text-text-muted">{t('auth.resetWhere')}</p>
-            <p className="-mt-2 break-all text-sm font-medium text-text">{identifier}</p>
+            <p className="text-meta leading-relaxed text-text-muted">{t('auth.resetWhere')}</p>
+            <p className="-mt-2 break-all text-meta font-medium text-text">{identifier}</p>
             {channels.map((via) => (
               <Button
                 key={via}
@@ -397,7 +397,7 @@ export function ForgotPasswordSheet({
               </Button>
             ))}
             {request.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t(resetErrorKey(request.error))}
               </p>
             ) : null}
@@ -408,19 +408,19 @@ export function ForgotPasswordSheet({
         ) : (
           <form onSubmit={submitIdentifier} noValidate className="flex flex-col gap-3 px-5 pt-1">
             {notice ? (
-              <p role="status" className="rounded-xl bg-info-soft px-3 py-2 text-sm text-info">
+              <p role="status" className="rounded-xl bg-info-soft px-3 py-2 text-meta text-info">
                 {t(notice)}
               </p>
             ) : null}
             {/* Nothing until the server has said which channels it has: the words differ,
                 and a line that changes under the dealer's eyes is worse than a short wait. */}
             {!options.isPending ? (
-              <p className="text-sm leading-relaxed text-text-muted">
+              <p className="text-meta leading-relaxed text-text-muted">
                 {t(canSendCode ? 'auth.forgotIntroCode' : 'auth.forgotIntro')}
               </p>
             ) : null}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={fieldId} className="text-sm font-medium text-text">
+              <label htmlFor={fieldId} className="text-meta font-medium text-text">
                 {t('auth.identifier')}
               </label>
               <Input
@@ -437,11 +437,11 @@ export function ForgotPasswordSheet({
                 placeholder={t('auth.identifierPlaceholder')}
               />
               {invalid ? (
-                <p className="text-xs text-danger">{t('auth.identifierInvalid')}</p>
+                <p className="text-meta text-danger">{t('auth.identifierInvalid')}</p>
               ) : null}
             </div>
             {ask.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t('common.networkError')}
               </p>
             ) : null}
@@ -457,7 +457,7 @@ export function ForgotPasswordSheet({
         {showFallback && (canSendCode || options.isPending || stage !== 'identifier') ? (
           <div className="flex flex-col items-center px-5 pt-1">
             {ask.isError && stage !== 'identifier' ? (
-              <p role="alert" className="mb-1 text-center text-sm text-danger">
+              <p role="alert" className="mb-1 text-center text-meta text-danger">
                 {t('common.networkError')}
               </p>
             ) : null}
@@ -486,7 +486,7 @@ function TextLink({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-11 rounded-lg px-2 text-sm font-medium text-brand underline underline-offset-4 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
+      className="min-h-11 rounded-lg px-2 text-meta font-medium text-brand underline underline-offset-4 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
     >
       {children}
     </button>
@@ -509,7 +509,7 @@ function Done({
         <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-success text-white">
           <Check width={14} strokeWidth={2.4} />
         </span>
-        <p className="text-base font-medium leading-snug text-text">{message}</p>
+        <p className="text-body font-medium leading-snug text-text">{message}</p>
       </div>
       <Button size="lg" fullWidth className="mt-5" onClick={onAction}>
         {action}
@@ -560,9 +560,9 @@ function NewPasswordForm({
       noValidate
       className="flex flex-col gap-3 px-5 pt-1"
     >
-      <p className="text-sm leading-relaxed text-text-muted">{t('auth.resetNewIntro')}</p>
+      <p className="text-meta leading-relaxed text-text-muted">{t('auth.resetNewIntro')}</p>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={`${ids}-new`} className="text-sm font-medium text-text">
+        <label htmlFor={`${ids}-new`} className="text-meta font-medium text-text">
           {t('profile.newPassword')}
         </label>
         <PasswordInput
@@ -574,11 +574,11 @@ function NewPasswordForm({
           {...register('newPassword')}
         />
         {errors.newPassword ? (
-          <p className="text-xs text-danger">{errors.newPassword.message}</p>
+          <p className="text-meta text-danger">{errors.newPassword.message}</p>
         ) : null}
       </div>
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={`${ids}-confirm`} className="text-sm font-medium text-text">
+        <label htmlFor={`${ids}-confirm`} className="text-meta font-medium text-text">
           {t('auth.forcedConfirm')}
         </label>
         <PasswordInput
@@ -589,11 +589,11 @@ function NewPasswordForm({
           {...register('confirmPassword')}
         />
         {errors.confirmPassword ? (
-          <p className="text-xs text-danger">{errors.confirmPassword.message}</p>
+          <p className="text-meta text-danger">{errors.confirmPassword.message}</p>
         ) : null}
       </div>
       {errorKey ? (
-        <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-sm text-danger">
+        <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
           {t(errorKey)}
         </p>
       ) : null}

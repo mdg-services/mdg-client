@@ -195,6 +195,64 @@ describe('buildViewerItems — every picture in the thread, oldest first', () =>
     kind: 'file',
   };
 
+  it("leaves a report's card out of the swipe (it is on Today), and keeps every other picture", () => {
+    const card: Attachment = { ...pic('card'), filename: 'dsr-sales-2026-10-12.png' };
+    const items = buildViewerItems(
+      [
+        makeMessage({ id: 'm1', senderId: 'me', attachments: [pic('own')], createdAt: at(2026, 10, 12, 9, 0) }),
+        makeMessage({
+          id: 'm2',
+          senderId: 'sys',
+          senderRole: 'admin',
+          system: true,
+          body: 'Aaj ki bikri ki report bhej di hai.',
+          attachments: [card],
+          report: { kind: 'dsr_sales', status: 'ok' },
+          createdAt: at(2026, 10, 12, 9, 1),
+        }),
+        // An old, untagged card is recognised by its file name and left out the same way.
+        makeMessage({
+          id: 'm3',
+          senderId: 'sys',
+          senderRole: 'admin',
+          system: true,
+          body: 'DSR · 12 Oct',
+          attachments: [{ ...pic('old'), filename: 'dsr-variation-2026-10-12.png' }],
+          createdAt: at(2026, 10, 12, 9, 2),
+        }),
+        // An admin picture that is not a card stays.
+        makeMessage({
+          id: 'm4',
+          senderId: 'sys',
+          senderRole: 'admin',
+          body: 'site visit',
+          attachments: [pic('site')],
+          createdAt: at(2026, 10, 12, 9, 3),
+        }),
+      ],
+      'me',
+      tEn,
+    );
+    expect(items.map((i) => i.key)).toEqual(['m1:own', 'm4:site']);
+  });
+
+  it('labels an AI reply\'s picture "MDG" even when the sender is the system account and not flagged admin', () => {
+    const items = buildViewerItems(
+      [
+        makeMessage({
+          id: 'm1',
+          senderId: 'sys',
+          senderRole: 'dealer-owner',
+          senderName: 'MDG System',
+          attachments: [pic('p1')],
+        }),
+      ],
+      'me',
+      tEn,
+    );
+    expect(items[0]!.senderLabel).toBe('MDG');
+  });
+
   it('lists the pictures of every message in order, skipping what is not a picture', () => {
     const items = buildViewerItems(
       [

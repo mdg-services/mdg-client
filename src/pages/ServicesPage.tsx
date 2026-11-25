@@ -55,7 +55,7 @@ function StatusPill({
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium',
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-meta font-medium',
         isActive
           ? 'bg-emerald-100 text-emerald-700'
           : 'bg-amber-100 text-amber-700',
@@ -118,16 +118,16 @@ export function ServicesPage() {
                     {/* The dealer's own word for the service, never the plugin
                         slug — `credit-dod-monitoring` is the name of a folder on
                         our server and it meant nothing to the person reading it. */}
-                    <p className="truncate text-sm font-semibold text-text">
+                    <p className="truncate text-subheading text-text">
                       {serviceName(lang, svc.serviceId)}
                     </p>
-                    <p className="mt-0.5 text-xs text-text-muted">
+                    <p className="mt-0.5 text-meta text-text-muted">
                       {t(CADENCE_KEY[svc.cadence])}
                     </p>
                   </div>
                   <StatusPill status={svc.status} t={t} />
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px] text-text-muted">
+                <div className="mt-3 grid grid-cols-2 gap-2 text-meta text-text-muted">
                   <div className="flex items-center gap-1.5">
                     <Clock width={12} strokeWidth={1.75} />
                     <span>{t('services.last', { date: formatDate(svc.lastRunAt) })}</span>

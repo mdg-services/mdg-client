@@ -61,6 +61,12 @@ export interface User {
   mustChangePassword?: boolean;
   /** Shared by the login records of one person who runs several outlets. Absent for most. */
   personId?: string;
+  /**
+   * The id of the "what is new" guide video this dealer login is owed on its next phone open
+   * (`WHATS_NEW_VIDEO`), or null: not a dealer, a new account, already shown, or not in the library.
+   * Set by the server on `/me` and the sign-in; cleared by the app the moment it starts playing.
+   */
+  whatsNewVideo?: string | null;
   createdAt: string;
   updatedAt: string;
 }

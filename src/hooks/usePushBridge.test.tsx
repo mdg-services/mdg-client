@@ -64,6 +64,8 @@ function Harness() {
   return (
     <div>
       <span data-testid="path">{location.pathname}</span>
+      <span data-testid="state">{JSON.stringify(location.state)}</span>
+      <button onClick={() => navigate(-1)}>go-back</button>
       <button onClick={() => navigate('/two')}>go-two</button>
       <button onClick={() => navigate('/three')}>go-three</button>
     </div>
@@ -328,6 +330,51 @@ describe('usePushBridge', () => {
       fire('expo-deep-link', '/chat/c9');
       expect(screen.getByTestId('path')).toHaveTextContent('/chat/c9');
       expect((window as unknown as { __handledDeepLink?: boolean }).__handledDeepLink).toBe(true);
+    });
+
+    // ADR 0056: a push about a report opens the report over the screen the dealer is on.
+    describe('a report\'s link', () => {
+      it('opens the overlay by pushing /report/:cid/:mid, leaving the current screen beneath it', async () => {
+        makeShell();
+        mount();
+        await vi.advanceTimersByTimeAsync(1500);
+        fireEvent.click(screen.getByText('go-two'));
+
+        fire('expo-deep-link', '/report/c1/m7');
+        expect(screen.getByTestId('path')).toHaveTextContent('/report/c1/m7');
+        expect(JSON.parse(screen.getByTestId('state').textContent!)).toMatchObject({
+          backgroundLocation: { pathname: '/two' },
+        });
+        expect((window as unknown as { __handledDeepLink?: boolean }).__handledDeepLink).toBe(true);
+
+        // Back is one step to where the dealer was.
+        fireEvent.click(screen.getByText('go-back'));
+        expect(screen.getByTestId('path')).toHaveTextContent('/two');
+      });
+
+      it('replaces the overlay already open, so one Back still leaves the report behind', async () => {
+        makeShell();
+        mount();
+        await vi.advanceTimersByTimeAsync(1500);
+        fireEvent.click(screen.getByText('go-two'));
+        fire('expo-deep-link', '/report/c1/m7');
+        fire('expo-deep-link', '/report/c1/m8');
+        expect(screen.getByTestId('path')).toHaveTextContent('/report/c1/m8');
+        expect(JSON.parse(screen.getByTestId('state').textContent!)).toMatchObject({
+          backgroundLocation: { pathname: '/two' },
+        });
+        fireEvent.click(screen.getByText('go-back'));
+        expect(screen.getByTestId('path')).toHaveTextContent('/two');
+      });
+
+      it('still follows every other address exactly as before', async () => {
+        makeShell();
+        mount();
+        await vi.advanceTimersByTimeAsync(1500);
+        fire('expo-deep-link', '/chat/c9');
+        expect(screen.getByTestId('path')).toHaveTextContent('/chat/c9');
+        expect(screen.getByTestId('state')).toHaveTextContent('null');
+      });
     });
 
     it('lets go of every listener when it unmounts', async () => {

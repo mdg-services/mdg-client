@@ -61,11 +61,11 @@ export function SettingsProfilePage() {
           />
         </dl>
 
-        <p className="px-5 pt-5 text-[14px] text-wa-meta">{t('settings.profileHint')}</p>
+        <p className="px-5 pt-5 text-meta text-wa-meta">{t('settings.profileHint')}</p>
         <button
           type="button"
           onClick={openMyChat}
-          className="mx-5 mt-3 flex h-11 items-center gap-2 self-start rounded-full border border-wa-divider px-4 text-[15px] font-medium text-wa-accent-strong active:bg-wa-row-active"
+          className="mx-5 mt-3 flex h-11 items-center gap-2 self-start rounded-full border border-wa-divider px-4 text-meta font-medium text-wa-accent-strong active:bg-wa-row-active"
         >
           <MessageCircle width={18} strokeWidth={1.75} />
           {t('kavach.messageUs')}
@@ -78,8 +78,8 @@ export function SettingsProfilePage() {
 function Field({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="px-5 py-3">
-      <dt className="text-[13px] text-wa-meta">{label}</dt>
-      <dd className="mt-0.5 break-words text-[16px] text-wa-bar-text">{value}</dd>
+      <dt className="text-meta text-wa-meta">{label}</dt>
+      <dd className="mt-0.5 break-words text-body text-wa-bar-text">{value}</dd>
     </div>
   );
 }

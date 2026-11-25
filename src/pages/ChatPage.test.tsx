@@ -221,59 +221,31 @@ beforeEach(() => {
 afterEach(() => resetStores());
 
 /**
- * The line under the bubble that raised the ticket. The pinned bar above the
- * thread can say the very same words ("#42 · MDG team is looking at it"), and
- * whether it does depends on the hour in India — so asking the whole screen for
- * the text would find two or one by the time of day. This asks for the one in
- * the thread only.
+ * No line under the bubble that raised the ticket (ADR 0055): "#42 · Sent to the MDG team"
+ * under a message told the dealer a machine had passed their question on. Where it stands
+ * is the pinned bar's job — so what is looked for here is the thread only, outside the bar.
  */
-function lineUnderBubble(words: string) {
-  return waitFor(() => {
-    const lines = screen.queryAllByText(words).filter((el) => !el.closest('[data-ticket-bar]'));
-    expect(lines).toHaveLength(1);
-    return lines[0]!;
-  });
+function linesUnderBubbles() {
+  return Array.from(document.querySelectorAll('p')).filter(
+    (el) => /#42/.test(el.textContent ?? '') && !el.closest('[data-ticket-bar]'),
+  );
 }
 
-describe('ChatPage — the ticket status line', () => {
-  it('shows where the raised ticket stands under the message that raised it', async () => {
+describe('ChatPage — no ticket status line under the bubble', () => {
+  it('draws no line under the message that raised the ticket, whatever state it is in', async () => {
     mount(conversation([ticket()]));
-    expect(await lineUnderBubble('#42 · Sent to the MDG team')).toBeInTheDocument();
-  });
+    await screen.findByText('Ye MDG team ko bhej diya hai.');
+    expect(linesUnderBubbles()).toHaveLength(0);
 
-  it('updates in place when a conversation:updated arrives with the ticket changed', async () => {
-    mount(conversation([ticket()]));
-    await lineUnderBubble('#42 · Sent to the MDG team');
-
-    // An admin opens it.
+    // An admin opens it, then resolves it: still nothing under the bubble.
     serverUpdates(conversation([ticket({ seen: true })]));
-    expect(await lineUnderBubble('#42 · MDG team is looking at it')).toBeInTheDocument();
-    expect(screen.queryByText('#42 · Sent to the MDG team')).toBeNull();
-
-    // An admin resolves it.
     serverUpdates(
       conversation([ticket({ seen: true, state: 'RESOLVED', resolvedAt: '2026-10-12T09:30:00.000Z' })]),
     );
-    expect(await lineUnderBubble('#42 · Closed by the MDG team')).toBeInTheDocument();
-    expect(screen.queryByText('#42 · MDG team is looking at it')).toBeNull();
-  });
-
-  it('draws the line in Hindi when the app is in Hindi, and follows a switch', async () => {
-    mount(conversation([ticket({ seen: true })]));
-    expect(await lineUnderBubble('#42 · MDG team is looking at it')).toBeInTheDocument();
-    act(() => useLangStore.setState({ lang: 'hi', explicit: true }));
-    expect(await lineUnderBubble('#42 · MDG टीम देख रही है')).toBeInTheDocument();
-  });
-
-  it('shows nothing once the conversation stops listing the ticket', async () => {
-    mount(conversation([ticket()]));
-    await lineUnderBubble('#42 · Sent to the MDG team');
-
-    // A resolved ticket past the server's seven-day window drops out.
-    serverUpdates(conversation([]));
-    await waitFor(() => expect(screen.queryByText(/#42/)).toBeNull());
-    // The message that raised it is still in the thread.
-    expect(screen.getByText('Ye MDG team ko bhej diya hai.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Ye MDG team ko bhej diya hai.')).toBeInTheDocument());
+    expect(linesUnderBubbles()).toHaveLength(0);
+    expect(screen.queryByText('#42 · Closed by the MDG team')).toBeNull();
+    expect(screen.queryByText(/Sent to the MDG team/)).toBeNull();
   });
 
   it('shows nothing from a server that sends no tickets at all', async () => {
@@ -310,7 +282,7 @@ describe('ChatPage — the pinned ticket bar', () => {
 
   it('hangs under the header and above the thread, as one line of text', async () => {
     mount(conversation([closedHourAgo()]));
-    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    expect(await screen.findByText('Done ✓')).toBeInTheDocument();
     const bar = theBar()!;
     const header = screen.getByRole('button', { name: 'More options' });
     const thread = document.querySelectorAll('[data-scroller]')[0]!;
@@ -319,26 +291,29 @@ describe('ChatPage — the pinned ticket bar', () => {
     expect(bar.querySelector('button, a')).toBeNull();
   });
 
-  it('leaves the line under the bubble as it was', async () => {
+  it('is the only place the ticket shows: nothing under the bubble repeats it', async () => {
     mount(conversation([closedHourAgo()]));
-    await screen.findByText('#42 · Done ✓');
-    expect(await lineUnderBubble('#42 · Closed by the MDG team')).toBeInTheDocument();
+    await screen.findByText('Done ✓');
+    // And the bar itself carries no helpdesk number: that is a tell a machine raised it.
+    expect(theBar()!.textContent).not.toMatch(/#\d/);
+    expect(linesUnderBubbles()).toHaveLength(0);
+    expect(screen.queryByText('#42 · Closed by the MDG team')).toBeNull();
   });
 
   it('says what is being worked on and by when', async () => {
     mount(conversation([ticket({ seen: true, promiseUntil: ahead(2 * HOUR) })]));
-    await screen.findByText(/^#42 · Being worked on · update by /);
+    await screen.findByText(/^We are on it · update by /);
     expect(theBar()).toHaveAttribute('data-phase', 'working');
   });
 
   it('follows the conversation the server sends', async () => {
     mount(conversation([ticket({ seen: true, promiseUntil: ahead(2 * HOUR) })]));
-    await screen.findByText(/^#42 · Being worked on · update by /);
+    await screen.findByText(/^We are on it · update by /);
 
     // The team closes it.
     serverUpdates(conversation([closedHourAgo()]));
-    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
-    expect(screen.queryByText(/Being worked on/)).toBeNull();
+    expect(await screen.findByText('Done ✓')).toBeInTheDocument();
+    expect(screen.queryByText(/We are on it/)).toBeNull();
 
     // And a day later the conversation no longer lists it.
     serverUpdates(conversation([]));
@@ -348,9 +323,9 @@ describe('ChatPage — the pinned ticket bar', () => {
   it('speaks Hindi when the app does, and follows a switch', async () => {
     useLangStore.setState({ lang: 'hi', explicit: true });
     mount(conversation([closedHourAgo()]));
-    expect(await screen.findByText('#42 · पूरा हुआ ✓')).toBeInTheDocument();
+    expect(await screen.findByText('पूरा हुआ ✓')).toBeInTheDocument();
     act(() => useLangStore.setState({ lang: 'en', explicit: true }));
-    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    expect(await screen.findByText('Done ✓')).toBeInTheDocument();
   });
 
   it('is not there without a ticket, or with one closed more than a day ago', async () => {
@@ -367,13 +342,13 @@ describe('ChatPage — the pinned ticket bar', () => {
 
   it('steps aside while searching, and comes back when the search closes', async () => {
     mount(conversation([closedHourAgo()]));
-    await screen.findByText('#42 · Done ✓');
+    await screen.findByText('Done ✓');
     fireEvent.click(await screen.findByRole('button', { name: 'More options' }));
     fireEvent.click(within(screen.getByRole('menu')).getByText('Search'));
     await screen.findByRole('searchbox');
     expect(theBar()).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(await screen.findByText('#42 · Done ✓')).toBeInTheDocument();
+    expect(await screen.findByText('Done ✓')).toBeInTheDocument();
     expect(document.querySelectorAll('[data-scroller]')).toHaveLength(1);
   });
 });
@@ -656,6 +631,42 @@ describe('ChatPage — selecting messages', () => {
       { conversationId: CONVERSATION_ID, messageId: 'm3' },
     );
     expect(screen.queryByRole('button', { name: 'Clear selection' })).toBeNull();
+  });
+
+  it("offers no Download on a report: its card is drawn in the report view, and here it is words", async () => {
+    mount(conversation(undefined), {
+      messages: [
+        makeMessage({
+          id: 'rep',
+          conversationId: CONVERSATION_ID,
+          senderId: 'system-user',
+          senderRole: 'admin',
+          system: true,
+          body: 'Aaj ki bikri ki report bhej di hai.',
+          readBy: ['u1'],
+          createdAt: '2026-10-12T09:00:00.000Z',
+          attachments: [
+            {
+              storageKey: 'dsr/15E/2026-10-12/sales.png',
+              filename: 'dsr-sales-2026-10-12.png',
+              contentType: 'image/png',
+              size: 10,
+              kind: 'image',
+              url: 'https://files.test/sales.png',
+            },
+          ],
+          report: { kind: 'dsr_sales', status: 'ok', day: '2026-10-12' },
+        }),
+      ],
+    });
+    await screen.findByText('Aaj ki bikri ki report bhej di hai.');
+    // The card is not a picture in the chat, and the bubble carries the button that names the report.
+    expect(document.querySelector('img')).toBeNull();
+    expect(screen.getByRole('button', { name: 'See sales report' })).toBeInTheDocument();
+    await holdOn('Aaj ki bikri ki report bhej di hai.');
+    expect(await screen.findByRole('button', { name: 'Copy' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Download' })).toBeNull();
+    expect(h.download).not.toHaveBeenCalled();
   });
 
   it('tapping other messages adds and removes them; the count follows', async () => {
@@ -1847,6 +1858,39 @@ describe('ChatPage — "Show in chat" from the gallery', () => {
     await waitFor(() =>
       expect(calls).toContain(view.container.querySelector('[data-mid="q"]')),
     );
+  });
+});
+
+describe('ChatPage — a sentence another screen typed for the dealer (a report\'s "Order now")', () => {
+  function openWith(state: unknown) {
+    h.api.get.mockImplementation((path: string) => {
+      if (path === '/v1/conversations/mine') return Promise.resolve([conversation(undefined)]);
+      if (path === `/v1/conversations/${CONVERSATION_ID}/messages`) return Promise.resolve(history);
+      return Promise.resolve([]);
+    });
+    return render(
+      <QueryClientProvider client={makeTestQueryClient()}>
+        <ToastProvider>
+          <MemoryRouter initialEntries={[{ pathname: `/chat/${CONVERSATION_ID}`, state }]}>
+            <Routes>
+              <Route path="/chat/:id" element={<ChatPage />} />
+            </Routes>
+          </MemoryRouter>
+        </ToastProvider>
+      </QueryClientProvider>,
+    );
+  }
+
+  it('puts it in the message box and sends nothing', async () => {
+    openWith({ draftText: 'Please place an order for Diesel 8,000 L' });
+    await waitFor(() => expect(h.composer?.initialText).toBe('Please place an order for Diesel 8,000 L'));
+    expect(h.api.post).not.toHaveBeenCalled();
+  });
+
+  it('leaves the box alone when nothing was typed for it', async () => {
+    openWith(null);
+    await screen.findByText('Mera credit limit kab badhega?');
+    expect(h.composer?.initialText).toBeUndefined();
   });
 });
 

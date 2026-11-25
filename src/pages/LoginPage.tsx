@@ -85,7 +85,7 @@ export function LoginPage() {
   const [forgotOpen, setForgotOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (token) navigate('/chat', { replace: true });
+    if (token) navigate('/', { replace: true });
   }, [token, navigate]);
 
   const schema = React.useMemo(
@@ -139,7 +139,7 @@ export function LoginPage() {
       ),
     onSuccess: (data) => {
       startSession(data);
-      navigate('/chat', { replace: true });
+      navigate('/', { replace: true });
     },
     onError: (err) => {
       // Never leak a raw server/network string — always one warm sentence.
@@ -160,21 +160,21 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-1">
           <BrandMark size={48} className="text-text" />
-          <h1 className="mt-3 text-xl font-semibold tracking-tight text-text">
+          <h1 className="mt-3 text-title text-text">
             {t('auth.welcome')}
           </h1>
-          <p className="text-sm text-text-muted">{t('auth.subtitle')}</p>
+          <p className="text-meta text-text-muted">{t('auth.subtitle')}</p>
         </div>
         {deleted ? (
           // Straight after Settings → Account → Delete my account.
-          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-sm text-info">
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-meta text-info">
             {t('account.deleted')}
           </p>
         ) : expired ? (
           // Why they are looking at this screen at all. A dealer session lasts
           // a year and refreshes itself, so this is now almost always the
           // single-active-session rule: somebody signed in on another phone.
-          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-sm text-info">
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-meta text-info">
             {t('chat.sessionExpired')}
           </p>
         ) : null}
@@ -186,7 +186,7 @@ export function LoginPage() {
               noValidate
             >
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-text" htmlFor="identifier">
+                <label className="text-subheading text-text" htmlFor="identifier">
                   {t('auth.identifier')}
                 </label>
                 <Input
@@ -203,11 +203,11 @@ export function LoginPage() {
                   {...register('identifier')}
                 />
                 {errors.identifier ? (
-                  <p className="text-xs text-danger">{errors.identifier.message}</p>
+                  <p className="text-meta text-danger">{errors.identifier.message}</p>
                 ) : null}
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-text" htmlFor="password">
+                <label className="text-subheading text-text" htmlFor="password">
                   {t('auth.password')}
                 </label>
                 <PasswordInput
@@ -218,7 +218,7 @@ export function LoginPage() {
                   {...register('password')}
                 />
                 {errors.password ? (
-                  <p className="text-xs text-danger">
+                  <p className="text-meta text-danger">
                     {errors.password.message}
                   </p>
                 ) : null}
@@ -234,7 +234,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setForgotOpen(true)}
-                className="-mt-1 min-h-11 self-center rounded-lg px-3 text-sm font-medium text-brand underline underline-offset-4"
+                className="-mt-1 min-h-11 self-center rounded-lg px-3 text-meta font-medium text-brand underline underline-offset-4"
               >
                 {t('auth.forgot')}
               </button>
@@ -246,7 +246,7 @@ export function LoginPage() {
             sign in with is sent to the enrolment form, in the app (a new phone
             opens there by itself: features/auth/firstScreen.ts). */}
         <div className="mt-6 flex flex-col items-center gap-3">
-          <p className="text-center text-xs leading-relaxed text-text-subtle">
+          <p className="text-center text-meta leading-relaxed text-text-subtle">
             {t('auth.noLogin')}
           </p>
           <Button
@@ -261,10 +261,10 @@ export function LoginPage() {
               mobile number, a switched-off login, or no code arriving. */}
           <a
             href={HELPLINE.href}
-            className="flex min-h-11 flex-col items-center rounded-lg px-3 py-1 text-center text-xs leading-relaxed text-text-subtle"
+            className="flex min-h-11 flex-col items-center rounded-lg px-3 py-1 text-center text-meta leading-relaxed text-text-subtle"
           >
             <span>{t('auth.helpTitle')}</span>
-            <span className="text-base font-semibold tabular-nums text-brand">
+            <span className="text-subheading tabular-nums text-brand">
               {HELPLINE.display}
             </span>
             <span>{t('auth.helpHours')}</span>
@@ -272,7 +272,7 @@ export function LoginPage() {
           {/* Reachable before anyone has signed in: the privacy policy must be
               readable from inside the app, and a dealer weighing whether to
               register is who wants it. */}
-          <PrivacyLink className="-mt-1 flex min-h-11 items-center rounded-lg px-3 text-xs text-text-subtle underline underline-offset-4" />
+          <PrivacyLink className="-mt-1 flex min-h-11 items-center rounded-lg px-3 text-meta text-text-subtle underline underline-offset-4" />
         </div>
       </div>
       {forgotOpen ? (

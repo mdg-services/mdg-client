@@ -78,7 +78,7 @@ export function ChatInfoPage() {
             <button
               type="button"
               onClick={() => void listQuery.refetch()}
-              className="rounded-full bg-wa-accent px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+              className="rounded-full bg-wa-accent px-4 py-2 text-cta text-text-inverse active:opacity-90"
             >
               {t('common.retry')}
             </button>
@@ -114,8 +114,8 @@ export function ChatInfoPage() {
       <div className="flex flex-1 flex-col gap-2 bg-wa-row-active pb-6">
         <section className="flex flex-col items-center bg-wa-bar px-4 pb-6 pt-8">
           <ChatAvatar kind={conversation.kind} size={96} />
-          <h1 className="mt-4 text-center text-[22px] font-medium text-wa-bar-text">{title}</h1>
-          <p className="mt-1 text-center text-[15px] text-wa-meta">{subtitle}</p>
+          <h1 className="mt-4 text-center text-title text-wa-bar-text">{title}</h1>
+          <p className="mt-1 text-center text-meta text-wa-meta">{subtitle}</p>
         </section>
 
         <section className="bg-wa-bar">
@@ -124,11 +124,11 @@ export function ChatInfoPage() {
             onClick={() => navigate(`/chat/${conversationId}/media`)}
             className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-wa-row-active"
           >
-            <span className="min-w-0 flex-1 text-[16px] text-wa-bar-text">
+            <span className="min-w-0 flex-1 text-body text-wa-bar-text">
               {t('chat.menuMedia')}
             </span>
             {media.isSuccess ? (
-              <span className="shrink-0 text-[14px] tabular-nums text-wa-meta">
+              <span className="shrink-0 text-meta tabular-nums text-wa-meta">
                 {count}
                 {media.hasNextPage ? '+' : ''}
               </span>
@@ -142,7 +142,7 @@ export function ChatInfoPage() {
           ) : media.isError ? (
             // The row above still opens the gallery, which can retry. What is
             // wrong here is only the peek, and it says so instead of vanishing.
-            <p className="px-4 pb-3.5 text-[13px] text-wa-meta">{t('chat.mediaLoadFailed')}</p>
+            <p className="px-4 pb-3.5 text-meta text-wa-meta">{t('chat.mediaLoadFailed')}</p>
           ) : peek.length > 0 ? (
             <div className="grid grid-cols-4 gap-1 px-4 pb-3.5">
               {peek.map((item) => (
@@ -159,7 +159,7 @@ export function ChatInfoPage() {
 
         {isSharedChat(conversation) ? (
           <section className="bg-wa-bar pb-1">
-            <p className="px-4 pb-1 pt-3.5 text-[14px] text-wa-meta">
+            <p className="px-4 pb-1 pt-3.5 text-meta text-wa-meta">
               {t('chat.infoMembers', { n: members.length })}
             </p>
             {members.length === 0 ? null : (
@@ -168,11 +168,11 @@ export function ChatInfoPage() {
                   <li key={p.userId} className="flex items-center gap-4 px-4 py-2.5">
                     <Avatar name={p.name} size={44} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[16px] text-wa-bar-text">
+                      <span className="block truncate text-body text-wa-bar-text">
                         {p.userId === myId ? t('chat.you') : (p.name ?? t('chat.supportFallbackName'))}
                       </span>
                       {roleText(p, t) ? (
-                        <span className="block truncate text-[14px] text-wa-meta">
+                        <span className="block truncate text-meta text-wa-meta">
                           {roleText(p, t)}
                         </span>
                       ) : null}
@@ -184,7 +184,7 @@ export function ChatInfoPage() {
           </section>
         ) : (
           <section className="bg-wa-bar px-4 py-4">
-            <p className="text-[15px] leading-snug text-wa-bar-text">{t('chat.infoWhoAnswers')}</p>
+            <p className="text-body leading-snug text-wa-bar-text">{t('chat.infoWhoAnswers')}</p>
           </section>
         )}
       </div>

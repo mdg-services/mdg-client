@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { invalidateMockDrill, mockDrillKey } from '@/hooks/api/useMockDrill';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -29,7 +30,11 @@ export function useMockDrillSocket() {
     const socket = getSocket();
     if (!socket) return;
 
-    const refresh = () => invalidateMockDrill(qc);
+    const refresh = () => {
+      invalidateMockDrill(qc);
+      // The Today page lists what is still open, so it asks again too.
+      invalidateTodayFeed(qc);
+    };
     const onChanged = (payload: { dealerId: string }) => {
       // The user's own outlet; failing that, the one the box already drew.
       const mine = dealerId ?? qc.getQueryData<MockDrillView>(mockDrillKey)?.dealerId ?? null;

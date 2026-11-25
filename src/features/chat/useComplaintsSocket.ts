@@ -2,6 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { invalidateComplaints } from '@/hooks/api/useComplaints';
+import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { getSocket } from '@/lib/socket';
 import { onSocketReconnect } from '@/lib/socketReconnect';
 import { useAuthStore } from '@/store/auth';
@@ -28,7 +29,11 @@ export function useComplaintsSocket() {
     const socket = getSocket();
     if (!socket) return;
 
-    const refresh = () => invalidateComplaints(qc);
+    const refresh = () => {
+      invalidateComplaints(qc);
+      // The Today page lists what is still open, so it asks again too.
+      invalidateTodayFeed(qc);
+    };
     const onChanged = (payload: { dealerId: string }) => {
       if (dealerId && payload.dealerId !== dealerId) return;
       refresh();

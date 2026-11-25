@@ -613,7 +613,7 @@ describe('DuOtpAckBox — step 5, the remark', () => {
     box();
     const field = screen.getByLabelText('Remark');
     expect(field).toHaveAttribute('maxlength', String(DU_OTP_REMARKS_MAX));
-    expect(field.className).toContain('text-[16px]');
+    expect(field.className).toContain('text-body');
     expect(screen.getByText(`15 / ${DU_OTP_REMARKS_MAX}`)).toBeInTheDocument();
   });
 

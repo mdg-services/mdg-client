@@ -1,9 +1,11 @@
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiError, api } from '@/lib/api';
 import type * as ApiModule from '@/lib/api';
+import { resetEmbeddedForTests } from '@/lib/embedMode';
 import { useLangStore } from '@/store/lang';
 import {
   enterNativeShell,
@@ -643,5 +645,41 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
 
     const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
     expect(within(due).getByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
+  });
+});
+
+describe('PaymentsPage — the back arrow when Payments was the first thing opened', () => {
+  function renderCold() {
+    signIn({ dealerId: 'd1', role: 'dealer-owner' });
+    useLangStore.setState({ lang: 'en', explicit: true });
+    vi.mocked(api.get).mockResolvedValue({ items: [] });
+    return renderWithProviders(
+      <Routes>
+        <Route path="/" element={<div>today-page</div>} />
+        <Route path="/chat" element={<div>chat-list</div>} />
+        <Route path="/payments" element={<PaymentsPage />} />
+      </Routes>,
+      { route: '/payments', withRouter: true },
+    );
+  }
+
+  it('goes to Today, the app\'s home', async () => {
+    renderCold();
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('today-page')).toBeInTheDocument();
+    expect(screen.queryByText('chat-list')).not.toBeInTheDocument();
+  });
+
+  it('goes to the chat list in the extension\'s panel, which has no Today', async () => {
+    window.sessionStorage.setItem('dk.embed', 'extension');
+    resetEmbeddedForTests({ framed: true });
+    try {
+      renderCold();
+      fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+      expect(await screen.findByText('chat-list')).toBeInTheDocument();
+    } finally {
+      window.sessionStorage.removeItem('dk.embed');
+      resetEmbeddedForTests();
+    }
   });
 });

@@ -36,6 +36,39 @@ export default {
         danger: { DEFAULT: '#dc2626', soft: '#fee2e2' },
         info: { DEFAULT: '#2563eb', soft: '#dbeafe' },
         neutral: { DEFAULT: '#475569', soft: '#e2e8f0' },
+        // Report families (ADR 0056): `bg-kind-dsr` is the header fill (white text on it),
+        // `bg-kind-dsr-soft` the tint behind a drawing, `text-kind-dsr-ink` text on the page.
+        // Values and their dark pairs live in index.css (`--kind-*`). One per family, in
+        // reading order: DSR, stock, tanker, credit, ledger, claim, water, supply, paper,
+        // paperwork, Kavach, news.
+        kind: {
+          dsr: { DEFAULT: 'var(--kind-dsr)', soft: 'var(--kind-dsr-soft)', ink: 'var(--kind-dsr-ink)' },
+          stock: { DEFAULT: 'var(--kind-stock)', soft: 'var(--kind-stock-soft)', ink: 'var(--kind-stock-ink)' },
+          tanker: { DEFAULT: 'var(--kind-tanker)', soft: 'var(--kind-tanker-soft)', ink: 'var(--kind-tanker-ink)' },
+          credit: { DEFAULT: 'var(--kind-credit)', soft: 'var(--kind-credit-soft)', ink: 'var(--kind-credit-ink)' },
+          ledger: { DEFAULT: 'var(--kind-ledger)', soft: 'var(--kind-ledger-soft)', ink: 'var(--kind-ledger-ink)' },
+          claim: { DEFAULT: 'var(--kind-claim)', soft: 'var(--kind-claim-soft)', ink: 'var(--kind-claim-ink)' },
+          water: { DEFAULT: 'var(--kind-water)', soft: 'var(--kind-water-soft)', ink: 'var(--kind-water-ink)' },
+          supply: { DEFAULT: 'var(--kind-supply)', soft: 'var(--kind-supply-soft)', ink: 'var(--kind-supply-ink)' },
+          paper: { DEFAULT: 'var(--kind-paper)', soft: 'var(--kind-paper-soft)', ink: 'var(--kind-paper-ink)' },
+          paperwork: { DEFAULT: 'var(--kind-paperwork)', soft: 'var(--kind-paperwork-soft)', ink: 'var(--kind-paperwork-ink)' },
+          kavach: { DEFAULT: 'var(--kind-kavach)', soft: 'var(--kind-kavach-soft)', ink: 'var(--kind-kavach-ink)' },
+          news: { DEFAULT: 'var(--kind-news)', soft: 'var(--kind-news-soft)', ink: 'var(--kind-news-ink)' },
+        },
+        // The five statuses, each drawn with its own shape and a word, never colour alone.
+        status: {
+          problem: { DEFAULT: 'var(--status-problem)', soft: 'var(--status-problem-soft)', ink: 'var(--status-problem-ink)' },
+          attention: { DEFAULT: 'var(--status-attention)', soft: 'var(--status-attention-soft)', ink: 'var(--status-attention-ink)' },
+          waiting: { DEFAULT: 'var(--status-waiting)', soft: 'var(--status-waiting-soft)', ink: 'var(--status-waiting-ink)' },
+          ok: { DEFAULT: 'var(--status-ok)', soft: 'var(--status-ok-soft)', ink: 'var(--status-ok-ink)' },
+          info: { DEFAULT: 'var(--status-info)', soft: 'var(--status-info-soft)', ink: 'var(--status-info-ink)' },
+        },
+        // Fuel swatches: beside the fuel letters (HSD, MS, XP, XG), never the only cue.
+        fuel: {
+          diesel: 'var(--fuel-diesel)',
+          petrol: 'var(--fuel-petrol)',
+          other: 'var(--fuel-other)',
+        },
         // The chat's WhatsApp palette — values live in index.css (`--wa-*`).
         wa: {
           accent: 'var(--wa-accent)',
@@ -59,6 +92,32 @@ export default {
           divider: 'var(--wa-divider)',
           viewer: 'var(--wa-viewer)',
         },
+      },
+      /**
+       * The app's type scale: one size per job, in rem so a phone set to large text grows every
+       * line with it. Weight rides with the size where the job fixes it (a heading is always
+       * semibold), and a `font-*` class still overrides it. The reader is 55, outdoors, on a cheap
+       * screen, reading Devanagari: body text never goes under 16 px, secondary text never under
+       * 14 px, and 12 px is kept for counts and tiny marks only.
+       *
+       *   display     32  big figures (a report's headline number)
+       *   title       22  a screen's title (page h1, report title, greeting)
+       *   heading     18  a section's heading on a page
+       *   subheading  17  semibold: a card's or a row's title, a field's label
+       *   body        16  sentences: descriptions, explanations, message text
+       *   cta         16  semibold: the words on a button or a link-button
+       *   meta        14  secondary lines: dates, times, a status tag, a count, a hint
+       *   micro       12  a badge's count, a legend mark, a chart's axis
+       */
+      fontSize: {
+        display: ['2rem', { lineHeight: '2.375rem', letterSpacing: '-0.02em', fontWeight: '600' }],
+        title: ['1.375rem', { lineHeight: '1.75rem', letterSpacing: '-0.01em', fontWeight: '600' }],
+        heading: ['1.125rem', { lineHeight: '1.5rem', letterSpacing: '-0.005em', fontWeight: '600' }],
+        subheading: ['1.0625rem', { lineHeight: '1.5rem', fontWeight: '600' }],
+        body: ['1rem', { lineHeight: '1.5rem' }],
+        cta: ['1rem', { lineHeight: '1.25rem', fontWeight: '600' }],
+        meta: ['0.875rem', { lineHeight: '1.25rem' }],
+        micro: ['0.75rem', { lineHeight: '1rem' }],
       },
       borderRadius: { sm: '4px', md: '8px', lg: '12px' },
       boxShadow: {

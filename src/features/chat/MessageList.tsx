@@ -10,12 +10,7 @@ import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
 import { useAttachmentDownload } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
-import {
-  QUICK_REACTIONS,
-  type Attachment,
-  type Message,
-  type TicketDealerView,
-} from '@dk/shared/types';
+import { QUICK_REACTIONS, type Attachment, type Message } from '@dk/shared/types';
 
 import { askViewOf } from './askView';
 import { MediaViewer } from './MediaViewer';
@@ -28,8 +23,8 @@ import {
   viewerKey,
   type UnreadOnOpen,
 } from './messageRuns';
+import { chatAttachments, isReportBubble } from './reportBubble';
 import { SwipeToReply } from './SwipeToReply';
-import { msUntilPromiseEnds, ticketLinesById } from './ticketLine';
 
 /** What the jump-to-quote loop needs back from fetching one older page. */
 export interface FetchOlderResult {
@@ -91,13 +86,6 @@ export interface MessageListProps {
   onReply?: (message: Message) => void;
   /** A tap on one of the answer buttons under MDG's newest question: send these words. */
   onChoice?: (text: string) => void;
-  /**
-   * The conversation's tickets (`Conversation.tickets`). A message that names a
-   * ticket in `ai.ticketId` gets a status line under it when that ticket is in
-   * here, and none when it is not. Reduced to a status word and a number before
-   * it reaches a bubble, so a new array of the same tickets re-renders no bubble.
-   */
-  tickets?: TicketDealerView[];
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
   /** The history could not be loaded — say so instead of showing an empty thread. */
@@ -152,7 +140,6 @@ export function MessageList({
   onOpenReactions,
   onReply,
   onChoice,
-  tickets,
   onFetchOlder,
   failed,
   onRetry,
@@ -199,10 +186,14 @@ export function MessageList({
   // the thread each render, so a picture that arrives while it is open joins it.
   const [openPicture, setOpenPicture] = React.useState<string | null>(null);
   const openImage = React.useCallback(
-    (attachment: Attachment, message: Message) =>
-      setOpenPicture(viewerKey(message, attachment.storageKey)),
+    (attachment: Attachment, message: Message) => {
+      setOpenPicture(viewerKey(message, attachment.storageKey));
+    },
     [],
   );
+  const closeViewer = React.useCallback(() => {
+    setOpenPicture(null);
+  }, []);
 
   // Scroll-to-bottom button: shown when scrolled well off the bottom, with a
   // badge counting the other party's messages that arrived while detached.
@@ -534,36 +525,12 @@ export function MessageList({
     // Re-run only for a NEW request, not because `handleJumpTo` was rebuilt.
   }, [jumpKey]);
 
-  // Per-ticket status for the bubbles, rebuilt when the conversation's ticket
-  // list is replaced (a `conversation:updated` with the new state) — and when an
-  // "on it until" time runs out. Nothing is sent when that happens, and the line
-  // must not go on saying the team is working on it past the time it gave, so
-  // one timer is armed for the soonest running one and bumps `promiseEnds`.
-  const [promiseEnds, setPromiseEnds] = React.useState(0);
-  const ticketLines = React.useMemo(
-    () => ticketLinesById(tickets),
-    // `promiseEnds` is not read inside: bumping it is how the timer below asks
-    // for the lines to be worked out again against the clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tickets, promiseEnds],
+  // The messages here that are reports: a reply that quotes one does not show the card as
+  // a thumbnail (it is on Today now, and the bubble it quotes is words only).
+  const reportIds = React.useMemo(
+    () => new Set(ordered.filter(isReportBubble).map((m) => m.id)),
+    [ordered],
   );
-  React.useEffect(() => {
-    const wait = msUntilPromiseEnds(tickets);
-    if (wait === null) return;
-    const timer = window.setTimeout(() => setPromiseEnds((n) => n + 1), wait);
-    return () => window.clearTimeout(timer);
-  }, [tickets, promiseEnds]);
-  // A PHONE THAT SLEPT PAST THE TIME. A timer does not count the time the device
-  // was asleep, so it can fire long after the promise ended; coming back to the
-  // screen works the lines out again at once.
-  React.useEffect(() => {
-    if (msUntilPromiseEnds(tickets) === null) return;
-    const onVisible = () => {
-      if (document.visibilityState === 'visible') setPromiseEnds((n) => n + 1);
-    };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [tickets]);
 
   const selecting = !!selectedIds && selectedIds.size > 0;
   const soleSelected =
@@ -596,7 +563,7 @@ export function MessageList({
             data-day-chip=""
             className="flex justify-center px-3 pb-1 pt-3"
           >
-            <span className="rounded-lg bg-wa-chip px-3 py-1 text-[12.5px] leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
+            <span className="rounded-lg bg-wa-chip px-3 py-1 text-meta leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
               {label}
             </span>
           </div>,
@@ -607,7 +574,7 @@ export function MessageList({
           <div
             key="unread-band"
             data-unread-band=""
-            className="my-2 w-full bg-wa-chip py-1.5 text-center text-[12.5px] font-medium text-wa-chip-text"
+            className="my-2 w-full bg-wa-chip py-1.5 text-center text-meta font-medium text-wa-chip-text"
           >
             {unread.count === 1
               ? t('chat.unreadOne')
@@ -618,7 +585,6 @@ export function MessageList({
       const mine = m.senderId === currentUserId;
       const pending = m.id.startsWith('temp-');
       const selected = !!selectedIds?.has(m.id);
-      const ticketLine = m.ai?.ticketId ? ticketLines.get(m.ai.ticketId) : undefined;
       const askView = m.ask ? askViewOf(m, askStates) : undefined;
       const marks =
         term && m.body && m.body.toLowerCase().includes(term) ? highlight!.trim() : undefined;
@@ -664,9 +630,7 @@ export function MessageList({
             onLongPress={onToggleSelect}
             onOpenReactions={onOpenReactions}
             onJumpTo={handleJumpTo}
-            ticketStatus={ticketLine?.status}
-            ticketNumber={ticketLine?.number}
-            ticketUntil={ticketLine?.until}
+            quoteHideImage={m.replyTo ? reportIds.has(m.replyTo.messageId) : undefined}
             askPhase={askView?.phase}
             askReason={askView?.reason}
             onAskAnswer={onAskAnswer}
@@ -703,7 +667,7 @@ export function MessageList({
     quoteLoadingId,
     showSenderNames,
     dealerSideIds,
-    ticketLines,
+    reportIds,
     selectedIds,
     selecting,
     soleSelected,
@@ -739,7 +703,7 @@ export function MessageList({
     const pictures = (pages: Message[][] | undefined) =>
       (pages ?? [])
         .flat()
-        .reduce((n, m) => n + m.attachments.filter((a) => a.kind === 'image').length, 0);
+        .reduce((n, m) => n + chatAttachments(m).filter((a) => a.kind === 'image').length, 0);
     for (let i = 0; i < 5; i += 1) {
       if (!latest.current.hasMore || pictureHunt.current !== token) return;
       const el = containerRef.current;
@@ -785,7 +749,7 @@ export function MessageList({
               <button
                 type="button"
                 onClick={onRetry}
-                className="rounded-full bg-wa-accent px-4 py-2 text-sm font-medium text-text-inverse active:opacity-90"
+                className="rounded-full bg-wa-accent px-4 py-2 text-cta text-text-inverse active:opacity-90"
               >
                 {t('common.retry')}
               </button>
@@ -809,7 +773,7 @@ export function MessageList({
                     key={label}
                     type="button"
                     onClick={() => onQuickAction(label)}
-                    className="rounded-full bg-wa-chip px-3.5 py-1.5 text-sm text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] active:bg-wa-row-active"
+                    className="rounded-full bg-wa-chip px-3.5 py-1.5 text-meta text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] active:bg-wa-row-active"
                   >
                     {label}
                   </button>
@@ -842,7 +806,7 @@ export function MessageList({
                   <button
                     type="button"
                     onClick={requestOlder}
-                    className="rounded-full bg-wa-chip px-3.5 py-1 text-[13px] text-danger shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] active:bg-wa-row-active"
+                    className="rounded-full bg-wa-chip px-3.5 py-1 text-meta text-danger shadow-[0_1px_0.5px_rgba(11,20,26,0.13)] active:bg-wa-row-active"
                   >
                     {t('chat.olderFailed')}
                   </button>
@@ -881,7 +845,7 @@ export function MessageList({
               floatVisible ? 'opacity-100' : 'opacity-0',
             )}
           >
-            <span className="rounded-lg bg-wa-chip px-3 py-1 text-[12.5px] leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
+            <span className="rounded-lg bg-wa-chip px-3 py-1 text-meta leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
               {floatLabel}
             </span>
           </div>
@@ -899,7 +863,7 @@ export function MessageList({
           >
             <ChevronDown width={22} strokeWidth={2} />
             {newWhileAway > 0 ? (
-              <span className="absolute -right-0.5 -top-2 min-w-[20px] rounded-full bg-wa-badge px-1 text-center text-[12px] font-semibold leading-[20px] text-text-inverse">
+              <span className="absolute -right-0.5 -top-2 min-w-[20px] rounded-full bg-wa-badge px-1 text-center text-meta font-semibold leading-[20px] text-text-inverse">
                 {newWhileAway > 99 ? '99+' : newWhileAway}
               </span>
             ) : null}
@@ -917,7 +881,7 @@ export function MessageList({
         <MediaViewer
           items={viewerItems}
           initialKey={openPicture}
-          onClose={() => setOpenPicture(null)}
+          onClose={closeViewer}
           onDownload={download}
           hasOlder={!!hasMore}
           loadingOlder={!!loadingMore}
@@ -925,7 +889,7 @@ export function MessageList({
           onShowInChat={(item) => {
             // Close first, jump after the history rewind lands (see
             // `afterOverlayCloses`): the jump scrolls the thread behind the viewer.
-            setOpenPicture(null);
+            closeViewer();
             afterOverlayCloses(() => void handleJumpTo(item.source.messageId, ''));
           }}
         />
@@ -1021,7 +985,7 @@ function ReactionStrip({
           aria-pressed={mineEmoji === emoji}
           onClick={() => onPick(message, emoji)}
           className={cn(
-            'flex h-9 w-9 items-center justify-center rounded-full text-[22px] active:bg-wa-row-active',
+            'flex h-9 w-9 items-center justify-center rounded-full text-title active:bg-wa-row-active',
             mineEmoji === emoji && 'bg-wa-row-active',
           )}
         >

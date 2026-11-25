@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
-import { withEmbed } from '@/lib/embedMode';
+import { isEmbedded, withEmbed } from '@/lib/embedMode';
 import { postToNative } from '@/lib/nativeBridge';
 import { useAuthStore } from '@/store/auth';
 import type { AuthLoginResponse, OutletChoice, OutletsView } from '@dk/shared/types';
@@ -39,13 +39,19 @@ export function hasOtherOutlets(view: OutletsView | undefined): view is OutletsV
 }
 
 /**
- * Open the chat list afresh. A full load, not a route change: the other pump has
+ * Open the app afresh, on Today. A full load, not a route change: the other pump has
  * its own chats, services and cards, and a fresh start is the one way to be sure
  * nothing of the first one is still on screen or in a socket.
  */
 export function reloadIntoChat(): void {
-  // Inside the extension's panel the address must keep saying so (ADR 0032 §6).
-  window.location.assign(withEmbed('/chat'));
+  // Inside the extension's panel the address must keep saying so (ADR 0032 §6), and
+  // the panel has no Today and no tab bar: it enters at the chat list.
+  reloadInto(isEmbedded() ? '/chat' : '/');
+}
+
+/** The same fresh start, on a chosen address of the app (a report made for the pump just switched to). */
+export function reloadInto(path: string): void {
+  window.location.assign(withEmbed(path));
 }
 
 /**

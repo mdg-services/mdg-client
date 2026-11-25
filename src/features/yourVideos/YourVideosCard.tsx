@@ -93,7 +93,7 @@ function Group({
   if (rows.length === 0) return null;
   return (
     <section className="flex flex-col gap-1.5" aria-label={title}>
-      <h4 className="px-0.5 pt-1 text-[13px] font-medium text-wa-meta">{title}</h4>
+      <h4 className="px-0.5 pt-1 text-meta font-medium text-wa-meta">{title}</h4>
       {rows.map((row) => (
         <VideoRowButton key={row.id} row={row} lang={lang} onPlay={() => onPlay(row)} />
       ))}
@@ -166,18 +166,18 @@ function VideoRowButton({
         <Thumb posterUrl={row.posterUrl} watched={row.watched} />
         <span className="min-w-0 flex-1">
           <span className="flex items-start gap-2">
-            <span className="line-clamp-2 text-[14px] font-medium leading-snug text-wa-bubble-text">{title}</span>
+            <span className="line-clamp-2 text-meta font-medium leading-snug text-wa-bubble-text">{title}</span>
             {length ? (
-              <span className="ml-auto shrink-0 pt-px text-[12px] tabular-nums text-wa-meta">{length}</span>
+              <span className="ml-auto shrink-0 pt-px text-meta tabular-nums text-wa-meta">{length}</span>
             ) : null}
           </span>
           {row.watched ? (
-            <span className="block text-[12px] font-medium leading-tight text-green-700">
+            <span className="block text-meta font-medium leading-tight text-green-700">
               {t('yourVideos.watched')}
             </span>
           ) : null}
           {row.examples.slice(0, MAX_EXAMPLES_SHOWN).map((example, i) => (
-            <span key={i} className="mt-0.5 block truncate text-[13px] leading-snug text-wa-meta">
+            <span key={i} className="mt-0.5 block truncate text-meta leading-snug text-wa-meta">
               “{sayIn(example, lang)}”
             </span>
           ))}

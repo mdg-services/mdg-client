@@ -195,8 +195,8 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/40 p-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-brand bg-surface px-6 py-10 text-center">
             <FileUp width={32} strokeWidth={1.5} className="text-brand" aria-hidden />
-            <p className="text-base font-semibold text-text">{t('drop.title')}</p>
-            <p className="text-sm text-text-muted">{t('drop.hint')}</p>
+            <p className="text-subheading text-text">{t('drop.title')}</p>
+            <p className="text-meta text-text-muted">{t('drop.hint')}</p>
           </div>
         </div>
       ) : null}
@@ -208,7 +208,7 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
           className="absolute inset-x-3 top-16 z-30 flex items-center gap-2 rounded-xl border border-border bg-surface p-3 shadow-lg"
         >
           <Spinner size={16} />
-          <p className="min-w-0 flex-1 text-sm text-text">{t('drop.reading')}</p>
+          <p className="min-w-0 flex-1 text-body text-text">{t('drop.reading')}</p>
         </div>
       ) : null}
 
@@ -219,7 +219,7 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
         >
           <div className="flex items-center gap-2">
             <Spinner size={16} />
-            <p className="min-w-0 flex-1 text-sm text-text">
+            <p className="min-w-0 flex-1 text-body text-text">
               {progress.stopping
                 ? t('drop.stopping')
                 : t('drop.sending', { done: progress.done, total: progress.total })}
@@ -228,7 +228,7 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
               type="button"
               onClick={stop}
               disabled={progress.stopping}
-              className="rounded-full border border-border-strong px-3 py-1 text-sm font-medium text-text active:bg-surface-2 disabled:opacity-50"
+              className="rounded-full border border-border-strong px-3 py-1 text-meta font-medium text-text active:bg-surface-2 disabled:opacity-50"
             >
               {t('common.cancel')}
             </button>
@@ -247,7 +247,7 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
           role="status"
           className="absolute inset-x-3 top-16 z-30 flex max-h-[60%] flex-col gap-2 overflow-hidden rounded-xl border border-border bg-surface p-3 shadow-lg"
         >
-          <p className="text-sm font-semibold text-text">
+          <p className="text-subheading text-text">
             {report.total === 0
               ? t('drop.noneToSend')
               : report.cancelled
@@ -257,7 +257,7 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
           {report.notSent.length > 0 ? (
             // Every file that was not sent, with its reason: a big folder can leave
             // a hundred, so the list scrolls inside the card and the buttons stay in view.
-            <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto text-sm">
+            <ul className="flex min-h-0 flex-col gap-1 overflow-y-auto text-meta">
               {report.notSent.map((f, i) => (
                 <li key={`${i}-${f.name}`} className="min-w-0">
                   <span className="break-all text-text">{f.name}</span>
@@ -267,12 +267,12 @@ export function DropToSend({ send, threadId, disabled, className, children }: Dr
             </ul>
           ) : null}
           {report.truncated ? (
-            <p className="text-sm text-text-muted">{t('drop.tooMany', { n: MAX_DROP_FILES })}</p>
+            <p className="text-meta text-text-muted">{t('drop.tooMany', { n: MAX_DROP_FILES })}</p>
           ) : null}
           <button
             type="button"
             onClick={() => setReport(null)}
-            className="self-end rounded-full border border-border-strong px-3 py-1 text-sm font-medium text-text active:bg-surface-2"
+            className="self-end rounded-full border border-border-strong px-3 py-1 text-meta font-medium text-text active:bg-surface-2"
           >
             {t('common.dismiss')}
           </button>

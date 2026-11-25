@@ -22,16 +22,17 @@ const announce = (over: Partial<Parameters<typeof makeMessage>[0]> = {}) =>
   });
 
 describe('an MDG announcement', () => {
-  it('is drawn as a card: coloured strip with its label, a bold title, then the words', () => {
+  it('is a plain card: a bold title, then the words — no coloured strip, no label (ADR 0055)', () => {
     render(<MessageBubble message={announce()} mine={false} first />);
 
-    const strip = screen.getByTestId('announcement-strip');
-    expect(strip).toHaveTextContent('Nayi suvidha');
-    expect(strip.className).toContain('bg-emerald-600');
+    // The strip, its megaphone and its "Nayi suvidha" label made a message from the team
+    // look like a broadcast.
+    expect(screen.queryByTestId('announcement-strip')).toBeNull();
+    expect(screen.queryByText('Nayi suvidha')).toBeNull();
 
     const card = screen.getByTestId('announcement-card');
     const title = within(card).getByText('TT Acknowledgement ab raat ko hum karenge');
-    expect(title.className).toContain('font-bold');
+    expect(title.className).toContain('text-subheading');
     expect(card).toHaveTextContent('Excellent mark kar degi');
   });
 
@@ -42,32 +43,28 @@ describe('an MDG announcement', () => {
     expect(screen.getByTestId('announcement-card')).not.toHaveTextContent('*');
   });
 
-  it('has no button for the dealer to press: they answer by writing in the chat', () => {
+  it('has no button inside a bare bubble — a dealer answers an announcement by writing in the chat', () => {
+    // (Outside a router there is no Today to go to, so even the report button stays away.)
     render(<MessageBubble message={announce()} mine={false} first />);
     expect(screen.queryAllByRole('button')).toHaveLength(0);
   });
 
-  it('uses a different colour for each tone', () => {
-    const { rerender } = render(
-      <MessageBubble
-        message={announce({ announcement: { title: 'T', tone: 'notice' } })}
-        mine={false}
-      />,
-    );
-    expect(screen.getByTestId('announcement-strip').className).toContain('bg-sky-600');
-    expect(screen.getByTestId('announcement-strip')).toHaveTextContent('Soochna');
+  it.each(['new', 'notice', 'important'] as const)(
+    'looks the same whatever its tone (%s): the tone is not drawn',
+    (tone) => {
+      render(
+        <MessageBubble
+          message={announce({ announcement: { title: 'T', tone } })}
+          mine={false}
+        />,
+      );
+      expect(screen.queryByTestId('announcement-strip')).toBeNull();
+      expect(screen.queryByText(/soochna|suvidha/i)).toBeNull();
+      expect(screen.getByTestId('announcement-card')).toHaveTextContent('T');
+    },
+  );
 
-    rerender(
-      <MessageBubble
-        message={announce({ announcement: { title: 'T', tone: 'important' } })}
-        mine={false}
-      />,
-    );
-    expect(screen.getByTestId('announcement-strip').className).toContain('bg-amber-500');
-    expect(screen.getByTestId('announcement-strip')).toHaveTextContent('Zaroori soochna');
-  });
-
-  it('does not repeat the sender name above the strip', () => {
+  it('names the sender "MDG" where a sender name normally shows — never "MDG System"', () => {
     render(
       <MessageBubble
         message={announce({ senderName: 'MDG System' })}
@@ -77,6 +74,13 @@ describe('an MDG announcement', () => {
       />,
     );
     expect(screen.queryByText('MDG System')).toBeNull();
+    expect(screen.getByText('MDG')).toBeInTheDocument();
+  });
+
+  it('shows no sender name at all in a chat that does not show names', () => {
+    render(<MessageBubble message={announce({ senderName: 'MDG System' })} mine={false} first />);
+    expect(screen.queryByText('MDG System')).toBeNull();
+    expect(screen.queryByText('MDG')).toBeNull();
   });
 
   it('an ordinary message gets no announcement strip, and its *stars* are bold like WhatsApp', () => {

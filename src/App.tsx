@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useSearchParams } from 'react-router-dom';
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { NavigationProgress, RouteFallback } from '@/components/RouteFallback';
@@ -8,6 +8,14 @@ import { firstScreen } from '@/features/auth/firstScreen';
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
 import { EmbedStatus } from '@/features/embed/EmbedStatus';
+import { ReportHost } from '@/features/reports/lazy';
+import {
+  RealLocationContext,
+  backgroundOf,
+  reportPath,
+  useRealLocation,
+} from '@/features/reports/reportNav';
+import { legacyThreadId } from '@/features/tabs/legacyLink';
 import { isEmbedded } from '@/lib/embedMode';
 import { lazyRoute, preloadScreens } from '@/lib/lazyRoute';
 import { setMonitoringUser } from '@/lib/monitoring';
@@ -25,6 +33,14 @@ const LoginPage = lazyRoute(() =>
 );
 const RegisterPage = lazyRoute(() =>
   import('@/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
+);
+// The first screen (ADR 0055): what is waiting, the reports, what MDG did today.
+const TodayPage = lazyRoute(() =>
+  import('@/pages/TodayPage').then((m) => ({ default: m.TodayPage })),
+);
+// The Reports tab (ADR 0056): the last 30 days, grouped by day, with a chip for each family.
+const ReportsPage = lazyRoute(() =>
+  import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
 const ChatListPage = lazyRoute(() =>
   import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
@@ -99,7 +115,16 @@ function usePreloadScreens() {
     () =>
       preloadScreens(
         [
+          // The Chats tab's list first: Today is the screen already on show, so it
+          // is not worth a slow link's budget, and the list is one tap away. Today
+          // stays in the long list for a cold open at /chat/:id.
+          ChatListPage,
           ChatPage,
+          TodayPage,
+          // A report is one tap from a chat, a tile and a push, so its overlay (every kind's
+          // drawing) comes down once the app is up, and the tap needs no download.
+          ReportHost,
+          ReportsPage,
           SettingsPage,
           ChatInfoPage,
           ChatMediaPage,
@@ -111,10 +136,36 @@ function usePreloadScreens() {
           SettingsTeamPage,
           LoginPage,
         ],
-        [ChatPage, SettingsPage],
+        [ChatListPage, ChatPage],
       ),
     [],
   );
+}
+
+/**
+ * The app's front door: Today (ADR 0055).
+ *
+ * `/?c=<id>` is the other form of the old-style link a notification carries (the
+ * chat list forwards `/chat?c=<id>` the same way): it goes on into the thread,
+ * replacing the entry so Back does not bounce through a screen nobody asked for.
+ *
+ * `state.focusReport` is the 0055 form of the chat's "See it on Today" button, which
+ * a history entry from before the report overlay may still carry: it opens that report's
+ * overlay (replacing the entry), so an old entry or link keeps working.
+ */
+function Home() {
+  const [params] = useSearchParams();
+  const { state } = useLocation();
+  const legacy = legacyThreadId(params);
+  if (legacy) return <Navigate to={`/chat/${encodeURIComponent(legacy)}`} replace />;
+  const arrival = state as { focusReport?: unknown; conversationId?: unknown } | null;
+  if (typeof arrival?.focusReport === 'string' && typeof arrival.conversationId === 'string') {
+    return <Navigate to={reportPath(arrival.conversationId, arrival.focusReport)} replace />;
+  }
+  // The extension's side panel has no Today and no tab bar (ADR 0055 §1): it enters
+  // at the chat, and anything that lands on the front door goes there.
+  if (isEmbedded()) return <Navigate to="/chat" replace />;
+  return <TodayPage />;
 }
 
 /**
@@ -138,7 +189,9 @@ function ProtectedLayout() {
   const token = useAuthStore((s) => s.token);
   const hasUser = useAuthStore((s) => !!s.user);
   const mustChangePassword = useAuthStore((s) => !!s.user?.mustChangePassword);
-  const location = useLocation();
+  // The real address, not the screen drawn under a report: a signed-out visit to a report's
+  // link remembers the link.
+  const location = useRealLocation();
   if (isEmbedded()) {
     if (!token || !hasUser) return <EmbedStatus loading={!!token} />;
   } else if (!token) {
@@ -172,89 +225,111 @@ function useMonitoringIdentity() {
   }, [user]);
 }
 
+/** The Reports tab: the panel has none (no tab bar, no Today), so its address goes to the chat. */
+function ReportsRoute() {
+  return isEmbedded() ? <Navigate to="/chat" replace /> : <ReportsPage />;
+}
+
 export function App() {
   useMonitoringIdentity();
   // The panel has no Sign in and no Register: both addresses go to the chat, which
   // shows the panel's own status screen until the extension has signed it in.
   const embedded = isEmbedded();
   const location = useLocation();
+  // A report is drawn over the screen the dealer came from (reportNav.ts): while its
+  // address is open the routes below are matched against THAT screen's location, so the
+  // chat, Today or the Reports list stays mounted, where it was, underneath. The overlay
+  // itself is mounted by the shell, which reads the real address from the context.
+  const background = backgroundOf(location);
 
   return (
     // Keyed on the address, so a screen that failed does not keep the whole app
     // on the error page: Back, or any other screen, draws again.
     <ChunkErrorBoundary resetKey={location.pathname}>
       <NavigationProgress />
-      <React.Suspense fallback={<RouteFallback className="min-h-full" />}>
-        <Routes>
-          <Route
-            path="/login"
-            element={embedded ? <Navigate to="/chat" replace /> : <LoginPage />}
-          />
-          <Route
-            path="/register"
-            element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
-          />
-          <Route element={<ProtectedLayout />}>
-            {/* The app is the chat. Its first screen is the conversation LIST,
-                always — even for a member with a single thread, as WhatsApp
-                does — and everything else hangs off the ⋮ menu there.
-                `/chat?c=<id>` (what a push naming only a conversation turns
-                into in the native shell) is sent on into the thread by the list
-                itself. */}
-            <Route path="/" element={<ChatListPage />} />
-            <Route path="/chat" element={<ChatListPage />} />
-            <Route path="/chat/:id" element={<ChatPage />} />
-            {/* Everything ever shared in a thread: media / docs / links. */}
-            <Route path="/chat/:id/media" element={<ChatMediaPage />} />
-            {/* Who is in the thread, and a way into its media. */}
-            <Route path="/chat/:id/info" element={<ChatInfoPage />} />
-            {/* Settings, and what hangs off it. Reached from the ⋮ menu on the
-                chat list. */}
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/settings/profile" element={<SettingsProfilePage />} />
-            <Route path="/settings/account" element={<SettingsAccountPage />} />
-            <Route path="/settings/team" element={<SettingsTeamPage />} />
-            <Route path="/settings/help" element={<HelpVideosPage />} />
-            {/* Autopay: reached from the Help screen and the Payments page, never
-                from a Settings row. The owner can see it and stop it; nothing on it
-                starts one (features/payments/policy.ts). */}
-            <Route path="/settings/autopay" element={<AutopayPage />} />
-            {/* The owner's portal logins and what they were before. A Settings row
-                (owner only) opens it; the server refuses anyone else. */}
-            <Route path="/settings/logins" element={<LoginsPage />} />
-            {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
-                and not a redirect: nothing about it needs to change address. */}
-            <Route path="/profile" element={<SettingsPage />} />
-            {/* Services — Settings → Your services. */}
-            <Route path="/services" element={<ServicesPage />} />
-            {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
-            <Route path="/staff" element={<StaffPage />} />
-            {/* Payments — what MDG has asked this pump to pay, and what it has
-                paid (ADR 0022). NO MENU OR SETTINGS ROW POINTS HERE YET: the
-                owner will say where it belongs, so for now it opens by address
-                only. Inside the Android app both screens are read-only (no Pay
-                button, no link on to a payment page) — that rule lives in
-                features/payments/policy.ts. */}
-            <Route path="/payments" element={<PaymentsPage />} />
-            <Route path="/payments/:id" element={<PaymentDetailPage />} />
-            {/* ASKS LIVE IN THE CHAT NOW. The paper list (`/asks`, `/documents`),
-                the density register screen (`/density`) and Pump health
-                (`/kavach`) are gone: MDG asks for each thing in the chat, on a
-                message with a "Send photo" button, and marks it received there.
+      <RealLocationContext.Provider value={location}>
+        <React.Suspense fallback={<RouteFallback className="min-h-full" />}>
+          <Routes location={background ?? location}>
+            <Route
+              path="/login"
+              element={embedded ? <Navigate to="/chat" replace /> : <LoginPage />}
+            />
+            <Route
+              path="/register"
+              element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
+            />
+            <Route element={<ProtectedLayout />}>
+              {/* Three tabs (ADR 0055, 0056). The app opens on TODAY: what is waiting on the
+                  dealer and the newest report of each kind. REPORTS is the last 30 days
+                  of them, by day. CHATS is the
+                  conversation LIST — always a list, even for a member with a single
+                  thread, as WhatsApp does — and the team's messages and every box
+                  stay in the thread. `/?c=<id>` and `/chat?c=<id>` (what a push
+                  naming only a conversation turns into in the native shell) are
+                  sent on into the thread. */}
+              <Route path="/" element={<Home />} />
+              {/* The report overlay (ADR 0056). It is drawn by the shell over the screen
+                  behind it, which is what `Routes location={background}` above matches, so
+                  this route is only reached when nothing is behind the report: Today. */}
+              <Route path="/report/:conversationId/:messageId" element={<Home />} />
+              {/* The Reports tab: every report of the last 30 days. */}
+              <Route path="/reports" element={<ReportsRoute />} />
+              {/* The page was briefly its own address; keep the link working. */}
+              <Route path="/today" element={<Navigate to="/" replace />} />
+              <Route path="/chat" element={<ChatListPage />} />
+              <Route path="/chat/:id" element={<ChatPage />} />
+              {/* Everything ever shared in a thread: media / docs / links. */}
+              <Route path="/chat/:id/media" element={<ChatMediaPage />} />
+              {/* Who is in the thread, and a way into its media. */}
+              <Route path="/chat/:id/info" element={<ChatInfoPage />} />
+              {/* Settings, and what hangs off it. Reached from the ⋮ menu on the
+                  chat list. */}
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/profile" element={<SettingsProfilePage />} />
+              <Route path="/settings/account" element={<SettingsAccountPage />} />
+              <Route path="/settings/team" element={<SettingsTeamPage />} />
+              <Route path="/settings/help" element={<HelpVideosPage />} />
+              {/* Autopay: reached from the Help screen and the Payments page, never
+                  from a Settings row. The owner can see it and stop it; nothing on it
+                  starts one (features/payments/policy.ts). */}
+              <Route path="/settings/autopay" element={<AutopayPage />} />
+              {/* The owner's portal logins and what they were before. A Settings row
+                  (owner only) opens it; the server refuses anyone else. */}
+              <Route path="/settings/logins" element={<LoginsPage />} />
+              {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
+                  and not a redirect: nothing about it needs to change address. */}
+              <Route path="/profile" element={<SettingsPage />} />
+              {/* Services — Settings → Your services. */}
+              <Route path="/services" element={<ServicesPage />} />
+              {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
+              <Route path="/staff" element={<StaffPage />} />
+              {/* Payments — what MDG has asked this pump to pay, and what it has
+                  paid (ADR 0022). NO MENU OR SETTINGS ROW POINTS HERE YET: the
+                  owner will say where it belongs, so for now it opens by address
+                  only. Inside the Android app both screens are read-only (no Pay
+                  button, no link on to a payment page) — that rule lives in
+                  features/payments/policy.ts. */}
+              <Route path="/payments" element={<PaymentsPage />} />
+              <Route path="/payments/:id" element={<PaymentDetailPage />} />
+              {/* ASKS LIVE IN THE CHAT NOW. The paper list (`/asks`, `/documents`),
+                  the density register screen (`/density`) and Pump health
+                  (`/kavach`) are gone: MDG asks for each thing in the chat, on a
+                  message with a "Send photo" button, and marks it received there.
 
-                The four addresses are kept ONLY so a link already out in the
-                world still lands somewhere that makes sense — a push from
-                last week (`/documents?ask=<id>`), the native shell's shipped
-                `density` and `kavach` tokens, a bookmark. Each opens the
-                member's own chat, where the ask is waiting. */}
-            <Route path="/asks" element={<OpenMyChat />} />
-            <Route path="/documents" element={<OpenMyChat />} />
-            <Route path="/density" element={<OpenMyChat />} />
-            <Route path="/kavach" element={<OpenMyChat />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/chat" replace />} />
-        </Routes>
-      </React.Suspense>
+                  The four addresses are kept ONLY so a link already out in the
+                  world still lands somewhere that makes sense — a push from
+                  last week (`/documents?ask=<id>`), the native shell's shipped
+                  `density` and `kavach` tokens, a bookmark. Each opens the
+                  member's own chat, where the ask is waiting. */}
+              <Route path="/asks" element={<OpenMyChat />} />
+              <Route path="/documents" element={<OpenMyChat />} />
+              <Route path="/density" element={<OpenMyChat />} />
+              <Route path="/kavach" element={<OpenMyChat />} />
+            </Route>
+            <Route path="*" element={<Navigate to={embedded ? '/chat' : '/'} replace />} />
+          </Routes>
+        </React.Suspense>
+      </RealLocationContext.Provider>
     </ChunkErrorBoundary>
   );
 }

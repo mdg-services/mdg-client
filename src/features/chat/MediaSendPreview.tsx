@@ -176,7 +176,7 @@ export function MediaSendPreview({
           }}
           rows={1}
           placeholder={t('composer.captionPlaceholder')}
-          className="max-h-28 min-h-[48px] min-w-0 flex-1 resize-none rounded-3xl bg-white/15 px-4 py-3 text-base leading-snug text-white placeholder:text-white/60 focus:outline-none"
+          className="max-h-28 min-h-[48px] min-w-0 flex-1 resize-none rounded-3xl bg-white/15 px-4 py-3 text-body leading-snug text-white placeholder:text-white/60 focus:outline-none"
         />
         <button
           type="button"

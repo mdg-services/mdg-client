@@ -32,9 +32,9 @@ export function EmptyState({
           {icon}
         </div>
       ) : null}
-      <p className="text-lg font-semibold text-text">{title}</p>
+      <p className="text-heading text-text">{title}</p>
       {description ? (
-        <p className="max-w-xs text-sm text-text-muted">{description}</p>
+        <p className="max-w-xs text-body text-text-muted">{description}</p>
       ) : null}
       {cta ? <div className="mt-2">{cta}</div> : null}
     </div>

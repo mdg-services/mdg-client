@@ -28,7 +28,7 @@ export function FileTypeBadge({
     <span
       aria-hidden
       className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold tracking-wide text-text-inverse',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-micro font-bold tracking-wide text-text-inverse',
         TONE[fileFlavour(filename, contentType)],
         className,
       )}

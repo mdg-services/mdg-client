@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as ApiModule from '@/lib/api';
 import { api } from '@/lib/api';
+import { resetEmbeddedForTests } from '@/lib/embedMode';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
 import { usePushStore, type PushState } from '@/store/push';
@@ -209,11 +210,40 @@ describe('SettingsPage — the back arrow', () => {
   });
 
   // Opened cold from a notification there is nothing behind it: Back would walk
-  // off the app, so the arrow takes the dealer to the chat list instead.
+  // off the app, so the arrow takes the dealer home — Today (ADR 0055).
+  it('goes to Today when Settings was the first thing opened', async () => {
+    useLangStore.setState({ lang: 'en', explicit: true });
+    renderWithProviders(
+      <Routes>
+        <Route path="/" element={<div>today-page</div>} />
+        <Route path="/chat" element={<div>chat-list</div>} />
+        <Route path="/settings" element={<SettingsPage />} />
+      </Routes>,
+      { route: '/settings', withRouter: true },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(await screen.findByText('today-page')).toBeInTheDocument();
+    expect(screen.queryByText('chat-list')).not.toBeInTheDocument();
+  });
+});
+
+describe('SettingsPage — the back arrow in the extension\'s side panel', () => {
+  beforeEach(() => {
+    signIn({ role: 'dealer-owner' });
+    window.sessionStorage.setItem('dk.embed', 'extension');
+    resetEmbeddedForTests({ framed: true });
+  });
+  afterEach(() => {
+    window.sessionStorage.removeItem('dk.embed');
+    resetEmbeddedForTests();
+  });
+
+  // The panel has no Today: opened cold, the arrow goes back to its chat.
   it('goes to the chat list when Settings was the first thing opened', async () => {
     useLangStore.setState({ lang: 'en', explicit: true });
     renderWithProviders(
       <Routes>
+        <Route path="/" element={<div>today-page</div>} />
         <Route path="/chat" element={<div>chat-list</div>} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>,
@@ -221,6 +251,7 @@ describe('SettingsPage — the back arrow', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(await screen.findByText('chat-list')).toBeInTheDocument();
+    expect(screen.queryByText('today-page')).not.toBeInTheDocument();
   });
 });
 
