@@ -82,8 +82,8 @@ describe('groupHistory', () => {
       [
         row({ kind: 'tt_ack', day: '2026-11-23' }),
         row({ kind: 'tt_ack', day: '2026-11-23' }),
-        row({ kind: 'kavach' }),
-        row({ kind: 'kavach' }),
+        row({ kind: 'ledger_watch' }),
+        row({ kind: 'ledger_watch' }),
       ],
       NOW,
       'en',

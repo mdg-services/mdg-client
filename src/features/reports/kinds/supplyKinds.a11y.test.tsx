@@ -3,10 +3,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Lang } from '@/store/lang';
 
-import { announcement, duOtp, kavach, renderOverlay, supply, water } from './_supplyTestKit';
+import { announcement, duOtp, renderOverlay, supply, water } from './_supplyTestKit';
 import { view as announcementView } from './announcement';
 import { view as duOtpView } from './du_otp';
-import { view as kavachView } from './kavach';
 import { view as roSupplyView } from './ro_supply';
 import { view as waterView } from './water_ingress';
 
@@ -21,11 +20,10 @@ const CASES = [
   { name: 'water_ingress', view: waterView, data: water() },
   { name: 'ro_supply', view: roSupplyView, data: supply({ blocked: true }) },
   { name: 'du_otp', view: duOtpView, data: duOtp() },
-  { name: 'kavach', view: kavachView, data: kavach() },
   { name: 'announcement', view: announcementView, data: announcement({ tone: 'important', ackable: true, videoId: 'v1', serviceId: 'dsr-report' }) },
 ] as const;
 
-describe('the five visual kinds, in every language', () => {
+describe('the visual kinds, in every language', () => {
   for (const c of CASES) {
     for (const lang of LANGS) {
       it(`${c.name} (${lang}) prints no broken value and no empty text`, () => {
@@ -63,7 +61,7 @@ describe('the five visual kinds, in every language', () => {
     });
   }
 
-  it('gives each of the five its own glyph, none alike', () => {
+  it('gives each kind its own glyph, none alike', () => {
     const glyphs = new Set<string>();
     for (const c of CASES) {
       const G = c.view.Glyph;
@@ -71,6 +69,6 @@ describe('the five visual kinds, in every language', () => {
       glyphs.add(container.querySelector('svg')!.innerHTML);
       unmount();
     }
-    expect(glyphs.size).toBe(5);
+    expect(glyphs.size).toBe(CASES.length);
   });
 });

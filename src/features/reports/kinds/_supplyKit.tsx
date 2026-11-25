@@ -10,7 +10,7 @@ import { sayWords, type Words } from '../types';
 
 /**
  * Small things the five "water, supply, MDG" kinds share (water_ingress, ro_supply, du_otp,
- * kavach, announcement): dates and clock times in the reader's language, the body's type
+ * announcement): dates and clock times in the reader's language, the body's type
  * sizes, a calm note box, a "More" row and the button that opens the chat. Nothing here is
  * a sentence about a report: those stay in each kind's own file.
  */
@@ -310,7 +310,7 @@ export function plural(n: number, one: (n: number) => Words, many: (n: number) =
   return sayWords(n === 1 ? one(n) : many(n), lang);
 }
 
-/** A two-language text somebody else wrote (a Kavach task): Hindi for Hindi, otherwise the English. */
+/** A two-language text somebody else wrote: Hindi for Hindi, otherwise the English. */
 export function twoLang(text: { en: string; hi: string }, lang: Lang): string {
   return (lang === 'hi' ? text.hi || text.en : text.en || text.hi) ?? '';
 }

@@ -3,11 +3,13 @@ import * as React from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { kItem, kView } from '@/features/kavach/kavachFixtures';
 import type { KindAlert, KindTile } from '@/features/reports/types';
 import { useLangStore } from '@/store/lang';
 import { makeSetupView, makeStrip } from '@/test/setupFixtures';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type {
+  KavachDealerView,
   OutletSetupView,
   OutletsView,
   ReportData,
@@ -29,6 +31,7 @@ interface FeedStub {
 
 const h = vi.hoisted(() => ({
   feed: undefined as unknown as FeedStub,
+  kavach: undefined as KavachDealerView | undefined,
   setup: undefined as OutletSetupView | undefined,
   outlets: undefined as OutletsView | undefined,
   refetch: vi.fn(),
@@ -43,6 +46,10 @@ const h = vi.hoisted(() => ({
 vi.mock('@/hooks/api/useTodayFeed', () => ({
   todayFeedKey: ['today-feed'],
   useTodayFeed: () => h.feed,
+}));
+vi.mock('@/hooks/api/useKavach', () => ({
+  kavachKey: ['kavach', 'me'],
+  useKavach: () => ({ data: h.kavach }),
 }));
 vi.mock('@/hooks/api/useSendMessage', () => ({
   NothingToSendError: class NothingToSendError extends Error {},
@@ -182,6 +189,7 @@ function renderToday(
 const where = () => screen.getByTestId('where');
 
 beforeEach(() => {
+  h.kavach = undefined;
   // jsdom has no scrolling: the photo sheet locks the page scroll while it is open.
   vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   h.feed = loadedFeed(feed());
@@ -348,6 +356,14 @@ describe('TodayPage — loading, error, empty', () => {
       expect(screen.queryByText(heading)).not.toBeInTheDocument();
     }
     expect(screen.queryByTestId('today-ghost-tiles')).not.toBeInTheDocument();
+  });
+
+  it('shows the Kavach tile, not "nothing for today", when no report is in yet but Kavach is on', () => {
+    h.kavach = kView({ now: [kItem({ late: true })] });
+    renderToday();
+    expect(screen.queryByText('Nothing for today yet')).not.toBeInTheDocument();
+    expect(screen.getByText('Your pump today')).toBeInTheDocument();
+    expect(document.querySelector('[data-tile="kavach"]')).not.toBeNull();
   });
 
   it('shows setup progress and dashed stand-in tiles, not a second "nothing yet", while a pump is being set up', () => {
@@ -788,18 +804,6 @@ describe('TodayPage — Needs a look', () => {
       expect(screen.queryByText('A paper is due.')).not.toBeInTheDocument();
     });
 
-    it('does the same for a Kavach photo that is already an open ask', () => {
-      h.alerts.kavach = { headline: 'Kavach needs a photo', line: 'x', severity: 'attention' };
-      h.feed = loadedFeed(
-        feed({
-          tasks: [task({ id: 'ask:kv:9', action: { type: 'photo', askRef: 'kv:9', acceptsFile: false } })],
-          reports: [report({ kind: 'kavach' })],
-        }),
-      );
-      renderToday();
-      expect(screen.queryByText('Kavach needs a photo')).not.toBeInTheDocument();
-      expect(screen.getByText('Send the density register photo')).toBeInTheDocument();
-    });
   });
 
   it('"See details" opens the report screen for that exact message', () => {
@@ -851,7 +855,7 @@ describe('TodayPage — Needs a look', () => {
   });
 
   it('shows three alerts and "N more" for the rest', () => {
-    const kinds: ReportKind[] = ['dsr_variation', 'water_ingress', 'stock_check', 'kavach', 'ro_supply'];
+    const kinds: ReportKind[] = ['dsr_variation', 'water_ingress', 'stock_check', 'load_plan', 'ro_supply'];
     for (const k of kinds) h.alerts[k] = { headline: `Alert ${k}`, line: 'line', severity: 'attention' };
     h.feed = loadedFeed(feed({ reports: kinds.map((kind, i) => report({ kind, sentAt: `2026-11-24T0${i}:00:00.000Z` })) }));
     renderToday();
@@ -906,7 +910,7 @@ describe('TodayPage — Needs a look', () => {
 // ── Your pump today ────────────────────────────────────────────────────────
 describe('TodayPage — Your pump today', () => {
   const allKinds = (): TodayReport[] =>
-    (['kavach', 'water_ingress', 'credit_dod', 'dsr_variation', 'stock_check', 'dsr_sales', 'load_plan'] as ReportKind[]).map(
+    (['water_ingress', 'credit_dod', 'dsr_variation', 'stock_check', 'dsr_sales', 'load_plan'] as ReportKind[]).map(
       (kind) => report({ kind }),
     );
 
@@ -918,20 +922,20 @@ describe('TodayPage — Your pump today', () => {
       credit_dod: { value: 'Rs 1,24,000', sub: 'by 27 Nov', status: 'attention' },
       water_ingress: { value: '10 / 12', sub: '2 missed', status: 'attention' },
       load_plan: { value: 'Order today', status: 'problem' },
-      kavach: { value: '87%', sub: 'Good', status: 'info' },
     };
   });
 
   const tileOrder = () => Array.from(document.querySelectorAll('[data-tile]')).map((el) => el.getAttribute('data-tile'));
 
-  it('lays the tiles out in the one fixed order for an owner', () => {
+  it('lays the tiles out in the one fixed order for an owner, Kavach last', () => {
+    h.kavach = kView();
     h.feed = loadedFeed(feed({ reports: allKinds() }));
     renderToday();
     expect(tileOrder()).toEqual(['sales', 'stock', 'variation', 'dues', 'water', 'tanker', 'kavach']);
   });
 
   it('keeps that order when the statuses change', () => {
-    h.tiles.kavach = { value: '30%', status: 'problem' };
+    h.kavach = kView({ now: [kItem({ late: true })] });
     h.tiles.dsr_sales = { value: '0 L', status: 'attention' };
     h.feed = loadedFeed(feed({ reports: allKinds() }));
     renderToday();
@@ -1009,6 +1013,7 @@ describe('TodayPage — Your pump today', () => {
   });
 
   it('keeps a figure of 10 lakh or more on one line, in a smaller size, whatever the tile width', () => {
+    h.kavach = kView();
     h.tiles.credit_dod = { value: '₹11,79,215', status: 'attention' };
     h.feed = loadedFeed(feed({ reports: allKinds() }));
     renderToday();
@@ -1118,7 +1123,7 @@ describe('TodayPage — earlier reports (no snapshot)', () => {
   });
 
   it('shows at most four, newest first', () => {
-    const kinds: ReportKind[] = ['dsr_sales', 'stock_check', 'water_ingress', 'kavach', 'ro_supply', 'announcement'];
+    const kinds: ReportKind[] = ['dsr_sales', 'stock_check', 'water_ingress', 'credit_dod', 'ro_supply', 'announcement'];
     h.feed = loadedFeed(feed({ reports: kinds.map((kind, i) => oldReport({ kind, sentAt: `2026-11-24T0${i}:00:00.000Z` })) }));
     renderToday();
     const rows = within(screen.getByRole('list', { name: 'Earlier reports' })).getAllByRole('listitem');

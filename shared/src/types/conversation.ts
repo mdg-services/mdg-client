@@ -322,7 +322,6 @@ export const REPORT_KINDS = [
   'declaration_filed',
   'du_otp',
   'mock_drill',
-  'kavach',
   'ledger_watch',
   'announcement',
   // Added by ADR 0056: each had a notice or a picture with no kind before.

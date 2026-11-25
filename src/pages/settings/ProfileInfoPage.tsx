@@ -68,7 +68,7 @@ export function SettingsProfilePage() {
           className="mx-5 mt-3 flex h-11 items-center gap-2 self-start rounded-full border border-wa-divider px-4 text-meta font-medium text-wa-accent-strong active:bg-wa-row-active"
         >
           <MessageCircle width={18} strokeWidth={1.75} />
-          {t('kavach.messageUs')}
+          {t('settings.messageUs')}
         </button>
       </div>
     </>

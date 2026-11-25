@@ -54,7 +54,7 @@ export const OWNER_ONLY_REPORT_KINDS: ReadonlySet<ReportKind> = new Set<ReportKi
 /**
  * Kinds whose "needs a look" is only true for the day (or the day after) the card was
  * made: a missed water window, a tank reading gone stale, "order a tanker today", a
- * supply problem, a tanker that was changed, a Kavach ask, a refused order. Nothing
+ * supply problem, a tanker that was changed, a refused order. Nothing
  * sends an "all clear" card, so the server ages the report's status to `info` once its
  * day is before yesterday, and the app must read that aged status (it never trusts the
  * frozen snapshot alone for these kinds). One list, so the two sides cannot drift.
@@ -63,7 +63,6 @@ export const AGING_REPORT_KINDS: ReadonlySet<ReportKind> = new Set<ReportKind>([
   'load_plan',
   'ro_supply',
   'stock_check',
-  'kavach',
   'water_ingress',
   'fuel_order',
 ]);
@@ -205,7 +204,6 @@ const FILE_KIND_RULES: ReadonlyArray<readonly [RegExp, ReportKind]> = [
   [/^water-ingress-/i, 'water_ingress'],
   [/^ro-supply-status-/i, 'ro_supply'],
   [/^load-plan-/i, 'load_plan'],
-  [/^kavach-/i, 'kavach'],
   [/^other-movements-/i, 'ledger_watch'],
   [/^stock(\s.*)?\.(png|jpe?g|webp)$/i, 'stock_check'],
   [/^tanker density/i, 'tanker_density'],
@@ -247,7 +245,6 @@ const CAPTION_KIND_RULES: ReadonlyArray<readonly [RegExp, ReportKind]> = [
     'stock_check',
   ],
   [/(मॉक\s*ड्रिल|mock\s*drill)/i, 'mock_drill'],
-  [/(कवच|kavach)\s*[·—–-]/i, 'kavach'],
   [
     /(📒|खाते\s*में.{0,60}एंट्री|entries\s+on\s+your\s+account|entry\s+on\s+your\s+account|khaate\s+mein.{0,60}entry)/i,
     'ledger_watch',
@@ -277,7 +274,6 @@ const rx = {
     /(not\s+clear|cannot\s+lift|can.?t\s+lift|stop\s+your\s+fuel|काम\s*बाक़ी|काम\s*बाकी|नहीं\s*ले\s*सकत|nahi\s+le\s+sakta|koi\s+bhi\s+ek)/i,
   loadOrder: /(order|running\s+out|ऑर्डर|kijiye)/i,
   stockStale: /(last\s+reading\s+IRAS|आखिरी\s*रीडिंग|आख़िरी\s*रीडिंग|aakhri\s+reading)/i,
-  kavachNeed: /(we\s+need\s+from\s+you|आपसे\s*चाहिए|aapse\s+chahiye)/i,
   filed: /(भर\s*दिया|जमा\s*हो\s*गई|filed|bhar\s+diya|jama\s+ho\s+gayi)/i,
   vehicle: /([A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,3}\s?\d{3,4})/,
 };
@@ -312,8 +308,6 @@ function statusFromCaption(kind: ReportKind, text: string): ReportStatus {
       return rx.filed.test(text) ? 'ok' : 'info';
     case 'stock_check':
       return rx.stockStale.test(text) ? 'attention' : 'ok';
-    case 'kavach':
-      return rx.kavachNeed.test(text) ? 'attention' : 'info';
     case 'ledger_watch':
       return 'attention';
     case 'load_plan':
@@ -403,7 +397,6 @@ const CAPTION_DAY_KINDS: ReadonlySet<ReportKind> = new Set<ReportKind>([
   'dsr_variation',
   'dsr_sales',
   'water_ingress',
-  'kavach',
 ]);
 
 function sentAt(m: ReportSource): Date | undefined {

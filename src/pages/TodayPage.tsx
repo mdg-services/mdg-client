@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { AppBar, type AppBarMenuItem } from '@/components/AppBar';
 import { Button, EmptyState } from '@/components/ui';
+import { tabVisible } from '@/features/kavach/kavachView';
 import { OutletChip } from '@/features/outlets/OutletChip';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
@@ -17,9 +18,11 @@ import { stripVisible } from '@/features/setup/stripView';
 import { useOutletSetup } from '@/features/setup/useOutletSetup';
 import { AlertCard } from '@/features/today/AlertCard';
 import { useGreeting } from '@/features/today/Greeting';
+import { KavachTile } from '@/features/today/KavachTile';
 import { PhotoConfirmSheet } from '@/features/today/PhotoConfirmSheet';
 import { GhostTile, PumpTile } from '@/features/today/PumpTile';
 import { SetupSummary } from '@/features/today/SetupSummary';
+import { buildAlertsAndCovered, buildTiles, headlineOf } from '@/features/today/todayModel';
 import {
   CalmLine,
   DoneRow,
@@ -28,8 +31,6 @@ import {
   SectionHeading,
   Sheet,
 } from '@/features/today/TodayRows';
-import { WorkCarousel } from '@/features/today/WorkCarousel';
-import { buildAlertsAndCovered, buildTiles, headlineOf } from '@/features/today/todayModel';
 import {
   ALERT_LIMIT,
   DONE_LIMIT,
@@ -39,10 +40,13 @@ import {
   earlierReports,
   feedIsEmpty,
   ghostSlots,
+  isPhotoTask,
   usableData,
   workTasks,
 } from '@/features/today/todayView';
 import { useInlinePhoto } from '@/features/today/useInlinePhoto';
+import { WorkCarousel } from '@/features/today/WorkCarousel';
+import { useKavach } from '@/hooks/api/useKavach';
 import { useTodayFeed } from '@/hooks/api/useTodayFeed';
 import { useLang, useT } from '@/lib/i18n';
 import { markFirstScreen } from '@/lib/perfReport';
@@ -76,6 +80,9 @@ export function TodayPage() {
   const lang = useLang();
   const navigate = useNavigate();
   const q = useTodayFeed();
+  // The Kavach tile reads the same answer the Kavach tab and its badge do: no request of its own.
+  const kavach = useKavach();
+  const kavachView = tabVisible(kavach.data) ? kavach.data : undefined;
   const setup = useOutletSetup();
   const outlets = useOutlets();
   // Setup is the owner's to follow, in the owner's chat: a manager has no such box.
@@ -241,6 +248,19 @@ export function TodayPage() {
     );
   } else if (!feed || !model) {
     body = <Loading />;
+  } else if (feedIsEmpty(feed) && kavachView && !setupShown) {
+    // No report has come in yet today, but Kavach is on and has work: "nothing for today" would
+    // be wrong, so the pump section shows just the Kavach tile.
+    body = (
+      <section aria-labelledby="today-pump">
+        <SectionHeading id="today-pump">{t('today.pump.title')}</SectionHeading>
+        <div className={TILE_FRAME}>
+          <ul aria-labelledby="today-pump" className={TILE_GRID}>
+            <KavachTile view={kavachView} onOpen={() => navigate('/kavach')} />
+          </ul>
+        </div>
+      </section>
+    );
   } else if (feedIsEmpty(feed)) {
     // A pump still being set up has its progress card above and its numbers still to come;
     // a second "nothing yet" under it would only repeat itself.
@@ -321,12 +341,13 @@ export function TodayPage() {
 
         <section aria-labelledby="today-pump">
           <SectionHeading id="today-pump">{t('today.pump.title')}</SectionHeading>
-          {tiles.length > 0 ? (
+          {tiles.length > 0 || kavachView ? (
             <div className={TILE_FRAME}>
               <ul aria-labelledby="today-pump" className={TILE_GRID}>
                 {tiles.map((item) => (
                   <PumpTile key={item.slot.id} item={item} today={feed.day} onOpen={openReport} />
                 ))}
+                {kavachView ? <KavachTile view={kavachView} onOpen={() => navigate('/kavach')} /> : null}
               </ul>
             </div>
           ) : setupShown ? (
@@ -422,7 +443,11 @@ export function TodayPage() {
       </div>
       {photos.pending ? (
         <PhotoConfirmSheet
-          pending={photos.pending}
+          pending={{
+            item: photos.pending.item,
+            title: photos.pending.task.title,
+            acceptsFile: isPhotoTask(photos.pending.task) && photos.pending.task.action.acceptsFile,
+          }}
           onSend={photos.confirmPending}
           onReplace={photos.replacePending}
           onClose={photos.cancelPending}

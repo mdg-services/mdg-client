@@ -9,7 +9,6 @@ import { view as dsrVariation } from './kinds/dsr_variation';
 import { view as duOtp } from './kinds/du_otp';
 import { view as electricalAudit } from './kinds/electrical_audit';
 import { view as fuelOrder } from './kinds/fuel_order';
-import { view as kavach } from './kinds/kavach';
 import { view as ledgerWatch } from './kinds/ledger_watch';
 import { view as loadPlan } from './kinds/load_plan';
 import { view as mockDrill } from './kinds/mock_drill';
@@ -44,7 +43,6 @@ export const KIND_VIEWS = {
   mock_drill: mockDrill,
   electrical_audit: electricalAudit,
   paper_expiry: paperExpiry,
-  kavach: kavach,
   announcement: announcement,
 } satisfies { [K in ReportKind]: KindView<K> };
 

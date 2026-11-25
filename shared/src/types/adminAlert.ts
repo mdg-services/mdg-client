@@ -28,7 +28,7 @@ export const ADMIN_ALERT_KINDS = [
   'paper_to_review',
   /** A filed paper is about to run out, or has, and no renewal has been filed. */
   'paper_expiring',
-  /** A dealer sent proof for Kavach tasks and it is waiting for verification. */
+  /** Kavach photos sent by outlets have waited more than a day for a check. */
   'kavach_to_verify',
   /** A daily report failed its correctness check and is being held back. */
   'report_held',
@@ -207,8 +207,8 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
     superAdminOnly: false,
   },
   kavach_to_verify: {
-    label: 'Kavach proof',
-    clearsWhen: 'Clears when every submitted task is verified or sent back.',
+    label: 'Kavach photos waiting',
+    clearsWhen: 'Clears when no Kavach photo has waited more than a day for a check.',
     superAdminOnly: false,
   },
   report_held: {

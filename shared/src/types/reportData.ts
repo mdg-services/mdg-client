@@ -36,7 +36,7 @@ export type IsoInstant = string;
 export type ClockTime = string;
 /** `HSD` | `MS` | `XP` | `XG` or whatever the portal printed for another product. */
 export type FuelKey = string;
-/** Text somebody else wrote in two languages (a rule's name, a Kavach task label). Hinglish reads `en`. */
+/** Text somebody else wrote in two languages (a rule's name, a task label). Hinglish reads `en`. */
 export interface TwoLangText {
   en: string;
   hi: string;
@@ -758,41 +758,6 @@ export interface PaperExpiryData {
 
 // ── MDG's own ───────────────────────────────────────────────────────────────
 
-export interface KavachAsk {
-  code: string;
-  /** The Kavach item id; the chat's ask ref is `kv:<itemId>`. */
-  itemId: string;
-  label: TwoLangText;
-  points: number;
-  state: 'asked' | 'rejected';
-}
-
-export interface KavachData {
-  kind: 'kavach';
-  v: 1;
-  outletCode: string;
-  businessDate: IsoDay;
-  computedAt: IsoInstant;
-  scored: boolean;
-  /** The same gate as the text line (`kavachScoreIsPublishable`). */
-  scorePublishable: boolean;
-  /** The three are absent unless `scored && scorePublishable`. */
-  pct?: number;
-  validPoints?: number;
-  totalPoints?: number;
-  unverifiedCount: number;
-  /** Every task waiting on the dealer; not capped. */
-  asks: KavachAsk[];
-  /** Work with MDG, heaviest first, at most 5. */
-  pending: Array<{
-    code: string;
-    label: TwoLangText;
-    points: number;
-    status: 'EXPIRED' | 'EXPIRING_SOON' | 'NOT_YET_VERIFIED' | 'SOS_FLAGGED';
-  }>;
-  pendingOverflow: number;
-}
-
 export interface AnnouncementData {
   kind: 'announcement';
   v: 1;
@@ -831,7 +796,6 @@ export type ReportData =
   | MockDrillData
   | ElectricalAuditData
   | PaperExpiryData
-  | KavachData
   | AnnouncementData;
 
 /** The snapshot of one kind: `ReportDataOf<'credit_dod'>` is `CreditDodData`. */

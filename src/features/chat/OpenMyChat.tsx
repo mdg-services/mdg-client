@@ -7,13 +7,13 @@ import { useAuthStore } from '@/store/auth';
 import { ownConversation } from './useOpenMyChat';
 
 /**
- * What the old addresses `/asks`, `/documents`, `/density` and `/kavach` show now:
+ * What the old addresses `/asks`, `/documents` and `/density` show now:
  * nothing of their own — they open the member's own chat with MDG.
  *
  * Those screens are gone. Everything MDG needs from a dealer is asked in the chat,
  * on the message that asks, and a push or a link already on a phone (a
- * `/documents?ask=…` from last week, the native shell's `density` and `kavach`
- * tokens) should still land somewhere that explains itself. The chat is the one
+ * `/documents?ask=…` from last week, the native shell's shipped
+ * `density` token) should still land somewhere that explains itself. The chat is the one
  * place that does: the ask is sitting in it, with its button.
  *
  * `replace`, so Back from the chat does not come back to a route that only

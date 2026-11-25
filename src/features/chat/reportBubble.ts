@@ -97,7 +97,6 @@ export const REPORT_SENTENCE_KEY = {
   declaration_filed: 'chat.reportSentenceDeclarationFiled',
   du_otp: 'chat.reportSentenceDuOtp',
   mock_drill: 'chat.reportSentenceMockDrill',
-  kavach: 'chat.reportSentenceKavach',
   ledger_watch: 'chat.reportSentenceLedgerWatch',
   announcement: 'chat.reportSentenceAnnouncement',
   electrical_audit: 'chat.reportSentenceElectricalAudit',

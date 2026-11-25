@@ -44,13 +44,10 @@ describe('the ask bar is gone', () => {
       'hooks/api/useAsks',
       'hooks/api/useDocuments',
       'hooks/api/useDensity',
-      'hooks/api/useKavach',
       'pages/DocumentsPage',
       'pages/DensityPage',
-      'pages/KavachPage',
       'features/documents/',
       'features/density/',
-      'features/kavach/',
     ];
     const offenders = Object.entries(sources).flatMap(([path, text]) =>
       gone.filter((g) => new RegExp(`from '[^']*${g}`).test(text)).map((g) => `${path} → ${g}`),

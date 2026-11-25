@@ -1,5 +1,5 @@
-import * as React from 'react';
 import { render } from '@testing-library/react';
+import * as React from 'react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 import type { Lang } from '@/store/lang';
@@ -16,7 +16,7 @@ import type { KindView } from '../types';
 export function reportDetail(over: Partial<ReportDetail> = {}): ReportDetail {
   return {
     id: 'r1',
-    kind: 'kavach',
+    kind: 'ro_supply',
     status: 'ok',
     sentAt: '2026-11-24T06:30:00.000Z',
     headline: '',
@@ -111,31 +111,6 @@ export function duOtp(over: Partial<ReportDataOf<'du_otp'>> = {}): ReportDataOf<
     readAt: '2026-11-24T10:10:00.000Z',
     events: [duEvent(), duEvent({ otpId: 'otp-2', nozzleNo: '4' }), duEvent({ otpId: 'otp-3', duSerial: '9', groupKey: 'du-9', nozzleNo: '1' })],
     moreCount: 0,
-    ...over,
-  };
-}
-
-export function kavach(over: Partial<ReportDataOf<'kavach'>> = {}): ReportDataOf<'kavach'> {
-  return {
-    kind: 'kavach',
-    v: 1,
-    outletCode: '12E',
-    businessDate: '2026-11-24',
-    computedAt: '2026-11-24T04:30:00.000Z',
-    scored: true,
-    scorePublishable: true,
-    pct: 87,
-    validPoints: 12,
-    totalPoints: 14,
-    unverifiedCount: 11,
-    asks: [
-      { code: 'forecourt', itemId: 'it-1', label: { en: 'Forecourt photo', hi: 'फोरकोर्ट की फ़ोटो' }, points: 30, state: 'asked' },
-    ],
-    pending: [
-      { code: 'lic', label: { en: 'Licence copy', hi: 'लाइसेंस की कॉपी' }, points: 20, status: 'EXPIRING_SOON' },
-      { code: 'fire', label: { en: 'Fire drill', hi: 'फ़ायर ड्रिल' }, points: 10, status: 'NOT_YET_VERIFIED' },
-    ],
-    pendingOverflow: 0,
     ...over,
   };
 }

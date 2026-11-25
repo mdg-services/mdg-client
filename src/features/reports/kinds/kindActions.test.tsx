@@ -1,17 +1,16 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Lang } from '@/store/lang';
 
 import { ReportActionsProvider } from '../reportActions';
 import type { ReportAction, ReportActionContext } from '../types';
 
+import { duOtp, supply, announcement } from './_supplyTestKit';
 import { densityData } from './_tankerMoney.fixtures';
-import { duOtp, kavach, supply, announcement } from './_supplyTestKit';
 import { view as announcementView } from './announcement';
 import { fakeReport, loadPlanData, stockData } from './dsr_sales/fixtures';
 import { view as duOtpView } from './du_otp';
-import { view as kavachView } from './kavach';
 import { orderSentence, view as loadPlanView } from './load_plan';
 import { view as mockDrillView } from './mock_drill';
 import { boxOfCond, view as roSupplyView } from './ro_supply';
@@ -136,34 +135,6 @@ describe('announcement: no "Got it" until the server can take one', () => {
   });
 });
 
-describe('kavach: Send photo opens the chat at the exact ask box', () => {
-  it('names the first ask by its Kavach reference', () => {
-    const ctx = ctxOf();
-    const actions = kavachView.actions!(kavach(), report('kavach'), ctx);
-    expect(actions).toHaveLength(1);
-    expect(label(actions[0]!, 'en')).toBe('Send photo');
-    void actions[0]!.run(ctx);
-    expect(ctx.openChatAtAsk).toHaveBeenCalledWith('kv:it-1');
-    expect(ctx.openChatAt).not.toHaveBeenCalled();
-  });
-
-  it('puts a photo MDG sent back first', () => {
-    const data = kavach({
-      asks: [
-        { code: 'a', itemId: 'it-1', label: { en: 'A', hi: 'अ' }, points: 5, state: 'asked' },
-        { code: 'b', itemId: 'it-2', label: { en: 'B', hi: 'ब' }, points: 5, state: 'rejected' },
-      ],
-    });
-    const ctx = ctxOf();
-    void kavachView.actions!(data, report('kavach'), ctx)[0]!.run(ctx);
-    expect(ctx.openChatAtAsk).toHaveBeenCalledWith('kv:it-2');
-  });
-
-  it('offers nothing when nothing is asked', () => {
-    expect(kavachView.actions!(kavach({ asks: [] }), report('kavach'), ctxOf())).toEqual([]);
-  });
-});
-
 describe('mock_drill: Send photos again, only when IndianOil sent it back', () => {
   const returned = {
     kind: 'mock_drill',
@@ -284,17 +255,3 @@ describe('ro_supply: a row\'s button goes to the box that answers it', () => {
   });
 });
 
-describe('kavach: the ask rows inside the report open the same box', () => {
-  beforeEach(() => undefined);
-  it('Send photo on a row opens that row\'s ask', () => {
-    const ctx = ctxOf();
-    const Overlay = kavachView.Overlay;
-    render(
-      <ReportActionsProvider value={ctx}>
-        <Overlay data={kavach()} report={report('kavach')} lang="en" />
-      </ReportActionsProvider>,
-    );
-    fireEvent.click(screen.getByTestId('kavach-send-it-1'));
-    expect(ctx.openChatAtAsk).toHaveBeenCalledWith('kv:it-1');
-  });
-});

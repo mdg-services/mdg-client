@@ -5,15 +5,16 @@
  * MDG posts a request as an ordinary MDG message carrying a {@link MessageAsk}.
  * The dealer's app draws it with a "Send photo" button; the photo goes back as
  * a reply to that message, naming the request (`answersAsk`). The server files
- * it where the request lives — a document ask, a density register day, a
- * Kavach task — and either marks it received at once (the register page) or
- * leaves it for an MDG person to check (papers, Kavach photos).
+ * it where the request lives — a document ask or a density register day — and
+ * either marks it received at once (the register page) or leaves it for an MDG
+ * person to check (papers).
  *
  * A request is named by a REF, one string a message, a reply and an admin
  * action can all carry without knowing which collection it lives in:
  *   - `doc:<askId>`   a DocumentAsk row (licences, papers, anything an admin asked for)
  *   - `reg:<YYYY-MM-DD>` the density register page for that IST day
- *   - `kv:<itemId>`   a Kavach task's photo evidence
+ *   - `kv:<itemId>`   RETIRED (ADR 0057): old Kavach photo requests; kept only so
+ *                     messages already stored still parse. Always read as closed.
  */
 
 import type { SomeDealerWords } from './dealerLanguage';

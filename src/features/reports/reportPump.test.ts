@@ -50,7 +50,7 @@ describe('who a report is about, for a person with several pumps', () => {
   it('reads the pump facts: the server\'s detail, then the snapshot, then the link', () => {
     const detail = { dealerId: 'd15', outletCode: '15E' } as unknown as ReportDetail;
     expect(pumpFactsOf(detail, undefined, '99E')).toEqual({ dealerId: 'd15', code: '15E' });
-    expect(pumpFactsOf(undefined, { kind: 'kavach', outletCode: '16E' } as never, '99E')).toEqual({ code: '16E' });
+    expect(pumpFactsOf(undefined, { kind: 'stock_check', outletCode: '16E' } as never, '99E')).toEqual({ code: '16E' });
     expect(pumpFactsOf(undefined, undefined, '99E')).toEqual({ code: '99E' });
     expect(pumpFactsOf(undefined, undefined)).toEqual({});
     // A snapshot with no code (a declaration may have none) falls through to the link.

@@ -9,6 +9,7 @@ import { useDeclarationsSocket } from '@/features/chat/useDeclarationsSocket';
 import { useDuOtpSocket } from '@/features/chat/useDuOtpSocket';
 import { useMockDrillSocket } from '@/features/chat/useMockDrillSocket';
 import { useWorkPermitsSocket } from '@/features/chat/useWorkPermitsSocket';
+import { useKavachSocket } from '@/features/kavach/useKavachSocket';
 import { ReportHost } from '@/features/reports/lazy';
 import { parseReportPath, useRealLocation } from '@/features/reports/reportNav';
 import { useOutletSetupSocket } from '@/features/setup/useOutletSetupSocket';
@@ -40,8 +41,8 @@ import { useLangStore } from '@/store/lang';
  * (`AppBar`) — a back arrow where there is somewhere to go back to — and a shell
  * header above those would stack two bars on every screen.
  *
- * ITS ONLY BOTTOM BAR IS THE THREE-TAB ONE (ADR 0055, 0056): Today, Chats and
- * Reports, drawn on those three screens and nowhere else — not in a conversation,
+ * ITS ONLY BOTTOM BAR IS THE TAB ONE (ADR 0055, 0056, 0057): Today, Chats, Reports and
+ * (where Kavach is on) Kavach, drawn on those screens and nowhere else — not in a conversation,
  * Settings or any sub-page, not in the extension's panel, not while the keyboard is
  * up, not under an open report. It sits in the frame's own flow, so no screen
  * reserves room for it, and the composer's safe-area padding still governs the
@@ -60,6 +61,7 @@ export function AppShell() {
   useWorkPermitsSocket(); // keep the work-permit box following the issue run and the close
   useMockDrillSocket(); // keep the Mock Drill box following the admin's check and the filing
   useDeclarationsSocket(); // keep the Declarations box following the filing of the washroom photos
+  useKavachSocket(); // keep the Kavach tab following MDG's checks of the outlet's points
   // …and loaded, wherever the app was opened. An old link can open it cold on
   // /documents or /density, and those routes now just open the member's own chat
   // (`OpenMyChat`) by reading this list — with nothing loaded they could only

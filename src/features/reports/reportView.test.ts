@@ -131,7 +131,7 @@ describe('isPartial', () => {
   it('is true for a supply status read in part, and false for everything else', () => {
     expect(isPartial({ kind: 'ro_supply', read: 'partial' } as unknown as ReportData)).toBe(true);
     expect(isPartial({ kind: 'ro_supply', read: 'ok' } as unknown as ReportData)).toBe(false);
-    expect(isPartial({ kind: 'kavach' } as unknown as ReportData)).toBe(false);
+    expect(isPartial({ kind: 'stock_check' } as unknown as ReportData)).toBe(false);
     expect(isPartial(undefined)).toBe(false);
   });
 });

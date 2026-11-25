@@ -13,7 +13,6 @@ import {
   PackageCheck,
   ReceiptText,
   Scale,
-  ShieldCheck,
   Stamp,
   Table2,
   Timer,
@@ -225,13 +224,6 @@ export const KIND_STYLE: Record<ReportKind, KindStyle> = {
     { hi: 'कागज़ खत्म होने वाले', hl: 'Kagaz khatam hone wale', en: 'Papers running out' },
     { hi: 'कागज़ खत्म होने वाले देखें', hl: 'Kagaz khatam hone wale dekhein', en: 'See papers running out' },
   ),
-  kavach: style(
-    'kavach',
-    ShieldCheck,
-    'mdg',
-    { hi: 'कवच स्कोर', hl: 'Kavach score', en: 'Kavach score' },
-    { hi: 'कवच स्कोर देखें', hl: 'Kavach score dekhein', en: 'See Kavach score' },
-  ),
   announcement: style(
     'news',
     Mail,
@@ -276,7 +268,7 @@ export const KIND_GROUPS: ReadonlyArray<{ group: KindGroup; names: Words; kinds:
   {
     group: 'mdg',
     names: { hi: 'MDG', hl: 'MDG', en: 'MDG' },
-    kinds: ['kavach', 'announcement'],
+    kinds: ['announcement'],
   },
 ];
 

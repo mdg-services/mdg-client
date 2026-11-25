@@ -103,6 +103,8 @@ export interface ServerToClientEvents {
    * button). Carries only the outlet's id: each side reads its own scoped view.
    */
   'declarations:changed': (payload: { dealerId: string }) => void;
+  /** An outlet's Kavach moved: a check opened, was sent, checked or closed (ADR 0057). Carries only the outlet's id. */
+  'kavach:changed': (payload: { dealerId: string }) => void;
   /**
    * The watch-period review queue changed: a message was held, sent, dropped or
    * expired. Admin sockets only; the queue refetches its own list.

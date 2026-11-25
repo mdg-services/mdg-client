@@ -84,12 +84,6 @@ export function taskActionLabel(task: TodayTask): TaskActionLabel {
   }
 }
 
-/** The ask a task stands for (`kv:<item>`, `doc:<id>`, `reg:<day>`), or '' for a task that is not an ask. */
-function askRefOfTask(task: TodayTask): string {
-  if (task.action?.type === 'photo') return task.action.askRef;
-  return task.id.startsWith('ask:') ? task.id.slice(4) : '';
-}
-
 /**
  * Does an open task of the dealer's own ALREADY ask for what this report's alert would? The page
  * shows a thing once: when the work is under "Your work" (with its button on the card), the same
@@ -97,7 +91,6 @@ function askRefOfTask(task: TodayTask): string {
  *
  *  - the DU OTP report is the alert above the DU OTP steps: the steps are the task,
  *  - a declaration or a mock drill report that needs the dealer is the box of that job,
- *  - a Kavach report's alert is the photos it asks for: each is an open ask (`kv:<item>`).
  */
 export function taskCoversReport(tasks: readonly TodayTask[], kind: ReportKind): boolean {
   switch (kind) {
@@ -107,8 +100,6 @@ export function taskCoversReport(tasks: readonly TodayTask[], kind: ReportKind):
       return tasks.some((t) => t.kind === 'declarations');
     case 'mock_drill':
       return tasks.some((t) => t.kind === 'mock_drill');
-    case 'kavach':
-      return tasks.some((t) => askRefOfTask(t).startsWith('kv:'));
     default:
       return false;
   }
@@ -128,7 +119,7 @@ export const ALERT_PER_REPORT_KINDS: ReadonlySet<ReportKind> = new Set<ReportKin
 ]);
 
 /** The tiles, in the one order the dealer's thumb learns: never reshuffled by status. */
-export type TileSlotId = 'sales' | 'stock' | 'variation' | 'dues' | 'water' | 'tanker' | 'kavach';
+export type TileSlotId = 'sales' | 'stock' | 'variation' | 'dues' | 'water' | 'tanker';
 
 export interface TileSlotSpec {
   id: TileSlotId;
@@ -147,7 +138,6 @@ export const TILE_SLOTS: readonly TileSlotSpec[] = [
   { id: 'dues', kinds: ['credit_dod'], ownerOnly: true },
   { id: 'water', kinds: ['water_ingress'] },
   { id: 'tanker', kinds: ['load_plan', 'fuel_order'] },
-  { id: 'kavach', kinds: ['kavach'] },
 ];
 
 export interface TileItem {

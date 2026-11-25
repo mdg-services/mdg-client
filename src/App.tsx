@@ -42,6 +42,9 @@ const TodayPage = lazyRoute(() =>
 const ReportsPage = lazyRoute(() =>
   import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
+const KavachPage = lazyRoute(() =>
+  import('@/pages/KavachPage').then((m) => ({ default: m.KavachPage })),
+);
 const ChatListPage = lazyRoute(() =>
   import('@/pages/ChatListPage').then((m) => ({ default: m.ChatListPage })),
 );
@@ -125,6 +128,7 @@ function usePreloadScreens() {
           // drawing) comes down once the app is up, and the tap needs no download.
           ReportHost,
           ReportsPage,
+          KavachPage,
           SettingsPage,
           ChatInfoPage,
           ChatMediaPage,
@@ -230,6 +234,11 @@ function ReportsRoute() {
   return isEmbedded() ? <Navigate to="/chat" replace /> : <ReportsPage />;
 }
 
+/** The Kavach tab: the panel has none either, so its address goes to the chat. */
+function KavachRoute() {
+  return isEmbedded() ? <Navigate to="/chat" replace /> : <KavachPage />;
+}
+
 export function App() {
   useMonitoringIdentity();
   // The panel has no Sign in and no Register: both addresses go to the chat, which
@@ -259,7 +268,7 @@ export function App() {
               element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
             />
             <Route element={<ProtectedLayout />}>
-              {/* Three tabs (ADR 0055, 0056). The app opens on TODAY: what is waiting on the
+              {/* Tabs (ADR 0055, 0056). The app opens on TODAY: what is waiting on the
                   dealer and the newest report of each kind. REPORTS is the last 30 days
                   of them, by day. CHATS is the
                   conversation LIST — always a list, even for a member with a single
@@ -274,6 +283,7 @@ export function App() {
               <Route path="/report/:conversationId/:messageId" element={<Home />} />
               {/* The Reports tab: every report of the last 30 days. */}
               <Route path="/reports" element={<ReportsRoute />} />
+              <Route path="/kavach" element={<KavachRoute />} />
               {/* The page was briefly its own address; keep the link working. */}
               <Route path="/today" element={<Navigate to="/" replace />} />
               <Route path="/chat" element={<ChatListPage />} />
@@ -312,19 +322,19 @@ export function App() {
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/payments/:id" element={<PaymentDetailPage />} />
               {/* ASKS LIVE IN THE CHAT NOW. The paper list (`/asks`, `/documents`),
-                  the density register screen (`/density`) and Pump health
-                  (`/kavach`) are gone: MDG asks for each thing in the chat, on a
+                  and the density register screen (`/density`)
+                  are gone: MDG asks for each thing in the chat, on a
                   message with a "Send photo" button, and marks it received there.
 
-                  The four addresses are kept ONLY so a link already out in the
+                  The three addresses are kept ONLY so a link already out in the
                   world still lands somewhere that makes sense — a push from
                   last week (`/documents?ask=<id>`), the native shell's shipped
-                  `density` and `kavach` tokens, a bookmark. Each opens the
-                  member's own chat, where the ask is waiting. */}
+                  `density` token, a bookmark. Each opens the member's own chat,
+                  where the ask is waiting. (`/kavach` is the Kavach tab now,
+                  ADR 0057.) */}
               <Route path="/asks" element={<OpenMyChat />} />
               <Route path="/documents" element={<OpenMyChat />} />
               <Route path="/density" element={<OpenMyChat />} />
-              <Route path="/kavach" element={<OpenMyChat />} />
             </Route>
             <Route path="*" element={<Navigate to={embedded ? '/chat' : '/'} replace />} />
           </Routes>

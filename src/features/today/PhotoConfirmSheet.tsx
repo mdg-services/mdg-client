@@ -3,11 +3,18 @@ import * as React from 'react';
 
 import { useT } from '@/lib/i18n';
 import { imageAccept } from '@/lib/imageAccept';
+import type { OutgoingAttachment } from '@/lib/uploadAttachment';
 import { useDialog } from '@/lib/useDialog';
 
 import { ACTION_BUTTON } from './WorkCard';
-import type { PendingPhoto } from './useInlinePhoto';
-import { isPhotoTask } from './todayView';
+
+/** What the sheet holds: the picked file, what it is for, and whether a PDF may stand in for a photo. */
+export interface PhotoToConfirm {
+  item: OutgoingAttachment;
+  /** What the photo answers, in the reader's words: one line under the question. */
+  title: string;
+  acceptsFile: boolean;
+}
 
 /**
  * "Send this photo?": the sheet a photo answer waits on, so a wrong gallery pick or a register
@@ -21,7 +28,7 @@ export function PhotoConfirmSheet({
   onReplace,
   onClose,
 }: {
-  pending: PendingPhoto;
+  pending: PhotoToConfirm;
   onSend: () => void;
   onReplace: (file: File) => void;
   onClose: () => void;
@@ -29,7 +36,7 @@ export function PhotoConfirmSheet({
   const t = useT();
   const panelRef = useDialog(onClose);
   const inputRef = React.useRef<HTMLInputElement>(null);
-  const { item, task } = pending;
+  const { item, title, acceptsFile } = pending;
   const isImage = item.kind === 'image';
   const [url, setUrl] = React.useState<string | null>(null);
   React.useEffect(() => {
@@ -61,7 +68,7 @@ export function PhotoConfirmSheet({
         className="relative mx-auto flex w-full max-w-md flex-col gap-3 rounded-t-2xl bg-wa-bar p-4 shadow-lg outline-none safe-bottom animate-in"
       >
         <p className="text-heading text-wa-bar-text">{t('today.photo.confirmTitle')}</p>
-        <p className="break-words text-body text-wa-meta">{task.title}</p>
+        <p className="break-words text-body text-wa-meta">{title}</p>
         <div className="flex max-h-[45vh] min-h-24 items-center justify-center overflow-hidden rounded-xl border border-wa-divider bg-wa-in">
           {isImage && url ? (
             <img src={url} alt={t('today.photo.confirmAlt')} className="max-h-[45vh] w-full object-contain" />
@@ -85,7 +92,7 @@ export function PhotoConfirmSheet({
         <input
           ref={inputRef}
           type="file"
-          accept={imageAccept(isPhotoTask(task) ? task.action.acceptsFile : false)}
+          accept={imageAccept(acceptsFile)}
           className="hidden"
           data-testid="today-photo-confirm-input"
           onChange={(e) => {

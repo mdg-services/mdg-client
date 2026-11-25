@@ -1,8 +1,10 @@
-import { CalendarCheck, FileText, MessageCircle } from 'lucide-react';
+import { CalendarCheck, FileText, MessageCircle, ShieldCheck } from 'lucide-react';
 import * as React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { unreadState } from '@/features/chat/conversationLabel';
+import { tabVisible, todoCount } from '@/features/kavach/kavachView';
+import { useKavach } from '@/hooks/api/useKavach';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useTodayFeed } from '@/hooks/api/useTodayFeed';
 import { cn } from '@/lib/cn';
@@ -12,8 +14,8 @@ import { useAuthStore } from '@/store/auth';
 
 import { useTabBarHidden } from './tabBarVisibility';
 
-/** The three tabs, and the address each one lives at. */
-export const TAB_PATHS = { today: '/', chats: '/chat', reports: '/reports' } as const;
+/** The four tabs, and the address each one lives at. */
+export const TAB_PATHS = { today: '/', chats: '/chat', reports: '/reports', kavach: '/kavach' } as const;
 type Tab = keyof typeof TAB_PATHS;
 
 /** Which tab an address is, or null on a screen that carries no bar. Exact match, so a thread, Settings and every sub-page have none. */
@@ -22,13 +24,15 @@ export function tabOf(pathname: string): Tab | null {
   if (path === TAB_PATHS.today) return 'today';
   if (path === TAB_PATHS.chats) return 'chats';
   if (path === TAB_PATHS.reports) return 'reports';
+  if (path === TAB_PATHS.kavach) return 'kavach';
   return null;
 }
 
 /**
- * The bottom bar with three doors: Today, Chats and Reports (ADR 0055 §1, ADR 0056 §4).
+ * The bottom bar with up to four doors: Today, Chats, Reports and Kavach (ADR 0055 §1, ADR 0056 §4,
+ * ADR 0057 §5). The Kavach door is there only for an outlet whose Kavach is on.
  *
- * Drawn only on those three screens — never inside a chat, Settings or any sub-page,
+ * Drawn only on those screens — never inside a chat, Settings or any sub-page,
  * never in the extension's side panel, and not while the keyboard is up or a
  * screen has asked for it to step aside (the chat list's search, and every open
  * report: `ReportHost` asks while its overlay is up). A tap REPLACES the history
@@ -37,8 +41,9 @@ export function tabOf(pathname: string): Tab | null {
  * touched.
  *
  * The badges say what is waiting: on Today the number of open tasks, on Chats the
- * number of chats with something unread. Both are read from answers the app already
- * holds for the screens themselves. Reports carries none: nothing there is waiting
+ * number of chats with something unread, on Kavach the number of points to do now. All three are
+ * read from answers the app already holds for the screens themselves (Kavach's is the one query
+ * the Kavach page and the Today tile share). Reports carries none: nothing there is waiting
  * on the dealer.
  */
 export function TabBar({ keyboardOpen = false }: { keyboardOpen?: boolean }) {
@@ -57,8 +62,11 @@ function Bar({ active }: { active: Tab }) {
   const myId = useAuthStore((s) => s.user?.id);
   const feed = useTodayFeed();
   const convos = useMyConversations();
+  const kavach = useKavach();
 
   const openTasks = feed.data?.tasks.length ?? 0;
+  const kavachOn = tabVisible(kavach.data);
+  const kavachTodo = todoCount(kavach.data);
   const unreadChats = (convos.data ?? []).filter((c) => unreadState(c, myId).unread).length;
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode; badge: number; badgeLabel: string }[] = [
@@ -83,6 +91,17 @@ function Bar({ active }: { active: Tab }) {
       badge: 0,
       badgeLabel: '',
     },
+    ...(kavachOn
+      ? [
+          {
+            id: 'kavach' as const,
+            label: t('tabs.kavach'),
+            icon: <ShieldCheck width={24} strokeWidth={1.75} aria-hidden />,
+            badge: kavachTodo,
+            badgeLabel: t('tabs.openTasks', { n: kavachTodo }),
+          },
+        ]
+      : []),
   ];
 
   return (

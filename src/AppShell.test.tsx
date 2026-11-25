@@ -31,6 +31,13 @@ vi.mock('@/features/chat/useDeclarationsSocket', () => ({
   useDeclarationsSocket: () => undefined,
 }));
 
+vi.mock('@/features/kavach/useKavachSocket', () => ({ useKavachSocket: () => undefined }));
+// The tab bar's Kavach door reads the Kavach view: it is a table here, not the network.
+vi.mock('@/hooks/api/useKavach', () => ({
+  kavachKey: ['kavach', 'me'],
+  useKavach: () => ({ data: h.kavach }),
+}));
+
 // …and the tab bar's badge reads the Today feed, which would reach for the network.
 vi.mock('@/hooks/api/useTodayFeed', () => ({
   useTodayFeed: () => ({ data: h.feed }),
@@ -38,6 +45,7 @@ vi.mock('@/hooks/api/useTodayFeed', () => ({
 
 const h = vi.hoisted(() => ({
   feed: undefined as { tasks: unknown[] } | undefined,
+  kavach: undefined as { on: boolean; now: unknown[] } | undefined,
   keyboardOpen: false,
   keyboardHookCalls: 0,
   setupSocketCalls: 0,
@@ -82,7 +90,7 @@ const { ChatListPage } = await import('./pages/ChatListPage');
  * The shell: the frame every screen is drawn in.
  *
  * The shell draws NO header — each screen draws one `AppBar` of its own — and its
- * only bottom bar is the three-tab one, on Today, Chats and Reports alone (ADR 0055, 0056). So this
+ * only bottom bar is the tab one, on Today, Chats, Reports and Kavach alone (ADR 0055, 0056, 0057). So this
  * file pins the frame: nothing stacked above a screen's own bar, nothing reserved
  * at the bottom, and a fixed-height frame for an open conversation only.
  *
@@ -145,6 +153,7 @@ afterEach(() => {
   h.keyboardOpen = false;
   h.keyboardHookCalls = 0;
   h.setupSocketCalls = 0;
+  h.kavach = undefined;
   h.convos = [];
   h.feed = undefined;
 });
@@ -166,7 +175,7 @@ describe('AppShell — the frame', () => {
     expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
   });
 
-  // The bar has three doors, and only on the three screens they open.
+  // The bar has three doors (a fourth where Kavach is on), and only on the screens they open.
   it.each([
     ['/', 'today-page', 'Today'],
     ['/chat', 'Dealer Kavach', 'Chats'],
@@ -182,6 +191,17 @@ describe('AppShell — the frame', () => {
       'aria-selected',
       'true',
     );
+  });
+
+  it('adds the Kavach door, with the points to do on it, where Kavach is on for the pump', async () => {
+    h.convos = [conv({ id: 'only' })];
+    h.kavach = { on: true, now: [{}, {}] };
+    renderShell('/reports');
+    await screen.findByText('reports-page');
+    const tabs = screen.getAllByRole('tab');
+    // The badge's number comes before the word.
+    expect(tabs.map((tab) => tab.textContent?.replace(/^\d+/, ''))).toEqual(['Today', 'Chats', 'Reports', 'Kavach']);
+    expect(screen.getByRole('img', { name: '2 to do' })).toHaveTextContent('2');
   });
 
   it.each([

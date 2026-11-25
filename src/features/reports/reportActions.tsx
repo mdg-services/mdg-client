@@ -16,8 +16,7 @@ import type { ReportActionContext } from './types';
 /**
  * What a report's buttons can do, built once for the report on screen (ADR 0056 §4).
  *
- * The overlay's pinned bar and the buttons inside a kind's body (Kavach's "Send photo", the supply
- * status rows) all go through the same {@link ReportActionContext}, so they open the chat the same
+ * The overlay's pinned bar and the buttons inside a kind's body (the supply status rows) all go through the same {@link ReportActionContext}, so they open the chat the same
  * way, copy the same way and say the same thing when something goes wrong. A kind that is drawn
  * with no overlay around it (a test, the history row's glyph) finds no context and falls back to
  * plain behaviour.

@@ -11,12 +11,20 @@ const h = vi.hoisted(() => ({
   tasks: [] as unknown[],
   convos: [] as Conversation[],
   feedCalls: 0,
+  kavach: undefined as { on: boolean; now: unknown[] } | undefined,
+  kavachCalls: 0,
 }));
 
 vi.mock('@/hooks/api/useTodayFeed', () => ({
   useTodayFeed: () => {
     h.feedCalls += 1;
     return { data: { tasks: h.tasks } };
+  },
+}));
+vi.mock('@/hooks/api/useKavach', () => ({
+  useKavach: () => {
+    h.kavachCalls += 1;
+    return { data: h.kavach };
   },
 }));
 vi.mock('@/hooks/api/useMyConversations', () => ({
@@ -71,6 +79,8 @@ afterEach(() => {
   h.tasks = [];
   h.convos = [];
   h.feedCalls = 0;
+  h.kavach = undefined;
+  h.kavachCalls = 0;
 });
 
 describe('TabBar', () => {
@@ -82,6 +92,65 @@ describe('TabBar', () => {
     expect(screen.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Chats' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'Reports' })).toHaveAttribute('aria-selected', 'false');
+  });
+
+  describe('the Kavach tab', () => {
+    it('is not there until Kavach is known to be on for the pump', () => {
+      renderBar('/');
+      expect(screen.queryByRole('tab', { name: /Kavach/ })).not.toBeInTheDocument();
+    });
+
+    it('is not there when Kavach is off, whatever is open', () => {
+      h.kavach = { on: false, now: [{}] };
+      renderBar('/');
+      expect(screen.queryByRole('tab', { name: /Kavach/ })).not.toBeInTheDocument();
+    });
+
+    it('is the fourth tab where Kavach is on, and selected on /kavach', () => {
+      h.kavach = { on: true, now: [] };
+      renderBar('/kavach');
+      expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Today', 'Chats', 'Reports', 'Kavach']);
+      expect(screen.getByRole('tab', { name: 'Kavach' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: 'Today' })).toHaveAttribute('aria-selected', 'false');
+    });
+
+    it("carries the number of this member's points for today as its badge", () => {
+      const today = { canSend: true, how: 'photo', everyDays: 1, state: 'todo', late: false };
+      const nextWeek = { canSend: true, how: 'photo', everyDays: 30, state: 'todo', late: false, dueAt: '2099-01-01T00:00:00.000Z' };
+      const ownerOnly = { ...today, canSend: false };
+      const data = { ...today, how: 'data' };
+      h.kavach = { on: true, now: [today, today, today, nextWeek, ownerOnly, data] };
+      renderBar('/');
+      expect(screen.getByRole('img', { name: '3 to do' })).toHaveTextContent('3');
+    });
+
+    it('carries no badge when there is nothing to do', () => {
+      h.kavach = { on: true, now: [] };
+      renderBar('/');
+      expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    });
+
+    it('opens /kavach by REPLACING the history entry, like every other tab', () => {
+      h.kavach = { on: true, now: [] };
+      renderBar('/');
+      fireEvent.click(screen.getByRole('tab', { name: 'Kavach' }));
+      expect(screen.getByTestId('where')).toHaveTextContent('/kavach|REPLACE');
+    });
+
+    it('is named in Hindi', () => {
+      h.kavach = { on: true, now: [] };
+      signIn({ id: 'owner' });
+      useLangStore.setState({ lang: 'hi', explicit: true });
+      renderWithProviders(<TabBar />, { route: '/', withRouter: true });
+      expect(screen.getByRole('tab', { name: 'कवच' })).toBeInTheDocument();
+    });
+
+    it('asks for nothing where the bar is not drawn', () => {
+      h.kavach = { on: true, now: [] };
+      h.kavachCalls = 0;
+      renderBar('/settings');
+      expect(h.kavachCalls).toBe(0);
+    });
   });
 
   it('selects Chats on /chat', () => {

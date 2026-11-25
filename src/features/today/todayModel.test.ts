@@ -58,7 +58,6 @@ describe('buildTiles', () => {
   it('puts the tiles in the one fixed order, whatever order the feed is in', () => {
     const f = feed({
       reports: [
-        report('kavach'),
         report('water_ingress'),
         report('credit_dod'),
         report('dsr_variation'),
@@ -74,7 +73,6 @@ describe('buildTiles', () => {
       'dues',
       'water',
       'tanker',
-      'kavach',
     ]);
   });
 
@@ -89,8 +87,8 @@ describe('buildTiles', () => {
   });
 
   it('leaves out a tile when the kind says it has none to draw', () => {
-    h.tile.mockImplementation((kind: string) => (kind === 'kavach' ? null : tileFor('x')));
-    const f = feed({ reports: [report('kavach'), report('stock_check')] });
+    h.tile.mockImplementation((kind: string) => (kind === 'water_ingress' ? null : tileFor('x')));
+    const f = feed({ reports: [report('water_ingress'), report('stock_check')] });
     expect(buildTiles(f, 'en', true).map((x) => x.slot.id)).toEqual(['stock']);
   });
 
@@ -146,8 +144,8 @@ describe('buildTiles', () => {
   });
 
   it('finds a report among the receipts too', () => {
-    const f = feed({ done: [report('kavach')] });
-    expect(buildTiles(f, 'en', true).map((x) => x.slot.id)).toEqual(['kavach']);
+    const f = feed({ done: [report('water_ingress')] });
+    expect(buildTiles(f, 'en', true).map((x) => x.slot.id)).toEqual(['water']);
   });
 
   it('does not let one kind that throws take the page down', () => {
@@ -298,7 +296,7 @@ describe('buildAlerts', () => {
       expect(buildAlerts(feed({ reports: [stopped('attention')] }), 'en', true, kindName)).toHaveLength(1);
     });
 
-    it.each(['ro_supply', 'water_ingress', 'stock_check', 'kavach', 'fuel_order', 'load_plan'] as const)(
+    it.each(['ro_supply', 'water_ingress', 'stock_check', 'fuel_order', 'load_plan'] as const)(
       'ages out %s',
       (kind) => {
         h.alert.mockReturnValue(alert('old'));
@@ -309,21 +307,6 @@ describe('buildAlerts', () => {
     it('does not age out a kind that never ages: an important announcement still raises its card', () => {
       h.alert.mockReturnValue(alert('Important notice'));
       expect(buildAlerts(feed({ reports: [report('announcement', { status: 'info' })] }), 'en', true, kindName)).toHaveLength(1);
-    });
-
-    it('is not "covered" by an open task either: it is an ordinary row', () => {
-      h.alert.mockReturnValue(alert('Kavach photo'));
-      const kavachAsk: TodayFeed['tasks'][number] = {
-        id: 'ask:kv:9',
-        kind: 'ask',
-        title: 'x',
-        since: '2026-11-24T05:00:00.000Z',
-        conversationId: 'c1',
-        messageId: 'box',
-        action: { type: 'photo', askRef: 'kv:9', acceptsFile: false },
-      };
-      const f = feed({ reports: [report('kavach', { status: 'info' })], tasks: [kavachAsk] });
-      expect(buildAlertsAndCovered(f, 'en', true, kindName).covered.size).toBe(0);
     });
 
     it('keeps the tile and its figure but takes the warning off it', () => {
@@ -403,14 +386,6 @@ describe('a thing is shown once: a task under "Your work" replaces the same kind
       tasks: [task({ id: 'a', kind: 'mock_drill' }), task({ id: 'b', kind: 'declarations' })],
     });
     expect(buildAlertsAndCovered(f, 'en', true, kindName).items).toEqual([]);
-  });
-
-  it('drops a Kavach alert while one of its photo asks is open, but not for a different ask', () => {
-    h.alert.mockReturnValue(alert('Kavach photo'));
-    const kavachAsk = task({ id: 'ask:kv:9', kind: 'ask', action: { type: 'photo', askRef: 'kv:9', acceptsFile: false } });
-    const otherAsk = task({ id: 'ask:doc:1', kind: 'ask', action: { type: 'photo', askRef: 'doc:1', acceptsFile: true } });
-    expect(buildAlerts(feed({ reports: [report('kavach')], tasks: [kavachAsk] }), 'en', true, kindName)).toEqual([]);
-    expect(buildAlerts(feed({ reports: [report('kavach')], tasks: [otherAsk] }), 'en', true, kindName)).toHaveLength(1);
   });
 
   it('covers an old words-only warning of that kind too, and reports it as covered so it is not listed as an earlier report', () => {

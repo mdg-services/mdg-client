@@ -80,6 +80,7 @@ vi.mock('@/pages/ReportsPage', () => ({
     );
   },
 }));
+vi.mock('@/pages/KavachPage', () => ({ KavachPage: () => <div>kavach-page</div> }));
 vi.mock('@/pages/ChatListPage', () => ({
   ChatListPage: () => <div>chat-list-page</div>,
 }));
@@ -304,7 +305,7 @@ describe('App routing', () => {
   // gone, but a push or a link already out there still names them — each must
   // open the member's own chat (not the list, not a blank page), with or without
   // the `?ask=` a push used to carry.
-  it.each(['/asks', '/documents', '/documents?ask=a1', '/density', '/kavach'])(
+  it.each(['/asks', '/documents', '/documents?ask=a1', '/density'])(
     'opens the member\'s own chat from the retired address %s',
     async (route) => {
       signIn();
@@ -378,6 +379,33 @@ describe('App routing', () => {
 
   // The extension's side panel has no Today and no tab bar: its sign-in and
   // register addresses still go to the chat list.
+  describe('the Kavach tab', () => {
+    const renderAt = (route: string) => {
+      signIn();
+      return renderWithProviders(<App />, { route });
+    };
+
+    it('is served in the shell, at /kavach', async () => {
+      renderAt('/kavach');
+      expect(await screen.findByText('kavach-page')).toBeInTheDocument();
+      expect(screen.getByTestId('shell')).toBeInTheDocument();
+      expect(screen.queryByText('open-my-chat')).not.toBeInTheDocument();
+    });
+
+    it('is not in the extension\'s panel, which has no tab bar: it goes to the chat list', async () => {
+      window.sessionStorage.setItem('dk.embed', 'extension');
+      resetEmbeddedForTests({ framed: true });
+      try {
+        renderAt('/kavach');
+        expect(await screen.findByText('chat-list-page')).toBeInTheDocument();
+        expect(screen.queryByText('kavach-page')).not.toBeInTheDocument();
+      } finally {
+        window.sessionStorage.removeItem('dk.embed');
+        resetEmbeddedForTests();
+      }
+    });
+  });
+
   describe('inside the extension\'s panel', () => {
     beforeEach(() => {
       window.sessionStorage.setItem('dk.embed', 'extension');

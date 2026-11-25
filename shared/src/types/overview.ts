@@ -41,15 +41,6 @@ export interface OverviewDay {
   asOf: string;
   summary: OverviewSummary;
   /**
-   * When the nightly Kavach sweep last scored the estate, or `null` if it never
-   * has. Nothing computes Kavach status on read — a cron stamps it at 00:20 IST
-   * — so a sweep that failed leaves every Kavach figure on this page silently
-   * showing yesterday's answer, with no error raised anywhere.
-   */
-  kavachLastEvaluatedAt: string | null;
-  /** ACTIVE programmes not scored since midnight IST. Non-zero ⇒ show the trust callout. */
-  kavachStaleProgrammes: number;
-  /**
    * Pre-ranked and pre-deduped server-side, so the page renders judgement it
    * did not make. NOT pre-capped: every row is sent and the page shows `actCap`
    * of them with the rest expandable in place, because no single screen exists
@@ -120,8 +111,8 @@ export type TriageKind =
   | 'ai_unreviewed'
   /** Documents the dealer has sent that are waiting on us, or that are overdue. */
   | 'papers_waiting'
-  /** Kavach items never verified. Always context: a new programme starts with ~40 of them. */
-  | 'kavach_backlog';
+  /** Kavach photos sent by outlets that nobody at MDG has checked yet. */
+  | 'kavach_review';
 
 /** A one-tap fix, described by the server so the page never hard-codes a route. */
 export interface TriageAction {
@@ -199,13 +190,6 @@ export interface DealerDayRow {
     holders?: Record<DsrSheet, DsrSheetHolders> | null;
     /** Who is on the app at the outlet now; absent when that could not be read. */
     outlet?: { owners: number; manager: boolean } | null;
-  };
-  kavach: {
-    hasProgramme: boolean;
-    submitted: number;
-    expired: number;
-    sosFlagged: number;
-    held: number;
   };
   chat: {
     waiting: number;

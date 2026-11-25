@@ -20,8 +20,8 @@ function contrast(a: string, b: string): number {
 }
 
 describe('kindStyle: one look per report kind', () => {
-  it('has a style for every one of the nineteen kinds', () => {
-    expect(REPORT_KINDS).toHaveLength(19);
+  it('has a style for every one of the eighteen kinds', () => {
+    expect(REPORT_KINDS).toHaveLength(18);
     expect(Object.keys(KIND_STYLE).sort()).toEqual([...REPORT_KINDS].sort());
   });
 
@@ -95,7 +95,8 @@ describe('kindStyle: one look per report kind', () => {
     for (const k of ['declaration_filed', 'mock_drill', 'electrical_audit'] as const) {
       expect(kindStyle(k).color).toBe('#86198f');
     }
-    expect(kindStyle('kavach').color).toBe('#18181b');
+    // Kavach is a tab, not a report kind (ADR 0057); its family colour is the brand black.
+    expect(KIND_FAMILIES.kavach.color).toBe('#18181b');
     expect(kindStyle('calibration_claim').color).toBe('#6d28d9');
   });
 

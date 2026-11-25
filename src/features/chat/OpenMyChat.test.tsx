@@ -46,7 +46,7 @@ function Back() {
 }
 
 /**
- * The four retired addresses — /asks, /documents, /density, /kavach — all mount
+ * The three retired addresses — /asks, /documents and /density — all mount
  * this. Rendered here inside the real route shapes, with a history behind it so
  * `replace` can be told from `push`.
  */
@@ -55,7 +55,7 @@ function mount(route: string, qc = makeTestQueryClient()) {
     <QueryClientProvider client={qc}>
       <MemoryRouter initialEntries={['/chat', route]} initialIndex={1}>
         <Routes>
-          {['/asks', '/documents', '/density', '/kavach'].map((path) => (
+          {['/asks', '/documents', '/density'].map((path) => (
             <Route key={path} path={path} element={<OpenMyChat />} />
           ))}
           <Route path="/chat" element={<div>chat-list</div>} />
@@ -79,7 +79,7 @@ afterEach(() => {
 });
 
 describe('OpenMyChat — what the retired addresses do now', () => {
-  it.each(['/asks', '/documents', '/documents?ask=a1', '/density', '/kavach'])(
+  it.each(['/asks', '/documents', '/documents?ask=a1', '/density'])(
     '%s opens the member\'s own chat',
     async (route) => {
       h.get.mockResolvedValue([convo({ id: 'c-support', userId: 'someone-else' }), convo()]);
@@ -128,7 +128,7 @@ describe('OpenMyChat — what the retired addresses do now', () => {
     const qc = makeTestQueryClient();
     qc.setQueryData(myConversationsKey, [convo({ id: 'cached' })]);
     h.get.mockReturnValue(new Promise(() => undefined));
-    mount('/kavach', qc);
+    mount('/density', qc);
     expect(await screen.findByText('thread')).toBeInTheDocument();
     expect(screen.getByTestId('where')).toHaveTextContent('/chat/cached');
   });
@@ -144,7 +144,7 @@ describe('OpenMyChat — what the retired addresses do now', () => {
     onlineManager.setOnline(false);
     try {
       h.get.mockReturnValue(new Promise(() => undefined));
-      mount('/kavach');
+      mount('/density');
       expect(await screen.findByText('chat-list')).toBeInTheDocument();
     } finally {
       onlineManager.setOnline(true);

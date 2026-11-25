@@ -84,6 +84,23 @@ export const AUDIT_ACTIONS = [
   /** A dealer's overlay (hidden tasks, custom tasks, per-dealer overrides). */
   'KAVACH_WORK_LIST_UPDATE',
   'KAVACH_DIGEST_SHARE',
+  // Kavach v2 (ADR 0057). The old KAVACH_* values above stay so old rows still parse.
+  /** The global checklist: a point added, edited or retired by an admin. */
+  'KAVACH_TASK_CREATE',
+  'KAVACH_TASK_UPDATE',
+  'KAVACH_TASK_RETIRE',
+  /** An outlet's Kavach switched on or off, one at a time or for many. */
+  'KAVACH_OUTLET_SWITCH',
+  /** An outlet's own differences (hidden points, own points, overrides). */
+  'KAVACH_OUTLET_LIST_UPDATE',
+  /** The outlet sent a photo or file for a check. */
+  'KAVACH_CHECK_SUBMIT',
+  'KAVACH_CHECK_APPROVE',
+  'KAVACH_CHECK_SEND_BACK',
+  'KAVACH_CHECK_TELL_OWNER',
+  'KAVACH_CHECK_EXCUSE',
+  'KAVACH_CHECK_MARK_DONE',
+  'KAVACH_CHECK_MARK_NOT_DONE',
   // Staff Points (ADR 0007)
   'STAFF_EMPLOYEE_ADD',
   'STAFF_EMPLOYEE_UPDATE',

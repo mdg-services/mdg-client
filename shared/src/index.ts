@@ -5,7 +5,7 @@
 
 export * from './types';
 export * from './onboarding';
-export * from './data/kavachTemplate';
+export * from './data/kavachTasks';
 export * from './data/staffWorkCatalog';
 export * from './data/festivals';
 export * from './data/documentKinds';
@@ -81,7 +81,6 @@ export * from './lib/mobile';
 // The one rule that decides whether a dealer may be shown their Kavach figure.
 // Shared because the page, the API serializer and the AI first line's Kavach
 // lookup all have to answer it the same way.
-export * from './kavach/dealerFacing';
 // The one "what is new" video the app plays once per person on the next phone open (ADR 0056).
 export * from './lib/whatsNewVideo';
 export * as schemas from './schemas';

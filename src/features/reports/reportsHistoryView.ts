@@ -25,7 +25,6 @@ const ONE_A_DAY: ReadonlySet<ReportKind> = new Set<ReportKind>([
   'dsr_variation',
   'water_ingress',
   'credit_dod',
-  'kavach',
   'ledger_watch',
   'load_plan',
 ]);
