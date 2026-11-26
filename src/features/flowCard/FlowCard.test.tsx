@@ -34,9 +34,9 @@ function card(over: Partial<FlowCardView> = {}): FlowCardView {
         state: 'open',
         part: true,
         choices: [
-          { value: '4', label: '4 KL' },
-          { value: '8', label: '8 KL' },
-          { value: '12', label: '12 KL' },
+          { value: '4', label: '4' },
+          { value: '8', label: '8' },
+          { value: '12', label: '12' },
         ],
         typed: { kind: 'number', unit: 'KL', min: 1, max: 100, decimals: 1 },
       },
@@ -82,7 +82,7 @@ describe('the living card (ADR 0059)', () => {
     expect(within(c).getByText('Kal · 27 Nov')).toBeTruthy();
     // A fuel's pills, unpicked.
     const part = screen.getByTestId('flow-part-kl:HSD');
-    expect(within(part).getByRole('button', { name: '8 KL' }).getAttribute('aria-pressed')).toBe('false');
+    expect(within(part).getByRole('button', { name: '8' }).getAttribute('aria-pressed')).toBe('false');
   });
 
   it('sends a tap as an answer to its row, and paints the card the server answers with', async () => {
@@ -99,9 +99,9 @@ describe('the living card (ADR 0059)', () => {
     h.post.mockResolvedValue({ card: after });
     renderWithProviders(<FlowCardMessage message={msg()} />);
     const part = await screen.findByTestId('flow-part-kl:HSD');
-    fireEvent.click(within(part).getByRole('button', { name: '8 KL' }));
+    fireEvent.click(within(part).getByRole('button', { name: '8' }));
     await waitFor(() => expect(h.post).toHaveBeenCalledWith('/v1/me/flow-cards/fuel_order/d1/answer', { row: 'kl:HSD', value: '8' }));
-    await waitFor(() => expect(within(screen.getByTestId('flow-part-kl:HSD')).getByRole('button', { name: '8 KL' }).getAttribute('aria-pressed')).toBe('true'));
+    await waitFor(() => expect(within(screen.getByTestId('flow-part-kl:HSD')).getByRole('button', { name: '8' }).getAttribute('aria-pressed')).toBe('true'));
   });
 
   it('a second tap on the picked amount takes the fuel off (value 0)', async () => {
@@ -112,7 +112,7 @@ describe('the living card (ADR 0059)', () => {
     h.post.mockResolvedValue({ card: card() });
     renderWithProviders(<FlowCardMessage message={msg()} />);
     const part = await screen.findByTestId('flow-part-kl:HSD');
-    fireEvent.click(within(part).getByRole('button', { name: '4 KL' }));
+    fireEvent.click(within(part).getByRole('button', { name: '4' }));
     await waitFor(() => expect(h.post).toHaveBeenCalledWith('/v1/me/flow-cards/fuel_order/d1/answer', { row: 'kl:HSD', value: '0' }));
   });
 
@@ -123,7 +123,7 @@ describe('the living card (ADR 0059)', () => {
     );
     renderWithProviders(<FlowCardMessage message={msg()} />);
     const part = await screen.findByTestId('flow-part-kl:HSD');
-    fireEvent.click(within(part).getByRole('button', { name: '12 KL' }));
+    fireEvent.click(within(part).getByRole('button', { name: '12' }));
     expect(await screen.findByText('Yeh matra nahi lag sakti.')).toBeTruthy();
   });
 
@@ -162,7 +162,7 @@ describe('the living card (ADR 0059)', () => {
     h.get.mockResolvedValue(card({ canAnswer: false, actions: [] }));
     renderWithProviders(<FlowCardMessage message={msg()} />);
     const part = await screen.findByTestId('flow-part-kl:HSD');
-    expect((within(part).getByRole('button', { name: '8 KL' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((within(part).getByRole('button', { name: '8' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Is card ka jawab owner denge')).toBeTruthy();
   });
 });

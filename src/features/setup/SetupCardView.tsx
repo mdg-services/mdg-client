@@ -16,7 +16,16 @@ import { StartedCard } from './StartedCard';
  * draw — so `SetupCard` and the strip's sheet load this on first use, and a
  * dealer who is long past setup never downloads it.
  */
-export function SetupCardView({ card, view }: { card: SetupCardKind; view: OutletSetupView }) {
+export function SetupCardView({
+  card,
+  view,
+  inCard = false,
+}: {
+  card: SetupCardKind;
+  view: OutletSetupView;
+  /** Drawn inside the one setup card (ADR 0059): the logins open one at a time. */
+  inCard?: boolean;
+}) {
   switch (card) {
     case 'company':
       return <CompanyCard view={view} />;
@@ -27,7 +36,7 @@ export function SetupCardView({ card, view }: { card: SetupCardKind; view: Outle
     case 'started':
       return <StartedCard />;
     case 'logins':
-      return view.loginsNeeded.length > 0 ? <PortalLoginBox portals={view.loginsNeeded} /> : null;
+      return view.loginsNeeded.length > 0 ? <PortalLoginBox portals={view.loginsNeeded} oneAtATime={inCard} /> : null;
     // `welcome` is only words, and `services` is RETIRED (no choice of services any
     // more): a message from before that still carries it, and it draws nothing.
     default:

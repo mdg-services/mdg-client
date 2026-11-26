@@ -1255,6 +1255,7 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'flow.paid': 'Payment mil gaya',
   'flow.loginsSaved': 'Login save ho gaye',
   'flow.ownWords': 'Kuch aur? Likhiye',
+  'flow.fillNow': 'Abhi bharein',
   'flow.ownWordsLabel': 'Apne shabdon mein jawab likhiye',
   'flow.ownWordsSend': 'Bhejein',
   'flow.ownWordsSent': 'Bhej diya. Hum ise isi card mein bhar denge.',

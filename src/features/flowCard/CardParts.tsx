@@ -45,23 +45,23 @@ export function CardFrame({
         className,
       )}
     >
-      <header className="px-4 pb-3 pt-3.5">
+      <header className="px-3.5 pb-2 pt-2.5">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-          <h3 id={titleId} className="min-w-0 break-words text-subheading">
+          <h3 id={titleId} className="min-w-0 break-words text-body font-semibold">
             {title}
           </h3>
-          {meta ? <span className="text-meta tabular-nums text-wa-meta">{meta}</span> : null}
+          {meta ? <span className="text-micro tabular-nums text-wa-meta">{meta}</span> : null}
         </div>
         {progress ? (
-          <div className="mt-2">
-            <p className="text-meta font-medium text-wa-meta">{progress.label}</p>
+          <div className="mt-1">
+            <p className="text-micro font-medium text-wa-meta">{progress.label}</p>
             <div
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={progress.total}
               aria-valuenow={progress.done}
               aria-label={progress.label}
-              className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-wa-divider"
+              className="mt-1 h-1 w-full overflow-hidden rounded-full bg-wa-divider"
             >
               <div
                 className="h-full rounded-full bg-status-ok transition-[width] duration-300 ease-out motion-reduce:transition-none"
@@ -80,18 +80,18 @@ export type MarkKind = 'done' | 'open' | 'later' | 'problem' | 'working';
 
 /** The round mark at a row's left: what state the row is in, never by colour alone. */
 export function RowMark({ kind, n }: { kind: MarkKind; n?: number }) {
-  const base = 'grid size-6 shrink-0 place-items-center rounded-full text-micro font-semibold';
+  const base = 'grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold leading-none';
   if (kind === 'done') {
     return (
       <span aria-hidden className={cn(base, 'bg-status-ok text-white flow-tick')}>
-        <Check width={14} strokeWidth={3} />
+        <Check width={12} strokeWidth={3} />
       </span>
     );
   }
   if (kind === 'problem') {
     return (
       <span aria-hidden className={cn(base, 'bg-status-problem text-white')}>
-        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+        <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
           <path d="M6 2.25v4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           <circle cx="6" cy="9.4" r="1.1" fill="currentColor" />
         </svg>
@@ -104,7 +104,7 @@ export function RowMark({ kind, n }: { kind: MarkKind; n?: number }) {
     );
   }
   if (kind === 'open') {
-    return <span aria-hidden className={cn(base, 'border-2 border-wa-accent bg-wa-in text-wa-accent-strong')}>{n ?? ''}</span>;
+    return <span aria-hidden className={cn(base, 'border-[1.5px] border-wa-accent bg-wa-in text-wa-accent-strong')}>{n ?? ''}</span>;
   }
   return <span aria-hidden className={cn(base, 'border border-wa-divider text-wa-meta')}>{n ?? ''}</span>;
 }
@@ -133,7 +133,7 @@ export function RowShell({
       data-testid={testId}
       data-row={rowKey}
       data-state={kind}
-      className={cn('flex gap-3 border-t border-wa-divider px-4 py-3', muted && 'opacity-60')}
+      className={cn('flex gap-2.5 border-t border-wa-divider px-3.5 py-2', muted && 'opacity-60')}
     >
       <span className="pt-0.5">
         <RowMark kind={kind} n={n} />
@@ -146,7 +146,7 @@ export function RowShell({
   );
 }
 
-/** One pill: outlined, or filled black when it is the answer. At least 44 px tall. */
+/** One pill: outlined, or filled black when it is the answer. 36 px tall, the size of the owner's reference card. */
 export function Pill({
   selected,
   disabled,
@@ -177,9 +177,9 @@ export function Pill({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex min-h-11 flex-col items-center justify-center rounded-full border py-1.5 text-center',
-        tight ? 'min-w-[3rem] px-2.5' : 'min-w-[3.25rem] px-3',
-        'text-cta transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none',
+        'inline-flex min-h-9 flex-col items-center justify-center rounded-full border py-1 text-center',
+        tight ? 'min-w-[2.5rem] px-2.5' : 'min-w-[2.75rem] px-3',
+        'text-meta font-semibold transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         on
           ? 'border-wa-accent bg-wa-accent text-white'
@@ -188,9 +188,9 @@ export function Pill({
         busy && 'animate-pulse motion-reduce:animate-none',
       )}
     >
-      <span className="leading-tight">{children}</span>
+      <span className="leading-none">{children}</span>
       {hint ? (
-        <span className={cn('text-micro font-normal leading-tight', on ? 'text-white/80' : 'text-wa-meta')}>{hint}</span>
+        <span className={cn('mt-0.5 text-[0.6875rem] font-normal leading-none', on ? 'text-white/80' : 'text-wa-meta')}>{hint}</span>
       ) : null}
     </button>
   );
@@ -198,7 +198,7 @@ export function Pill({
 
 /** The buttons at the card's foot: one black, one outlined, side by side until the text is too big. */
 export function FootButtons({ children }: { children: React.ReactNode }) {
-  return <div className="flex flex-wrap gap-2 border-t border-wa-divider px-4 py-3">{children}</div>;
+  return <div className="flex flex-wrap gap-2 border-t border-wa-divider px-3.5 py-2.5">{children}</div>;
 }
 
 export function FootButton({
@@ -224,7 +224,7 @@ export function FootButton({
       disabled={disabled}
       aria-busy={busy || undefined}
       className={cn(
-        'inline-flex min-h-12 min-w-[7.5rem] flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2 text-cta',
+        'inline-flex min-h-10 min-w-[7rem] flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-meta font-semibold',
         'transition-[background-color,opacity,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         tone === 'primary'
@@ -244,15 +244,15 @@ export function FootButton({
 export function ProblemRow({ text, detail }: { text: string; detail: string[] }) {
   const t = useT();
   return (
-    <div role="alert" className="flex gap-3 border-t border-wa-divider bg-status-problem-soft px-4 py-3" data-testid="flow-problem">
+    <div role="alert" className="flex gap-2.5 border-t border-wa-divider bg-status-problem-soft px-3.5 py-2.5" data-testid="flow-problem">
       <span className="pt-0.5">
         <RowMark kind="problem" />
       </span>
       <div className="min-w-0 flex-1">
         <span className="sr-only">{t('flow.stateProblem')}: </span>
-        <p className="break-words text-body font-medium text-status-problem-ink">{text}</p>
+        <p className="break-words text-meta font-semibold text-status-problem-ink">{text}</p>
         {detail.map((d, i) => (
-          <p key={i} className="mt-0.5 break-words text-meta text-wa-bubble-text/80">
+          <p key={i} className="mt-0.5 break-words text-micro text-wa-bubble-text/80">
             {d}
           </p>
         ))}
@@ -264,14 +264,22 @@ export function ProblemRow({ text, detail }: { text: string; detail: string[] })
 /** A warning line above the main button: read it, it never stops the order. */
 export function WarningLine({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-1.5 flex gap-1.5 text-meta text-status-attention-ink">
-      <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0" strokeWidth={2} />
+    <p className="mt-1 flex gap-1.5 text-micro text-status-attention-ink">
+      <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" strokeWidth={2} />
       <span className="min-w-0 break-words">{children}</span>
     </p>
   );
 }
 
-/** The short guide video at the card's foot. */
+/**
+ * The card's foot, one line: the short guide video on the left and, when there is one,
+ * the quiet way out ("Rehne dijiye") on the right.
+ */
+export function CardFoot({ children }: { children: React.ReactNode }) {
+  return <div className="flex flex-wrap items-center justify-between gap-x-2 border-t border-wa-divider px-1.5 py-0.5">{children}</div>;
+}
+
+/** The short guide video, as a link in the card's foot. */
 export function VideoRow({ title, seconds, onPlay }: { title: string; seconds: number | null; onPlay: () => void }) {
   const t = useT();
   const mins = seconds ? Math.max(1, Math.round(seconds / 60)) : null;
@@ -279,17 +287,13 @@ export function VideoRow({ title, seconds, onPlay }: { title: string; seconds: n
     <button
       type="button"
       onClick={onPlay}
-      className="flex w-full items-center gap-3 border-t border-wa-divider px-4 py-2.5 text-left active:bg-wa-row-active focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-focus-ring"
+      aria-label={`${t('flow.watch')}: ${title}`}
+      className="flex min-h-9 min-w-0 flex-1 basis-[11rem] items-center gap-1.5 rounded-md px-2 text-left text-micro text-wa-meta active:bg-wa-row-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
     >
-      <span aria-hidden className="grid size-8 shrink-0 place-items-center rounded-full bg-wa-row-active text-wa-bubble-text">
-        <Play width={14} strokeWidth={2.25} className="translate-x-px" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block break-words text-meta font-medium">{title}</span>
-        <span className="block text-micro text-wa-meta">
-          {t('flow.watch')}
-          {mins ? ` · ${t('flow.minutes', { n: mins })}` : ''}
-        </span>
+      <Play aria-hidden width="1em" height="1em" strokeWidth={2.5} className="shrink-0 fill-current" />
+      <span className="min-w-0 break-words">
+        <span className="font-medium">{title}</span>
+        {mins ? ` · ${t('flow.minutes', { n: mins })}` : ''}
       </span>
     </button>
   );

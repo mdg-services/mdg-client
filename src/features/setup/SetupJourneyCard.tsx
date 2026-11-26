@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 
-import { CardFrame, RowShell, VideoRow, type MarkKind } from '@/features/flowCard/CardParts';
+import { CardFoot, CardFrame, RowShell, VideoRow, type MarkKind } from '@/features/flowCard/CardParts';
 import { OwnWords } from '@/features/flowCard/OwnWords';
 import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
 import { videoTitle } from '@/features/help/helpView';
@@ -112,31 +112,31 @@ export function SetupJourneyCard({
             >
               {answer ? (
                 <>
-                  <p className="text-meta text-wa-meta">{t(STRIP_LABEL_KEYS[step])}</p>
-                  <p className="break-words text-body font-semibold">{answer}</p>
+                  <p className="text-micro text-wa-meta">{t(STRIP_LABEL_KEYS[step])}</p>
+                  <p className="break-words text-meta font-semibold">{answer}</p>
                 </>
               ) : (
-                <p className={state === 'todo' ? 'text-body text-wa-meta' : 'break-words text-subheading'}>
+                <p className={state === 'todo' ? 'text-meta text-wa-meta' : 'break-words text-meta font-semibold'}>
                   {t(STRIP_LABEL_KEYS[step])}
                 </p>
               )}
               {/* What MDG is doing now, on MDG's own step: a dealer's step has its form's own question. */}
               {state === 'current' && !form && caption ? (
-                <p className="mt-0.5 break-words text-meta text-wa-meta" aria-live="polite">
+                <p className="break-words text-micro text-wa-meta" aria-live="polite">
                   {t(caption)}
                 </p>
               ) : null}
               {state === 'current' && form ? (
                 // The step's own form, as it always was: a tap or "सेव करें" saves it, and the
                 // card moves on by itself when the server says the step is done.
-                <div className="mt-1" data-no-swipe>
-                  <LazyCardView card={form} view={view} />
+                <div className="flow-dense mt-1" data-no-swipe>
+                  <LazyCardView card={form} view={view} inCard />
                 </div>
               ) : null}
               {/* The pump is with another company, or the owner wants to say something else:
                   their own words go to the chat. Only on the company step — never beside a login. */}
               {state === 'current' && step === 'company' && view.canEdit && onSay ? (
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-1 flex flex-wrap gap-1.5">
                   <OwnWords label={t(STRIP_LABEL_KEYS[step])} sentKey="flow.ownWordsSentChat" onWords={onSay} />
                 </div>
               ) : null}
@@ -145,11 +145,13 @@ export function SetupJourneyCard({
         })}
       </ol>
       {video ? (
-        <VideoRow
-          title={videoTitle(video, lang)}
-          seconds={video.durationMs ? Math.round(video.durationMs / 1000) : null}
-          onPlay={() => setPlaying(true)}
-        />
+        <CardFoot>
+          <VideoRow
+            title={videoTitle(video, lang)}
+            seconds={video.durationMs ? Math.round(video.durationMs / 1000) : null}
+            onPlay={() => setPlaying(true)}
+          />
+        </CardFoot>
       ) : null}
       {playing && video
         ? createPortal(<GuideVideoSheet id={video.id} title={videoTitle(video, lang)} onClose={() => setPlaying(false)} />, document.body)

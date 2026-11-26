@@ -7,6 +7,7 @@ import type { Lang } from '@/store/lang';
 import { sayIn, type FlowCardAction, type FlowCardView, type FlowRow, type Message } from '@dk/shared/types';
 
 import {
+  CardFoot,
   CardFrame,
   FootButton,
   FootButtons,
@@ -129,6 +130,8 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
   const primary = card.actions.filter((a) => a.tone === 'primary');
   const secondary = card.actions.filter((a) => a.tone !== 'primary');
   const pressing = act.isPending ? act.variables?.action : null;
+  const quietOnly = card.actions.length === 1 && card.actions[0]!.tone === 'secondary' && !card.actions[0]!.say;
+  const showVideo = !!card.video && card.status !== 'closed';
 
   return (
     <CardFrame titleId={titleId} title={sayIn(card.title, lang)} meta={card.meta} progress={card.progress ? { ...card.progress, label: t('flow.progress', card.progress) } : null} testId="flow-card">
@@ -137,9 +140,9 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
       {card.problem ? <ProblemRow text={sayIn(card.problem.text, lang)} detail={card.problem.detail.map((d) => sayIn(d, lang))} /> : null}
 
       {card.summary.length > 0 || card.warnings.length > 0 ? (
-        <div className="border-t border-wa-divider px-4 py-3" aria-live="polite" data-testid="flow-summary">
+        <div className="border-t border-wa-divider px-3.5 py-2" aria-live="polite" data-testid="flow-summary">
           {card.summary.map((s, i) => (
-            <p key={i} className={i === 0 ? 'break-words text-body font-semibold' : 'break-words text-meta text-wa-meta'}>
+            <p key={i} className={i === 0 ? 'break-words text-meta font-semibold' : 'break-words text-micro text-wa-meta'}>
               {sayIn(s, lang)}
             </p>
           ))}
@@ -150,26 +153,14 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
       ) : null}
 
       {error && error.row === null ? (
-        <p role="alert" className="border-t border-wa-divider px-4 py-2 text-meta text-status-problem-ink">
+        <p role="alert" className="border-t border-wa-divider px-3.5 py-1.5 text-micro text-status-problem-ink">
           {error.text}
         </p>
       ) : null}
 
-      {card.actions.length === 1 && card.actions[0]!.tone === 'secondary' && !card.actions[0]!.say ? (
-        // One quiet way out ("Rehne dijiye") while the owner is still choosing: a text
-        // button at the foot, not a full-width box competing with the pills.
-        <div className="flex justify-end border-t border-wa-divider px-2 py-1">
-          <button
-            type="button"
-            data-testid={`flow-action-${card.actions[0]!.id}`}
-            disabled={busy}
-            onClick={() => press(card.actions[0]!)}
-            className="min-h-11 rounded-md px-3 text-cta text-wa-meta active:bg-wa-row-active disabled:opacity-50"
-          >
-            {sayIn(card.actions[0]!.label, lang)}
-          </button>
-        </div>
-      ) : card.actions.length > 0 ? (
+      {/* The buttons that act: only when there is a main one (or a message to send). One quiet way
+          out on its own ("Rehne dijiye") goes in the foot line, beside the video. */}
+      {quietOnly ? null : card.actions.length > 0 ? (
         <FootButtons>
           {[...primary, ...secondary].map((a) => (
             <FootButton
@@ -185,10 +176,25 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
           ))}
         </FootButtons>
       ) : !card.canAnswer && (card.status === 'asking' || card.status === 'ready') ? (
-        <p className="border-t border-wa-divider px-4 py-2.5 text-meta text-wa-meta">{t('flow.readOnly')}</p>
+        <p className="border-t border-wa-divider px-3.5 py-2 text-micro text-wa-meta">{t('flow.readOnly')}</p>
       ) : null}
 
-      {card.video && card.status !== 'closed' ? <VideoRow title={sayIn(card.video.title, lang)} seconds={card.video.seconds} onPlay={() => setPlaying(true)} /> : null}
+      {showVideo || quietOnly ? (
+        <CardFoot>
+          {showVideo ? <VideoRow title={sayIn(card.video!.title, lang)} seconds={card.video!.seconds} onPlay={() => setPlaying(true)} /> : <span />}
+          {quietOnly ? (
+            <button
+              type="button"
+              data-testid={`flow-action-${card.actions[0]!.id}`}
+              disabled={busy}
+              onClick={() => press(card.actions[0]!)}
+              className="min-h-9 shrink-0 rounded-md px-2 text-micro font-semibold text-wa-meta active:bg-wa-row-active disabled:opacity-50"
+            >
+              {sayIn(card.actions[0]!.label, lang)}
+            </button>
+          ) : null}
+        </CardFoot>
+      ) : null}
       {playing && card.video
         ? createPortal(<GuideVideoSheet id={card.video.id} title={sayIn(card.video.title, lang)} onClose={() => setPlaying(false)} />, document.body)
         : null}
@@ -244,25 +250,25 @@ function QuestionRow({
 
   return (
     <RowShell kind={kind} n={n} stateWord={t(STATE_KEY[row.state])} rowKey={row.key} muted={row.state === 'later'} testId={`flow-row-${row.key}`}>
-      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
         {/* A basis wider than the button: at large text the button drops under the answer
             instead of squeezing it into a column that splits words. */}
         <div className="min-w-0 flex-1 basis-[11rem]">
           {row.state === 'done' && row.answer ? (
             <>
-              <p className="text-meta text-wa-meta">{sayIn(row.label, lang)}</p>
-              <p className="break-words text-body font-semibold">{sayIn(row.answer, lang)}</p>
+              <p className="text-micro text-wa-meta">{sayIn(row.label, lang)}</p>
+              <p className="break-words text-meta font-semibold">{sayIn(row.answer, lang)}</p>
             </>
           ) : (
-            <p className={row.state === 'later' ? 'text-body text-wa-meta' : 'break-words text-subheading'}>{sayIn(row.label, lang)}</p>
+            <p className={row.state === 'later' ? 'text-meta text-wa-meta' : 'break-words text-meta font-semibold'}>{sayIn(row.label, lang)}</p>
           )}
-          {row.note ? <p className="mt-0.5 break-words text-meta text-wa-meta">{sayIn(row.note, lang)}</p> : null}
+          {row.note ? <p className="break-words text-micro text-wa-meta">{sayIn(row.note, lang)}</p> : null}
         </div>
         {folded && row.canChange && canAnswer ? (
           <button
             type="button"
             onClick={() => setChanging(true)}
-            className="-my-1 min-h-11 shrink-0 rounded-md px-2 text-meta font-semibold text-wa-accent-strong underline underline-offset-4 active:bg-wa-row-active"
+            className="-my-1.5 min-h-8 shrink-0 rounded-md px-1.5 text-micro font-semibold text-wa-accent-strong underline underline-offset-4 active:bg-wa-row-active"
           >
             {t('flow.change')}
           </button>
@@ -274,7 +280,7 @@ function QuestionRow({
       ) : null}
 
       {parts.length > 0 && !folded ? (
-        <div className="mt-2 space-y-2.5">
+        <div className="mt-1.5 space-y-1.5">
           {parts.map((p) => (
             <PartRow key={p.key} row={p} lang={lang} canAnswer={canAnswer} busy={busy} tapped={tapped} onPick={onPick} onWords={onWords} />
           ))}
@@ -282,7 +288,7 @@ function QuestionRow({
       ) : null}
 
       {error ? (
-        <p role="alert" className="mt-1.5 text-meta text-status-problem-ink">
+        <p role="alert" className="mt-1 text-micro text-status-problem-ink">
           {error}
         </p>
       ) : null}
@@ -308,7 +314,7 @@ function Choices({
   onWords?: (text: string) => void;
 }) {
   return (
-    <div role="group" aria-label={sayIn(row.label, lang)} className="mt-2 flex flex-wrap gap-2">
+    <div role="group" aria-label={sayIn(row.label, lang)} className="mt-1.5 flex flex-wrap items-center gap-1.5">
       {row.choices!.map((c) => (
         <Pill
           key={c.value}
@@ -351,12 +357,16 @@ function PartRow({
   const name = sayIn(row.label, lang);
   const typed = row.typed;
   return (
-    <div data-testid={`flow-part-${row.key}`} className="flex flex-col gap-1.5">
-      <p className="flex items-center gap-2 text-body font-semibold">
+    // The fuel's name and unit on the left, its amounts on the same line: one line per fuel.
+    <div data-testid={`flow-part-${row.key}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <p className="flex w-[4.75rem] shrink-0 items-center gap-1.5 text-meta font-semibold">
         <FuelSwatch fuelKey={row.key} />
-        {name}
+        <span className="min-w-0 break-words leading-tight">
+          {name}
+          {typed?.unit ? <span className="block text-[0.6875rem] font-normal text-wa-meta">{typed.unit}</span> : null}
+        </span>
       </p>
-      <div role="group" aria-label={name} className="flex flex-wrap gap-1.5">
+      <div role="group" aria-label={typed?.unit ? `${name} (${typed.unit})` : name} className="flex flex-wrap items-center gap-1.5">
         {(row.choices ?? []).map((c) => (
           <Pill
             key={c.value}

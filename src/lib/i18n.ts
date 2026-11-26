@@ -2565,6 +2565,7 @@ export const messages = {
   'flow.paid': { en: 'Payment received', hi: 'भुगतान मिल गया' },
   'flow.loginsSaved': { en: 'Logins saved', hi: 'लॉगिन सेव हो गए' },
   'flow.ownWords': { en: 'Something else? Write it', hi: 'कुछ और? लिखिए' },
+  'flow.fillNow': { en: 'Fill now', hi: 'अभी भरें' },
   'flow.ownWordsLabel': { en: 'Write your answer in your own words', hi: 'अपने शब्दों में जवाब लिखिए' },
   'flow.ownWordsSend': { en: 'Send', hi: 'भेजें' },
   'flow.ownWordsSent': { en: 'Sent. We will fill it into this card.', hi: 'भेज दिया। हम इसे इसी कार्ड में भर देंगे।' },
