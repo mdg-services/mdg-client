@@ -15,7 +15,7 @@
  * endpoint would refuse. Change them together.
  */
 
-import type { DealerLang, PlannerOilCompany, PlannerStage } from '@dk/shared/types';
+import { FUNNEL_SOURCE_PATTERN, type DealerLang, type PlannerOilCompany, type PlannerStage } from '@dk/shared/types';
 
 export const SITE_TYPES = ['Type A', 'Type B'] as const;
 export type SiteType = (typeof SITE_TYPES)[number];
@@ -41,6 +41,18 @@ export const PASSWORD_LIMITS = { min: 8, max: 200 } as const;
 export function refFromSearch(search: string): string | undefined {
   const raw = new URLSearchParams(search).get('r')?.trim();
   return raw && /^[A-Za-z0-9_-]{1,32}$/.test(raw) ? raw : undefined;
+}
+
+/**
+ * The website page that sent this person (`?from=pump:dealership-documents`, ADR 0059
+ * §5): the funnel link's tag, carried through the store or an app link to the
+ * Kavach Shuruaat form, so the funnel report can say which page brought a sign-up.
+ * Lower-cased and held to the shared pattern, exactly as the website and the API
+ * clean it; anything else is left out rather than sent to be dropped.
+ */
+export function fromFromSearch(search: string): string | undefined {
+  const raw = new URLSearchParams(search).get('from')?.trim().toLowerCase();
+  return raw && FUNNEL_SOURCE_PATTERN.test(raw) ? raw : undefined;
 }
 
 export interface EnrollmentPayload {
@@ -95,6 +107,8 @@ export interface PlannerEnrollmentPayload {
    */
   lang: DealerLang;
   ref?: string;
+  /** The website page that sent them (`fromFromSearch`), when the form was opened from one. */
+  from?: string;
   submissionId: string;
 }
 

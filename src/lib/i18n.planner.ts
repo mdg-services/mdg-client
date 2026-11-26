@@ -37,6 +37,19 @@ export const plannerMessages = {
     en: 'Ask anything about opening a petrol pump: land, distances, licences, how dealers are chosen, building and opening. Answers come from the official rule books.',
     hi: 'पेट्रोल पंप खोलने के बारे में कुछ भी पूछिए: ज़मीन, दूरी, लाइसेंस, डीलर कैसे चुने जाते हैं, बनाना और चालू करना। जवाब सरकारी और कंपनी की नियम-किताबों से आते हैं।',
   },
+  // The line on top when the form was opened from a website page (ADR 0059 §5): from a
+  // petrol-pump guide page, or from any other page. "आने के लिए धन्यवाद" says the
+  // same to a woman or a man.
+  'newPump.fromGuide': {
+    en: 'You came from our petrol-pump guide. Sign up, and ask your question in the chat.',
+    hi: 'हमारी पेट्रोल पंप गाइड से यहाँ आने के लिए धन्यवाद। साइन अप कीजिए, फिर अपना सवाल चैट में पूछिए।',
+  },
+  'newPump.fromSite': {
+    en: 'You came from our website. Sign up, and ask your question in the chat.',
+    hi: 'हमारी वेबसाइट से यहाँ आने के लिए धन्यवाद। साइन अप कीजिए, फिर अपना सवाल चैट में पूछिए।',
+  },
+  // One tap back to the choice for an outlet owner the link brought here by mistake.
+  'newPump.runningPump': { en: 'Already run a petrol pump? Tap here', hi: 'मेरा पंप चल रहा है? यहाँ दबाइए' },
   'newPump.state': { en: 'Your state', hi: 'आपका राज्य' },
   'newPump.statePick': { en: 'Choose your state', hi: 'अपना राज्य चुनिए' },
   'newPump.stateHint': {
@@ -276,6 +289,11 @@ export const plannerHl: Readonly<Record<PlannerMessageKey, string>> = {
     'Petrol pump kholne ke baare mein kuch bhi poochhiye: zameen, doori, licence, dealer kaise chune jaate hain, banana aur chalu karna. Jawab sarkari aur company ki niyam-kitabon se aate hain. ₹199 + GST mahina.',
   'newPump.introApp':
     'Petrol pump kholne ke baare mein kuch bhi poochhiye: zameen, doori, licence, dealer kaise chune jaate hain, banana aur chalu karna. Jawab sarkari aur company ki niyam-kitabon se aate hain.',
+  'newPump.fromGuide':
+    'Hamari petrol pump guide se yahan aane ke liye dhanyavaad. Sign up kijiye, phir apna sawaal chat mein poochhiye.',
+  'newPump.fromSite':
+    'Hamari website se yahan aane ke liye dhanyavaad. Sign up kijiye, phir apna sawaal chat mein poochhiye.',
+  'newPump.runningPump': 'Mera pump chal raha hai? Yahan dabaiye',
   'newPump.state': 'Aapka rajya',
   'newPump.statePick': 'Apna rajya chuniye',
   'newPump.stateHint': 'Har rajya ke niyam alag hote hain, isse jawab aapke rajya ke hisaab se milenge.',

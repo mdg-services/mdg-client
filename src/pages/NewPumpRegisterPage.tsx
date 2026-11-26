@@ -23,6 +23,7 @@ import {
 import { RadioCards } from '@/features/planner/RadioCards';
 import {
   EnrollError,
+  fromFromSearch,
   LIMITS,
   PASSWORD_LIMITS,
   refFromSearch,
@@ -46,6 +47,15 @@ const SUCCESS_WORDS: Record<EnrollAccount, { badge: MessageKey; title: MessageKe
   existing: { badge: 'register.existingBadge', title: 'register.existingTitle', body: 'register.existingBody' },
   waiting: { badge: 'register.successBadge', title: 'register.successTitle', body: 'register.successBody' },
 };
+
+/**
+ * Did the link come from the petrol-pump guide (`pump:<page>`) or its questions
+ * (`qa:<id>`, `new-pump-questions`)? Those readers are told so; anyone from another
+ * page (home, pricing, the site's chat) hears "our website" instead.
+ */
+function isGuideSource(from: string): boolean {
+  return from.startsWith('pump:') || from.startsWith('qa:') || from === 'new-pump-questions';
+}
 
 /** A select drawn like the app's inputs, 48px tall. */
 const SELECT_CLASS =
@@ -107,13 +117,23 @@ export function NewPumpRegisterPage() {
 
   // The film link's share code, when this screen was opened from one.
   const ref = React.useMemo(() => refFromSearch(location.search), [location.search]);
+  // The website page that sent them (ADR 0059 §5), when the funnel link brought them.
+  const from = React.useMemo(() => fromFromSearch(location.search), [location.search]);
+  // What the query carries on to the choice screen: everything but `for`, so a share
+  // code or the page tag survives a change of mind.
+  const choiceHref = React.useMemo(() => {
+    const next = new URLSearchParams(location.search);
+    next.delete('for');
+    const q = next.toString();
+    return q ? `/welcome?${q}` : '/welcome';
+  }, [location.search]);
 
   const enroll = useMutation({
     // The password is in `variables` while the call lives; the mutation's own
     // record of it goes as soon as it settles.
     gcTime: 0,
     mutationFn: async (v: PlannerFormValues) => {
-      const fields = toPlannerPayload(v, lang, ref);
+      const fields = toPlannerPayload(v, lang, ref, from);
       const account = await submitEnrollment({ ...fields, submissionId: submissionIdFor(fields) });
       // The account is open: sign in with what was just typed, straight to the home.
       // A sign-in that does not go through is not a failed registration: the card
@@ -212,6 +232,21 @@ export function NewPumpRegisterPage() {
           </Card>
         ) : (
           <>
+            {from ? (
+              <div className="mt-2 rounded-xl bg-brand-soft px-4 py-3">
+                <p className="text-body leading-relaxed text-text">
+                  {t(isGuideSource(from) ? 'newPump.fromGuide' : 'newPump.fromSite')}
+                </p>
+                {/* Someone who runs a pump and followed the link by mistake: the choice is one tap away. */}
+                <button
+                  type="button"
+                  onClick={() => navigate(choiceHref)}
+                  className="mt-1 min-h-12 rounded-lg text-left text-meta font-medium text-brand underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+                >
+                  {t('newPump.runningPump')}
+                </button>
+              </div>
+            ) : null}
             <p className="mt-2 text-body leading-relaxed text-text-muted">{t(payHere ? 'newPump.intro' : 'newPump.introApp')}</p>
             <p className="mt-3 text-meta text-text-muted">
               {t('welcome.haveAccount')}{' '}

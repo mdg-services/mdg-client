@@ -46,3 +46,14 @@ export function firstScreen(): '/login' | '/register' | '/welcome' {
     return '/login';
   }
 }
+
+/**
+ * Is this the address the website's funnel link opens in the app (ADR 0059 §5)?
+ * `/welcome?for=new-pump&from=<page>`, or the same query on `/`. Someone signed out
+ * goes straight to the Kavach Shuruaat form whatever this phone remembers (they came
+ * for it); someone signed in goes to their own home. Every other arrival keeps
+ * `firstScreen` above.
+ */
+export function isNewPumpLink(search: string): boolean {
+  return new URLSearchParams(search).get('for') === 'new-pump';
+}

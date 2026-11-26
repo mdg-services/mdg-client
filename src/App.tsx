@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useSearchParams } from 'react-rou
 
 import { ChunkErrorBoundary } from '@/components/ChunkErrorBoundary';
 import { NavigationProgress, RouteFallback } from '@/components/RouteFallback';
-import { firstScreen } from '@/features/auth/firstScreen';
+import { firstScreen, isNewPumpLink } from '@/features/auth/firstScreen';
 // Imported, not lazy: it is a redirect a few lines long, and a chunk request
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
@@ -231,6 +231,10 @@ function ProtectedLayout() {
   if (isEmbedded()) {
     if (!token || !hasUser) return <EmbedStatus loading={!!token} />;
   } else if (!token) {
+    // The website's funnel link (`/?for=new-pump&from=…`, ADR 0059 §5) goes to the
+    // choice screen with its query, which forwards it to the Kavach Shuruaat form even
+    // on a phone that has signed in before: that is what the person came for.
+    if (isNewPumpLink(location.search)) return <Navigate to={`/welcome${location.search}`} replace />;
     // Register on a phone nobody has signed in on, Sign in otherwise (`firstScreen.ts`).
     return <Navigate to={firstScreen()} replace state={{ from: location.pathname }} />;
   }
@@ -259,6 +263,20 @@ function useMonitoringIdentity() {
         : null,
     );
   }, [user]);
+}
+
+/**
+ * The first-open choice. Signed in, the website's funnel link (`/welcome?for=new-pump`,
+ * ADR 0059 §5) has nothing to sign up for: it goes home, which is the Kavach Shuruaat
+ * home for a planner and the outlet's own home for a dealer, unchanged. Any other
+ * visit is the choice screen as before.
+ */
+function WelcomeRoute() {
+  const signedIn = useAuthStore((s) => !!s.token);
+  const { search } = useLocation();
+  if (isEmbedded()) return <Navigate to="/chat" replace />;
+  if (signedIn && isNewPumpLink(search)) return <Navigate to="/" replace />;
+  return <WelcomePage />;
 }
 
 /**
@@ -307,10 +325,7 @@ export function App() {
               element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
             />
             {/* ADR 0058: the first-open choice, and New Pump Guide's sign-up. */}
-            <Route
-              path="/welcome"
-              element={embedded ? <Navigate to="/chat" replace /> : <WelcomePage />}
-            />
+            <Route path="/welcome" element={<WelcomeRoute />} />
             <Route
               path="/register/new-pump"
               element={embedded ? <Navigate to="/chat" replace /> : <NewPumpRegisterPage />}

@@ -95,6 +95,20 @@ describe('the Kavach Shuruaat form (ADR 0058 §3.2)', () => {
     });
   });
 
+  it('carries the website page that sent them, only when there is one (ADR 0059 §5)', () => {
+    expect(toPlannerPayload(VALID, 'hi', undefined, 'pump:dealership-documents')).toMatchObject({
+      from: 'pump:dealership-documents',
+    });
+    expect(toPlannerPayload(VALID, 'hi')).not.toHaveProperty('from');
+  });
+
+  it('the API keeps the page tag', () => {
+    const wire = { ...toPlannerPayload(VALID, 'hi', undefined, 'pump:dealership-documents'), submissionId: 'abcdef123456' };
+    const r = plannerRegisterSchema.safeParse(wire);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.from).toBe('pump:dealership-documents');
+  });
+
   it('what it sends is what the API accepts', () => {
     const wire = { ...toPlannerPayload(VALID, 'hi'), submissionId: 'abcdef123456' };
     const r = plannerRegisterSchema.safeParse(wire);

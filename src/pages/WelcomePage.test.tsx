@@ -74,6 +74,15 @@ describe('WelcomePage: the first-open choice (ADR 0058 §3.1)', () => {
     expect(screen.getByTestId('search')).toHaveTextContent('?r=film42');
   });
 
+  it('the website funnel link goes straight to the form with the page it came from (ADR 0059 §5)', async () => {
+    renderAt('/welcome?for=new-pump&from=pump:dealership-documents');
+    expect(await screen.findByText('new-pump-page')).toBeInTheDocument();
+    // The query is rebuilt, so ':' arrives encoded; it reads back the same.
+    expect(new URLSearchParams(screen.getByTestId('search').textContent ?? '').get('from')).toBe(
+      'pump:dealership-documents',
+    );
+  });
+
   it('carries a share code on to whichever form is chosen', async () => {
     const user = userEvent.setup();
     renderAt('/welcome?r=film42');

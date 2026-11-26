@@ -84,6 +84,7 @@ export function toPlannerPayload(
   v: PlannerFormValues,
   lang: DealerLang,
   ref?: string,
+  from?: string,
 ): Omit<PlannerEnrollmentPayload, 'submissionId'> {
   return {
     kind: 'planner',
@@ -100,5 +101,6 @@ export function toPlannerPayload(
     consentWhatsApp: true,
     lang,
     ...(ref ? { ref } : {}),
+    ...(from ? { from } : {}),
   };
 }

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { firstScreen, markAccountHere } from './firstScreen';
+import { firstScreen, isNewPumpLink, markAccountHere } from './firstScreen';
 
 /**
  * The first screen for someone who is not signed in (ADR 0058 §3.1): the choice
@@ -31,5 +31,19 @@ describe('firstScreen', () => {
       throw new Error('blocked');
     });
     expect(firstScreen()).toBe('/login');
+  });
+});
+
+describe('isNewPumpLink (ADR 0059 §5)', () => {
+  it('is the website funnel link, with or without a page', () => {
+    expect(isNewPumpLink('?for=new-pump&from=pump:dealership-documents')).toBe(true);
+    expect(isNewPumpLink('?for=new-pump')).toBe(true);
+  });
+
+  it('is nothing else', () => {
+    expect(isNewPumpLink('')).toBe(false);
+    expect(isNewPumpLink('?from=pump:x')).toBe(false);
+    expect(isNewPumpLink('?for=outlet')).toBe(false);
+    expect(isNewPumpLink('?r=film42')).toBe(false);
   });
 });

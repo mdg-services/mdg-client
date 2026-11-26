@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { GST_STATES } from '../lib/gst';
 import { SIGN_IN_MOBILE_HINT, signInMobileOf } from '../lib/mobile';
 import { DEALER_LANGS } from '../types/dealerLanguage';
+import { FUNNEL_DEVICES, FUNNEL_LANGS, FUNNEL_SOURCE_PATTERN } from '../types/funnel';
 import { OIL_COMPANIES } from '../types/oilCompany';
 import { PLANNER_OIL_COMPANIES, PLANNER_STAGES } from '../types/planner';
 import { ENROLMENT_SOURCES } from '../types/websiteIntake';
@@ -22,6 +23,20 @@ const optionalText = (max: number) =>
     .union([z.string().trim().max(max), z.literal('')])
     .optional()
     .transform((v) => (v ? v : undefined));
+
+/**
+ * A funnel tag (ADR 0059 §2), kept only when it is the short, safe shape; anything
+ * else becomes `undefined` instead of failing the request. A sign-up or a tap must
+ * never be refused because of the tag on the link that brought it.
+ */
+const funnelSource = z
+  .unknown()
+  .transform((v) => {
+    if (typeof v !== 'string') return undefined;
+    const s = v.trim().toLowerCase();
+    return FUNNEL_SOURCE_PATTERN.test(s) ? s : undefined;
+  })
+  .optional();
 
 /**
  * A planner's registration as it reaches `POST /v1/website/enrolments` (§3.2): the
@@ -73,8 +88,25 @@ export const plannerRegisterSchema = z.object({
     .regex(/^[A-Za-z0-9_-]{1,32}$/)
     .optional(),
   userAgent: z.string().max(500).optional(),
+  /**
+   * The website page that sent them (ADR 0059 §3): the funnel link's `from`, carried
+   * by the app to the form. Not part of what the Terms tick records.
+   */
+  from: funnelSource,
 });
 export type PlannerRegisterInput = z.infer<typeof plannerRegisterSchema>;
+
+/**
+ * One press of the website's "Ask in Kavach Shuruaat" link (ADR 0059 §2), as the
+ * website's server reports it to `POST /v1/website/funnel-taps`. Nothing about the
+ * person: the page's tag, the kind of device, the page's language.
+ */
+export const funnelTapSchema = z.object({
+  source: funnelSource.transform((v) => v ?? null),
+  device: z.enum(FUNNEL_DEVICES),
+  lang: z.enum(FUNNEL_LANGS).default('en'),
+});
+export type FunnelTapInput = z.infer<typeof funnelTapSchema>;
 
 /**
  * "My pump is open now": `POST /v1/me/planner/convert` (§7). The outlet's own
