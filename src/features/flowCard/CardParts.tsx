@@ -155,6 +155,7 @@ export function Pill({
   children,
   hint,
   value,
+  tight = false,
 }: {
   selected?: boolean;
   disabled?: boolean;
@@ -164,6 +165,8 @@ export function Pill({
   children: React.ReactNode;
   hint?: React.ReactNode;
   value?: string;
+  /** Narrower sides, for a row of short figures (a fuel's KL) that must fit with its ✎ on a 360 px phone. */
+  tight?: boolean;
 }) {
   const on = !!selected || !!busy;
   return (
@@ -174,7 +177,8 @@ export function Pill({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex min-h-11 min-w-[3.25rem] flex-col items-center justify-center rounded-full border px-3 py-1.5 text-center',
+        'inline-flex min-h-11 flex-col items-center justify-center rounded-full border py-1.5 text-center',
+        tight ? 'min-w-[3rem] px-2.5' : 'min-w-[3.25rem] px-3',
         'text-cta transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         on

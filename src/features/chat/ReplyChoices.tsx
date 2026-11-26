@@ -1,6 +1,7 @@
 import { Check } from 'lucide-react';
 import * as React from 'react';
 
+import { OwnWords } from '@/features/flowCard/OwnWords';
 import type { Lang } from '@/store/lang';
 import { sayIn, type MessageReplyChoices } from '@dk/shared/types';
 
@@ -48,6 +49,17 @@ export function ReplyChoices({
           </button>
         );
       })}
+      {/* None of these? The dealer says it in their own words (ADR 0059). */}
+      {sent === null ? (
+        <OwnWords
+          label=""
+          sentKey="flow.ownWordsSentChat"
+          onWords={(text) => {
+            setSent('own');
+            onChoice(text);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

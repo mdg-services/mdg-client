@@ -152,7 +152,7 @@ describe('the living card (ADR 0059)', () => {
     renderWithProviders(<FlowCardMessage message={msg()} onSay={onSay} />);
     expect((await screen.findByTestId('flow-problem')).textContent).toContain('₹8.55 lakh');
     fireEvent.click(screen.getByTestId('flow-action-talk'));
-    expect(onSay).toHaveBeenCalledWith('MDG team se baat karni hai — load order ke baare mein.');
+    expect(onSay).toHaveBeenCalledWith('MDG team se baat karni hai — load order ke baare mein.', 'm-card');
     expect(h.post).not.toHaveBeenCalled();
     fireEvent.click(screen.getByTestId('flow-action-retry'));
     await waitFor(() => expect(h.post).toHaveBeenCalledWith('/v1/me/flow-cards/fuel_order/d1/action', { action: 'retry', stamp: '' }));
@@ -164,6 +164,48 @@ describe('the living card (ADR 0059)', () => {
     const part = await screen.findByTestId('flow-part-kl:HSD');
     expect((within(part).getByRole('button', { name: '8 KL' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Is card ka jawab owner denge')).toBeTruthy();
+  });
+});
+
+describe('an answer in the dealer’s own words (owner, 26 Nov 2026)', () => {
+  it('every question with choices offers "Kuch aur? Likhiye"; the words go to the chat, quoting the card', async () => {
+    const onSay = vi.fn();
+    const open = card({
+      rows: card().rows.map((r) => (r.key === 'delivery_date' ? { ...r, state: 'open' as const, answer: undefined } : r)),
+    });
+    h.get.mockResolvedValue(open);
+    renderWithProviders(<FlowCardMessage message={msg()} onSay={onSay} />);
+    const row = await screen.findByTestId('flow-row-delivery_date');
+    fireEvent.click(within(row).getByRole('button', { name: 'Kab chahiye?: Apne shabdon mein jawab likhiye' }));
+    fireEvent.change(within(row).getByRole('textbox'), { target: { value: 'Somvaar subah tak chahiye' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'Bhejein' }));
+    expect(onSay).toHaveBeenCalledWith('Somvaar subah tak chahiye', 'm-card');
+    expect(h.post).not.toHaveBeenCalled();
+    expect(within(row).getByRole('status').textContent).toBe('Bhej diya. Hum ise isi card mein bhar denge.');
+  });
+
+  it('on a fuel: a number goes to the row like a tap; words go to the chat with the fuel’s name', async () => {
+    const onSay = vi.fn();
+    h.get.mockResolvedValue(card());
+    h.post.mockResolvedValue({ card: card() });
+    renderWithProviders(<FlowCardMessage message={msg()} onSay={onSay} />);
+    const part = await screen.findByTestId('flow-part-kl:HSD');
+    fireEvent.click(within(part).getByTestId('own-words'));
+    fireEvent.change(within(part).getByRole('textbox'), { target: { value: '9 KL' } });
+    fireEvent.click(within(part).getByRole('button', { name: 'Bhejein' }));
+    await waitFor(() => expect(h.post).toHaveBeenCalledWith('/v1/me/flow-cards/fuel_order/d1/answer', { row: 'kl:HSD', value: '9' }));
+    expect(onSay).not.toHaveBeenCalled();
+    fireEvent.click(within(screen.getByTestId('flow-part-kl:HSD')).getByTestId('own-words'));
+    fireEvent.change(within(screen.getByTestId('flow-part-kl:HSD')).getByRole('textbox'), { target: { value: 'jitna tank mein aaye' } });
+    fireEvent.click(within(screen.getByTestId('flow-part-kl:HSD')).getByRole('button', { name: 'Bhejein' }));
+    expect(onSay).toHaveBeenCalledWith('Diesel: jitna tank mein aaye', 'm-card');
+  });
+
+  it('a manager is not offered it: the card is the owner’s to answer', async () => {
+    h.get.mockResolvedValue(card({ canAnswer: false, actions: [] }));
+    renderWithProviders(<FlowCardMessage message={msg()} onSay={vi.fn()} />);
+    await screen.findByTestId('flow-card');
+    expect(screen.queryAllByTestId('own-words')).toHaveLength(0);
   });
 });
 

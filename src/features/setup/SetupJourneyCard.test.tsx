@@ -1,4 +1,4 @@
-import { cleanup, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { type ApiError } from '@/lib/api';
@@ -52,6 +52,22 @@ describe('the setup as one card (ADR 0059)', () => {
     renderWithProviders(<SetupJourneyCard view={makeSetupView()} />);
     const row = screen.getByTestId('setup-row-billing');
     await waitFor(() => expect(row.querySelector('[data-setup-card="billing"]')).not.toBeNull());
+  });
+
+  it('the company step takes the owner’s own words too (another company, a question), sent to the chat', () => {
+    const onSay = vi.fn();
+    const view = makeSetupView({ stage: 'company', company: null, strip: makeStrip(['current', 'todo', 'todo', 'todo', 'todo']) });
+    renderWithProviders(<SetupJourneyCard view={view} onSay={onSay} />);
+    const row = screen.getByTestId('setup-row-company');
+    fireEvent.click(within(row).getByTestId('own-words'));
+    fireEvent.change(within(row).getByRole('textbox'), { target: { value: 'हमारा पंप नायरा का है' } });
+    fireEvent.click(within(row).getByRole('button', { name: 'भेजें' }));
+    expect(onSay).toHaveBeenCalledWith('हमारा पंप नायरा का है');
+    // Never beside a login: the logins step offers no free text.
+    const atLogins = makeSetupView({ stage: 'logins', strip: makeStrip(['done', 'done', 'done', 'current', 'todo']) });
+    cleanup();
+    renderWithProviders(<SetupJourneyCard view={atLogins} onSay={onSay} />);
+    expect(within(screen.getByTestId('setup-row-logins')).queryByTestId('own-words')).toBeNull();
   });
 
   it('on MDG’s own step, says what the team is doing instead of a form', () => {

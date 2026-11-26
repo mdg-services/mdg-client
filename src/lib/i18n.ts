@@ -2564,6 +2564,11 @@ export const messages = {
   'flow.setupDoneBy': { en: 'Done by MDG', hi: 'MDG ने किया' },
   'flow.paid': { en: 'Payment received', hi: 'भुगतान मिल गया' },
   'flow.loginsSaved': { en: 'Logins saved', hi: 'लॉगिन सेव हो गए' },
+  'flow.ownWords': { en: 'Something else? Write it', hi: 'कुछ और? लिखिए' },
+  'flow.ownWordsLabel': { en: 'Write your answer in your own words', hi: 'अपने शब्दों में जवाब लिखिए' },
+  'flow.ownWordsSend': { en: 'Send', hi: 'भेजें' },
+  'flow.ownWordsSent': { en: 'Sent. We will fill it into this card.', hi: 'भेज दिया। हम इसे इसी कार्ड में भर देंगे।' },
+  'flow.ownWordsSentChat': { en: 'Sent in the chat. We will answer here.', hi: 'चैट में भेज दिया। हम यहीं जवाब देंगे।' },
   // Under the strip, once the setup walkthrough video is uploaded.
   'setup.howItWorks': { en: 'How setup works — a short video', hi: 'सेटअप कैसे होता है — छोटा वीडियो' },
   // The one line under the strip: what is happening now. Nothing here says how

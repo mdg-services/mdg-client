@@ -1,4 +1,3 @@
-import { Pencil } from 'lucide-react';
 import * as React from 'react';
 import { createPortal } from 'react-dom';
 
@@ -18,6 +17,7 @@ import {
   WarningLine,
   type MarkKind,
 } from './CardParts';
+import { OwnWords } from './OwnWords';
 import { refusalWords, useActOnFlowCard, useAnswerFlowCard, useFlowCard } from './useFlowCard';
 
 /**
@@ -35,8 +35,11 @@ export function FlowCardMessage({
   onSay,
 }: {
   message: Message;
-  /** Send words as the dealer's own message (the "MDG se baat" button). */
-  onSay?: (text: string) => void;
+  /**
+   * Send words as the dealer's own message, quoting the card: the "MDG se baat" button,
+   * and an answer in the dealer's own words.
+   */
+  onSay?: (text: string, replyToMessageId?: string) => void;
 }) {
   const marker = message.flowCard!;
   const q = useFlowCard(marker.flow, marker.ref);
@@ -49,7 +52,7 @@ export function FlowCardMessage({
   if (card.liveMessageId && card.liveMessageId !== message.id) return null;
   return (
     <div className="w-[92%] max-w-[22.5rem]">
-      <FlowCardBody card={card} onSay={onSay} />
+      <FlowCardBody card={card} onSay={onSay ? (text) => onSay(text, message.id) : undefined} />
     </div>
   );
 }
@@ -118,6 +121,7 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
         tapped={tapped}
         error={error && error.row !== null && (error.row === row.key || parts.some((p) => p.key === error.row)) ? error.text : null}
         onPick={send}
+        onWords={onSay}
       />,
     );
   }
@@ -211,6 +215,7 @@ function QuestionRow({
   error,
   onPick,
   foldParts,
+  onWords,
 }: {
   row: FlowRow;
   parts: FlowRow[];
@@ -222,6 +227,8 @@ function QuestionRow({
   error: string | null;
   onPick: (row: string, value: string) => void;
   foldParts: boolean;
+  /** The dealer's own words, when no choice fits: sent to the chat, quoting the card. */
+  onWords?: (text: string) => void;
 }) {
   const t = useT();
   const [changing, setChanging] = React.useState(false);
@@ -263,13 +270,13 @@ function QuestionRow({
       </div>
 
       {!folded && row.choices && row.choices.length > 0 && row.state !== 'later' ? (
-        <Choices row={row} lang={lang} canAnswer={canAnswer} busy={busy} tapped={tapped} onPick={onPick} />
+        <Choices row={row} lang={lang} canAnswer={canAnswer} busy={busy} tapped={tapped} onPick={onPick} onWords={onWords} />
       ) : null}
 
       {parts.length > 0 && !folded ? (
         <div className="mt-2 space-y-2.5">
           {parts.map((p) => (
-            <PartRow key={p.key} row={p} lang={lang} canAnswer={canAnswer} busy={busy} tapped={tapped} onPick={onPick} />
+            <PartRow key={p.key} row={p} lang={lang} canAnswer={canAnswer} busy={busy} tapped={tapped} onPick={onPick} onWords={onWords} />
           ))}
         </div>
       ) : null}
@@ -290,6 +297,7 @@ function Choices({
   busy,
   tapped,
   onPick,
+  onWords,
 }: {
   row: FlowRow;
   lang: Lang;
@@ -297,6 +305,7 @@ function Choices({
   busy: boolean;
   tapped: { row: string; value: string } | null;
   onPick: (row: string, value: string) => void;
+  onWords?: (text: string) => void;
 }) {
   return (
     <div role="group" aria-label={sayIn(row.label, lang)} className="mt-2 flex flex-wrap gap-2">
@@ -313,11 +322,15 @@ function Choices({
           {sayIn(c.label, lang)}
         </Pill>
       ))}
+      {canAnswer && onWords ? <OwnWords label={sayIn(row.label, lang)} disabled={busy} onWords={onWords} /> : null}
     </div>
   );
 }
 
-/** One fuel under "Kitna load?": its name, its KL pills, and "Likhiye" for any other figure. */
+/**
+ * One fuel under "Kitna load?": its name, its KL pills, and "✎" for any other figure — a
+ * number goes to the row like a tap; words ("jitna tank mein aaye") go to the chat.
+ */
 function PartRow({
   row,
   lang,
@@ -325,6 +338,7 @@ function PartRow({
   busy,
   tapped,
   onPick,
+  onWords,
 }: {
   row: FlowRow;
   lang: Lang;
@@ -332,30 +346,17 @@ function PartRow({
   busy: boolean;
   tapped: { row: string; value: string } | null;
   onPick: (row: string, value: string) => void;
+  onWords?: (text: string) => void;
 }) {
-  const t = useT();
-  const [typing, setTyping] = React.useState(false);
-  const [text, setText] = React.useState('');
-  const inputRef = React.useRef<HTMLInputElement>(null);
   const name = sayIn(row.label, lang);
   const typed = row.typed;
-  const clean = (() => {
-    const v = text.trim().replace(',', '.');
-    if (!/^\d{1,3}(\.\d)?$/.test(v)) return null;
-    const num = Number(v);
-    return typed && num >= typed.min && num <= typed.max ? v : null;
-  })();
-  React.useEffect(() => {
-    if (typing) inputRef.current?.focus();
-  }, [typing]);
-
   return (
     <div data-testid={`flow-part-${row.key}`} className="flex flex-col gap-1.5">
       <p className="flex items-center gap-2 text-body font-semibold">
         <FuelSwatch fuelKey={row.key} />
         {name}
       </p>
-      <div role="group" aria-label={name} className="flex flex-wrap gap-2">
+      <div role="group" aria-label={name} className="flex flex-wrap gap-1.5">
         {(row.choices ?? []).map((c) => (
           <Pill
             key={c.value}
@@ -363,63 +364,28 @@ function PartRow({
             selected={c.selected}
             busy={tapped?.row === row.key && tapped.value === c.value}
             disabled={!canAnswer || busy}
+            tight
             // A second tap on the picked amount takes the fuel off the order.
             onClick={() => onPick(row.key, c.selected ? '0' : c.value)}
           >
             {sayIn(c.label, lang)}
           </Pill>
         ))}
-        {typed && canAnswer && !typing ? (
-          <button
-            type="button"
+        {canAnswer && (typed || onWords) ? (
+          <OwnWords
+            compact
+            label={name}
             disabled={busy}
-            onClick={() => setTyping(true)}
-            aria-label={`${name}: ${t('flow.typeLabel')}`}
-            title={t('flow.type')}
-            className="inline-flex size-11 items-center justify-center rounded-full border border-dashed border-wa-meta/60 text-wa-meta active:bg-wa-row-active disabled:opacity-45"
-          >
-            <Pencil aria-hidden width={16} strokeWidth={2} />
-          </button>
+            onWords={(text) => onWords?.(`${name}: ${text}`)}
+            onNumber={(v) => {
+              const n = Number(v);
+              if (!typed || !Number.isFinite(n) || n < typed.min || n > typed.max) return false;
+              onPick(row.key, v);
+              return true;
+            }}
+          />
         ) : null}
       </div>
-      {typing && typed ? (
-        <form
-          className="flex flex-wrap items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!clean || busy) return;
-            onPick(row.key, clean);
-            setTyping(false);
-            setText('');
-          }}
-        >
-          <label className="sr-only" htmlFor={`${row.key}-typed`}>
-            {`${name}: ${t('flow.typeLabel')}`}
-          </label>
-          <span className="flex min-h-11 items-center gap-1.5 rounded-lg border border-wa-divider bg-wa-in px-3 focus-within:border-wa-accent">
-            <input
-              id={`${row.key}-typed`}
-              ref={inputRef}
-              inputMode="decimal"
-              autoComplete="off"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setTyping(false);
-              }}
-              className="w-16 bg-transparent text-body tabular-nums outline-none"
-            />
-            {typed.unit ? <span className="text-meta text-wa-meta">{typed.unit}</span> : null}
-          </span>
-          <button
-            type="submit"
-            disabled={!clean || busy}
-            className="inline-flex min-h-11 items-center rounded-lg bg-wa-accent px-4 text-cta text-white disabled:opacity-40"
-          >
-            {t('flow.typeOk')}
-          </button>
-        </form>
-      ) : null}
     </div>
   );
 }

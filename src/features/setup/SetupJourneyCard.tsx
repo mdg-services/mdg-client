@@ -2,6 +2,7 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 
 import { CardFrame, RowShell, VideoRow, type MarkKind } from '@/features/flowCard/CardParts';
+import { OwnWords } from '@/features/flowCard/OwnWords';
 import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
 import { videoTitle } from '@/features/help/helpView';
 import { useGuideVideos } from '@/features/help/useGuideVideos';
@@ -47,7 +48,14 @@ function markOf(state: SetupStripState, mdgWorking: boolean): MarkKind {
   return 'later';
 }
 
-export function SetupJourneyCard({ view }: { view: OutletSetupView }) {
+export function SetupJourneyCard({
+  view,
+  onSay,
+}: {
+  view: OutletSetupView;
+  /** The owner's own words when no company button fits: sent to the chat, for the team. */
+  onSay?: (text: string) => void;
+}) {
   const t = useT();
   const lang = useLang();
   const titleId = React.useId();
@@ -123,6 +131,13 @@ export function SetupJourneyCard({ view }: { view: OutletSetupView }) {
                 // card moves on by itself when the server says the step is done.
                 <div className="mt-1" data-no-swipe>
                   <LazyCardView card={form} view={view} />
+                </div>
+              ) : null}
+              {/* The pump is with another company, or the owner wants to say something else:
+                  their own words go to the chat. Only on the company step — never beside a login. */}
+              {state === 'current' && step === 'company' && view.canEdit && onSay ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <OwnWords label={t(STRIP_LABEL_KEYS[step])} sentKey="flow.ownWordsSentChat" onWords={onSay} />
                 </div>
               ) : null}
             </RowShell>

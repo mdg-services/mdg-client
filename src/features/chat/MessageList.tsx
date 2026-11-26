@@ -89,7 +89,8 @@ export interface MessageListProps {
   /** Swipe-right on a bubble → start replying to it. */
   onReply?: (message: Message) => void;
   /** A tap on one of the answer buttons under MDG's newest question: send these words. */
-  onChoice?: (text: string) => void;
+  /** Send words as the dealer's own message; a living card (ADR 0059) also names the message it quotes. */
+  onChoice?: (text: string, replyToMessageId?: string) => void;
   /**
    * The outlet's setup, when this thread carries setup messages (ADR 0059): the newest of
    * them paints the one setup card from it. Absent anywhere else.
@@ -638,7 +639,7 @@ export function MessageList({
           out.push(
             <div key={renderKey(m.id)} data-mid={m.id} data-day={label} className="px-3 pt-2">
               <div className="w-[92%] max-w-[22.5rem]">
-                <SetupJourneyCard view={journeyView} />
+                <SetupJourneyCard view={journeyView} onSay={onChoice ? (text) => onChoice(text, m.id) : undefined} />
               </div>
             </div>,
           );

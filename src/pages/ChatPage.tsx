@@ -490,9 +490,13 @@ export function ChatPage() {
   // A tapped answer under MDG's question goes out as the dealer's own words, the
   // same way a typed message does (no quote, no files).
   const handleChoice = React.useCallback(
-    (text: string) => {
+    (text: string, replyToMessageId?: string) => {
       if (!conversationId) return;
-      void sendMessage({ conversationId, body: text }).catch(() => toast.error(t('chat.sendFailed')));
+      // A card's own-words answer quotes the card (ADR 0059), so the team and the order
+      // desk read it as the answer to that card.
+      void sendMessage({ conversationId, body: text, ...(replyToMessageId ? { replyToMessageId } : {}) }).catch(() =>
+        toast.error(t('chat.sendFailed')),
+      );
     },
     [sendMessage, conversationId, t],
   );
