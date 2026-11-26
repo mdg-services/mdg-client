@@ -26,6 +26,7 @@ const DESTINATIONS = [
   '/staff',
   '/payments',
   '/settings/help',
+  '/settings/new-pump-guide',
   '/login',
 ];
 
@@ -84,6 +85,25 @@ describe('SettingsPage — what is on it', () => {
     expect(screen.getByText('Change your password, or delete your account')).toBeInTheDocument();
     expect(screen.getByText('Add your manager or a partner')).toBeInTheDocument();
     expect(screen.getByText('Learn the app with short videos')).toBeInTheDocument();
+  });
+
+  it('for someone planning a pump: a Kavach Shuruaat row with the plan state, and no outlet rows', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      active: false,
+      paidThrough: null,
+      bill: { state: 'sent', amountPaise: 23482, autopay: true },
+    } as never);
+    signIn({ id: 'owner', name: 'Sunita', role: 'dealer-owner', dealerStatus: 'PLANNING' });
+    renderSettings();
+
+    expect(await screen.findByText('Waiting for payment')).toBeInTheDocument();
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/v1/me/planner');
+    const text = rows();
+    for (const gone of ['Your team', 'Your services', 'Warriors & points', 'IDs & passwords']) {
+      expect(text.some((t) => t.startsWith(gone))).toBe(false);
+    }
+    fireEvent.click(screen.getByRole('button', { name: /Kavach Shuruaat/ }));
+    expect(await screen.findByText('went:/settings/new-pump-guide')).toBeInTheDocument();
   });
 
   // ── billing ── What is due and the receipts, read-only; the owner's, like the bill.

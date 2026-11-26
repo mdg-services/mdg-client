@@ -327,3 +327,13 @@ describe('TabBar', () => {
     });
   });
 });
+
+describe('TabBar for someone planning a pump (ADR 0058)', () => {
+  it('has only Today and Chats: no Reports, and no Kavach even where the answer says on', () => {
+    h.kavach = { on: true, now: [] };
+    signIn({ id: 'owner', dealerStatus: 'PLANNING' });
+    useLangStore.setState({ lang: 'en', explicit: true });
+    renderWithProviders(<TabBar />, { route: '/', withRouter: true });
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Today', 'Chats']);
+  });
+});

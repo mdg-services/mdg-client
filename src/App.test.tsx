@@ -133,6 +133,15 @@ vi.mock('@/features/payments/PaymentDetailPage', () => ({
 // (`OpenMyChat.test.tsx`); here it only has to be the thing those routes mount.
 vi.mock('@/features/chat/OpenMyChat', () => ({ OpenMyChat: () => <div>open-my-chat</div> }));
 vi.mock('@/pages/RegisterPage', () => ({ RegisterPage: () => <div>register-page</div> }));
+vi.mock('@/pages/WelcomePage', () => ({ WelcomePage: () => <div>welcome-page</div> }));
+vi.mock('@/pages/NewPumpRegisterPage', () => ({ NewPumpRegisterPage: () => <div>new-pump-page</div> }));
+vi.mock('@/features/planner/PlannerHome', () => ({
+  PlannerHome: () => <div>planner-home</div>,
+  PumpOpenCard: () => null,
+}));
+vi.mock('@/features/planner/SwitchToDealerKavachPage', () => ({
+  SwitchToDealerKavachPage: () => <div>switch-page</div>,
+}));
 // The screen itself is tested on its own (`ForcedPasswordChange.test.tsx`); here
 // it only has to be what the gate shows.
 vi.mock('@/features/auth/ForcedPasswordChange', () => ({
@@ -158,10 +167,11 @@ describe('App routing', () => {
   beforeEach(() => markAccountHere());
   afterEach(() => resetStores());
 
-  it('opens on Register on a phone nobody has signed in on, and on Sign in once someone has', async () => {
+  it('opens on the first-open choice on a phone nobody has signed in on, and on Sign in once someone has', async () => {
     localStorage.clear();
     const fresh = renderWithProviders(<App />, { route: '/', withRouter: true });
-    expect(await screen.findByText('register-page')).toBeInTheDocument();
+    // ADR 0058 §3.1: "I run a petrol pump" or "I want to open one".
+    expect(await screen.findByText('welcome-page')).toBeInTheDocument();
     expect(screen.queryByText('login-page')).not.toBeInTheDocument();
     fresh.unmount();
 
@@ -192,6 +202,36 @@ describe('App routing', () => {
     renderWithProviders(<App />, { route: '/' });
     expect(await screen.findByText('today-page')).toBeInTheDocument();
     expect(screen.queryByText('chat-list-page')).not.toBeInTheDocument();
+  });
+
+  describe('someone planning a pump (ADR 0058)', () => {
+    it('gets the Kavach Shuruaat home at "/", not the outlet Today', async () => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route: '/' });
+      expect(await screen.findByText('planner-home')).toBeInTheDocument();
+      expect(screen.queryByText('today-page')).not.toBeInTheDocument();
+    });
+
+    it.each(['/reports', '/kavach'])('is sent home from %s, which has nothing for a planner', async (route) => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('planner-home')).toBeInTheDocument();
+      expect(screen.queryByText('kavach-page')).not.toBeInTheDocument();
+    });
+
+    it('reaches the switch to Dealer Kavach', async () => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route: '/switch-to-dealer-kavach' });
+      expect(await screen.findByText('switch-page')).toBeInTheDocument();
+    });
+
+    it('serves the choice screen and the Kavach Shuruaat form signed out', async () => {
+      const first = renderWithProviders(<App />, { route: '/welcome' });
+      expect(await screen.findByText('welcome-page')).toBeInTheDocument();
+      first.unmount();
+      renderWithProviders(<App />, { route: '/register/new-pump' });
+      expect(await screen.findByText('new-pump-page')).toBeInTheDocument();
+    });
   });
 
   it('keeps the conversation list at /chat', async () => {

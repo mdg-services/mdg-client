@@ -5,7 +5,7 @@ import { Button } from '@/components/ui';
 import { useLang, useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
 
-import { TERMS_EN, TERMS_HI } from './terms';
+import { TERMS_EN, TERMS_HI, TERMS_NEW_PUMP_EN, TERMS_NEW_PUMP_HI } from './terms';
 
 /**
  * The Terms & Conditions, read inside the app.
@@ -16,13 +16,19 @@ import { TERMS_EN, TERMS_HI } from './terms';
  *
  * On the Hindi screen the clauses are a courtesy translation, so the sheet says
  * the English text is the binding one and offers it, exactly as the website does.
+ *
+ * `terms="newPump"` shows the Kavach Shuruaat terms instead (ADR 0058 §6): someone
+ * planning a pump signs up to a ₹199 rule-book chat, not to the outlet service
+ * agreement, so they must read the terms of what they are buying.
  */
 export function TermsSheet({
   onClose,
   onAgree,
+  terms = 'outlet',
 }: {
   onClose: () => void;
   onAgree: () => void;
+  terms?: 'outlet' | 'newPump';
 }) {
   const t = useT();
   const lang = useLang();
@@ -31,7 +37,14 @@ export function TermsSheet({
   const courtesy = lang === 'hi';
   const [original, setOriginal] = React.useState(false);
   const showEnglish = !courtesy || original;
-  const clauses = showEnglish ? TERMS_EN : TERMS_HI;
+  const newPump = terms === 'newPump';
+  const clauses = newPump
+    ? showEnglish
+      ? TERMS_NEW_PUMP_EN
+      : TERMS_NEW_PUMP_HI
+    : showEnglish
+      ? TERMS_EN
+      : TERMS_HI;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center sm:p-6">
@@ -54,7 +67,7 @@ export function TermsSheet({
           <div className="min-w-0">
             <p className="text-meta font-semibold text-text-muted">{t('register.termsEyebrow')}</p>
             <h2 id={titleId} className="mt-0.5 text-heading text-text">
-              {t('register.termsTitle')}
+              {t(newPump ? 'newPump.termsTitle' : 'register.termsTitle')}
             </h2>
           </div>
           <button
@@ -98,9 +111,12 @@ export function TermsSheet({
             ))}
           </ol>
 
-          <p className="mt-4 rounded-xl bg-surface-2 p-3 text-meta leading-relaxed text-text-muted">
-            {t('register.annexure')}
-          </p>
+          {/* The annexure of services and charges belongs to the outlet agreement only. */}
+          {newPump ? null : (
+            <p className="mt-4 rounded-xl bg-surface-2 p-3 text-meta leading-relaxed text-text-muted">
+              {t('register.annexure')}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col-reverse gap-2 border-t border-border px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">

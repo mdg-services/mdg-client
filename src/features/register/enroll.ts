@@ -15,6 +15,8 @@
  * endpoint would refuse. Change them together.
  */
 
+import type { DealerLang, PlannerOilCompany, PlannerStage } from '@dk/shared/types';
+
 export const SITE_TYPES = ['Type A', 'Type B'] as const;
 export type SiteType = (typeof SITE_TYPES)[number];
 
@@ -64,6 +66,38 @@ export interface EnrollmentPayload {
   submissionId: string;
 }
 
+/**
+ * The New Pump Guide sign-up (ADR 0058 §3.2): someone planning a pump, so no SAP
+ * code, no site type and no pump name. It goes down the same road as the outlet
+ * form, told apart by `kind: 'planner'`; the API reads it with the shared
+ * `plannerRegisterSchema` and opens the account at once.
+ */
+export interface PlannerEnrollmentPayload {
+  kind: 'planner';
+  name: string;
+  /** Ten plain digits. */
+  mobile: string;
+  password: string;
+  /** GST state code, e.g. "06": the place of supply on the bill. */
+  stateCode: string;
+  /** Empty means "not given". */
+  district: string;
+  oilCompany: PlannerOilCompany;
+  stage: PlannerStage;
+  /** Empty means "not given". */
+  email: string;
+  agree: true;
+  source: 'app';
+  consentWhatsApp: true;
+  /**
+   * The app's own language (hi, hl or en): it becomes the account's language. Unlike
+   * the outlet form, the API keeps the Terms language itself (`baseLangOf`).
+   */
+  lang: DealerLang;
+  ref?: string;
+  submissionId: string;
+}
+
 const ENROLL_URL: string =
   (import.meta.env.VITE_ENROLL_URL as string | undefined) ??
   'https://mdgservices.in/api/enroll';
@@ -99,7 +133,9 @@ export function enrollAccountOf(value: unknown): EnrollAccount {
  * its auth handling, and a 401 there signs the user out — none of which has
  * anything to do with someone who has no account yet.
  */
-export async function submitEnrollment(payload: EnrollmentPayload): Promise<EnrollAccount> {
+export async function submitEnrollment(
+  payload: EnrollmentPayload | PlannerEnrollmentPayload,
+): Promise<EnrollAccount> {
   let res: Response;
   try {
     res = await fetch(ENROLL_URL, {

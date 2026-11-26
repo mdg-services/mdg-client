@@ -67,6 +67,11 @@ export interface MessageListProps {
   loadMoreFailed?: boolean;
   typing?: { active: boolean; userName?: string };
   onQuickAction?: (text: string) => void;
+  /**
+   * The chips an empty thread offers, in place of the two outlet ones ("report an
+   * issue", "request a service"). A planner's chat (ADR 0058) has neither to report.
+   */
+  emptyChips?: readonly string[];
   /** Show sender names above others' bubbles (group threads). */
   showSenderNames?: boolean;
   /** The dealer's side of the thread; a quoted sender outside it is MDG. */
@@ -132,6 +137,7 @@ export function MessageList({
   loadMoreFailed,
   typing,
   onQuickAction,
+  emptyChips,
   showSenderNames,
   dealerSideIds,
   selectedIds,
@@ -768,7 +774,7 @@ export function MessageList({
           cta={
             onQuickAction ? (
               <div className="mt-2 flex flex-wrap justify-center gap-2">
-                {[t('chat.quickReportIssue'), t('chat.quickRequestService')].map((label) => (
+                {(emptyChips ?? [t('chat.quickReportIssue'), t('chat.quickRequestService')]).map((label) => (
                   <button
                     key={label}
                     type="button"

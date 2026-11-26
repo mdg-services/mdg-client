@@ -1,9 +1,10 @@
+import { plannerSignUpEnabled } from '@/features/planner/enabled';
 import { isEmbedded } from '@/lib/embedMode';
 
 /**
  * Which screen someone who is not signed in sees first.
  *
- * A phone where nobody has ever signed in opens on Register: most people who
+ * A phone where nobody has ever signed in opens on the way to Register: most people who
  * install the app have no account yet, and an account opens the moment they
  * register. A phone where someone has signed in opens on Sign in, as it always
  * did — a dealer whose session ended, or who signed out, is never sent to a form
@@ -31,9 +32,16 @@ export function markAccountHere(): void {
   }
 }
 
-export function firstScreen(): '/login' | '/register' {
+/**
+ * A phone with no account mark now opens on the choice screen, `/welcome` (ADR 0058
+ * §3.1): "I run a petrol pump" goes on to Register, "I want to open one" to the New
+ * Pump Guide form. With New Pump Guide's sign-up switched off there is nothing to
+ * choose between, so it is Register, as before.
+ */
+export function firstScreen(): '/login' | '/register' | '/welcome' {
   try {
-    return localStorage.getItem(SIGNED_IN_BEFORE_KEY) === '1' ? '/login' : '/register';
+    if (localStorage.getItem(SIGNED_IN_BEFORE_KEY) === '1') return '/login';
+    return plannerSignUpEnabled() ? '/welcome' : '/register';
   } catch {
     return '/login';
   }

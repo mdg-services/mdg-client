@@ -3,7 +3,12 @@
  * Kept as const arrays so they can be reused by Zod and runtime checks.
  */
 
-export const DEALER_STATUSES = ['ONBOARDING', 'ACTIVE', 'SUSPENDED'] as const;
+/**
+ * `PLANNING` (ADR 0058): a person planning a pump, on New Pump Guide. Not an
+ * outlet: no SAP code, no services, no portals. Every job, alert, list and count
+ * that walks outlets must leave it out (`mdg-backend/src/utils/dealerScope.ts`).
+ */
+export const DEALER_STATUSES = ['ONBOARDING', 'ACTIVE', 'SUSPENDED', 'PLANNING'] as const;
 export type DealerStatus = (typeof DEALER_STATUSES)[number];
 
 export const SLA_TIERS = ['BRONZE', 'SILVER', 'GOLD'] as const;

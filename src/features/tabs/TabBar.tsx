@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { unreadState } from '@/features/chat/conversationLabel';
 import { tabVisible, todoCount } from '@/features/kavach/kavachView';
+import { useIsPlanner } from '@/features/planner/isPlanner';
 import { useKavach } from '@/hooks/api/useKavach';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
 import { useTodayFeed } from '@/hooks/api/useTodayFeed';
@@ -63,6 +64,8 @@ function Bar({ active }: { active: Tab }) {
   const feed = useTodayFeed();
   const convos = useMyConversations();
   const kavach = useKavach();
+  // Someone planning a pump (ADR 0058) has no reports and no Kavach: Today and Chats only.
+  const planner = useIsPlanner();
 
   const openTasks = feed.data?.tasks.length ?? 0;
   const kavachOn = tabVisible(kavach.data);
@@ -84,14 +87,18 @@ function Bar({ active }: { active: Tab }) {
       badge: unreadChats,
       badgeLabel: t('tabs.unreadChats', { n: unreadChats }),
     },
-    {
-      id: 'reports',
-      label: t('tabs.reports'),
-      icon: <FileText width={24} strokeWidth={1.75} aria-hidden />,
-      badge: 0,
-      badgeLabel: '',
-    },
-    ...(kavachOn
+    ...(planner
+      ? []
+      : [
+          {
+            id: 'reports' as const,
+            label: t('tabs.reports'),
+            icon: <FileText width={24} strokeWidth={1.75} aria-hidden />,
+            badge: 0,
+            badgeLabel: '',
+          },
+        ]),
+    ...(kavachOn && !planner
       ? [
           {
             id: 'kavach' as const,

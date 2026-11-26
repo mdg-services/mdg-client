@@ -4,6 +4,7 @@
  * here is a compile error. Same `{placeholders}` as the English.
  */
 import type { MessageKey } from './i18n';
+import { plannerHl } from './i18n.planner';
 
 export const hl: Readonly<Record<MessageKey, string>> = {
   'common.loading': 'Load ho raha hai…',
@@ -1588,4 +1589,6 @@ export const hl: Readonly<Record<MessageKey, string>> = {
   'chat.workPermitDoneQuestion': 'Kaam ho gaya?',
   'chat.workPermitYesDone': 'Haan, kaam ho gaya',
   'chat.workPermitMoreTime': 'Nahin, aur time chahiye',
+  // New Pump Guide (ADR 0058): its own file, see i18n.planner.ts.
+  ...plannerHl,
 };

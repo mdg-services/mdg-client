@@ -8,6 +8,7 @@ import { firstScreen } from '@/features/auth/firstScreen';
 // on a 2G link would cost far more than the code does.
 import { OpenMyChat } from '@/features/chat/OpenMyChat';
 import { EmbedStatus } from '@/features/embed/EmbedStatus';
+import { useIsPlanner } from '@/features/planner/isPlanner';
 import { ReportHost } from '@/features/reports/lazy';
 import {
   RealLocationContext,
@@ -33,6 +34,27 @@ const LoginPage = lazyRoute(() =>
 );
 const RegisterPage = lazyRoute(() =>
   import('@/pages/RegisterPage').then((m) => ({ default: m.RegisterPage })),
+);
+// The first screen on a new phone (ADR 0058 §3.1): "I run a pump" or "I want to open one".
+const WelcomePage = lazyRoute(() =>
+  import('@/pages/WelcomePage').then((m) => ({ default: m.WelcomePage })),
+);
+// New Pump Guide's sign-up (ADR 0058 §3.2). Its own chunk: an outlet never downloads it.
+const NewPumpRegisterPage = lazyRoute(() =>
+  import('@/pages/NewPumpRegisterPage').then((m) => ({ default: m.NewPumpRegisterPage })),
+);
+// A planner's home, plan page and the switch to Dealer Kavach (ADR 0058): their own
+// chunks, so nobody running a pump downloads them.
+const PlannerHome = lazyRoute(() =>
+  import('@/features/planner/PlannerHome').then((m) => ({ default: m.PlannerHome })),
+);
+const PlannerPlanPage = lazyRoute(() =>
+  import('@/features/planner/PlannerPlanPage').then((m) => ({ default: m.PlannerPlanPage })),
+);
+const SwitchToDealerKavachPage = lazyRoute(() =>
+  import('@/features/planner/SwitchToDealerKavachPage').then((m) => ({
+    default: m.SwitchToDealerKavachPage,
+  })),
 );
 // The first screen (ADR 0055): what is waiting, the reports, what MDG did today.
 const TodayPage = lazyRoute(() =>
@@ -114,35 +136,42 @@ const PaymentDetailPage = lazyRoute(() =>
  * a screen already downloaded keeps working when the server's files change.
  */
 function usePreloadScreens() {
+  // A planner (ADR 0058) has no reports or Kavach: their own home comes down instead.
+  const planner = useIsPlanner();
   React.useEffect(
     () =>
-      preloadScreens(
-        [
-          // The Chats tab's list first: Today is the screen already on show, so it
-          // is not worth a slow link's budget, and the list is one tap away. Today
-          // stays in the long list for a cold open at /chat/:id.
-          ChatListPage,
-          ChatPage,
-          TodayPage,
-          // A report is one tap from a chat, a tile and a push, so its overlay (every kind's
-          // drawing) comes down once the app is up, and the tap needs no download.
-          ReportHost,
-          ReportsPage,
-          KavachPage,
-          SettingsPage,
-          ChatInfoPage,
-          ChatMediaPage,
-          ServicesPage,
-          StaffPage,
-          HelpVideosPage,
-          SettingsProfilePage,
-          SettingsAccountPage,
-          SettingsTeamPage,
-          LoginPage,
-        ],
-        [ChatListPage, ChatPage],
-      ),
-    [],
+      planner
+        ? preloadScreens(
+            [ChatListPage, ChatPage, PlannerHome, SettingsPage, PlannerPlanPage],
+            [ChatListPage, ChatPage],
+          )
+        : preloadScreens(
+            [
+              // The Chats tab's list first: Today is the screen already on show, so it
+              // is not worth a slow link's budget, and the list is one tap away. Today
+              // stays in the long list for a cold open at /chat/:id.
+              ChatListPage,
+              ChatPage,
+              TodayPage,
+              // A report is one tap from a chat, a tile and a push, so its overlay (every kind's
+              // drawing) comes down once the app is up, and the tap needs no download.
+              ReportHost,
+              ReportsPage,
+              KavachPage,
+              SettingsPage,
+              ChatInfoPage,
+              ChatMediaPage,
+              ServicesPage,
+              StaffPage,
+              HelpVideosPage,
+              SettingsProfilePage,
+              SettingsAccountPage,
+              SettingsTeamPage,
+              LoginPage,
+            ],
+            [ChatListPage, ChatPage],
+          ),
+    [planner],
   );
 }
 
@@ -159,6 +188,7 @@ function usePreloadScreens() {
  */
 function Home() {
   const [params] = useSearchParams();
+  const planner = useIsPlanner();
   const { state } = useLocation();
   const legacy = legacyThreadId(params);
   if (legacy) return <Navigate to={`/chat/${encodeURIComponent(legacy)}`} replace />;
@@ -169,6 +199,8 @@ function Home() {
   // The extension's side panel has no Today and no tab bar (ADR 0055 §1): it enters
   // at the chat, and anything that lands on the front door goes there.
   if (isEmbedded()) return <Navigate to="/chat" replace />;
+  // Someone planning a pump (ADR 0058) has no reports or outlet to show: their own home.
+  if (planner) return <PlannerHome />;
   return <TodayPage />;
 }
 
@@ -229,14 +261,21 @@ function useMonitoringIdentity() {
   }, [user]);
 }
 
-/** The Reports tab: the panel has none (no tab bar, no Today), so its address goes to the chat. */
+/**
+ * The Reports tab: the panel has none (no tab bar, no Today), so its address goes to the chat.
+ * A planner (ADR 0058) has no pump to report on: home.
+ */
 function ReportsRoute() {
-  return isEmbedded() ? <Navigate to="/chat" replace /> : <ReportsPage />;
+  const planner = useIsPlanner();
+  if (isEmbedded()) return <Navigate to="/chat" replace />;
+  return planner ? <Navigate to="/" replace /> : <ReportsPage />;
 }
 
-/** The Kavach tab: the panel has none either, so its address goes to the chat. */
+/** The Kavach tab: the panel has none either, so its address goes to the chat. Nor has a planner. */
 function KavachRoute() {
-  return isEmbedded() ? <Navigate to="/chat" replace /> : <KavachPage />;
+  const planner = useIsPlanner();
+  if (isEmbedded()) return <Navigate to="/chat" replace />;
+  return planner ? <Navigate to="/" replace /> : <KavachPage />;
 }
 
 export function App() {
@@ -266,6 +305,15 @@ export function App() {
             <Route
               path="/register"
               element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
+            />
+            {/* ADR 0058: the first-open choice, and New Pump Guide's sign-up. */}
+            <Route
+              path="/welcome"
+              element={embedded ? <Navigate to="/chat" replace /> : <WelcomePage />}
+            />
+            <Route
+              path="/register/new-pump"
+              element={embedded ? <Navigate to="/chat" replace /> : <NewPumpRegisterPage />}
             />
             <Route element={<ProtectedLayout />}>
               {/* Tabs (ADR 0055, 0056). The app opens on TODAY: what is waiting on the
@@ -306,6 +354,10 @@ export function App() {
               {/* The owner's portal logins and what they were before. A Settings row
                   (owner only) opens it; the server refuses anyone else. */}
               <Route path="/settings/logins" element={<LoginsPage />} />
+              {/* New Pump Guide (ADR 0058): the plan, and the switch to Dealer Kavach once
+                  the pump opens. Both send anyone who is not a planner on. */}
+              <Route path="/settings/new-pump-guide" element={<PlannerPlanPage />} />
+              <Route path="/switch-to-dealer-kavach" element={<SwitchToDealerKavachPage />} />
               {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
                   and not a redirect: nothing about it needs to change address. */}
               <Route path="/profile" element={<SettingsPage />} />

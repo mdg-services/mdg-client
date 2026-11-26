@@ -146,6 +146,9 @@ export const ADMIN_ALERT_KINDS = [
   // ── Work permits (ADR 0053) ──
   /** A work permit needs a person: a lost Submit answer, a refusal, a changed form, a close that failed. */
   'work_permit_attention',
+  // ── New Pump Guide (ADR 0058) ──
+  /** A person planning a pump opened it and switched to Dealer Kavach: their setup has begun. */
+  'planner_switched',
 ] as const;
 export type AdminAlertKind = (typeof ADMIN_ALERT_KINDS)[number];
 
@@ -467,6 +470,12 @@ export const ADMIN_ALERT_KIND_INFO: Record<AdminAlertKind, AdminAlertKindInfo> =
   },
   work_permit_attention: {
     label: 'Work permit',
+    clearsWhen: 'Closes once marked seen, or after a day.',
+    superAdminOnly: false,
+  },
+  // Every admin: a switched planner is a new outlet being set up, which is anyone's work.
+  planner_switched: {
+    label: 'Kavach Shuruaat switch',
     clearsWhen: 'Closes once marked seen, or after a day.',
     superAdminOnly: false,
   },

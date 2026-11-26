@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import { isPlannerUser } from '@/features/planner/isPlanner';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { Attachment, KavachDealerCheck, KavachDealerView } from '@dk/shared/types';
@@ -20,10 +21,12 @@ const ME = '/v1/kavach/me';
 export function useKavach() {
   const token = useAuthStore((s) => s.token);
   const role = useAuthStore((s) => s.user?.role);
+  const planner = useAuthStore((s) => isPlannerUser(s.user));
   return useQuery({
     queryKey: kavachKey,
     // The dealer app's own route: an admin who signs in here has no outlet.
-    enabled: !!token && role !== 'admin',
+    // A planner (ADR 0058) has no outlet: nothing to ask for.
+    enabled: !!token && role !== 'admin' && !planner,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     queryFn: () => api.get<KavachDealerView>(ME),

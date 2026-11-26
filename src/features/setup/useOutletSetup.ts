@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
+import { isPlannerUser } from '@/features/planner/isPlanner';
 import { invalidateChatSuggestions } from '@/hooks/api/useChatSuggestions';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { api } from '@/lib/api';
@@ -26,10 +27,12 @@ export const outletSetupKey = ['outlet-setup', 'me'] as const;
 export function useOutletSetup({ enabled = true }: { enabled?: boolean } = {}) {
   const token = useAuthStore((s) => s.token);
   const role = useAuthStore((s) => s.user?.role);
+  const planner = useAuthStore((s) => isPlannerUser(s.user));
   return useQuery({
     queryKey: outletSetupKey,
-    // The dealer app's own route: an admin who happens to sign in here has no outlet.
-    enabled: enabled && !!token && role !== 'admin',
+    // The dealer app's own route: an admin who happens to sign in here has no outlet,
+    // and neither has someone planning a pump (ADR 0058): no setup strip, card or bill banner.
+    enabled: enabled && !!token && role !== 'admin' && !planner,
     // Long enough that the strip and several cards share one answer.
     staleTime: 30_000,
     // The app's default is "never" (the WebView fires focus on every keyboard

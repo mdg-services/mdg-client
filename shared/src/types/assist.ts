@@ -460,6 +460,13 @@ export interface AssistTurnResult {
    * question. The widget then offers to register it as a grievance.
    */
   grievance?: AssistGrievanceOffer;
+  /**
+   * The answer points to the Dealer Kavach app (ADR 0058 §8): `new_pump` for a
+   * question about opening a pump (New Pump Guide answers it in full), `dealer`
+   * for someone who runs one. The widget shows the store buttons under the reply,
+   * and no callback offer for it.
+   */
+  appPromo?: 'new_pump' | 'dealer';
   /** Turns left before the session's cap. Lets the widget warn rather than just stop. */
   turnsRemaining: number;
 }

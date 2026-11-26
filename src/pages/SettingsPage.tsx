@@ -2,6 +2,7 @@ import {
   ArrowLeftRight,
   BatteryWarning,
   Bell,
+  Compass,
   FileText,
   Globe,
   GraduationCap,
@@ -23,6 +24,9 @@ import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, EmptyState } from '@/components/ui';
 import { OutletSheet } from '@/features/outlets/OutletSheet';
 import { hasOtherOutlets, useOutlets } from '@/features/outlets/useOutlets';
+import { isPlannerUser } from '@/features/planner/isPlanner';
+import { planSummary } from '@/features/planner/planView';
+import { usePlannerView } from '@/features/planner/usePlanner';
 import { BatteryGuideSheet, batteryGuideMaker } from '@/features/push/BatteryGuide';
 import { requestPushPermission } from '@/hooks/usePushBridge';
 import { cn } from '@/lib/cn';
@@ -82,6 +86,8 @@ export function SettingsPage() {
   const showBatteryGuide = showNotifications && batteryGuideMaker() !== null;
   const [batteryOpen, setBatteryOpen] = React.useState(false);
   const closeBattery = React.useCallback(() => setBatteryOpen(false), []);
+  // ── New Pump Guide (ADR 0058) ── a planner's row says where the plan stands
+  const planView = usePlannerView();
 
   const bar = <AppBar title={t('settings.title')} onBack={goBack} />;
 
@@ -98,7 +104,12 @@ export function SettingsPage() {
   }
 
   const isOwner = user.role === 'dealer-owner';
-  const canManageStaff = isOwner || user.role === 'dealer-staff';
+  // Someone planning a pump has no outlet: no portal logins, team, services or
+  // warriors (the screens behind those rows would have nothing to show), and a New
+  // Pump Guide row instead.
+  const planner = isPlannerUser(user);
+  const canManageStaff = !planner && (isOwner || user.role === 'dealer-staff');
+  const planState = planView.data ? planSummary(planView.data).state : null;
   // The phone number when there is one, else the email — the line WhatsApp keeps
   // under a member's name.
   const contact = user.phone || user.email;
@@ -151,13 +162,21 @@ export function SettingsPage() {
               onClick={() => setOutletsOpen(true)}
             />
           ) : null}
+          {planner ? (
+            <Row
+              icon={Compass}
+              title={t('planner.settingsRow')}
+              subtitle={planState ? t(`planner.state.${planState}`) : undefined}
+              onClick={() => navigate('/settings/new-pump-guide')}
+            />
+          ) : null}
           <Row
             icon={KeyRound}
             title={t('settings.account')}
             subtitle={t('settings.accountDesc')}
             onClick={() => navigate('/settings/account')}
           />
-          {isOwner ? (
+          {isOwner && !planner ? (
             <Row
               icon={LockKeyhole}
               title={t('logins.title')}
@@ -193,7 +212,7 @@ export function SettingsPage() {
               onClick={() => setBatteryOpen(true)}
             />
           ) : null}
-          {isOwner ? (
+          {isOwner && !planner ? (
             <Row
               icon={UsersRound}
               title={t('settings.team')}
@@ -201,12 +220,14 @@ export function SettingsPage() {
               onClick={() => navigate('/settings/team')}
             />
           ) : null}
-          <Row
-            icon={Wrench}
-            title={t('profile.yourServices')}
-            subtitle={t('profile.servicesRowDesc')}
-            onClick={() => navigate('/services')}
-          />
+          {planner ? null : (
+            <Row
+              icon={Wrench}
+              title={t('profile.yourServices')}
+              subtitle={t('profile.servicesRowDesc')}
+              onClick={() => navigate('/services')}
+            />
+          )}
           {canManageStaff ? (
             <Row
               icon={Users}
