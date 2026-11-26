@@ -389,3 +389,23 @@
     background-color: transparent;
   }
 }
+
+/* A living card's tick (ADR 0059): it lands with one short pop, once. */
+.flow-tick {
+  animation: flow-tick 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes flow-tick {
+  from {
+    transform: scale(0.55);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .flow-tick {
+    animation: none;
+  }
+}

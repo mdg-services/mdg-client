@@ -3,14 +3,17 @@ import { ChevronDown, MessageCircleHeart } from 'lucide-react';
 import * as React from 'react';
 
 import { EmptyState, Spinner, useToast } from '@/components/ui';
+import { FlowCardMessage } from '@/features/flowCard/FlowCard';
 import { isRetiredSetupCard } from '@/features/setup/SetupCard';
+import { SetupJourneyCard } from '@/features/setup/SetupJourneyCard';
+import { stripVisible } from '@/features/setup/stripView';
 import type { ChatAskStates } from '@/hooks/api/useChatAskStates';
 import { renderKey } from '@/hooks/api/useMessages';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
 import { useAttachmentDownload } from '@/lib/downloadAttachment';
 import { useLang, useT } from '@/lib/i18n';
-import { QUICK_REACTIONS, type Attachment, type Message } from '@dk/shared/types';
+import { QUICK_REACTIONS, type Attachment, type Message, type OutletSetupView } from '@dk/shared/types';
 
 import { askViewOf } from './askView';
 import { MediaViewer } from './MediaViewer';
@@ -23,6 +26,7 @@ import {
   viewerKey,
   type UnreadOnOpen,
 } from './messageRuns';
+import { pickedChoice } from './ReplyChoices';
 import { chatAttachments, isReportBubble } from './reportBubble';
 import { SwipeToReply } from './SwipeToReply';
 
@@ -86,6 +90,11 @@ export interface MessageListProps {
   onReply?: (message: Message) => void;
   /** A tap on one of the answer buttons under MDG's newest question: send these words. */
   onChoice?: (text: string) => void;
+  /**
+   * The outlet's setup, when this thread carries setup messages (ADR 0059): the newest of
+   * them paints the one setup card from it. Absent anywhere else.
+   */
+  setupView?: OutletSetupView | null;
   /** Fetch one older page (jump-to-quote auto-load); pass fetchNextPage. */
   onFetchOlder?: () => Promise<FetchOlderResult>;
   /** The history could not be loaded — say so instead of showing an empty thread. */
@@ -121,6 +130,27 @@ export interface MessageListProps {
  * without moving what you are reading; a round button back to the latest
  * message; and a selection mode in place of an action sheet.
  */
+/** The words of the first message after `idx` that someone other than its sender wrote. */
+function nextBody(ordered: readonly Message[], idx: number, senderId: string): string | undefined {
+  for (let j = idx + 1; j < ordered.length; j++) {
+    const n = ordered[j]!;
+    if (n.senderId !== senderId && n.senderRole !== 'admin' && !n.system) return n.body;
+  }
+  return undefined;
+}
+
+/** The setup messages the one setup card stands for (`welcome` stays as words and its video). */
+const JOURNEY_KINDS: ReadonlySet<string> = new Set(['company', 'billing', 'payment', 'logins', 'started']);
+/** The stages at which the setup's login request is still the card's logins row. */
+const LOGIN_ROW_STAGES: ReadonlySet<string> = new Set(['company', 'billing', 'payment', 'logins']);
+
+/** A message the one setup card stands for, while the outlet is being set up. */
+export function isJourneyMessage(m: Message, view: OutletSetupView): boolean {
+  if (m.setupCard && JOURNEY_KINDS.has(m.setupCard.card)) return true;
+  // The setup's own login request (not the "which password?" picker): its box is the card's row.
+  return !!m.portalLogin && !m.portalLogin.pick && LOGIN_ROW_STAGES.has(view.stage);
+}
+
 export function MessageList({
   messages,
   currentUserId,
@@ -140,6 +170,7 @@ export function MessageList({
   onOpenReactions,
   onReply,
   onChoice,
+  setupView,
   onFetchOlder,
   failed,
   onRetry,
@@ -219,6 +250,20 @@ export function MessageList({
     [messages],
   );
   const newestId = ordered[ordered.length - 1]?.id;
+
+  // THE SETUP AS ONE CARD (ADR 0059): while the outlet is being set up, the newest
+  // setup message paints the whole "डीलर कवच शुरू करें" card, and the older setup
+  // messages fold away (each was one step's card; the one card now holds them all). The
+  // setup's own login request belongs to it too, until the logins step is past: its box
+  // is the card's logins row.
+  const journeyView = setupView && stripVisible(setupView) ? setupView : null;
+  const setupLiveId = React.useMemo(() => {
+    if (!journeyView) return null;
+    for (let i = ordered.length - 1; i >= 0; i--) {
+      if (isJourneyMessage(ordered[i]!, journeyView)) return ordered[i]!.id;
+    }
+    return null;
+  }, [ordered, journeyView]);
 
   // ── Older history ───────────────────────────────────────────────────────
   const requestOlder = React.useCallback(() => {
@@ -588,6 +633,29 @@ export function MessageList({
       const askView = m.ask ? askViewOf(m, askStates) : undefined;
       const marks =
         term && m.body && m.body.toLowerCase().includes(term) ? highlight!.trim() : undefined;
+      if (journeyView && isJourneyMessage(m, journeyView)) {
+        if (m.id === setupLiveId) {
+          out.push(
+            <div key={renderKey(m.id)} data-mid={m.id} data-day={label} className="px-3 pt-2">
+              <div className="w-[92%] max-w-[22.5rem]">
+                <SetupJourneyCard view={journeyView} />
+              </div>
+            </div>,
+          );
+        }
+        return;
+      }
+      // A LIVING CARD (ADR 0059) is not a bubble: it is the card itself, at the chat's MDG
+      // side, painted only on the message the card names live (an older copy paints nothing,
+      // and its row folds away with it).
+      if (m.flowCard) {
+        out.push(
+          <div key={renderKey(m.id)} data-mid={m.id} data-day={label} className="px-3 pt-2 empty:hidden">
+            <FlowCardMessage message={m} onSay={onChoice} />
+          </div>,
+        );
+        return;
+      }
       out.push(
         <SwipeToReply
           key={renderKey(m.id)}
@@ -639,6 +707,8 @@ export function MessageList({
             // written after the question, it has been answered (or moved past).
             choicesLive={m.id === newestId}
             onChoice={onChoice}
+            // The reply that followed a question with buttons: the one it names stays, ticked.
+            answeredWith={m.replyChoices ? pickedChoice(m.replyChoices, nextBody(ordered, idx, m.senderId), lang) : null}
           />
           {soleSelected === m.id && onReact ? (
             <ReactionStrip
@@ -677,6 +747,8 @@ export function MessageList({
     onAskAnswer,
     newestId,
     onChoice,
+    journeyView,
+    setupLiveId,
   ]);
 
   const viewerItems = React.useMemo(

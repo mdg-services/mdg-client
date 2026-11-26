@@ -32,6 +32,7 @@ import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
 import { BillDueBanner } from '@/features/setup/BillDueBanner';
 import { SetupStrip } from '@/features/setup/SetupStrip';
+import { useOutletSetup } from '@/features/setup/useOutletSetup';
 import { useChatAskStates } from '@/hooks/api/useChatAskStates';
 import { useChatSuggestions } from '@/hooks/api/useChatSuggestions';
 import { messagesQueryKey, useMessages } from '@/hooks/api/useMessages';
@@ -225,6 +226,12 @@ export function ChatPage() {
     () => (messagesQuery.data?.pages ?? []).flat().map((m) => withReaderPictures(m, readerLang)),
     [messagesQuery.data, readerLang],
   );
+  // The setup card (ADR 0059) is drawn in this thread: the strip above the chat steps aside.
+  const hasSetupCard = React.useMemo(
+    () => messages.some((m) => ['company', 'billing', 'payment', 'logins', 'started'].includes(m.setupCard?.card ?? '')),
+    [messages],
+  );
+  const setupQ = useOutletSetup({ enabled: hasSetupCard && conversation?.kind !== 'manager' });
 
   // Where each request MDG posted here stands — what its button, "Sent" or
   // "Received" is drawn from.
@@ -640,7 +647,9 @@ export function ChatPage() {
           ALWAYS MOUNTED, hiding itself: a child that came and went (`cond ?
           <X/> : null`) would make React rebuild this list of children by key
           — and the list and the composer below both carry the thread's id. */}
-      <SetupStrip disabled={isGroup} hidden={selecting || searching} />
+      {/* The strip steps aside once the setup card (ADR 0059) is in the chat: the card
+          holds every step. An outlet whose setup messages are not loaded keeps the strip. */}
+      <SetupStrip disabled={isGroup} hidden={selecting || searching || hasSetupCard} />
 
       <MessageList
         key={conversationId}
@@ -672,6 +681,7 @@ export function ChatPage() {
         askStates={askStates}
         onAskAnswer={handleAskAnswer}
         onChoice={handleChoice}
+        setupView={hasSetupCard && !isGroup ? (setupQ.data ?? null) : null}
       />
 
       <Composer

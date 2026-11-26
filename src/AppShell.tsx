@@ -9,6 +9,7 @@ import { useDeclarationsSocket } from '@/features/chat/useDeclarationsSocket';
 import { useDuOtpSocket } from '@/features/chat/useDuOtpSocket';
 import { useMockDrillSocket } from '@/features/chat/useMockDrillSocket';
 import { useWorkPermitsSocket } from '@/features/chat/useWorkPermitsSocket';
+import { useFlowCardSocket } from '@/features/flowCard/useFlowCard';
 import { useKavachSocket } from '@/features/kavach/useKavachSocket';
 import { ReportHost } from '@/features/reports/lazy';
 import { parseReportPath, useRealLocation } from '@/features/reports/reportNav';
@@ -58,6 +59,7 @@ export function AppShell() {
   useOutletSetupSocket(); // keep the setup cards + strip following MDG's team
   useDuOtpSocket(); // keep the DU OTP box in the chat following the portal and the owner's answers
   useComplaintsSocket(); // keep the complaint boxes following the filing, the portal and the engineer
+  useFlowCardSocket(); // keep the living cards (ADR 0059) following the order desk and the portal
   useWorkPermitsSocket(); // keep the work-permit box following the issue run and the close
   useMockDrillSocket(); // keep the Mock Drill box following the admin's check and the filing
   useDeclarationsSocket(); // keep the Declarations box following the filing of the washroom photos

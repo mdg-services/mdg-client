@@ -38,3 +38,4 @@ export * from './announcement';
 export * from './yourVideos';
 export * from './complaints';
 export * from './workPermits';
+export * from './flowCard';
