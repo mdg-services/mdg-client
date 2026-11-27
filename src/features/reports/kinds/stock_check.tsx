@@ -448,7 +448,14 @@ function tile(data: StockCheckData, lang: Lang): KindTile | null {
       lang === 'hi' ? `${dead} टंकी की रीडिंग नहीं` : lang === 'hl' ? `${dead} tanki ki reading nahi` : `${dead} tank${dead === 1 ? '' : 's'} not reading`,
     );
   }
-  return { value, sub: bits.join(' · '), status: old ? 'attention' : 'ok' };
+  const status = old ? ('attention' as const) : ('ok' as const);
+  if (data.fuels.length === 1) return { value, sub: bits.join(' · '), status };
+  // Several fuels: one row each; a fuel with no reading says so quietly instead of passing for a figure.
+  const rows = data.fuels.map((f) => {
+    const none = f.tanksRead === 0;
+    return { label: fuelName(f.fuelKey, lang), value: none ? t(W.noReading, lang) : litres(f.totalL), ...(none ? { quiet: true } : {}) };
+  });
+  return { value, sub: bits.join(' · '), status, rows, lines: bits };
 }
 
 function alert(data: StockCheckData, lang: Lang): KindAlert | null {

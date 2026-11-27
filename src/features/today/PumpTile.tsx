@@ -3,7 +3,7 @@ import { CircleDashed } from 'lucide-react';
 import { kindStyle } from '@/features/reports/kindStyle';
 import { StatusBadge, statusWord } from '@/features/reports/StatusBadge';
 import { getKindView } from '@/features/reports/registry';
-import { sayWords } from '@/features/reports/types';
+import { sayWords, type KindTile, type TileRow } from '@/features/reports/types';
 import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import type { ReportKind, TodayReport } from '@dk/shared/types';
@@ -23,11 +23,28 @@ export function tileValueStyle(value: string): { size: string; unbroken: boolean
   return { size, unbroken: !/\s/.test(value), figure: /\d/.test(value) };
 }
 
+/** Most small facts a tile shows under its figures; the report has the rest. */
+export const TILE_LINES_MAX = 3;
+
 /**
- * One tile of "Your pump today": the report's family colour and icon, its name, one big
- * value, one small line, and its own signature in miniature (the same shape the report
- * opens with). A badge appears only when the report is not fine, always as a shape and a
- * word. The whole tile is one target that opens the report.
+ * The small facts of a tile, one per line. A kind that sets `lines` decides them; any other kind's
+ * `sub` is cut at its " · " joints, so a fact never has to share a line with the next one.
+ */
+export function tileLines(tile: KindTile): string[] {
+  const raw = tile.lines ?? (tile.sub ? tile.sub.split(' · ') : []);
+  return raw.map((x) => x.trim()).filter(Boolean).slice(0, TILE_LINES_MAX);
+}
+
+/** A tile with two or more rows is a ledger: it needs the full width, so a fuel and its figure share a line. */
+export function tileIsWide(item: Pick<TileItem, 'slot' | 'tile'>): boolean {
+  return !!item.slot.wide || (item.tile.rows?.length ?? 0) > 1;
+}
+
+/**
+ * One tile of "Your pump today", three bands top to bottom: who it is (the report's icon and name),
+ * what it says (one big figure, or a ledger of one row per fuel), and the small facts, one per
+ * line. A badge closes the tile only when the report is not fine, always as a shape and a word.
+ * The whole tile is one target that opens the report.
  */
 export function PumpTile({
   item,
@@ -52,6 +69,9 @@ export function PumpTile({
     today && item.day && item.day !== today
       ? reportDayLabel({ day: item.day, sentAt: item.report.sentAt }, today, lang, t)
       : '';
+  const lines = tileLines(tile);
+  const rows = tile.rows ?? [];
+  const wide = tileIsWide(item);
   const value = tileValueStyle(tile.value);
   const label = [
     `${name}: ${tile.value}`,
@@ -66,7 +86,7 @@ export function PumpTile({
       data-tile={item.slot.id}
       data-report-id={item.report.messageId}
       data-report-kind={item.kind}
-      className={cn('shadow-[inset_-1px_-1px_0_var(--color-border)]', item.slot.wide && 'col-span-full')}
+      className={cn('shadow-[inset_-1px_-1px_0_var(--color-border)]', wide && 'col-span-full')}
     >
       <button
         type="button"
@@ -74,42 +94,107 @@ export function PumpTile({
         aria-label={label}
         className={cn(
           'flex h-full w-full flex-col px-3.5 pb-3.5 pt-3 text-left transition-colors duration-150 active:bg-surface-2',
-          item.slot.wide ? 'min-h-[112px]' : 'min-h-[136px]',
+          wide ? 'min-h-[112px]' : 'min-h-[136px]',
         )}
       >
-        {/* The report's own signature in miniature, in its family ink, beside its name. */}
+        {/* Who it is: the report's own signature in miniature, in its family ink, beside its name. */}
         <span className="flex items-center gap-2">
           <span className="flex h-6 shrink-0 items-center" style={{ color: familyVar(item.kind, '-ink') }} aria-hidden>
             <Glyph size={20} />
           </span>
           <span className="min-w-0 break-words text-meta font-medium text-text-muted">{name}</span>
         </span>
-        <span
-          data-tile-value
-          className={cn(
-            'mt-2 font-semibold tabular-nums tracking-[-0.015em] text-text [overflow-wrap:normal]',
-            value.size,
-            value.figure ? 'leading-tight' : 'leading-normal',
-            value.unbroken && 'whitespace-nowrap',
-          )}
-        >
-          {tile.value}
-        </span>
-        {tile.sub ? (
-          <span className="mt-1 break-words text-meta text-text-muted">{tile.sub}</span>
-        ) : null}
-        {when ? (
-          <span data-tile-day className="mt-0.5 text-meta font-medium text-text-muted">
-            {when}
+        {/* What it says. */}
+        {rows.length > 1 ? (
+          <TileLedger rows={rows} />
+        ) : rows.length === 1 ? (
+          <TileFigure row={rows[0]!} />
+        ) : (
+          <span
+            data-tile-value
+            className={cn(
+              'mt-2 font-semibold tabular-nums tracking-[-0.015em] text-text [overflow-wrap:normal]',
+              value.size,
+              value.figure ? 'leading-tight' : 'leading-normal',
+              value.unbroken && 'whitespace-nowrap',
+            )}
+          >
+            {tile.value}
+          </span>
+        )}
+        {/* The small facts, one to a line. */}
+        {lines.length > 0 || when ? (
+          <span data-tile-lines className="mt-2 flex flex-col gap-0.5">
+            {lines.map((line) => (
+              <span key={line} className="break-words text-meta text-text-muted">
+                {line}
+              </span>
+            ))}
+            {when ? (
+              <span data-tile-day className="text-meta font-medium text-text-muted">
+                {when}
+              </span>
+            ) : null}
           </span>
         ) : null}
         {showBadge && tile.status ? (
-          <span className="mt-auto pt-2">
+          <span className="mt-auto pt-2.5">
             <StatusBadge status={tile.status} lang={lang} />
           </span>
         ) : null}
       </button>
     </li>
+  );
+}
+
+/**
+ * A ledger of figures: the name on the left, the number on the right, a hairline between rows, so
+ * the eye runs down one column of numbers. Spans only, because a button may hold nothing else.
+ */
+function TileLedger({ rows }: { rows: TileRow[] }) {
+  return (
+    <span data-tile-rows className="mt-1.5 flex flex-col divide-y divide-border">
+      {rows.map((row) => (
+        <span key={row.label} data-tile-row className="flex items-baseline gap-2 py-1.5 first:pt-0.5">
+          <span className="min-w-0 flex-1 break-words text-body text-text">
+            {row.label}
+            {row.hint ? <span className="ms-1.5 text-meta text-text-muted">{row.hint}</span> : null}
+          </span>
+          <span
+            data-tile-row-value
+            className={cn(
+              'shrink-0 whitespace-nowrap tabular-nums',
+              row.quiet ? 'text-meta text-text-muted' : 'text-subheading text-text',
+            )}
+          >
+            {row.value}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** One figure with its name small above it: "Diesel · over" over "+908 L". */
+function TileFigure({ row }: { row: TileRow }) {
+  const value = tileValueStyle(row.value);
+  return (
+    <span data-tile-rows className="mt-2 flex flex-col">
+      <span className="break-words text-meta text-text-muted">
+        {row.label}
+        {row.hint ? ` · ${row.hint}` : ''}
+      </span>
+      <span
+        data-tile-value
+        className={cn(
+          'font-semibold tabular-nums leading-tight tracking-[-0.015em] text-text [overflow-wrap:normal]',
+          value.size,
+          value.unbroken && 'whitespace-nowrap',
+        )}
+      >
+        {row.value}
+      </span>
+    </span>
   );
 }
 

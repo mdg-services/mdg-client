@@ -31,13 +31,42 @@ export function sayWords(w: Words, lang: Lang): string {
  */
 export type ReportStatusKey = 'problem' | 'attention' | 'waiting' | 'ok' | 'info';
 
-/** What a Today tile shows: the one big value, one small line, and how it stands. */
+/** One line of a tile's figures: the name on the left, the number on the right. */
+export interface TileRow {
+  /** What the number is about ("Diesel"). */
+  label: string;
+  /** The number, already formatted ("14,920 L", "+908 L"). */
+  value: string;
+  /** A short word or figure beside the label ("over", "+4%"). */
+  hint?: string;
+  /** The row has no figure to show ("No reading"): it is drawn quietly, not as a number. */
+  quiet?: boolean;
+}
+
+/**
+ * What a Today tile shows: the one big value, one small line, and how it stands.
+ *
+ * `value` and `sub` are the tile's whole meaning in plain words: they are what a screen reader hears
+ * and what a plain-text summary uses. `rows` and `lines` are the same facts set out for the eye: a
+ * tile that speaks for several fuels draws one row per fuel instead of one long sentence, and each
+ * small fact sits on its own line instead of between dots.
+ */
 export interface KindTile {
   /** The big text, already formatted ("24,330 L", "10 / 12", "All fine"). */
   value: string;
-  /** One 14 px line under it ("lasts 4 days"). */
+  /** The small text under it ("lasts 4 days"), facts joined with " · ". */
   sub?: string;
   status?: ReportStatusKey;
+  /**
+   * One row per fuel (or per thing). Two or more rows make the tile full width and replace the big
+   * value; one row shows its label small above its figure.
+   */
+  rows?: TileRow[];
+  /**
+   * The small facts, one per line, drawn instead of `sub`. Without it the tile cuts `sub` at each
+   * " · ", so a kind that joins its facts with dots gets one fact per line without any extra work.
+   */
+  lines?: string[];
 }
 
 /** What a "Needs a look" card shows: one plain headline, one line, how hard it knocks. */

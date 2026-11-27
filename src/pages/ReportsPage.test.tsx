@@ -208,13 +208,14 @@ describe('the Reports tab', () => {
     expect(state.report.messageId).toBe('m-open');
   });
 
-  it('makes every row one big tap target, and lets the status wrap under the words at large text', async () => {
+  it('makes every row one big tap target, with the status under the words so it never squeezes them', async () => {
     apiGet.mockResolvedValue(page([row()]));
     renderPage();
     const r = await screen.findByTestId('report-history-row');
     expect(r.className).toMatch(/min-h-\[72px\]/);
-    expect(r.className).toMatch(/flex-wrap/);
     expect(r.className).toMatch(/w-full/);
+    // One text column holds the name, the words and the status: nothing sits beside the words.
+    expect(r.children).toHaveLength(2);
   });
 });
 

@@ -638,7 +638,27 @@ function tile(data: DsrSalesData, lang: Lang): KindTile | null {
   }
   const day = sold[0]!.sales.closedDay;
   const sub = [day ? dayWords(day, lang) : null, ...parts].filter(Boolean).join(' · ');
-  return { value, sub, status: pending.length > 0 ? 'waiting' : 'info' };
+  const status = pending.length > 0 ? ('waiting' as const) : ('info' as const);
+  if (sold.length === 1) return { value, sub, status };
+  // Several fuels: one row each (name left, litres right, the week's change beside the name), and
+  // the small facts on their own lines instead of one sentence between dots.
+  const rows = sold.map((p) => {
+    const c = weekCompare(p.sales);
+    return {
+      label: fuelName(p.key, lang),
+      value: litres(p.sales.soldL as number),
+      ...(c ? { hint: c.pct === 0 ? '0%' : `${c.pct > 0 ? '+' : MINUS}${Math.abs(c.pct)}%` } : {}),
+    };
+  });
+  const lines: string[] = [];
+  if (day) lines.push(dayWords(day, lang));
+  const sample = sold.map((p) => weekCompare(p.sales)).find((c) => c !== null);
+  if (sample) {
+    const when = lastWeekday(sample.lastDay, lang);
+    lines.push(lang === 'hi' ? `${when} से तुलना` : lang === 'hl' ? `${when} se tulna` : `Change vs ${when}`);
+  }
+  if (pending.length > 0) lines.push(parts[parts.length - 1]!);
+  return { value, sub, status, rows, lines };
 }
 
 function headline(data: DsrSalesData, lang: Lang): string {

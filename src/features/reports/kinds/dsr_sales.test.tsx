@@ -21,6 +21,13 @@ describe('dsr_sales: tile', () => {
     expect(tile.sub).toContain('last Monday');
     // Sales judge nothing: the tile is plain information.
     expect(tile.status).toBe('info');
+    // The same facts set out for the eye: a row per fuel, the week's change beside the name,
+    // and the day and what the change is against on lines of their own.
+    expect(tile.rows).toEqual([
+      { label: 'Diesel', value: '10,430 L', hint: '+6%' },
+      { label: 'Petrol', value: '4,210 L', hint: '−4%' },
+    ]);
+    expect(tile.lines).toEqual(['23 Nov', 'Change vs last Monday']);
   });
 
   it('shows one big number for one fuel', () => {

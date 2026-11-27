@@ -42,6 +42,29 @@ describe('stock_check: tile', () => {
     expect(tile.status).toBe('ok');
   });
 
+  it('draws one row per fuel and one fact per line', () => {
+    const tile = view.tile(stockData(), 'en')!;
+    expect(tile.rows).toEqual([
+      { label: 'Diesel', value: '16,200 L' },
+      { label: 'Petrol', value: '8,130 L' },
+    ]);
+    expect(tile.lines).toEqual(['Diesel lasts 4 days', 'Read 10:14 am', '1 tank not reading']);
+  });
+
+  it('keeps an old reading and its time on one line, and a fuel with no reading quiet', () => {
+    const d = stockData({ stale: true });
+    d.fuels[1] = { ...d.fuels[1]!, tanksRead: 0, tanksNoReading: 1, totalL: 0 };
+    const tile = view.tile(d, 'en')!;
+    expect(tile.rows![1]).toMatchObject({ label: 'Petrol', quiet: true });
+    expect(tile.lines![0]).toMatch(/^Old reading · Read /);
+  });
+
+  it('has no rows for one fuel: that is one big figure', () => {
+    const d = stockData();
+    d.fuels = [d.fuels[1]!];
+    expect(view.tile(d, 'en')!.rows).toBeUndefined();
+  });
+
   it('shows one big number for one fuel', () => {
     const d = stockData();
     d.fuels = [d.fuels[1]!];
