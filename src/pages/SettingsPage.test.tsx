@@ -18,7 +18,7 @@ vi.mock('@/lib/api', async (orig) => {
 const { SettingsPage } = await import('./SettingsPage');
 
 /** A stand-in for each place a row leads, so the test reads where a tap went. */
-const DESTINATIONS = ['/settings/profile', '/settings/account', '/pump', '/login'];
+const DESTINATIONS = ['/settings/profile', '/settings/account', '/settings/new-pump-guide', '/pump', '/login'];
 
 function renderSettings(route = '/settings') {
   useLangStore.setState({ lang: 'en', explicit: true });
@@ -83,6 +83,21 @@ describe('SettingsPage — what is on it', () => {
     signIn({ role: 'dealer-owner' });
     renderSettings();
     expect(screen.queryByText(title)).not.toBeInTheDocument();
+  });
+
+  it('for someone planning a pump: a Kavach Shuruaat row with the plan state, and still no outlet rows', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      active: false,
+      paidThrough: null,
+      bill: { state: 'sent', amountPaise: 23482, autopay: true },
+    } as never);
+    signIn({ id: 'owner', name: 'Sunita', role: 'dealer-owner', dealerStatus: 'PLANNING' });
+    renderSettings();
+
+    expect(await screen.findByText('Waiting for payment')).toBeInTheDocument();
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/v1/me/planner');
+    fireEvent.click(screen.getByRole('button', { name: /Kavach Shuruaat/ }));
+    expect(await screen.findByText('went:/settings/new-pump-guide')).toBeInTheDocument();
   });
 
   it('shows a manager the same quiet page', () => {

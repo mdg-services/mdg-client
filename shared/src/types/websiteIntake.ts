@@ -14,6 +14,8 @@
  * words, and a grievance may be about one of our own staff.
  */
 
+import type { PlannerOilCompany, PlannerStage } from './planner';
+
 // ── Grievances ─────────────────────────────────────────────────────────────
 
 /** What the grievance is about. Picked by the person on the form. */
@@ -115,14 +117,32 @@ export type EnrolmentSiteType = (typeof ENROLMENT_SITE_TYPES)[number];
 export const ENROLMENT_SOURCES = ['website', 'app'] as const;
 export type EnrolmentSource = (typeof ENROLMENT_SOURCES)[number];
 
+/**
+ * `outlet`: "Register your pump", from someone who runs one. `planner`: New Pump
+ * Guide, from someone planning one (ADR 0058 §3), with no pump, SAP code or site type yet.
+ */
+export const ENROLMENT_KINDS = ['outlet', 'planner'] as const;
+export type EnrolmentKind = (typeof ENROLMENT_KINDS)[number];
+
 export interface Enrolment {
   id: string;
+  /** Rows from before New Pump Guide read as `outlet`. */
+  kind: EnrolmentKind;
   name: string;
   mobile: string;
   email: string | null;
-  siteType: EnrolmentSiteType;
+  /** Null only for a planner: there is no pump yet. */
+  siteType: EnrolmentSiteType | null;
   pumpName: string | null;
+  /** "" for a planner: there is no pump yet. */
   sapCode: string;
+  /** What a planner told us at sign-up (ADR 0058 §3.2). Null for an outlet. */
+  planner: {
+    stateCode: string;
+    district: string | null;
+    oilCompany: PlannerOilCompany;
+    stage: PlannerStage;
+  } | null;
   source: EnrolmentSource;
   state: EnrolmentState;
   submittedAt: string;

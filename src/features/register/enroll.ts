@@ -15,6 +15,8 @@
  * endpoint would refuse. Change them together.
  */
 
+import { FUNNEL_SOURCE_PATTERN, type DealerLang, type PlannerOilCompany, type PlannerStage } from '@dk/shared/types';
+
 export const SITE_TYPES = ['Type A', 'Type B'] as const;
 export type SiteType = (typeof SITE_TYPES)[number];
 
@@ -41,6 +43,18 @@ export function refFromSearch(search: string): string | undefined {
   return raw && /^[A-Za-z0-9_-]{1,32}$/.test(raw) ? raw : undefined;
 }
 
+/**
+ * The website page that sent this person (`?from=pump:dealership-documents`, ADR 0059
+ * §5): the funnel link's tag, carried through the store or an app link to the
+ * Kavach Shuruaat form, so the funnel report can say which page brought a sign-up.
+ * Lower-cased and held to the shared pattern, exactly as the website and the API
+ * clean it; anything else is left out rather than sent to be dropped.
+ */
+export function fromFromSearch(search: string): string | undefined {
+  const raw = new URLSearchParams(search).get('from')?.trim().toLowerCase();
+  return raw && FUNNEL_SOURCE_PATTERN.test(raw) ? raw : undefined;
+}
+
 export interface EnrollmentPayload {
   name: string;
   mobile: string;
@@ -61,6 +75,40 @@ export interface EnrollmentPayload {
   /** The film link's share code, when the screen was opened from one. */
   ref?: string;
   /** One id per filled-in form, so a send pressed twice is one registration. */
+  submissionId: string;
+}
+
+/**
+ * The New Pump Guide sign-up (ADR 0058 §3.2): someone planning a pump, so no SAP
+ * code, no site type and no pump name. It goes down the same road as the outlet
+ * form, told apart by `kind: 'planner'`; the API reads it with the shared
+ * `plannerRegisterSchema` and opens the account at once.
+ */
+export interface PlannerEnrollmentPayload {
+  kind: 'planner';
+  name: string;
+  /** Ten plain digits. */
+  mobile: string;
+  password: string;
+  /** GST state code, e.g. "06": the place of supply on the bill. */
+  stateCode: string;
+  /** Empty means "not given". */
+  district: string;
+  oilCompany: PlannerOilCompany;
+  stage: PlannerStage;
+  /** Empty means "not given". */
+  email: string;
+  agree: true;
+  source: 'app';
+  consentWhatsApp: true;
+  /**
+   * The app's own language (hi, hl or en): it becomes the account's language. Unlike
+   * the outlet form, the API keeps the Terms language itself (`baseLangOf`).
+   */
+  lang: DealerLang;
+  ref?: string;
+  /** The website page that sent them (`fromFromSearch`), when the form was opened from one. */
+  from?: string;
   submissionId: string;
 }
 
@@ -99,7 +147,9 @@ export function enrollAccountOf(value: unknown): EnrollAccount {
  * its auth handling, and a 401 there signs the user out — none of which has
  * anything to do with someone who has no account yet.
  */
-export async function submitEnrollment(payload: EnrollmentPayload): Promise<EnrollAccount> {
+export async function submitEnrollment(
+  payload: EnrollmentPayload | PlannerEnrollmentPayload,
+): Promise<EnrollAccount> {
   let res: Response;
   try {
     res = await fetch(ENROLL_URL, {

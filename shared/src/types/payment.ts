@@ -51,6 +51,14 @@ export const PAYMENT_PURPOSES = ['subscription', 'setup', 'service', 'other'] as
 export type PaymentPurpose = (typeof PAYMENT_PURPOSES)[number];
 
 /**
+ * Which product a bill is for (ADR 0058 §5). A row without one is Dealer Kavach:
+ * every bill made before New Pump Guide existed. Decides the invoice line, and
+ * whether a payment extends a planner's paid month or an outlet's.
+ */
+export const PAYMENT_PRODUCTS = ['dealer_kavach', 'new_pump_guide'] as const;
+export type PaymentProduct = (typeof PAYMENT_PRODUCTS)[number];
+
+/**
  * How the dealer paid. `checkout` is Razorpay's pop-up in the web app, opened
  * in a browser; `link` is a Razorpay payment link that reached the dealer by
  * SMS, email or WhatsApp. Never from inside the Android app: Google Play's

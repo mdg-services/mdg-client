@@ -1,4 +1,4 @@
-import { FileText, Fuel, Globe, KeyRound, ShieldCheck } from 'lucide-react';
+import { Compass, FileText, Fuel, Globe, KeyRound, ShieldCheck } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -8,6 +8,9 @@ import { SectionCard } from '@/components/kit/SectionCard';
 import type { Status } from '@/components/kit/types';
 import { LANGUAGE_NAMES, LanguageSheet } from '@/components/LanguageSheet';
 import { Avatar, Button, Card, EmptyState } from '@/components/ui';
+import { isPlannerUser } from '@/features/planner/isPlanner';
+import { planSummary } from '@/features/planner/planView';
+import { usePlannerView } from '@/features/planner/usePlanner';
 import { NavRow } from '@/features/pump/PumpRows';
 import { BatteryGuideSheet, batteryGuideMaker } from '@/features/push/BatteryGuide';
 import { requestPushPermission } from '@/hooks/usePushBridge';
@@ -23,6 +26,26 @@ import { usePushStore } from '@/store/push';
 import { ACCOUNT_WIPE_AFTER_DAYS } from '@dk/shared';
 
 import { roleLabel } from './settings/RoleBadge';
+
+/**
+ * Someone planning a pump (ADR 0058) has no outlet: their Kavach Shuruaat row says where the plan
+ * stands. It is its own component so that the one server request it needs is made only for them;
+ * every other sign-in still makes none on this page.
+ */
+function PlannerRow({ icon }: { icon: string }) {
+  const t = useT();
+  const navigate = useNavigate();
+  const planView = usePlannerView();
+  const planState = planView.data ? planSummary(planView.data).state : null;
+  return (
+    <NavRow
+      leading={<Compass aria-hidden className={icon} strokeWidth={1.75} />}
+      title={t('planner.settingsRow')}
+      subtitle={planState ? t(`planner.state.${planState}`) : undefined}
+      onPress={() => navigate('/settings/new-pump-guide')}
+    />
+  );
+}
 
 /**
  * Settings, the quiet phone page (spec 4.5): what belongs to THIS PHONE and THIS PERSON, and nothing
@@ -145,6 +168,7 @@ export function SettingsPage() {
                 onPress={() => navigate('/pump')}
               />
             ) : null}
+            {isPlannerUser(user) ? <PlannerRow icon={icon} /> : null}
             <NavRow
               leading={<Globe aria-hidden className={icon} strokeWidth={1.75} />}
               title={t('profile.language')}

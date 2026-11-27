@@ -150,6 +150,25 @@ vi.mock('@/features/payments/PaymentDetailPage', () => ({
 // (`OpenMyChat.test.tsx`); here it only has to be the thing those routes mount.
 vi.mock('@/features/chat/OpenMyChat', () => ({ OpenMyChat: () => <div>open-my-chat</div> }));
 vi.mock('@/pages/RegisterPage', () => ({ RegisterPage: () => <div>register-page</div> }));
+vi.mock('@/pages/WelcomePage', async () => {
+  const { useLocation } = await import('react-router-dom');
+  return {
+    WelcomePage: () => (
+      <div>
+        welcome-page
+        <span data-testid="welcome-search">{useLocation().search}</span>
+      </div>
+    ),
+  };
+});
+vi.mock('@/pages/NewPumpRegisterPage', () => ({ NewPumpRegisterPage: () => <div>new-pump-page</div> }));
+vi.mock('@/features/planner/PlannerHome', () => ({
+  PlannerHome: () => <div>planner-home</div>,
+  PumpOpenCard: () => null,
+}));
+vi.mock('@/features/planner/SwitchToDealerKavachPage', () => ({
+  SwitchToDealerKavachPage: () => <div>switch-page</div>,
+}));
 // The screen itself is tested on its own (`ForcedPasswordChange.test.tsx`); here
 // it only has to be what the gate shows.
 vi.mock('@/features/auth/ForcedPasswordChange', () => ({
@@ -175,10 +194,11 @@ describe('App routing', () => {
   beforeEach(() => markAccountHere());
   afterEach(() => resetStores());
 
-  it('opens on Register on a phone nobody has signed in on, and on Sign in once someone has', async () => {
+  it('opens on the first-open choice on a phone nobody has signed in on, and on Sign in once someone has', async () => {
     localStorage.clear();
     const fresh = renderWithProviders(<App />, { route: '/', withRouter: true });
-    expect(await screen.findByText('register-page')).toBeInTheDocument();
+    // ADR 0058 §3.1: "I run a petrol pump" or "I want to open one".
+    expect(await screen.findByText('welcome-page')).toBeInTheDocument();
     expect(screen.queryByText('login-page')).not.toBeInTheDocument();
     fresh.unmount();
 
@@ -209,6 +229,78 @@ describe('App routing', () => {
     renderWithProviders(<App />, { route: '/' });
     expect(await screen.findByText('today-page')).toBeInTheDocument();
     expect(screen.queryByText('chat-list-page')).not.toBeInTheDocument();
+  });
+
+  describe('someone planning a pump (ADR 0058)', () => {
+    it('gets the Kavach Shuruaat home at "/", not the outlet Today', async () => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route: '/' });
+      expect(await screen.findByText('planner-home')).toBeInTheDocument();
+      expect(screen.queryByText('today-page')).not.toBeInTheDocument();
+    });
+
+    it.each(['/reports', '/kavach'])('is sent home from %s, which has nothing for a planner', async (route) => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('planner-home')).toBeInTheDocument();
+      expect(screen.queryByText('kavach-page')).not.toBeInTheDocument();
+    });
+
+    it('reaches the switch to Dealer Kavach', async () => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route: '/switch-to-dealer-kavach' });
+      expect(await screen.findByText('switch-page')).toBeInTheDocument();
+    });
+
+    it('serves the choice screen and the Kavach Shuruaat form signed out', async () => {
+      const first = renderWithProviders(<App />, { route: '/welcome' });
+      expect(await screen.findByText('welcome-page')).toBeInTheDocument();
+      first.unmount();
+      renderWithProviders(<App />, { route: '/register/new-pump' });
+      expect(await screen.findByText('new-pump-page')).toBeInTheDocument();
+    });
+  });
+
+  /**
+   * ADR 0059 §5: the website's funnel link opens the app at
+   * `/welcome?for=new-pump&from=<page>` (or the same query on `/`).
+   */
+  describe('the website funnel link', () => {
+    const LINK = '?for=new-pump&from=pump:dealership-documents';
+
+    it('signed out on "/", goes to the choice screen with its query, even on a phone that signed in before', async () => {
+      // beforeEach marked this phone: a plain signed-out visit would be Sign in.
+      renderWithProviders(<App />, { route: `/${LINK}`, withRouter: true });
+      expect(await screen.findByText('welcome-page')).toBeInTheDocument();
+      expect(screen.getByTestId('welcome-search')).toHaveTextContent(LINK);
+      expect(screen.queryByText('login-page')).not.toBeInTheDocument();
+    });
+
+    it('signed out at /welcome, the choice screen gets it (and forwards it to the form)', async () => {
+      renderWithProviders(<App />, { route: `/welcome${LINK}` });
+      expect(await screen.findByText('welcome-page')).toBeInTheDocument();
+      expect(screen.getByTestId('welcome-search')).toHaveTextContent(LINK);
+    });
+
+    it.each([`/welcome${LINK}`, `/${LINK}`])('signed in as a planner, %s opens the Kavach Shuruaat home', async (route) => {
+      signIn({ dealerStatus: 'PLANNING' });
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('planner-home')).toBeInTheDocument();
+      expect(screen.queryByText('welcome-page')).not.toBeInTheDocument();
+    });
+
+    it.each([`/welcome${LINK}`, `/${LINK}`])('signed in as an outlet, %s opens the usual home', async (route) => {
+      signIn();
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('today-page')).toBeInTheDocument();
+      expect(screen.queryByText('welcome-page')).not.toBeInTheDocument();
+    });
+
+    it('a plain /welcome signed in is still the choice screen (only the link sends people home)', async () => {
+      signIn();
+      renderWithProviders(<App />, { route: '/welcome' });
+      expect(await screen.findByText('welcome-page')).toBeInTheDocument();
+    });
   });
 
   it('keeps the conversation list at /chat', async () => {

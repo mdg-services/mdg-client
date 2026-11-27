@@ -445,7 +445,8 @@ describe('RegisterPage', () => {
       'a registration that went through (%s) sends this phone to Sign in next time, not to a second form',
       async (account) => {
         fetchMock.mockResolvedValueOnce(okResponse(account));
-        expect(firstScreen()).toBe('/register');
+        // A new phone opens on the choice screen (ADR 0058), which leads here.
+        expect(firstScreen()).toBe('/welcome');
         const user = userEvent.setup();
         renderAt('/register');
         await send(user);
@@ -454,13 +455,13 @@ describe('RegisterPage', () => {
       },
     );
 
-    it('a registration that did not go through leaves this phone on Register', async () => {
+    it('a registration that did not go through leaves this phone on the first-open screen', async () => {
       fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
       const user = userEvent.setup();
       renderAt('/register');
       await send(user);
       await screen.findByRole('alert');
-      expect(firstScreen()).toBe('/register');
+      expect(firstScreen()).toBe('/welcome');
     });
   });
 

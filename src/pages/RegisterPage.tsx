@@ -23,6 +23,7 @@ import {
   type EnrollAccount,
   type SiteType,
 } from '@/features/register/enroll';
+import { Field } from '@/features/register/Field';
 import { useSubmissionId } from '@/features/register/submissionId';
 import { TermsSheet } from '@/features/register/TermsSheet';
 import { WaitingCard } from '@/features/register/WaitingCard';
@@ -638,38 +639,6 @@ function RegisterScreen() {
             setTermsOpen(false);
           }}
         />
-      ) : null}
-    </div>
-  );
-}
-
-function Field({
-  id,
-  label,
-  optional,
-  hint,
-  error,
-  children,
-}: {
-  id: string;
-  label: string;
-  optional?: string;
-  /** A line under the box, shown while there is no error to show instead. */
-  hint?: string;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-subheading text-text" htmlFor={id}>
-        {label}
-        {optional ? <span className="ml-1 font-normal text-text-muted">{optional}</span> : null}
-      </label>
-      {children}
-      {error ? (
-        <p className="text-body text-danger">{error}</p>
-      ) : hint ? (
-        <p className="text-meta text-text-muted">{hint}</p>
       ) : null}
     </div>
   );

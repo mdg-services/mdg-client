@@ -47,8 +47,13 @@ export type GuideVideoFamily = (typeof GUIDE_VIDEO_FAMILIES)[number];
 export const LIBRARY_FILE_FAMILIES = ['guide', 'khata_kavach'] as const;
 export type LibraryFileFamily = (typeof LIBRARY_FILE_FAMILIES)[number];
 
-/** Who a video is for. `admin` videos play only in the admin's "How this works". */
-export const GUIDE_VIDEO_AUDIENCES = ['owner', 'manager', 'both', 'admin'] as const;
+/**
+ * Who a video is for. `admin` videos play only in the admin's "How this works".
+ * `planner` videos are for people on Kavach Shuruaat (a `PLANNING` account, ADR 0058):
+ * they are listed in a planner's Help and never to an outlet's owner or manager, and a
+ * planner is shown no outlet video (`both` is for an outlet's owner and manager).
+ */
+export const GUIDE_VIDEO_AUDIENCES = ['owner', 'manager', 'both', 'admin', 'planner'] as const;
 export type GuideVideoAudience = (typeof GUIDE_VIDEO_AUDIENCES)[number];
 
 export interface GuideVideoChapter {

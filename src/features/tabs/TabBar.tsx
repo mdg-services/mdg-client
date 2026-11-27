@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 import { unreadState } from '@/features/chat/conversationLabel';
 import { tabVisible, todoCount } from '@/features/kavach/kavachView';
+import { useIsPlanner } from '@/features/planner/isPlanner';
 import { heroShows } from '@/features/setup/heroView';
 import { useOutletSetup } from '@/features/setup/useOutletSetup';
 import { useKavach } from '@/hooks/api/useKavach';
@@ -107,6 +108,8 @@ function Bar({ active }: { active: Tab }) {
   // While the setup hero stands in the verdict's place it carries the feed's setup task itself.
   const setup = useOutletSetup();
   const setupShown = heroShows(setup.data);
+  // Someone planning a pump (ADR 0058) has no reports and no Kavach: Today and Chats only.
+  const planner = useIsPlanner();
 
   const now = new Date();
   const { needYou } = todayBadgeCounts({
@@ -132,11 +135,14 @@ function Bar({ active }: { active: Tab }) {
       badge: todayBadge,
       badgeLabel: todayLabel,
     },
-    { id: 'services', label: t('shell.tab.services'), icon: <LayoutGrid {...iconProps} />, badge: 0, badgeLabel: '' },
-    ...(REPORTS_AS_TAB
+    // Someone planning a pump (ADR 0058) has no services, reports or Kavach: Today and Chat only.
+    ...(planner
+      ? []
+      : [{ id: 'services' as const, label: t('shell.tab.services'), icon: <LayoutGrid {...iconProps} />, badge: 0, badgeLabel: '' }]),
+    ...(REPORTS_AS_TAB && !planner
       ? [{ id: 'reports' as const, label: t('shell.tab.reports'), icon: <FileText {...iconProps} />, badge: 0, badgeLabel: '' }]
       : []),
-    ...(kavachOn
+    ...(kavachOn && !planner
       ? [
           {
             id: 'kavach' as const,

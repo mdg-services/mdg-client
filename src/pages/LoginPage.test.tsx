@@ -18,6 +18,7 @@ function renderLogin(lang: 'en' | 'hi' = 'en') {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<div>register-page</div>} />
+      <Route path="/register/new-pump" element={<div>new-pump-page</div>} />
       <Route path="/" element={<div>today-page</div>} />
     </Routes>,
     { route: '/login' },
@@ -110,6 +111,13 @@ describe('LoginPage', () => {
       renderLogin();
       await user.click(screen.getByRole('button', { name: 'Register your pump' }));
       expect(await screen.findByText('register-page')).toBeInTheDocument();
+    });
+
+    it('offers the Kavach Shuruaat sign-up to someone who has no pump yet', async () => {
+      const user = userEvent.setup();
+      renderLogin();
+      await user.click(screen.getByRole('button', { name: 'I want to open a petrol pump' }));
+      expect(await screen.findByText('new-pump-page')).toBeInTheDocument();
     });
 
     it('says a dealer chooses their own password, and when to sign in', () => {

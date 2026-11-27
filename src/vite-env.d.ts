@@ -12,6 +12,8 @@ interface ImportMetaEnv {
    * believes (ADR 0032 §6). Empty ⇒ the published Dealer Kavach extension alone.
    */
   readonly VITE_EXTENSION_ORIGINS?: string;
+  /** "false" hides New Pump Guide's sign-up (ADR 0058 §11). Absent ⇒ offered. */
+  readonly VITE_PLANNER_ENABLED?: string;
 }
 
 interface ImportMeta {

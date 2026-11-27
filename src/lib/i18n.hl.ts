@@ -4,6 +4,7 @@
  * here is a compile error. Same `{placeholders}` as the English.
  */
 import type { MessageKey } from './i18n';
+import { plannerHl } from './i18n.planner';
 import { billHl } from './messages/bill';
 import { chatHl } from './messages/chat';
 import { firstrunHl } from './messages/firstrun';
@@ -1485,6 +1486,8 @@ const baseHl = {
   'chat.workPermitDoneQuestion': 'Kaam ho gaya?',
   'chat.workPermitYesDone': 'Haan, kaam ho gaya',
   'chat.workPermitMoreTime': 'Nahin, aur time chahiye',
+  // New Pump Guide (ADR 0058): its own file, see i18n.planner.ts.
+  ...plannerHl,
 } satisfies Record<string, string>;
 
 /**

@@ -16,6 +16,7 @@ import { FirstLanguageGate, LanguageSwitch } from '@/features/auth/LanguageSwitc
 import { PasswordInput } from '@/features/auth/PasswordInput';
 import { requestSignIn, startSession } from '@/features/auth/signIn';
 import { WhichPump } from '@/features/auth/WhichPump';
+import { plannerSignUpEnabled } from '@/features/planner/enabled';
 import { ApiError } from '@/lib/api';
 import { HELPLINE } from '@/lib/helpline';
 import { useT, type MessageKey } from '@/lib/i18n';
@@ -310,6 +311,13 @@ function LoginScreen() {
           >
             {t('auth.register')}
           </Button>
+          {/* Someone who has no pump yet (ADR 0058): signed out, this is their way
+              back to the Kavach Shuruaat sign-up. */}
+          {plannerSignUpEnabled() ? (
+            <Button variant="ghost" size="lg" fullWidth onClick={() => navigate('/register/new-pump')}>
+              {t('welcome.openPump')}
+            </Button>
+          ) : null}
           {/* The way to a person for whoever cannot get in: a forgotten
               mobile number, a switched-off login, or no code arriving. */}
           <a

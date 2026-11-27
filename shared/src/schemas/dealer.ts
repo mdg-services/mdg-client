@@ -348,7 +348,10 @@ export const dealerUpdateSchema = z
      */
     gst: gstSchema.nullable().optional(),
     pan: panSchema.nullable().optional(),
-    status: dealerStatusSchema.optional(),
+    // Never PLANNING, either way (ADR 0058 §7): a New Pump Guide account becomes an
+    // outlet only through the switch, which also stops its plan and gives it an
+    // outlet code, and an outlet never becomes a planner.
+    status: z.enum(['ONBOARDING', 'ACTIVE', 'SUSPENDED']).optional(),
     bankDetails: bankDetailsSchema.optional(),
     complianceDocs: z.array(complianceDocSchema).max(50).optional(),
     /**

@@ -72,3 +72,5 @@ export * from './complaints';
 export * from './workPermits';
 export * from './flowCard';
 export * from './meServices';
+export * from './funnel';
+export * from './planner';

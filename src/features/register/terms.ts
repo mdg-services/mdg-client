@@ -35,3 +35,40 @@ export const TERMS_HI: readonly string[] = [
   'यह समझौता साइन होने की तारीख़ से 1 साल तक चलेगा, और आगे भी 1-1 साल के लिए बढ़ता रहेगा, जब तक कोई पक्ष दूसरे पक्ष को 30 दिन पहले लिखित सूचना देकर इसे ख़त्म न कर दे। लेकिन अगर इनवॉइस में लिखी अवधि के भीतर भुगतान नहीं मिलता, तो सेवा प्रदाता इस समझौते को तुरंत ख़त्म कर सकता है।',
   'दोनों पक्ष सहमत हैं कि इस समझौते के तहत सेवा प्रदाता की दी गई सेवाओं से जुड़े सभी विवाद सिर्फ़ दिल्ली की अदालतों के अधिकार क्षेत्र (exclusive jurisdiction) में आएँगे।',
 ];
+
+/**
+ * The Kavach Shuruaat terms (ADR 0058 §6, §13.2, §13.3), shown in the same sheet on the planner's
+ * sign-up form.
+ *
+ * COPIED, WORD FOR WORD, FROM `plannerTerms` IN THE WEBSITE'S ENROLMENT PAGE
+ * (`mdg-landing/src/i18n/{en,hi}/register.ts`). The app's form is sent on by the
+ * website, which records a fingerprint of ITS copy of these clauses as proof of
+ * what the person agreed to, so the sheet here must show exactly that text, or
+ * the record would name clauses the person never saw. Change them there first
+ * (with a new TERMS_VERSION), then copy them here; `terms.test.ts` pins the same
+ * fingerprints the website pins and fails if the two drift apart.
+ *
+ * As above, the English list is the binding one and the Hindi a courtesy
+ * translation.
+ */
+export const TERMS_NEW_PUMP_EN: readonly string[] = [
+  "Kavach Shuruaat costs ₹199 a month plus 18% GST (₹234.82 in all), paid by autopay through Razorpay from a link sent on WhatsApp or SMS. There is no payment inside the app.",
+  "The plan starts when the first payment is done, and renews every month until it is cancelled or the autopay stops.",
+  "It can be cancelled at any time. Access continues to the end of the month already paid for. A month that has started is not refunded, and there is no first-month money-back: the first-month money-back of Dealer's Kavach does not apply to Kavach Shuruaat.",
+  "A bill that is not paid within 7 days of being sent is closed, and the plan stays paused. The payment details can be asked for again at any time, in the app's chat or from us, and they come on WhatsApp and SMS.",
+  "The answers are general guidance read from official documents. They are not legal advice and they are not an approval: the oil company, PESO, the highway authority and the other offices concerned decide.",
+  "MDG Services does not promise, sell, allot or arrange a dealership, a licence or an approval.",
+  "When the pump opens and the account switches to Dealer's Kavach, Kavach Shuruaat and its autopay stop, and the price and terms of Dealer's Kavach apply from then on.",
+  "The Terms and conditions and the Refund and cancellation policy published on mdgservices.in also apply.",
+];
+
+export const TERMS_NEW_PUMP_HI: readonly string[] = [
+  "कवच शुरुआत की क़ीमत ₹199 महीना और 18% GST है (कुल ₹234.82), जो Razorpay के ज़रिए ऑटोपे से दी जाती है, WhatsApp या SMS पर भेजे गए लिंक से। ऐप के अंदर कोई भुगतान नहीं होता।",
+  "पहला भुगतान होते ही प्लान शुरू होता है, और हर महीने चलता रहता है, जब तक इसे बंद न किया जाए या ऑटोपे रुक न जाए।",
+  "इसे कभी भी बंद किया जा सकता है। जिस महीने का पैसा दिया जा चुका है, उसके आख़िर तक इस्तेमाल चलता है। शुरू हो चुके महीने का पैसा वापस नहीं होता, और पहले महीने का पैसा-वापसी वादा भी नहीं है: Dealer's कवच का यह वादा कवच शुरुआत पर लागू नहीं होता।",
+  "जो बिल भेजे जाने के 7 दिन के भीतर नहीं भरा जाता, वह बंद हो जाता है और प्लान रुका रहता है। पेमेंट की जानकारी कभी भी फिर से माँगी जा सकती है, ऐप की चैट में या हमसे, और वह WhatsApp और SMS पर आती है।",
+  "जवाब आधिकारिक दस्तावेज़ों से पढ़ी गई सामान्य जानकारी हैं। ये क़ानूनी सलाह नहीं हैं, और मंज़ूरी भी नहीं: फ़ैसला तेल कंपनी, PESO, हाईवे अथॉरिटी और संबंधित दफ़्तर करते हैं।",
+  "MDG Services डीलरशिप, लाइसेंस या मंज़ूरी का न वादा करती है, न उसे बेचती, आवंटित करती या दिलाती है।",
+  "जब पंप खुल जाए और खाता Dealer's कवच पर आ जाए, तो कवच शुरुआत और उसका ऑटोपे बंद हो जाते हैं, और उसके बाद Dealer's कवच की क़ीमत और शर्तें लागू होती हैं।",
+  "mdgservices.in पर छपी नियम व शर्तें और रिफ़ंड और कैंसिलेशन नीति भी लागू होती हैं।",
+];

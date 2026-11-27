@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { digitsOf, enrollAccountOf, toMobile } from './enroll';
+import { digitsOf, enrollAccountOf, fromFromSearch, toMobile } from './enroll';
 
 describe('toMobile', () => {
   it('takes a mobile however it is typed', () => {
@@ -80,5 +80,21 @@ describe('enrollAccountOf', () => {
     expect(enrollAccountOf('waiting')).toBe('waiting');
     expect(enrollAccountOf(undefined)).toBe('waiting');
     expect(enrollAccountOf('approved')).toBe('waiting');
+  });
+});
+
+describe('fromFromSearch (ADR 0059 §5)', () => {
+  it('keeps a page tag in the shared shape, lower-cased', () => {
+    expect(fromFromSearch('?from=pump:dealership-documents')).toBe('pump:dealership-documents');
+    expect(fromFromSearch('?for=new-pump&from=HOME')).toBe('home');
+    expect(fromFromSearch('?from=tools:dip_chart')).toBe('tools:dip_chart');
+  });
+
+  it('drops anything else rather than send it', () => {
+    expect(fromFromSearch('')).toBeUndefined();
+    expect(fromFromSearch('?from=')).toBeUndefined();
+    expect(fromFromSearch('?from=%3Cscript%3E')).toBeUndefined();
+    expect(fromFromSearch('?from=has%20space')).toBeUndefined();
+    expect(fromFromSearch(`?from=${'a'.repeat(81)}`)).toBeUndefined();
   });
 });

@@ -1,5 +1,5 @@
 /**
- * The standard package: the fourteen services every Indian Oil outlet gets, set up
+ * The standard package: the fifteen services every Indian Oil outlet gets, set up
  * by the server from one button (or by itself once the outlet's logins work).
  *
  * The server works the start-up figures out from the portals — the pump's day
@@ -17,7 +17,7 @@
  * by itself, and only what needs a person says what to do, with "Try again".
  */
 
-/** The fourteen services, in the order they are attached. */
+/** The fifteen services, in the order they are attached. */
 export const STANDARD_PACKAGE_SERVICE_IDS = [
   'inspection-reports',
   'iras-shift-data',
@@ -35,6 +35,10 @@ export const STANDARD_PACKAGE_SERVICE_IDS = [
   // Owner, 21 Nov 2026: every outlet gets it (ADR 0049). On demand only: it closes the
   // open SDMS Electrical Audit points when an owner or manager asks in the chat.
   'electrical-audit',
+  // Owner, 26 Nov 2026: every outlet gets it (ADR 0052). Files a maintenance complaint on
+  // IndianOil's portals when an owner or manager reports something broken in the chat,
+  // and follows it. Held: it files for the dealer, so Start services switches it on.
+  'maintenance-complaints',
   'dealer-declarations',
   'dsr-report',
   'load-planner',
@@ -263,7 +267,7 @@ export interface HpclInspectionInput {
 
 /** GET /dealers/:id/service-package */
 export interface ServicePackageState {
-  /** Whose package this outlet gets: Indian Oil's fourteen services, or HPCL's own. */
+  /** Whose package this outlet gets: Indian Oil's fifteen services, or HPCL's own. */
   company: 'iocl' | 'hpcl';
   /** Null until the package has been started for this outlet. */
   setup: ServicePackageView | null;

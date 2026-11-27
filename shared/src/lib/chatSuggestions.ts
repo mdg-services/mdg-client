@@ -24,6 +24,10 @@
  * from the setup briefing (`assist/firstline/brief/setup.ts`): where the setup is stuck,
  * what comes next, the bill-details card and the login box.
  *
+ * A person PLANNING a pump (New Pump Guide, ADR 0058 §4.3) has no setup and no
+ * services: they get starter questions about opening a pump instead, three of six, a
+ * different three each day so the row does not go stale.
+ *
  * Pure on purpose: the server reads the three facts (setup, attached services, what was
  * already asked for) and calls this; the app only draws what comes back.
  */
@@ -33,8 +37,8 @@ import { YOUR_VIDEOS } from './yourVideos';
 
 /** What `GET /me/chat-suggestions` answers. */
 export interface ChatSuggestions {
-  /** Which kind of chips these are. The app draws both the same way. */
-  mode: 'setup' | 'live';
+  /** Which kind of chips these are. The app draws them all the same way. */
+  mode: 'setup' | 'live' | 'planner';
   /** In the order to show them. At most {@link MAX_SUGGESTIONS}. Empty = show none. */
   items: SomeDealerWords[];
 }
@@ -139,6 +143,58 @@ function liveCandidates(): Array<{ service: string; words: SomeDealerWords }> {
   return out;
 }
 
+// ── Planning a pump (New Pump Guide) ───────────────────────────────────────
+
+/**
+ * The questions someone planning a pump asks first (ADR 0058 §4.3). Each is one the
+ * rule books answer, so a tap gets a real answer rather than "not in the books". No
+ * figures in them: the answer gives the figures, from the books.
+ */
+export const PLANNER_CHIPS: readonly SomeDealerWords[] = [
+  {
+    hl: 'Highway par chauraahe se pump kitni doori par ho?',
+    hi: 'हाईवे पर चौराहे से पंप कितनी दूरी पर हो?',
+    en: 'How far from a highway junction must a pump be?',
+  },
+  {
+    hl: 'Pump ke liye kitni zameen chahiye?',
+    hi: 'पंप के लिए कितनी ज़मीन चाहिए?',
+    en: 'How much land does a pump need?',
+  },
+  {
+    hl: 'Kaun kaun se license chahiye?',
+    hi: 'कौन-कौन से लाइसेंस चाहिए?',
+    en: 'Which licences are needed?',
+  },
+  {
+    hl: 'Dealer ka chunav kaise hota hai?',
+    hi: 'डीलर का चुनाव कैसे होता है?',
+    en: 'How does dealer selection work?',
+  },
+  {
+    hl: 'Pump banane mein kitna kharcha aata hai?',
+    hi: 'पंप बनाने में कितना खर्च आता है?',
+    en: 'What does it cost to build a pump?',
+  },
+  {
+    hl: 'PESO kya approve karta hai?',
+    hi: 'PESO क्या मंज़ूरी देता है?',
+    en: 'What does PESO approve?',
+  },
+];
+
+/** Three of the planner questions, starting at `day`'s place in the list and wrapping round. */
+function plannerChips(day: number): SomeDealerWords[] {
+  const n = PLANNER_CHIPS.length;
+  const start = ((Math.trunc(day) % n) + n) % n;
+  const out: SomeDealerWords[] = [];
+  for (let i = 0; i < Math.min(MAX_SUGGESTIONS, n); i += 1) {
+    const words = PLANNER_CHIPS[(start + i) % n];
+    if (words) out.push(words);
+  }
+  return out;
+}
+
 // ── The choice ─────────────────────────────────────────────────────────────
 
 export interface ChatSuggestionsInput {
@@ -148,9 +204,16 @@ export interface ChatSuggestionsInput {
   attached: readonly string[];
   /** Ids of the services someone at this outlet has already asked for in the chat. */
   used: readonly string[];
+  /**
+   * Set for a person planning a pump (a `PLANNING` dealer): the planner's starter
+   * questions, and nothing about setup or services. `day` picks which three: any
+   * whole number that moves once a day (the server passes days since 1970, India time).
+   */
+  planner?: { day: number };
 }
 
 export function chatSuggestions(input: ChatSuggestionsInput): ChatSuggestions {
+  if (input.planner) return { mode: 'planner', items: plannerChips(input.planner.day) };
   const { setup } = input;
   if (setup?.active && setup.stage !== 'live' && setup.stage !== 'lost') {
     return { mode: 'setup', items: [...SETUP_CHIPS[setup.stage]].slice(0, MAX_SUGGESTIONS) };

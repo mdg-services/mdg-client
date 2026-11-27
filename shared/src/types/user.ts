@@ -1,6 +1,7 @@
 import type { MemberReach } from '../lib/reach';
 
 import type { DealerLang } from './dealerLanguage';
+import type { DealerStatus } from './enums';
 
 export type UserRole = 'admin' | 'dealer-owner' | 'dealer-staff';
 export type UserStatus = 'ACTIVE' | 'SUSPENDED';
@@ -67,6 +68,12 @@ export interface User {
    * Set by the server on `/me` and the sign-in; cleared by the app the moment it starts playing.
    */
   whatsNewVideo?: string | null;
+  /**
+   * The status of this login's outlet, for a dealer login: `PLANNING` is a person still
+   * planning a pump, who sees New Pump Guide instead of the outlet screens (ADR 0058).
+   * Set by the server on `/me`, `/auth/me` and the sign-in; null or absent for an admin.
+   */
+  dealerStatus?: DealerStatus | null;
   createdAt: string;
   updatedAt: string;
 }

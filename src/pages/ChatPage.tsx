@@ -30,6 +30,8 @@ import { chatAttachments } from '@/features/chat/reportBubble';
 import { TicketBar } from '@/features/chat/TicketBar';
 import { useConversationSocket } from '@/features/chat/useConversationSocket';
 import { useUnreadOnOpen } from '@/features/chat/useUnreadOnOpen';
+import { useIsPlanner } from '@/features/planner/isPlanner';
+import { PlannerChatBanner } from '@/features/planner/PlannerChatBanner';
 import { BillDueBanner } from '@/features/setup/BillDueBanner';
 import { SetupStrip } from '@/features/setup/SetupStrip';
 import { useOutletSetup } from '@/features/setup/useOutletSetup';
@@ -74,6 +76,9 @@ export function ChatPage() {
   const messagesQuery = useMessages(conversationId);
   // The one-tap questions above the box: for this outlet's stage, in this reader's language.
   const quickReplies = useChatSuggestions({ enabled: !!conversationId });
+  // Someone planning a pump (ADR 0058): no outlet bill or setup strip, their own plan
+  // strip instead, and the server's planner questions as the empty thread's chips.
+  const planner = useIsPlanner();
   // LEAVE ONLY THE NEWEST PAGE BEHIND. Opening a chat refetches it (see
   // `useMessages`), and a refetch asks again for every page in the cache, one
   // after another — a dealer who had read back through a year of reports waited
@@ -641,7 +646,12 @@ export function ChatPage() {
       {/* The owner's bill and the days left (owner, 16 Nov 2026): the owners' own chat
           only, out of the way while picking or searching. ALWAYS MOUNTED, for the
           reason the setup strip below gives. */}
-      <BillDueBanner disabled={isGroup} hidden={selecting || searching} />
+      <BillDueBanner disabled={isGroup || planner} hidden={selecting || searching} />
+
+      {/* A planner's plan, while it is not active: why a question gets no answer yet,
+          and the button that sends the payment link again (ADR 0058 §5). ALWAYS
+          MOUNTED, for the reason the setup strip below gives. */}
+      <PlannerChatBanner disabled={isGroup || !planner} hidden={selecting || searching} />
 
       <TicketBar tickets={conversation?.tickets} hidden={selecting || searching} />
 
@@ -653,7 +663,7 @@ export function ChatPage() {
           — and the list and the composer below both carry the thread's id. */}
       {/* The strip steps aside once the setup card (ADR 0059) is in the chat: the card
           holds every step. An outlet whose setup messages are not loaded keeps the strip. */}
-      <SetupStrip disabled={isGroup} hidden={selecting || searching || hasSetupCard} />
+      <SetupStrip disabled={isGroup || planner} hidden={selecting || searching || hasSetupCard} />
 
       <MessageList
         key={conversationId}
@@ -672,6 +682,7 @@ export function ChatPage() {
         onQuickAction={(quick) =>
           setComposerSeed((prev) => ({ text: quick, n: (prev?.n ?? 0) + 1 }))
         }
+        emptyChips={planner ? quickReplies : undefined}
         showSenderNames={shared}
         dealerSideIds={dealerSideIds}
         selectedIds={selectedSet}

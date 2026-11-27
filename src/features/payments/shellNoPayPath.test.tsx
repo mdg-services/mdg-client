@@ -528,12 +528,12 @@ describe('the routes', () => {
     expect(api.get).not.toHaveBeenCalled();
   });
 
-  it('and with NO language chosen yet, a signed-out visit shows the language choice first (spec 4.9)', async () => {
+  it('and with NO language chosen yet, a signed-out visit shows the first-open choice (Hindi by default), never a way to pay', async () => {
     serve([DUE]);
     // A phone nobody has used: resetStores leaves no explicit language.
     expect(useLangStore.getState().explicit).toBe(false);
     renderWithProviders(<App />, { route: '/payments' });
-    await screen.findByTestId('language-sample', undefined, { timeout: 4000 });
+    await screen.findByRole('button', { name: /मेरा पेट्रोल पंप चल रहा है/ }, { timeout: 4000 });
     // Not the payments page, and no way to pay: just the question.
     expect(screen.queryByRole('button', { name: /Pay|चुकाएँ/ })).not.toBeInTheDocument();
     expect(document.querySelector('a[href^="/payments"]')).toBeNull();

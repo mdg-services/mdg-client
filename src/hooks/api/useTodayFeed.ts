@@ -1,5 +1,6 @@
 import { useQuery, type QueryClient } from '@tanstack/react-query';
 
+import { isPlannerUser } from '@/features/planner/isPlanner';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import type { TodayFeed } from '@dk/shared/types';
@@ -30,10 +31,12 @@ const REFRESH_WINDOW_MS = 1500;
 export function useTodayFeed() {
   const token = useAuthStore((s) => s.token);
   const role = useAuthStore((s) => s.user?.role);
+  const planner = useAuthStore((s) => isPlannerUser(s.user));
   return useQuery({
     queryKey: todayFeedKey,
     // The dealer app's own route: an admin who signs in here has no outlet.
-    enabled: !!token && role !== 'admin',
+    // A planner (ADR 0058) has no outlet: nothing to ask for.
+    enabled: !!token && role !== 'admin' && !planner,
     staleTime: 20_000,
     queryFn: fetchTodayFeed,
   });

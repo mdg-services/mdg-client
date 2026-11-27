@@ -4,6 +4,7 @@ import { useLangStore, type Lang } from '@/store/lang';
 import { DEALER_LANGUAGES, baseLangOf } from '@dk/shared/types';
 
 import { hl } from './i18n.hl';
+import { plannerMessages } from './i18n.planner';
 import { billMessages } from './messages/bill';
 import { chatMessages } from './messages/chat';
 import { firstrunMessages } from './messages/firstrun';
@@ -241,7 +242,7 @@ export const baseMessages = {
   // box carries the whole sentence itself.
   'register.agreeAria': {
     en: 'I accept the Terms and Conditions and agree to get messages about my account on WhatsApp',
-    hi: 'मैं नियम व शर्तें मानता हूँ और अपने खाते से जुड़े संदेश WhatsApp पर पाने के लिए सहमत हूँ',
+    hi: 'नियम व शर्तें मुझे मंज़ूर हैं और मैं अपने खाते से जुड़े संदेश WhatsApp पर पाने के लिए सहमत हूँ',
   },
   'register.nameRequired': { en: 'Enter your name', hi: 'अपना नाम भरिए' },
   'register.mobileInvalid': {
@@ -3146,6 +3147,9 @@ export const baseMessages = {
   'chat.workPermitDoneQuestion': { en: 'Is the work finished?', hi: 'काम हो गया?' },
   'chat.workPermitYesDone': { en: 'Yes, the work is done', hi: 'हाँ, काम हो गया' },
   'chat.workPermitMoreTime': { en: 'No, more time is needed', hi: 'नहीं, और समय चाहिए' },
+
+  /* ── New Pump Guide (ADR 0058): its own file, see i18n.planner.ts ───── */
+  ...plannerMessages,
 } satisfies Record<string, LangMessage>;
 
 /**
