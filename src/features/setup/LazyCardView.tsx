@@ -19,7 +19,7 @@ import { CardPending, LinkButton } from './CardParts';
  * again" that fetches it afresh — a new lazy component per try, because React
  * remembers a failed one for good.
  */
-type CardViewModule = { default: React.ComponentType<{ card: SetupCardKind; view: OutletSetupView }> };
+type CardViewModule = { default: React.ComponentType<{ card: SetupCardKind; view: OutletSetupView; inCard?: boolean }> };
 const load = (): Promise<CardViewModule> =>
   import('./SetupCardView').then((m) => ({ default: m.SetupCardView }));
 
@@ -40,9 +40,12 @@ export function LazyCardView({
   card,
   view,
   loader = load,
+  inCard = false,
 }: {
   card: SetupCardKind;
   view: OutletSetupView;
+  /** Drawn inside the one setup card (ADR 0059). */
+  inCard?: boolean;
   /** Where the cards come from. Only a test passes one: a download that can fail. */
   loader?: () => Promise<CardViewModule>;
 }) {
@@ -65,7 +68,7 @@ export function LazyCardView({
       }
     >
       <React.Suspense fallback={<CardPending failed={false} onRetry={retry} />}>
-        <Card card={card} view={view} />
+        <Card card={card} view={view} inCard={inCard} />
       </React.Suspense>
     </LoadFailed>
   );

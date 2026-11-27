@@ -1,5 +1,7 @@
+import { Check } from 'lucide-react';
 import * as React from 'react';
 
+import { OwnWords } from '@/features/flowCard/OwnWords';
 import type { Lang } from '@/store/lang';
 import { sayIn, type MessageReplyChoices } from '@dk/shared/types';
 
@@ -47,6 +49,47 @@ export function ReplyChoices({
           </button>
         );
       })}
+      {/* None of these? The dealer says it in their own words (ADR 0059). */}
+      {sent === null ? (
+        <OwnWords
+          label=""
+          sentKey="flow.ownWordsSentChat"
+          onWords={(text) => {
+            setSent('own');
+            onChoice(text);
+          }}
+        />
+      ) : null}
     </div>
   );
+}
+
+/**
+ * The question's answer, once given (ADR 0059): the button the dealer tapped (or the
+ * words they typed that match one) stays under the question, filled and ticked, so the
+ * chat shows what was chosen. The other buttons are gone: the question is answered.
+ */
+export function AnsweredChoice({ words }: { words: string }) {
+  return (
+    <div data-testid="reply-choice-answered" className="mt-1.5 flex max-w-[330px]">
+      <span className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-wa-accent bg-wa-accent px-3 py-1 text-meta font-medium text-white">
+        <Check aria-hidden width={14} strokeWidth={3} />
+        {words}
+      </span>
+    </div>
+  );
+}
+
+/** The option a reply's words name, in any dealer language, or null. Spaces, case and stops ignored. */
+export function pickedChoice(choices: MessageReplyChoices, reply: string | undefined, lang: Lang): string | null {
+  if (!reply) return null;
+  const key = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+  const said = key(reply);
+  if (!said) return null;
+  for (const o of choices.options) {
+    for (const w of Object.values(o.label)) {
+      if (typeof w === 'string' && key(w) === said) return sayIn(o.label, lang) || w;
+    }
+  }
+  return null;
 }

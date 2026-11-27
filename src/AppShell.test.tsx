@@ -11,7 +11,9 @@ import type { Conversation } from '@dk/shared/types';
 // The shell's app-wide side effects — /me, the list socket, the delivery ack and
 // the native push bridge — are not what this file is about, and every one of
 // them reaches for a network or a native bridge jsdom does not have.
-vi.mock('@/hooks/api/useMe', () => ({ useMe: () => ({ isSuccess: false, isFetchedAfterMount: false, data: undefined }) }));
+vi.mock('@/hooks/api/useMe', () => ({
+  useMe: () => ({ isSuccess: false, isFetchedAfterMount: false, data: undefined }),
+}));
 vi.mock('@/features/chat/useConversationsListSocket', () => ({
   useConversationsListSocket: () => undefined,
 }));
@@ -180,27 +182,46 @@ describe('AppShell — the frame', () => {
     ['/', 'today-page', 'Today'],
     ['/chat', 'Dealer Kavach', 'Chats'],
     ['/reports', 'reports-page', 'Reports'],
-  ])('draws the Today / Chats / Reports bar on %s, with %s\'s tab selected', async (route, marker, selected) => {
-    h.convos = [conv({ id: 'only' })];
-    renderShell(route);
-    await screen.findByText(marker);
+  ])(
+    "draws the Today / Chats / Reports bar on %s, with %s's tab selected",
+    async (route, marker, selected) => {
+      h.convos = [conv({ id: 'only' })];
+      renderShell(route);
+      await screen.findByText(marker);
 
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual(['Today', 'Chats', 'Reports']);
-    expect(screen.getByRole('tab', { name: new RegExp(`^${selected}`) })).toHaveAttribute(
-      'aria-selected',
-      'true',
-    );
-  });
+      const tabs = screen.getAllByRole('tab');
+      expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual([
+        'Today',
+        'Chats',
+        'Reports',
+      ]);
+      expect(screen.getByRole('tab', { name: new RegExp(`^${selected}`) })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    },
+  );
 
   it('adds the Kavach door, with the points to do on it, where Kavach is on for the pump', async () => {
     h.convos = [conv({ id: 'only' })];
-    h.kavach = { on: true, now: [{}, {}] };
+    // Two asks the dealer can send, due every day: both count for today.
+    h.kavach = {
+      on: true,
+      now: [
+        { canSend: true, how: 'photo', everyDays: 1 },
+        { canSend: true, how: 'photo', everyDays: 1 },
+      ],
+    };
     renderShell('/reports');
     await screen.findByText('reports-page');
     const tabs = screen.getAllByRole('tab');
     // The badge's number comes before the word.
-    expect(tabs.map((tab) => tab.textContent?.replace(/^\d+/, ''))).toEqual(['Today', 'Chats', 'Reports', 'Kavach']);
+    expect(tabs.map((tab) => tab.textContent?.replace(/^\d+/, ''))).toEqual([
+      'Today',
+      'Chats',
+      'Reports',
+      'Kavach',
+    ]);
     expect(screen.getByRole('img', { name: '2 to do' })).toHaveTextContent('2');
   });
 
@@ -209,13 +230,16 @@ describe('AppShell — the frame', () => {
     ['/services', 'services-page'],
     ['/chat/c1', 'thread-page'],
     ['/chat/c1/info', 'info-page'],
-  ])('draws no tab bar on %s — not in a chat, not on Settings, not on a sub-page', async (route, title) => {
-    renderShell(route);
-    await screen.findByText(title);
+  ])(
+    'draws no tab bar on %s — not in a chat, not on Settings, not on a sub-page',
+    async (route, title) => {
+      renderShell(route);
+      await screen.findByText(title);
 
-    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-  });
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab')).not.toBeInTheDocument();
+    },
+  );
 
   it('puts the bar away while the keyboard is up', async () => {
     h.keyboardOpen = true;
@@ -268,7 +292,10 @@ describe('AppShell — the frame', () => {
         <Routes>
           <Route element={<AppShell />}>
             <Route path="/" element={<Screen name="today-page" />} />
-            <Route path="/report/:conversationId/:messageId" element={<Screen name="today-page" />} />
+            <Route
+              path="/report/:conversationId/:messageId"
+              element={<Screen name="today-page" />}
+            />
           </Route>
         </Routes>,
         { route: '/report/c1/m1', withRouter: true },

@@ -31,7 +31,7 @@ import { FuelOrderCardView } from './FuelOrderCardView';
 import { MockDrillBox } from './MockDrill/MockDrillBox';
 import { PortalLoginBox } from './PortalLoginBox';
 import { readerBody } from './readerLanguage';
-import { ReplyChoices } from './ReplyChoices';
+import { AnsweredChoice, ReplyChoices } from './ReplyChoices';
 import { isSystemSenderName, replyPreview, replySenderLabel } from './replyContext';
 import {
   REPORT_SENTENCE_KEY,
@@ -441,6 +441,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   onAskRetry,
   choicesLive = false,
   onChoice,
+  answeredWith,
 }: {
   message: Message;
   mine: boolean;
@@ -485,6 +486,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   choicesLive?: boolean;
   /** A tap on an answer button: send its words as the dealer's own message. */
   onChoice?: (text: string) => void;
+  /** The answer button the reply that followed names (ADR 0059): drawn ticked under the question. */
+  answeredWith?: string | null;
 }) {
   const t = useT();
   const lang = useLang();
@@ -875,6 +878,8 @@ export const MessageBubble = React.memo(function MessageBubble({
 
         {message.replyChoices && choicesLive && !mine && onChoice ? (
           <ReplyChoices choices={message.replyChoices} lang={lang} onChoice={onChoice} />
+        ) : message.replyChoices && answeredWith && !mine ? (
+          <AnsweredChoice words={answeredWith} />
         ) : null}
 
         {reactionGroups.length > 0 ? (

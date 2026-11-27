@@ -496,6 +496,11 @@ export interface OutletSetupAdmin {
   waitingOn: SetupWaitingOn;
   /** When the current stage opened. */
   stageSince: string;
+  /**
+   * The five steps as the dealer's setup card draws them (ADR 0059), so the team's copy of
+   * the card is the dealer's. Absent from a server older than 26 Nov 2026.
+   */
+  strip?: Array<{ step: SetupStripStep; state: SetupStripState }>;
   milestones: SetupMilestones;
   /** Who did sign-in, company, billing and logins: the dealer, or the team for them. */
   doneBy: SetupDoneByMap;

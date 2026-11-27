@@ -1,12 +1,13 @@
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
 import * as React from 'react';
 
+import { invalidateFlowCards } from '@/features/flowCard/useFlowCard';
 import { invalidateOutletDetails } from '@/features/outletDetails/useOutletDetails';
 import { invalidateChatAskStates, markAskSentThenRecheck } from '@/hooks/api/useChatAskStates';
+import { invalidateComplaints } from '@/hooks/api/useComplaints';
 import { invalidateDeclarations } from '@/hooks/api/useDeclarations';
 import { invalidateDuOtp } from '@/hooks/api/useDuOtp';
 import { aliasMessageId, isPendingMessage, messagesQueryKey } from '@/hooks/api/useMessages';
-import { invalidateComplaints } from '@/hooks/api/useComplaints';
 import { invalidateMockDrill } from '@/hooks/api/useMockDrill';
 import { invalidatePortalLogins } from '@/hooks/api/usePortalLogins';
 import { reactionMutationsPending } from '@/hooks/api/useReactToMessage';
@@ -275,6 +276,10 @@ export function useConversationSocket(
       // A COMPLAINT BOX ARRIVED: it draws the complaint as it stands NOW (the next question,
       // the filed number), which the cache may not have heard yet. Cheap when no box is on screen.
       if (!alreadyPresent && payload.message.complaint) invalidateComplaints(qc);
+      // A LIVING CARD MOVED HERE (ADR 0059): its card is now painted on this message.
+      if (!alreadyPresent && payload.message.flowCard) {
+        invalidateFlowCards(qc, payload.message.flowCard.flow, payload.message.flowCard.ref);
+      }
       if (!alreadyPresent && payload.message.workPermit) invalidateWorkPermits(qc);
       // THE DECLARATIONS BOX ARRIVED: the same reasoning, for its own view.
       if (!alreadyPresent && payload.message.declarations) invalidateDeclarations(qc);

@@ -96,6 +96,8 @@ export interface ServerToClientEvents {
   'mockDrill:changed': (payload: { dealerId: string }) => void;
   /** A maintenance complaint of this outlet changed (ADR 0052). */
   'complaints:changed': (payload: { dealerId: string }) => void;
+  /** A living card changed (ADR 0059): ask `GET /me/flow-cards/:flow/:ref` again. */
+  'flowcard:changed': (payload: { dealerId: string; flow: string; ref: string }) => void;
   /** A work permit of this outlet changed (ADR 0053). */
   'workPermits:changed': (payload: { dealerId: string }) => void;
   /**

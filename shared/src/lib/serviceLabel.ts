@@ -72,6 +72,7 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
   'hpcl-inspection-reports': { en: 'HPCL inspection reports', hi: 'HPCL इंस्पेक्शन रिपोर्ट' },
   /** The book on the desk, per docs/specs/tt-density-ux.md §2. */
   'tt-density': { en: 'TT Density', hi: 'डेंसिटी रजिस्टर' },
+  /** Documents owned by the transporter's tanker, rather than the dealership. */
   'tanker-documents': { en: 'Tanker documents', hi: 'टैंकर के काग़ज़' },
   /** "Ingress" is an inspection form's word. The dealer's word is water in the tank. */
   'water-ingress-testing': { en: 'Water ingress testing', hi: 'टैंक में पानी की जाँच' },
@@ -125,6 +126,8 @@ export const SERVICE_LABELS: Record<string, ServiceLabel> = {
     en: 'Forgot old SDMS password',
     hi: 'पुराने SDMS का पासवर्ड भूल गए',
   },
+  /** The same for the IRAS login (the portal's "Dealer Forgot Password" box). */
+  'iras-password-reset': { en: 'Forgot IRAS password', hi: 'IRAS पासवर्ड भूल गए' },
 };
 
 /**
@@ -257,6 +260,10 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
     en: "a new password for the old SDMS login (IndianOil's Business Login), set with the OTP from the owner's phone",
     hi: 'पुराने SDMS लॉगिन (IndianOil का Business Login) का नया पासवर्ड, मालिक के फ़ोन पर आए OTP से',
   },
+  'iras-password-reset': {
+    en: "a new IRAS password when the owner has forgotten it, set with the OTP from the owner's phone",
+    hi: 'मालिक IRAS का पासवर्ड भूल जाए तो नया पासवर्ड, मालिक के फ़ोन पर आए OTP से',
+  },
 };
 
 /**
@@ -266,6 +273,13 @@ export const SERVICE_ABOUT: Readonly<Record<string, { en: string; hi: string }>>
 export const BACKGROUND_SERVICE_IDS: readonly string[] = [
   'sdms-password-reset',
   'sdms-old-password-reset',
+  'iras-password-reset',
   // Kept for the team until the owner approves a dealer-facing card (hpcl-decisions D24).
   'hpcl-account',
 ];
+
+/**
+ * Services whose reports carry the owner's money and so are owner-only: a manager
+ * never sees them on the Services page, and the server drops them from his list.
+ */
+export const OWNER_ONLY_SERVICE_IDS: readonly string[] = ['credit-dod-monitoring', 'calibration-claim'];

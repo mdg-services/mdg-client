@@ -7,6 +7,7 @@ import type { DealerLang, SomeDealerWords } from './dealerLanguage';
 import type { MessageDeclarations } from './declarations';
 import type { MessageDuOtpAck } from './duOtpAck';
 import type { FuelOrderCard, MessageFuelIndent } from './fuelIndent';
+import type { MessageFlowCard } from './flowCard';
 import type { MessageMockDrill } from './mockDrill';
 import type { MessageOutletDetails } from './outletDetails';
 import type { MessageSetupCard } from './outletSetup';
@@ -460,6 +461,11 @@ export interface Message {
   replyChoices?: MessageReplyChoices;
   /** A tanker message drawn as a card (ADR 0041). Absent on every other message. */
   fuelCard?: FuelOrderCard;
+  /**
+   * A living card (ADR 0059): the app paints the card `GET /me/flow-cards/:flow/:ref` returns,
+   * on the one message the card names as live, and nothing on the older ones.
+   */
+  flowCard?: MessageFlowCard;
   /**
    * A maintenance complaint box (ADR 0052): the app draws the live box on the message
    * the complaint's view names; the marker keeps it out of the WhatsApp backup.

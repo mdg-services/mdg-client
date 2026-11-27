@@ -312,6 +312,7 @@ function PortalRow({
   onRetry,
   otpReset = null,
   startOpen = false,
+  waiting = false,
 }: {
   portal: PortalId;
   state: PortalLoginState | undefined;
@@ -323,6 +324,11 @@ function PortalRow({
   otpReset?: SdmsResetView | null;
   /** Chosen from "Which password?": opens straight on the form for the new password. */
   startOpen?: boolean;
+  /**
+   * In the setup card (ADR 0059) the logins open one at a time: a login after the first
+   * unsaved one is one line, with "Fill now", until the owner opens it or its turn comes.
+   */
+  waiting?: boolean;
 }) {
   const t = useT();
   const lang = useLang();
@@ -385,6 +391,33 @@ function PortalRow({
   // A portal whose reset the owner does on its own page, with the steps here.
   const canGuide = !!state && !notNeeded && canEdit && !!guideUrl && !guiding;
   const savedDate = state?.savedAt ? portalSavedDate(state.savedAt, lang) : '';
+
+  // Its turn has not come yet (one login at a time): its name, its "Needed" and "Fill now".
+  if (waiting && !changing && state && !notNeeded && state.status !== 'saved' && canEdit && !resetRunning && !pReset) {
+    return (
+      <div
+        data-portal={portal}
+        data-status={state.status}
+        data-waiting=""
+        className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 rounded-md bg-wa-row-active px-2.5 py-1.5"
+      >
+        <p className="flex min-w-0 items-center gap-1.5 break-words text-meta font-medium leading-snug">
+          <Lock width={14} strokeWidth={2} className="shrink-0 text-wa-meta" aria-hidden />
+          {isCompanyPortal(portal) ? name : t('chat.portalTitle', { portal: name })}
+        </p>
+        <span className="flex items-center gap-1">
+          <StatusChip status={state.status} notNeeded={false} />
+          <button
+            type="button"
+            onClick={() => setChanging(true)}
+            className="min-h-9 shrink-0 rounded-md px-1.5 text-meta font-semibold text-wa-accent-strong active:bg-black/10"
+          >
+            {t('flow.fillNow')}
+          </button>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -1184,11 +1217,17 @@ export function PortalLoginBox({
   portals,
   pick = false,
   withWemmis = false,
+  oneAtATime = false,
 }: {
   portals: readonly PortalId[];
   /** "Which password?" (`MessagePortalLogin.pick`): a list to choose from first. */
   pick?: boolean;
   withWemmis?: boolean;
+  /**
+   * Inside the setup card (ADR 0059): only the first login still needed opens its form; the
+   * ones after it are one line each, and the tanker question waits until they are saved.
+   */
+  oneAtATime?: boolean;
 }) {
   const q = usePortalLogins();
   const view = q.data;
@@ -1211,10 +1250,18 @@ export function PortalLoginBox({
   // The row only once there is something in it: after a yes, a saved login, or a reset.
   const showPartners =
     ioclBox && !!partners && (partners.needed || partners.status === 'saved' || !!partners.reset);
+  // One at a time: the first of the shown logins still needed is the one open now.
+  const firstNeeded = oneAtATime
+    ? shown.find((p) => {
+        const st = view?.portals.find((x) => x.portal === p);
+        return !!st && st.needed && st.status !== 'saved';
+      })
+    : undefined;
   const row = (portal: PortalId, startOpen = false) => (
     <PortalRow
       key={portal}
       startOpen={startOpen}
+      waiting={!!firstNeeded && portal !== firstNeeded}
       portal={portal}
       state={view?.portals.find((p) => p.portal === portal)}
       canEdit={view?.canEdit ?? false}
@@ -1248,7 +1295,7 @@ export function PortalLoginBox({
   return (
     <div data-portal-login className="mt-1 flex flex-col gap-1.5">
       {shown.map((p) => row(p))}
-      {tanker ? <TankerQuestion tanker={tanker} canEdit={view?.canEdit ?? false} /> : null}
+      {tanker && !firstNeeded ? <TankerQuestion tanker={tanker} canEdit={view?.canEdit ?? false} /> : null}
       {showPartners ? row(TANKER_PORTAL) : null}
     </div>
   );
