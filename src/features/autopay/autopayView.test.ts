@@ -7,7 +7,7 @@ import { AUTOPAY_STOP_REASONS, AUTOPAY_VIEW_STATES } from '@dk/shared/types';
 import {
   ALREADY_OFF_MARGIN_MS,
   AUTOPAY_STATE_KEY,
-  AUTOPAY_TONE,
+  AUTOPAY_STATUS,
   STOP_REASONS,
   STOP_REASON_KEY,
   autopayBody,
@@ -35,10 +35,10 @@ const en = (key: MessageKey, vars?: Record<string, string | number>) => translat
 const hi = (key: MessageKey, vars?: Record<string, string | number>) => translate('hi', key, vars);
 
 describe('the chip', () => {
-  it('has a word and a colour for every state the server can send', () => {
+  it('has a word and a shape for every state the server can send', () => {
     for (const state of AUTOPAY_VIEW_STATES) {
       expect(AUTOPAY_STATE_KEY[state]).toBeDefined();
-      expect(AUTOPAY_TONE[state]).toBeDefined();
+      expect(AUTOPAY_STATUS[state]).toBeDefined();
     }
   });
 
@@ -57,19 +57,20 @@ describe('the chip', () => {
     ]);
   });
 
-  // Amber for "waiting on someone" and "a debit bounced", green for on, grey for off.
-  // Never red: nothing here is an error of the dealer's.
-  it('wears amber, green, amber and grey, and never red', () => {
-    expect(AUTOPAY_VIEW_STATES.map((s) => AUTOPAY_TONE[s])).toEqual([
-      'warning',
-      'success',
-      'warning',
-      'neutral',
+  // The clock for "waiting on someone", the triangle for "a debit bounced", the tick for on, the
+  // circle-i for off. Never the octagon (the problem shape): nothing here is an error of the
+  // dealer's. The kit pill always writes the word beside the shape.
+  it('wears the clock, the tick, the triangle and the circle-i, and never the problem shape', () => {
+    expect(AUTOPAY_VIEW_STATES.map((s) => AUTOPAY_STATUS[s])).toEqual([
+      'waiting',
+      'ok',
+      'attention',
+      'info',
     ]);
   });
 });
 
-describe('autopaySubtitle (the Help row and the Payments card)', () => {
+describe('autopaySubtitle (the autopay row on Bill and plan)', () => {
   it('waiting: says it is waiting for the approval', () => {
     const a = makeAutopay({ state: 'setting_up', nextDebitOn: null });
     expect(autopaySubtitle(en, 'en', a)).toBe('Waiting for your approval');
@@ -78,13 +79,13 @@ describe('autopaySubtitle (the Help row and the Payments card)', () => {
 
   it('on: the monthly amount and the next day, both from the server', () => {
     const a = makeAutopay({ state: 'on', amountPaise: 354000, nextDebitOn: '2026-11-24' });
-    expect(autopaySubtitle(en, 'en', a)).toBe('₹3,540 a month · next 24 Nov');
+    expect(autopaySubtitle(en, 'en', a)).toBe('Rs\u00a03,540 a month · next 24 Nov');
     expect(autopaySubtitle(hi, 'hi', a)).toMatch(/^₹3,540 हर महीने · अगली 24 नव/);
   });
 
   it('on with no day known yet: the amount alone, never a made-up day', () => {
     const a = makeAutopay({ state: 'on', nextDebitOn: null });
-    expect(autopaySubtitle(en, 'en', a)).toBe('₹3,540 a month');
+    expect(autopaySubtitle(en, 'en', a)).toBe('Rs\u00a03,540 a month');
   });
 
   it('failing: says the last payment did not go through', () => {
@@ -106,7 +107,7 @@ describe('autopaySubtitle (the Help row and the Payments card)', () => {
 
   it('follows the amount the server sends, not a built-in 3,540', () => {
     const a = makeAutopay({ state: 'on', amountPaise: 118000, nextDebitOn: '2026-12-02' });
-    expect(autopaySubtitle(en, 'en', a)).toBe('₹1,180 a month · next 2 Dec');
+    expect(autopaySubtitle(en, 'en', a)).toBe('Rs\u00a01,180 a month · next 2 Dec');
   });
 });
 
@@ -137,7 +138,7 @@ describe('autopayBody (the card on the Autopay screen)', () => {
   it('failing: names the amount that did not go through and says what to check', () => {
     const a = makeAutopay({ state: 'failing' });
     expect(autopayBody(en, 'en', a)).toBe(
-      'The last ₹3,540 debit did not go through. Check the balance in your UPI account.',
+      'The last Rs\u00a03,540 debit did not go through. Check the balance in your UPI account.',
     );
     expect(autopayBody(hi, 'hi', a)).toBe('पिछले ₹3,540 नहीं कट पाए। अपने UPI खाते की रकम जाँचिए।');
   });
@@ -258,10 +259,10 @@ describe('the dialog', () => {
   });
 
   it('opens with the in-flight warning only while a debit is being taken', () => {
-    expect(inProgressLine(en, makeAutopay({ debitInProgress: false }))).toBeNull();
+    expect(inProgressLine(en, 'en', makeAutopay({ debitInProgress: false }))).toBeNull();
     const a = makeAutopay({ debitInProgress: true });
-    expect(inProgressLine(en, a)).toBe('₹3,540 is being taken right now. Stopping will not undo it.');
-    expect(inProgressLine(hi, a)).toBe('अभी ₹3,540 कट रहे हैं। बंद करने से यह वापस नहीं होगा।');
+    expect(inProgressLine(en, 'en', a)).toBe('Rs\u00a03,540 is being taken right now. Stopping will not undo it.');
+    expect(inProgressLine(hi, 'hi', a)).toBe('अभी ₹3,540 कट रहे हैं। बंद करने से यह वापस नहीं होगा।');
   });
 
   it('has one help line, and promises the first month back only inside it', () => {

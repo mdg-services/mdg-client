@@ -1,9 +1,11 @@
 import { Clock, Info, TriangleAlert } from 'lucide-react';
 import * as React from 'react';
 
+import { ProgressBar, SectionCard, StatusPill } from '@/components/kit';
 import type { Lang } from '@/store/lang';
 import type { ReportDataOf } from '@dk/shared/types';
 
+import { statusWord } from '../StatusBadge';
 import { sayWords, type KindAlert, type KindTile, type KindView, type OverlayProps, type Words } from '../types';
 
 import {
@@ -18,6 +20,8 @@ import {
   leading,
   num,
   plural,
+  rv,
+  rvn,
   stampWords,
 } from './_supplyKit';
 
@@ -40,7 +44,7 @@ type Slot = Data['slots'][number];
 
 const SLOT_WORD: Record<Slot['state'], Words> = {
   recorded: { hi: 'हो गई', hl: 'Ho gayi', en: 'Done' },
-  missed: { hi: 'छूटी', hl: 'Chhooti', en: 'Missed' },
+  missed: { hi: 'छूट गई', hl: 'Chhoot gayi', en: 'Missed' },
   open: { hi: 'बाकी', hl: 'Baaki', en: 'Open' },
 };
 
@@ -124,7 +128,7 @@ const W = {
   winSoFar: { hi: 'अभी तक', hl: 'Ab tak', en: 'so far' } satisfies Words,
   tileDone: { hi: 'हुईं', hl: 'hui', en: 'done' } satisfies Words,
   tileMissed: (n: number): Words => ({
-    hi: `हुईं, ${n} छूटीं`,
+    hi: `हुईं, ${n} छूट गईं`,
     hl: `hui, ${n} chhoot gayi`,
     en: `done, ${n} missed`,
   }),
@@ -145,7 +149,10 @@ const W = {
 
 // ── time of a window ───────────────────────────────────────────────────────────
 
-/** "12–2 am" (hi: "रात 12–2 बजे"): a window's own hours, short enough for a 72 px block. */
+/**
+ * "12–2 am" (hi: "रात 12–2"): a window's own hours in 12-hour wording, short enough for a
+ * three-across block. The service page says its windows the same way (it should call this).
+ */
 export function slotRange(startMin: number, endMin: number, lang: Lang): string {
   const part = (min: number): { h12: number; mm: number; hour: number } => {
     const hour = Math.floor(min / 60) % 24;
@@ -162,6 +169,14 @@ export function slotRange(startMin: number, endMin: number, lang: Lang): string 
   return mer(a.hour) === mer(b.hour)
     ? `${show(a)}–${show(b)} ${mer(a.hour)}`
     : `${show(a)} ${mer(a.hour)}–${show(b)} ${mer(b.hour)}`;
+}
+
+/**
+ * The range on one line at any text size, without a no-wrap class: a no-break space after the
+ * time of day and a word joiner on each side of the dash, so the browser has nowhere to cut it.
+ */
+export function keepTogether(range: string): string {
+  return range.replace(/ /g, '\u00a0').replace(/–/g, '\u2060–\u2060');
 }
 
 /** "06:00" read as a clock in the reader's language. */
@@ -254,7 +269,7 @@ function Hatch(): React.ReactElement {
       focusable="false"
       viewBox="0 0 72 72"
       preserveAspectRatio="none"
-      className="pointer-events-none absolute inset-0 h-full w-full text-kind-water-ink opacity-25"
+      className="pointer-events-none absolute inset-0 h-full w-full rounded-xl text-kind-water-ink opacity-25"
     >
       <path
         d="M0 24L24 0M0 48L48 0M0 72L72 0M24 72L72 24M48 72L72 48"
@@ -281,37 +296,36 @@ function SlotBlock({ slot, lang }: { slot: Slot; lang: Lang }): React.ReactEleme
       aria-label={`${range}: ${word}`}
       data-state={slot.state}
       data-testid="water-slot"
-      className={`relative flex min-h-[72px] flex-col items-center justify-center gap-1 overflow-hidden rounded-xl px-1 py-2 text-center ${frame}`}
+      className={`relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl px-0.5 py-2 text-center ${frame}`}
     >
       {slot.state === 'missed' ? <Hatch /> : null}
       <span className="relative">
         <SlotMark state={slot.state} />
       </span>
-      <span className={`relative text-subheading text-text ${leading(lang)}`}>{range}</span>
+      <span className={`relative text-body font-semibold text-text ${leading(lang)}`}>{keepTogether(range)}</span>
       <span className={`relative text-body text-text ${leading(lang)}`}>{word}</span>
     </li>
   );
 }
 
-/** The thin bar over the grid: one segment per window, same three looks. */
-function SegmentBar({ slots }: { slots: Slot[] }): React.ReactElement {
-  return (
-    <div aria-hidden="true" data-testid="water-segments" className="flex gap-1">
-      {slots.map((s, i) => (
-        <span
-          key={i}
-          data-state={s.state}
-          className={`h-4 min-w-[6px] flex-1 rounded-sm ${
-            s.state === 'recorded'
-              ? 'bg-kind-water-ink'
-              : s.state === 'missed'
-                ? 'border-2 border-dashed border-kind-water-ink bg-kind-water-soft'
-                : 'border border-solid border-border-strong bg-surface'
-          }`}
-        />
-      ))}
-    </div>
-  );
+/**
+ * How the day stands, as one of the five report shapes. A missed window is "Needs a look" even while
+ * the day is still running: the report's own tag, the Reports list and Today all say so, and a card
+ * that said "We are on it" under a header that said "Needs a look" gave one report two verdicts.
+ */
+function dayStatus(data: Data): 'ok' | 'attention' | 'waiting' {
+  const { missed } = counts(data);
+  return missed > 0 ? 'attention' : data.dayState === 'running' ? 'waiting' : 'ok';
+}
+
+/** "10 of 12 checks done, 2 missed": the number in words, said once, with the bar that draws it. */
+export function progressText(data: Data, lang: Lang): string {
+  const { total, done, missed, open } = counts(data);
+  const running = data.dayState === 'running';
+  const parts = [rv(lang, running ? 'rv3.water.progressSoFar' : 'rv3.water.progress', { done: num(done), total: num(total) })];
+  if (missed > 0) parts.push(rvn(lang, 'rv3.water.missed', missed, { n: num(missed) }));
+  if (running && open > 0) parts.push(rvn(lang, 'rv3.water.open', open, { n: num(open) }));
+  return parts.join(', ');
 }
 
 function Overlay({ data, lang }: OverlayProps<'water_ingress'>): React.ReactElement {
@@ -330,15 +344,32 @@ function Overlay({ data, lang }: OverlayProps<'water_ingress'>): React.ReactElem
     : sayWords(W.notOnPortal, lang);
 
   return (
-    <div data-kind="water_ingress" className="flex flex-col gap-4 p-4">
-      <Lead lang={lang}>{leadText(data, lang)}</Lead>
+    <div data-kind="water_ingress" className="flex flex-col gap-3 p-4">
+      <SectionCard
+        title={
+          dayWords(data.businessDate, lang)
+            ? rv(lang, 'rv3.water.day', { day: dayWords(data.businessDate, lang) })
+            : rv(lang, 'rv3.water.title')
+        }
+      >
+        <div className="flex flex-col gap-3" data-testid="water-summary">
+          {counts(data).total > 0 ? (
+            <>
+              <div>
+                <StatusPill status={dayStatus(data)} word={statusWord(dayStatus(data), lang)} />
+              </div>
+              <ProgressBar value={counts(data).done} max={counts(data).total} text={progressText(data, lang)} />
+            </>
+          ) : null}
+          <Lead lang={lang}>{leadText(data, lang)}</Lead>
+        </div>
+      </SectionCard>
 
       {slots.length > 0 ? (
         <section aria-label={sayWords(W.gridTitle, lang)} className="flex flex-col gap-3">
-          <SegmentBar slots={slots} />
           <ul
             aria-label={sayWords(W.slotsAria, lang)}
-            className="grid list-none gap-2 p-0 [grid-template-columns:repeat(auto-fill,minmax(4.5rem,1fr))]"
+            className="grid list-none gap-2 p-0 [grid-template-columns:repeat(auto-fill,minmax(7rem,1fr))]"
           >
             {slots.map((s, i) => (
               <SlotBlock key={`${s.startMin}-${i}`} slot={s} lang={lang} />
@@ -433,7 +464,7 @@ function tile(data: Data, lang: Lang): KindTile | null {
       : missed > 0
         ? sayWords(W.tileMissed(missed), lang)
         : sayWords(W.tileDone, lang),
-    status: running ? 'waiting' : missed > 0 ? 'attention' : 'ok',
+    status: missed > 0 ? 'attention' : running ? 'waiting' : 'ok',
   };
 }
 
@@ -456,7 +487,7 @@ function headline(data: Data, lang: Lang): string {
     data.dayState === 'running'
       ? `, ${sayWords(W.winSoFar, lang)}`
       : missed > 0
-        ? `, ${plural(missed, () => ({ hi: '1 छूटी', hl: '1 chhooti', en: '1 missed' }), (n) => ({ hi: `${n} छूटीं`, hl: `${n} chhooti`, en: `${n} missed` }), lang)}`
+        ? `, ${plural(missed, () => ({ hi: '1 छूट गई', hl: '1 chhoot gayi', en: '1 missed' }), (n) => ({ hi: `${n} छूट गईं`, hl: `${n} chhoot gayi`, en: `${n} missed` }), lang)}`
         : '';
   return `${sayWords(W.title, lang)}${day ? ` ${day}` : ''}: ${figure}${tail}`;
 }

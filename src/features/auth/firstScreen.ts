@@ -38,3 +38,16 @@ export function firstScreen(): '/login' | '/register' {
     return '/login';
   }
 }
+
+/**
+ * Has anybody signed in or registered on this phone? The same mark `firstScreen` reads. A phone
+ * that has is past the first-open language question (its owner answered it, or the account did),
+ * so Sign in does not ask again; with storage switched off nothing can be remembered, so it is false.
+ */
+export function hasAccountHere(): boolean {
+  try {
+    return localStorage.getItem(SIGNED_IN_BEFORE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}

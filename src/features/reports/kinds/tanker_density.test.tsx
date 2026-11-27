@@ -119,7 +119,7 @@ describe('tanker_density: copy', () => {
 
   it('is a 48 px target', () => {
     open(densityData());
-    expect(screen.getByRole('button', { name: /Copy Diesel/ }).className).toContain('min-h-[48px]');
+    expect(screen.getByRole('button', { name: /Copy Diesel/ }).className).toContain('min-h-12');
   });
 
   it('offers Copy all only when there are several fuels, diesel first', async () => {

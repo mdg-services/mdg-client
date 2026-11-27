@@ -1,54 +1,65 @@
 import { AlertCircle, Wallet } from 'lucide-react';
 
+import { SkeletonBlock } from '@/components/kit';
 import { SubPage } from '@/components/SubPage';
-import { Button } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import { useOwnerAutopay } from '@/features/autopay/api';
 import { AutopayCard } from '@/features/autopay/AutopayCard';
+import { useOutletSetup } from '@/features/setup/useOutletSetup';
 import { isEmbedded } from '@/lib/embedMode';
-import { useT } from '@/lib/i18n';
+import { useLang, useT } from '@/lib/i18n';
 
 import { usePaymentsList } from './api';
+import { BilledToCard, NeedsMeCard, PapersCard, PlanCard, YearCard } from './BillCards';
+import { BillsCard } from './BillRows';
+import {
+  groupByYear,
+  isListCapped,
+  lastFailedDay,
+  mostUrgent,
+  needsMe,
+  papersOf,
+  planOf,
+  yearSummary,
+} from './billView';
 import { isNotConfigured, isTryAgainSoon } from './errors';
-import { PaymentCard } from './PaymentCard';
-import { splitPayments } from './paymentView';
+import { showsPayButton } from './paymentView';
 import { canPayHere } from './policy';
 import { StateBlock } from './StateBlock';
-
-/** Two grey blocks the shape of the cards, while the list comes down the wire. */
-function ListSkeleton() {
-  const t = useT();
-  return (
-    <div role="status" aria-busy="true" className="flex flex-col gap-3">
-      <span className="sr-only">{t('common.loading')}</span>
-      {[0, 1].map((i) => (
-        <div key={i} className="h-36 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
-      ))}
-    </div>
-  );
-}
+import { useCoveredServices } from './useCoveredServices';
 
 /**
- * Payments — what MDG has asked this pump to pay, and what it has paid
- * (ADR 0022 §9). Reached at `/payments`; there is no menu entry yet, the owner
- * will say where it goes.
+ * Bill and plan — what MDG charges this pump, whether it is paid, and whether the services are safe
+ * (spec 4.8, ADR 0022 section 9). Reached at `/payments`. Top to bottom: what needs me (one sentence,
+ * a shape and a word), the plan and its price, autopay, this year, the bills, the papers, and who
+ * the bills are made out to.
  *
- * WHAT THIS SCREEN MAY SAY DEPENDS ON WHERE IT IS RUNNING. In a browser, a due
- * payment has a Pay button and every card opens its own page. Inside the Android
- * app (`canPayHere()` false) it is the same two lists, read-only: no Pay button,
- * no link to a payment that is still open, and no sentence about paying somewhere
- * else — Google Play's Payments policy treats each of those as steering a user
- * away from Play Billing. A payment that was made still opens its receipt.
+ * WHAT THIS SCREEN MAY SAY DEPENDS ON WHERE IT IS RUNNING. In a browser, a due bill has a Pay button
+ * and every row opens its own page. Inside the Android app (`canPayHere()` false) it is the same
+ * page, read-only: no Pay button, no link to a bill that is still open, and no sentence about paying
+ * somewhere else. Google Play's Payments policy treats each of those as steering a user away from
+ * Play Billing. A bill that was paid still opens its receipt.
+ *
+ * Every extra read (the owner's autopay, the setup view, the services list) may fail or be absent
+ * on an older server; its section is then simply left out, and the bills never wait on any of them.
  */
 export function PaymentsPage() {
   const t = useT();
+  const lang = useLang();
   const query = usePaymentsList();
   // After the bills' own query, so the list is the first thing asked for.
-  const { autopay, failed: autopayFailed } = useOwnerAutopay();
+  const { autopay, failed: autopayFailed, loaded: autopayLoaded } = useOwnerAutopay();
+  const setup = useOutletSetup().data;
+  const services = useCoveredServices();
   const interactive = canPayHere();
 
   let body;
   if (query.isLoading) {
-    body = <ListSkeleton />;
+    body = (
+      <Card className="p-4">
+        <SkeletonBlock lines={6} />
+      </Card>
+    );
   } else if (isNotConfigured(query.error)) {
     body = (
       <StateBlock
@@ -75,38 +86,43 @@ export function PaymentsPage() {
         }
       />
     );
-  } else if (query.data.items.length === 0) {
-    body = (
-      <StateBlock
-        icon={<Wallet width={28} strokeWidth={1.5} />}
-        title={t('payments.emptyTitle')}
-        description={t('payments.emptyDesc')}
-      />
-    );
   } else {
-    const { due, history } = splitPayments(query.data.items);
+    const items = query.data.items;
+    const plan = planOf(items, autopay);
+    const papers = papersOf(items);
+    const billing = setup?.billing ?? null;
+    // Only a browser, and only for a bill that can be paid: the one Pay button sits in the banner.
+    const urgent = interactive ? mostUrgent(items) : null;
+    const bannerPayment = urgent && showsPayButton(urgent) ? urgent : null;
     body = (
       <>
-        <section aria-labelledby="payments-due" className="flex flex-col gap-3">
-          <h2 id="payments-due" className="text-heading text-text">
-            {t('payments.sectionDue')}
-          </h2>
-          {due.length === 0 ? (
-            <p className="text-body text-text-muted">{t('payments.nothingDue')}</p>
-          ) : (
-            due.map((p) => <PaymentCard key={p.id} payment={p} interactive={interactive} />)
-          )}
-        </section>
-        {history.length > 0 ? (
-          <section aria-labelledby="payments-history" className="flex flex-col gap-3">
-            <h2 id="payments-history" className="text-heading text-text">
-              {t('payments.sectionHistory')}
-            </h2>
-            {history.map((p) => (
-              <PaymentCard key={p.id} payment={p} interactive={interactive} />
-            ))}
-          </section>
+        <NeedsMeCard
+          needs={needsMe({ t, lang, payments: items, autopay, setup })}
+          payment={bannerPayment}
+        />
+        {plan ? <PlanCard plan={plan} services={services} /> : null}
+        {/* The owner's autopay: the row is always there once the server has answered, "Not on at this
+            pump" included, so the Autopay screen is not a hidden address. Its own query: the list
+            never waits on it, and a failed answer still leaves a row that opens the Autopay screen,
+            which has its own Try again. A manager has none (no request is made for one). */}
+        {autopay || autopayFailed || autopayLoaded ? (
+          <AutopayCard
+            autopay={autopay}
+            none={!autopay && autopayLoaded}
+            lastTryDay={lastFailedDay(items)}
+          />
         ) : null}
+        {items.length > 0 ? (
+          <YearCard summary={yearSummary(items)} showGst={!!billing?.gstin} />
+        ) : null}
+        <BillsCard
+          years={groupByYear(items)}
+          interactive={interactive}
+          capped={isListCapped(items)}
+          bannerPaymentId={bannerPayment?.id ?? null}
+        />
+        <PapersCard papers={papers} interactive={interactive} />
+        {setup ? <BilledToCard billing={billing} /> : null}
       </>
     );
   }
@@ -114,11 +130,7 @@ export function PaymentsPage() {
   return (
     // Opened cold (a payment notification) there is nothing behind it: home is Today, and the
     // extension's panel, which has no Today, goes back to its chat.
-    <SubPage title={t('payments.title')} fallback={isEmbedded() ? '/chat' : '/'} className="gap-6 pb-10">
-      {/* The owner's autopay, above the bills, when there is one. Its own query: the
-          list never waits on it, and a failed answer still leaves a card that opens
-          the Autopay screen, which has its own Try again. */}
-      {autopay || autopayFailed ? <AutopayCard autopay={autopay} /> : null}
+    <SubPage title={t('bill.title')} fallback={isEmbedded() ? '/chat' : '/'} className="gap-3 pb-10">
       {body}
     </SubPage>
   );

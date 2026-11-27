@@ -85,6 +85,16 @@ describe('the living card (ADR 0059)', () => {
     expect(within(part).getByRole('button', { name: '8' }).getAttribute('aria-pressed')).toBe('false');
   });
 
+  it('writes the card meta, a done answer\'s label and the unit at 14px, never 12px or 11px (real information)', async () => {
+    h.get.mockResolvedValue(card({ progress: { done: 1, total: 3, label: w('1 / 3', '1 / 3', '1 of 3') } as FlowCardView['progress'] }));
+    renderWithProviders(<FlowCardMessage message={msg()} />);
+    const c = await screen.findByTestId('flow-card');
+    expect(within(c).getByText('904S · 4:10 pm').className).toContain('text-meta');
+    // 12px is for counts and tiny marks only: here the number inside a row's round mark.
+    for (const el of Array.from(c.querySelectorAll('.text-micro'))) expect(el.className).toContain('rounded-full');
+    expect(c.outerHTML).not.toMatch(/text-\[0\.6875rem\]/);
+  });
+
   it('sends a tap as an answer to its row, and paints the card the server answers with', async () => {
     h.get.mockResolvedValue(card());
     const after = card({
@@ -164,6 +174,46 @@ describe('the living card (ADR 0059)', () => {
     const part = await screen.findByTestId('flow-part-kl:HSD');
     expect((within(part).getByRole('button', { name: '8' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Is card ka jawab owner denge')).toBeTruthy();
+  });
+});
+
+describe('every tap on the card is at least 44px (spec 3.1)', () => {
+  const big = (el: Element | null) => {
+    expect(el).not.toBeNull();
+    expect(el!.className).toMatch(/(min-h|size)-11\b/);
+  };
+
+  it('the answer pills, the own-words link, the Save and "Not now" buttons, and the video row', async () => {
+    h.get.mockResolvedValue(
+      card({
+        actions: [
+          { id: 'save', label: w('सहेजिए', 'Save karein', 'Save'), tone: 'primary' },
+          { id: 'drop', label: w('रहने दीजिए', 'Rehne dijiye', 'Not now'), tone: 'secondary' },
+        ],
+        video: { id: 'fuel_orders', title: w('वीडियो', 'Video', 'Video'), seconds: 60 } as FlowCardView['video'],
+      }),
+    );
+    renderWithProviders(<FlowCardMessage message={msg()} onSay={vi.fn()} />);
+    const part = await screen.findByTestId('flow-part-kl:HSD');
+    for (const pill of within(part).getAllByRole('button', { name: /^(4|8|12)$/ })) big(pill);
+    big(within(part).getByTestId('own-words'));
+    big(screen.getByTestId('flow-action-save'));
+    big(screen.getByTestId('flow-action-drop'));
+    big(screen.getByRole('button', { name: /Video/ }));
+    // The written-in box: its field, send and close are the same size.
+    fireEvent.click(within(part).getByTestId('own-words'));
+    const box = within(part).getByTestId('own-words-box');
+    big(within(box).getByRole('textbox'));
+    big(within(box).getByRole('button', { name: 'Bhejein' }));
+    big(within(box).getAllByRole('button').at(-1) ?? null);
+  });
+
+  it('the Change link on a done row and the lone quiet "Not now" are 44px too', async () => {
+    h.get.mockResolvedValue(card());
+    renderWithProviders(<FlowCardMessage message={msg()} />);
+    const done = await screen.findByTestId('flow-row-delivery_date');
+    big(within(done).getByRole('button', { name: /Badlein|Change/ }));
+    big(screen.getByTestId('flow-action-drop'));
   });
 });
 

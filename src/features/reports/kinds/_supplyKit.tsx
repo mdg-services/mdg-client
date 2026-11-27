@@ -6,7 +6,12 @@ import type { Lang } from '@/store/lang';
 import type { ReportDetail, TodayTaskKind } from '@dk/shared/types';
 
 import { useReportActions } from '../reportActions';
-import { sayWords, type Words } from '../types';
+import { StatusShape } from '../StatusBadge';
+import { sayWords, type ReportStatusKey, type Words } from '../types';
+
+import { fuelColor, fuelLetters, fuelName, tanksWords } from './dsr_sales/fmt';
+
+export { rv, rvn } from './_fmtTankerMoney';
 
 /**
  * Small things the five "water, supply, MDG" kinds share (water_ingress, ro_supply, du_otp,
@@ -123,7 +128,7 @@ export function leading(lang: Lang): string {
   return lang === 'hi' ? 'leading-[1.7]' : 'leading-normal';
 }
 
-/** The first sentence of an overlay: 20 px bold, before any figure. */
+/** The first sentence of an overlay: `heading` size, bold, before any figure. */
 export function Lead({ lang, children }: { lang: Lang; children: React.ReactNode }): React.ReactElement {
   return (
     <p data-testid="report-lead" className={`break-words text-heading text-text ${leading(lang)}`}>
@@ -132,7 +137,7 @@ export function Lead({ lang, children }: { lang: Lang; children: React.ReactNode
   );
 }
 
-/** A quiet note: an icon, then words. 16 px; the tint says how loud, the icon says what. */
+/** A quiet note: an icon, then words, at body size; the tint says how loud, the icon says what. */
 export function Note({
   lang,
   icon,
@@ -165,13 +170,13 @@ export function Note({
   );
 }
 
-/** A heading for a block of rows: 16 px bold, muted. */
+/** A heading for a block of rows: `subheading` size, muted. */
 export function BlockTitle({ children }: { children: React.ReactNode }): React.ReactElement {
   return <h3 className="text-subheading text-text-muted">{children}</h3>;
 }
 
 /**
- * A "More" row: 48 px, closed until it is tapped, for detail a dealer does not need to read
+ * A "More" row: 3rem tall, closed until it is tapped, for detail a dealer does not need to read
  * (the portal's own words, how a figure is worked out).
  */
 export function More({
@@ -192,7 +197,7 @@ export function More({
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        className="flex min-h-[48px] w-full items-center justify-between gap-3 px-3 py-2 text-left text-cta text-text"
+        className="flex min-h-12 w-full items-center justify-between gap-3 px-3 py-2 text-left text-cta text-text"
       >
         <span>{label}</span>
         <ChevronDown
@@ -207,7 +212,7 @@ export function More({
   );
 }
 
-/** A 48 px outlined button, for an action that sits inside the body (the shell owns the pinned one). */
+/** A 3rem outlined button, for an action that sits inside the body (the shell owns the pinned one). */
 export function BodyButton({
   onClick,
   children,
@@ -228,7 +233,7 @@ export function BodyButton({
       data-testid={testId}
       aria-label={label}
       onClick={onClick}
-      className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-[10px] border border-border-strong bg-surface px-4 py-2 text-cta text-text active:bg-surface-2"
+      className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 py-2 text-cta text-text shadow-sm active:bg-surface-2"
     >
       {icon}
       <span>{children}</span>
@@ -313,6 +318,78 @@ export function plural(n: number, one: (n: number) => Words, many: (n: number) =
 /** A two-language text somebody else wrote: Hindi for Hindi, otherwise the English. */
 export function twoLang(text: { en: string; hi: string }, lang: Lang): string {
   return (lang === 'hi' ? text.hi || text.en : text.en || text.hi) ?? '';
+}
+
+/**
+ * A coloured box with a status shape: the shape and the words carry the meaning, the tint only
+ * helps. The stale-reading band, the severity banner and the "what to do" box of the stock and
+ * tanker kinds. Written here, not borrowed from the sales kinds, so the two halves never collide.
+ */
+export function Callout({
+  status,
+  children,
+  testId,
+}: {
+  status: ReportStatusKey;
+  children: React.ReactNode;
+  testId?: string;
+}): React.ReactElement {
+  const tone: Record<ReportStatusKey, string> = {
+    problem: 'bg-status-problem-soft',
+    attention: 'bg-status-attention-soft',
+    waiting: 'bg-status-waiting-soft',
+    ok: 'bg-status-ok-soft',
+    info: 'bg-surface-2',
+  };
+  return (
+    <div
+      data-testid={testId}
+      data-status={status}
+      className={`flex items-start gap-2.5 rounded-lg px-3.5 py-3 text-body leading-relaxed text-text ${tone[status]}`}
+    >
+      <span aria-hidden="true" data-status={status} className="mt-0.5 shrink-0">
+        <StatusShape status={status} size={20} />
+      </span>
+      <div className="min-w-0 break-words">{children}</div>
+    </div>
+  );
+}
+
+/** A small swatch in the fuel's workbook colour, always beside the fuel's letters or name. */
+export function FuelSwatch({ fuelKey }: { fuelKey: string }): React.ReactElement {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+      style={{ backgroundColor: fuelColor(fuelKey) }}
+    />
+  );
+}
+
+/** "Diesel (HSD) · tanks 4, 6, 8" with the fuel swatch: the band over each fuel's block. Names wrap. */
+export function FuelBand({
+  fuelKey,
+  tankNos,
+  lang,
+  trailing,
+}: {
+  fuelKey: string;
+  tankNos?: readonly number[];
+  lang: Lang;
+  trailing?: React.ReactNode;
+}): React.ReactElement {
+  const name = fuelName(fuelKey, lang);
+  const letters = fuelLetters(fuelKey);
+  const tanks = tankNos ? tanksWords(tankNos, lang) : '';
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-subheading leading-snug text-text">
+      <FuelSwatch fuelKey={fuelKey} />
+      <span className="break-words">{name}</span>
+      {name.toUpperCase() !== letters ? <span className="text-subheading text-text-muted">({letters})</span> : null}
+      {tanks ? <span className="break-words text-body font-normal text-text-muted">· {tanks}</span> : null}
+      {trailing}
+    </div>
+  );
 }
 
 /** An SVG box for a Glyph: 40 x 28 at any height, drawn in the colour of the text around it. */

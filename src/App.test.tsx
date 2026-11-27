@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { markAccountHere } from '@/features/auth/firstScreen';
+import { landingPath } from '@/features/auth/landing';
 import { useOpenReport } from '@/features/reports/reportNav';
 import { resetEmbeddedForTests } from '@/lib/embedMode';
 import { requirePasswordChange, useAuthStore } from '@/store/auth';
@@ -123,6 +124,22 @@ vi.mock('@/pages/settings/TeamPage', () => ({
 }));
 vi.mock('@/pages/ServicesPage', () => ({ ServicesPage: () => <div>services-page</div> }));
 vi.mock('@/pages/StaffPage', () => ({ StaffPage: () => <div>staff-page</div> }));
+// The four screens of the redesign (service, My pump, Papers, a warrior). Each has its own tests;
+// here they are replaced by a marker, because this file only checks that each address mounts the right page.
+vi.mock('@/pages/ServicePage', async () => {
+  const { useParams } = await import('react-router-dom');
+  return {
+    ServicePage: () => <div>service-page:{useParams().serviceId}</div>,
+  };
+});
+vi.mock('@/pages/PumpPage', () => ({ PumpPage: () => <div>pump-page</div> }));
+vi.mock('@/pages/PapersPage', () => ({ PapersPage: () => <div>papers-page</div> }));
+vi.mock('@/pages/StaffPersonPage', async () => {
+  const { useParams } = await import('react-router-dom');
+  return {
+    StaffPersonPage: () => <div>staff-person-page:{useParams().employeeId}</div>,
+  };
+});
 vi.mock('@/features/payments/PaymentsPage', () => ({
   PaymentsPage: () => <div>payments-page</div>,
 }));
@@ -279,6 +296,39 @@ describe('App routing', () => {
     expect(await screen.findByText(marker)).toBeInTheDocument();
   });
 
+  // The redesign's new addresses (spec 2.5): a page per service, My pump and its papers, a warrior.
+  it.each([
+    ['/services/dsr_sales', 'service-page:dsr_sales'],
+    ['/services/anything-unknown', 'service-page:anything-unknown'],
+    ['/pump', 'pump-page'],
+    ['/pump/papers', 'papers-page'],
+    ['/staff/emp1', 'staff-person-page:emp1'],
+  ])('serves the new address %s inside the shell', async (route, marker) => {
+    signIn();
+    renderWithProviders(<App />, { route });
+    expect(await screen.findByText(marker)).toBeInTheDocument();
+    expect(screen.getByTestId('shell')).toBeInTheDocument();
+  });
+
+  it.each(['/services/dsr_sales', '/pump', '/pump/papers', '/staff/emp1'])(
+    'does not serve %s to someone who is signed out',
+    async (route) => {
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('login-page')).toBeInTheDocument();
+      expect(screen.queryByTestId('shell')).not.toBeInTheDocument();
+    },
+  );
+
+  // The old Reports address is the Services door's second pill: it still opens, with its query.
+  it.each(['/reports', '/reports?filter=needs', '/reports?service=dsr_sales'])(
+    'keeps %s opening the Reports pill',
+    async (route) => {
+      signIn();
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('reports-page')).toBeInTheDocument();
+    },
+  );
+
   // Payments (ADR 0022): two screens in the signed-in shell, reached by address
   // only — no menu or Settings row points at them yet.
   it.each([
@@ -414,6 +464,16 @@ describe('App routing', () => {
     afterEach(() => {
       window.sessionStorage.removeItem('dk.embed');
       resetEmbeddedForTests();
+    });
+
+    // My pump has no bar and a back arrow, so the side panel can open it (Settings carries a row to it).
+    it('still serves My pump and a service page in the panel, which have a way back', async () => {
+      signIn();
+      const first = renderWithProviders(<App />, { route: '/pump' });
+      expect(await screen.findByText('pump-page')).toBeInTheDocument();
+      first.unmount();
+      renderWithProviders(<App />, { route: '/services/dsr_sales' });
+      expect(await screen.findByText('service-page:dsr_sales')).toBeInTheDocument();
     });
 
     it.each(['/login', '/register'])('sends %s to the chat list', async (route) => {
@@ -623,6 +683,19 @@ describe('a report over a screen', () => {
       renderWithProviders(<App />, { route: '/report/c1/m1' });
       expect(await screen.findByText('login-page')).toBeInTheDocument();
       expect(screen.getByTestId('from')).toHaveTextContent('/report/c1/m1');
+    });
+
+    // A push that names only a conversation opens `/?c=<id>`: the query must survive the trip to Sign in,
+    // or the dealer lands on Today instead of the thread (`landingPath` reads it back after sign-in).
+    it.each([
+      ['/?c=conv9', '/?c=conv9'],
+      ['/chat/abc?c=xyz', '/chat/abc?c=xyz'],
+      ['/reports?service=dsr_sales', '/reports?service=dsr_sales'],
+    ])('keeps the query of %s when it sends the visit to Sign in', async (route, expected) => {
+      renderWithProviders(<App />, { route });
+      expect(await screen.findByText('login-page')).toBeInTheDocument();
+      expect(screen.getByTestId('from')).toHaveTextContent(expected);
+      expect(landingPath(screen.getByTestId('from').textContent)).toBe(expected);
     });
   });
 

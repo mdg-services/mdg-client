@@ -205,8 +205,9 @@ describe('stock_check: overlay', () => {
     const tank = container.querySelector('li[data-tank="4"]') as HTMLElement;
     const badge = tank.querySelector('span[data-status="attention"]') as HTMLElement;
     expect(badge.textContent).toBe('Low');
-    // The same word sits on the low line inside the drawing.
-    expect(tank.querySelector('svg text')!.textContent).toBe('Low');
+    // The drawing holds no text (it would shrink under 12 px): the dashed line is named once, under the tanks.
+    expect(tank.querySelector('svg text')).toBeNull();
+    expect(screen.getByTestId('low-legend').textContent).toContain('Dashed line');
   });
 
   it('shows a tank that was read at a different time with its own time', () => {

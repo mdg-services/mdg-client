@@ -1,6 +1,7 @@
-import { Check, ChevronDown, ChevronUp, History } from 'lucide-react';
+import { ChevronDown, ChevronUp, History } from 'lucide-react';
 import * as React from 'react';
 
+import { StatusPill } from '@/components/kit/StatusPill';
 import { Button, Card, CardContent, Spinner, useToast } from '@/components/ui';
 import { showLogin } from '@/hooks/api/useLogins';
 import { cn } from '@/lib/cn';
@@ -13,28 +14,15 @@ import { byLine, formatWhen } from './loginsView';
 import { PasswordValue } from './PasswordValue';
 import type { LoginRow } from './types';
 
-/** What the chip beside a login's name says. */
+/** What sits beside a login's name: its state as a shape AND a word, never colour alone. */
 function StatusChip({ row }: { row: LoginRow }) {
   const t = useT();
-  if (row.status === 'saved') {
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-meta font-medium text-text">
-        <Check width={13} strokeWidth={2.5} className="shrink-0 text-success" aria-hidden />
-        {t('chat.portalSaved')}
-      </span>
-    );
-  }
-  if (row.status === 'refused') {
-    return (
-      <span className="rounded-full bg-warning-soft px-2.5 py-0.5 text-meta font-medium text-warning-strong">
-        {t('chat.portalRefused')}
-      </span>
-    );
-  }
-  return (
-    <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-meta font-medium text-text-muted">
-      {row.needed ? t('logins.status.missing') : t('chat.portalNotNeeded')}
-    </span>
+  if (row.status === 'saved') return <StatusPill status="ok" word={t('chat.portalSaved')} />;
+  if (row.status === 'refused') return <StatusPill status="problem" word={t('chat.portalRefused')} />;
+  return row.needed ? (
+    <StatusPill status="attention" word={t('logins.status.missing')} />
+  ) : (
+    <StatusPill status="info" word={t('chat.portalNotNeeded')} />
   );
 }
 
@@ -95,13 +83,13 @@ export function LoginCard({ row }: { row: LoginRow }) {
     <Card data-testid={`login-${row.portal}`}>
       <CardContent className="flex flex-col gap-4 p-4">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-          <h2 className="text-subheading text-text">{row.name}</h2>
+          <h2 className="min-w-0 break-words text-heading text-text">{row.name}</h2>
           <StatusChip row={row} />
         </div>
 
         {mode === 'later' ? (
           <>
-            <p className="text-meta text-text-muted">{t('logins.notNeeded')}</p>
+            <p className="break-words text-body text-text-muted">{t('logins.notNeeded')}</p>
             <Button variant="secondary" onClick={() => setAdding(true)}>
               {t('logins.add')}
             </Button>
@@ -148,8 +136,8 @@ export function LoginCard({ row }: { row: LoginRow }) {
               <PasswordValue portal={row.portal} name={row.name} />
             </div>
             {row.savedAt ? (
-              <p className="text-meta text-text-muted">
-                {[t('logins.savedLine', { when: formatWhen(row.savedAt, lang) }), savedBy].filter(Boolean).join(' · ')}
+              <p className="break-words text-meta text-text-muted">
+                {[t('pump.logins.lastChanged', { when: formatWhen(row.savedAt, lang) }), savedBy].filter(Boolean).join(' · ')}
               </p>
             ) : null}
             <Button variant="secondary" onClick={() => void startChange()} disabled={opening} fullWidth>
@@ -166,7 +154,7 @@ export function LoginCard({ row }: { row: LoginRow }) {
               onClick={() => setHistoryOpen((v) => !v)}
               aria-expanded={historyOpen}
               aria-label={`${row.name}: ${historyOpen ? t('logins.historyHide') : t('logins.history', { n: row.history.length })}`}
-              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-lg text-left text-cta text-brand active:bg-surface-2"
+              className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md text-left text-cta text-brand active:bg-surface-2"
             >
               <span className="flex items-center gap-2">
                 <History width={18} strokeWidth={1.75} aria-hidden />

@@ -1,6 +1,8 @@
 import type { ReactElement } from 'react';
 
 import type { Lang } from '@/store/lang';
+import { AGING_REPORT_KINDS } from '@dk/shared';
+import type { ReportKind } from '@dk/shared/types';
 
 import { sayWords, type ReportStatusKey, type Words } from './types';
 
@@ -17,7 +19,7 @@ import { sayWords, type ReportStatusKey, type Words } from './types';
  * The status colour never swaps roles with the family colour: a navy header with a red
  * Problem badge is a DSR problem; a red header never exists. The same hex values are the
  * Tailwind tokens `status-problem`, `status-attention`, `status-waiting`, `status-ok` and
- * `status-info` (each with `-soft` and `-ink`, and a dark pair in `index.css`).
+ * `status-info` (each with `-soft` and `-ink`). Light colours only: the app has no dark mode (ADR 0060).
  */
 
 export interface StatusStyle {
@@ -71,6 +73,22 @@ export function statusFromTag(tag: 'ok' | 'attention' | 'info'): ReportStatusKey
   return tag;
 }
 
+/**
+ * How ONE report stands, for every screen that draws it (the Services hub rows, the Reports list and
+ * the open report): an old alarm of the kinds the server ages out (status turned to plain
+ * information) is information first, whatever its frozen snapshot still says; then the kind's own
+ * alert; then the report's tag. Today reads the same aging rule through `isAgedAlarm`. Keeping the
+ * order here means a day-old water check cannot say "Needs a look" in the overlay and "Info" in the list.
+ */
+export function reportVerdict(
+  report: { kind: ReportKind; status: 'ok' | 'attention' | 'info' },
+  alert: { severity: 'problem' | 'attention' } | null | undefined,
+): ReportStatusKey {
+  if (AGING_REPORT_KINDS.has(report.kind) && report.status === 'info') return 'info';
+  if (alert) return alert.severity;
+  return statusFromTag(report.status);
+}
+
 /** The silhouette inside a 20 x 20 box, drawn in one colour: the outline, a faint fill, the mark. */
 function Shape({ status, c }: { status: ReportStatusKey; c: string }): ReactElement {
   const common = { fill: 'none', stroke: c, strokeWidth: 2.2, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
@@ -122,7 +140,11 @@ function Shape({ status, c }: { status: ReportStatusKey; c: string }): ReactElem
   }
 }
 
-/** The status shape alone, in the status's ink, for a line of text that already says the word. */
+/**
+ * The status shape alone, in the status's ink, for a line of text that already says the word.
+ * `size` is the size at normal text; a parent that sets `[&>svg]:h-[1.25em] [&>svg]:w-[1.25em]`
+ * (the kit's `StatusPill` does) makes it grow with the text.
+ */
 export function StatusShape({ status, size = 20 }: { status: ReportStatusKey; size?: number }): ReactElement {
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" aria-hidden="true" focusable="false" className="shrink-0">
@@ -143,14 +165,23 @@ export interface StatusBadgeProps {
 
 /**
  * A quiet tag: the shape, then the word, in the status's ink on its pale tint (every pair
- * is at least 5.5:1, and each has a dark-mode pair in index.css). 15 px semibold; the word
- * wraps rather than shrinks at 200% text. Not a button (no tap target of its own).
+ * is at least 5.5:1). Secondary size (`text-meta`, 14 px) semibold; the shape grows with the
+ * word and the word wraps rather than shrinks at 200% text. Not a button (no tap target of its own).
  */
 export function StatusBadge({ status, lang, word, showWord = true, className = '' }: StatusBadgeProps): ReactElement {
   const style = STATUS_STYLE[status];
   const text = word ?? sayWords(style.word, lang);
   const svg = (
-    <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" focusable="false" className="shrink-0">
+    // The width and height attributes are the fallback; the em sizes win, so the shape grows with the
+    // word at 200% text instead of staying a small mark beside large letters.
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 20 20"
+      aria-hidden="true"
+      focusable="false"
+      className="h-[1.25em] w-[1.25em] shrink-0"
+    >
       <Shape status={status} c="currentColor" />
     </svg>
   );
@@ -161,7 +192,7 @@ export function StatusBadge({ status, lang, word, showWord = true, className = '
         role="img"
         aria-label={text}
         data-status={status}
-        className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${className}`}
+        className={`inline-flex min-h-7 min-w-7 items-center justify-center rounded-md p-0.5 text-meta ${className}`}
         style={tone}
       >
         {svg}
@@ -171,11 +202,11 @@ export function StatusBadge({ status, lang, word, showWord = true, className = '
   return (
     <span
       data-status={status}
-      className={`inline-flex min-h-[26px] items-center gap-1.5 rounded-md px-2 py-0.5 text-meta font-semibold leading-snug ${className}`}
+      className={`inline-flex min-h-7 items-center gap-1.5 rounded-md px-2 py-0.5 text-meta font-semibold leading-snug ${className}`}
       style={tone}
     >
       {svg}
-      <span>{text}</span>
+      <span className="min-w-0 break-words">{text}</span>
     </span>
   );
 }

@@ -1,8 +1,7 @@
 import { Check, ChevronLeft, Minus, Plus, Search, X } from 'lucide-react';
 import * as React from 'react';
 
-
-import { Avatar, Button, Input, Spinner, useToast } from '@/components/ui';
+import { Button, Input, Spinner, useToast } from '@/components/ui';
 import { useDealerWorkItems } from '@/hooks/api/useDealerWorkItems';
 import { cn } from '@/lib/cn';
 import { pick, useLang, useT } from '@/lib/i18n';
@@ -18,12 +17,10 @@ import {
 import { useBackToClose } from '@/lib/useBackToClose';
 import { useScrollLock } from '@/lib/useScrollLock';
 import { useStaffDraftStore } from '@/store/staffDraft';
-import type {
-  EffectiveWorkItem,
-  EmployeeWithPoints,
-  StaffPointDraftEntry,
-} from '@dk/shared/types';
+import type { EffectiveWorkItem, EmployeeWithPoints, StaffPointDraftEntry } from '@dk/shared/types';
 import { STAFF_WORK_DOMAINS, WORK_NOTE_MAX, requiresDescription } from '@dk/shared/types';
+
+import { WarriorAvatar } from './WarriorAvatar';
 
 type Step = 'worker' | 'work' | 'configure';
 
@@ -206,9 +203,7 @@ export function GivePointsFlow({
       // as a broken app.
       setAttempted(true);
       const missingNote = works.some(noteInvalid);
-      toast.error(
-        missingNote ? t('staff.workNoteRequired') : t('staff.amountRequired'),
-      );
+      toast.error(missingNote ? t('staff.workNoteRequired') : t('staff.amountRequired'));
       return;
     }
     const entries: StaffPointDraftEntry[] = [];
@@ -237,7 +232,12 @@ export function GivePointsFlow({
         : t('staff.give.step3');
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
       {/* Backdrop */}
       <button
         type="button"
@@ -247,30 +247,28 @@ export function GivePointsFlow({
       />
 
       {/* Sheet */}
-      <div className="relative mx-auto flex max-h-[88vh] w-full max-w-md flex-col rounded-t-2xl border border-border bg-surface shadow-lg">
+      <div className="relative mx-auto flex max-h-[88vh] w-full max-w-md flex-col rounded-t-xl border border-border bg-surface shadow-lg">
         <header className="flex items-center gap-2 border-b border-border px-3 py-3">
           {step !== 'worker' ? (
             <button
               type="button"
-              aria-label={t('staff.give.step1')}
+              aria-label={t('common.back')}
               onClick={goBack}
-              className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
+              className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
             >
-              <ChevronLeft width={20} strokeWidth={1.75} />
+              <ChevronLeft aria-hidden className="h-6 w-6" strokeWidth={1.75} />
             </button>
           ) : (
             <span className="h-11 w-11" />
           )}
-          <h2 className="flex-1 text-center text-meta font-semibold text-text">
-            {title}
-          </h2>
+          <h2 className="min-w-0 flex-1 break-words text-center text-heading text-text">{title}</h2>
           <button
             type="button"
             aria-label={t('common.cancel')}
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
           >
-            <X width={20} strokeWidth={1.75} />
+            <X aria-hidden className="h-6 w-6" strokeWidth={1.75} />
           </button>
         </header>
 
@@ -316,7 +314,7 @@ export function GivePointsFlow({
         {step === 'work' ? (
           <footer className="flex flex-col gap-2 border-t border-border p-3">
             {selectedCodes.length > 0 ? (
-              <p className="px-1 text-center text-meta text-text-muted">
+              <p className="px-1 text-center text-body text-text-muted">
                 {t('staff.give.selectedSummary', {
                   count: selectedCodes.length,
                   points: fmtPoints(previewTotal),
@@ -363,9 +361,7 @@ function WorkerPicker({
 }) {
   if (employees.length === 0) {
     return (
-      <p className="py-8 text-center text-meta text-text-muted">
-        {t('staff.give.noWorkers')}
-      </p>
+      <p className="py-8 text-center text-body text-text-muted">{t('staff.give.noWorkers')}</p>
     );
   }
   return (
@@ -375,17 +371,13 @@ function WorkerPicker({
           <button
             type="button"
             onClick={() => onPick(e.id)}
-            className="flex min-h-[56px] w-full items-center gap-3 rounded-2xl border border-border bg-surface px-3 text-left active:bg-surface-2"
+            className="flex min-h-14 w-full items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-left active:bg-surface-2"
           >
-            <Avatar name={e.name} size={40} />
+            <WarriorAvatar name={e.name} />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-meta font-medium text-text">
-                {e.name}
-              </span>
+              <span className="block break-words text-body font-medium text-text">{e.name}</span>
               {e.designation ? (
-                <span className="block truncate text-meta text-text-muted">
-                  {e.designation}
-                </span>
+                <span className="block break-words text-meta text-text-muted">{e.designation}</span>
               ) : null}
             </span>
           </button>
@@ -422,16 +414,12 @@ function WorkPicker({
     const active = items.filter((w) => w.active);
     const filtered = q
       ? active.filter(
-          (w) =>
-            w.labelEn.toLowerCase().includes(q) ||
-            w.labelHi.includes(search.trim()),
+          (w) => w.labelEn.toLowerCase().includes(q) || w.labelHi.includes(search.trim()),
         )
       : active;
     return STAFF_WORK_DOMAINS.map((domain) => ({
       domain,
-      items: filtered
-        .filter((w) => w.domain === domain)
-        .sort((a, b) => a.srNo - b.srNo),
+      items: filtered.filter((w) => w.domain === domain).sort((a, b) => a.srNo - b.srNo),
     })).filter((g) => g.items.length > 0);
   }, [items, q, search]);
 
@@ -458,9 +446,7 @@ function WorkPicker({
           />
         </div>
         {!q ? (
-          <p className="px-1 pt-2 text-meta text-text-subtle">
-            {t('staff.give.pickWorkHint')}
-          </p>
+          <p className="px-1 pt-2 text-body text-text-muted">{t('staff.give.pickWorkHint')}</p>
         ) : null}
       </div>
 
@@ -469,13 +455,11 @@ function WorkPicker({
           <Spinner size={18} />
         </div>
       ) : groups.length === 0 ? (
-        <p className="py-8 text-center text-meta text-text-muted">
-          {t('staff.give.noWork')}
-        </p>
+        <p className="py-8 text-center text-body text-text-muted">{t('staff.give.noWork')}</p>
       ) : (
         groups.map((g) => (
           <section key={g.domain} className="flex flex-col gap-1.5">
-            <h3 className="px-1 text-meta font-semibold uppercase tracking-wide text-text-subtle">
+            <h3 className="px-1 text-meta font-semibold uppercase tracking-wide text-text-muted">
               {t(DOMAIN_LABEL_KEY[g.domain])}
             </h3>
             {g.items.map((item) => {
@@ -487,7 +471,7 @@ function WorkPicker({
                   onClick={() => onToggle(item.code)}
                   aria-pressed={on}
                   className={cn(
-                    'flex min-h-[52px] w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition-colors',
+                    'flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
                     on
                       ? 'border-brand bg-brand-soft'
                       : 'border-border bg-surface active:bg-surface-2',
@@ -503,10 +487,10 @@ function WorkPicker({
                   >
                     <Check width={14} strokeWidth={2.5} />
                   </span>
-                  <span className="min-w-0 flex-1 text-meta font-medium text-text">
+                  <span className="min-w-0 flex-1 break-words text-body font-medium text-text">
                     {pick(lang, item.labelEn, item.labelHi)}
                   </span>
-                  <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
+                  <span className="shrink-0 rounded-md bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
                     {fmtPoints(item.points)}
                   </span>
                 </button>
@@ -562,6 +546,7 @@ function Configure({
   lang: ReturnType<typeof useLang>;
   t: ReturnType<typeof useT>;
 }) {
+  const dateId = React.useId();
   const selectedSet = new Set(selectedIds);
   const chosen = employees.filter((e) => selectedSet.has(e.id));
   // Only offer the "who else did it?" checklist when there's more than one worker
@@ -573,9 +558,7 @@ function Configure({
       {/* Who did it — a single chip, or a checklist to add co-workers */}
       {canPickWorkers ? (
         <div className="flex flex-col gap-1.5">
-          <p className="px-1 text-meta font-semibold text-text-muted">
-            {t('staff.give.whoTogether')}
-          </p>
+          <p className="px-1 text-subheading text-text-muted">{t('staff.give.whoTogether')}</p>
           <ul className="flex flex-col gap-1.5">
             {employees.map((e) => {
               const on = selectedSet.has(e.id);
@@ -586,14 +569,14 @@ function Configure({
                     onClick={() => onToggleWorker(e.id)}
                     aria-pressed={on}
                     className={cn(
-                      'flex min-h-[52px] w-full items-center gap-3 rounded-2xl border px-3 text-left transition-colors',
+                      'flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition-colors',
                       on
                         ? 'border-brand bg-brand-soft'
                         : 'border-border bg-surface active:bg-surface-2',
                     )}
                   >
-                    <Avatar name={e.name} size={36} />
-                    <span className="min-w-0 flex-1 truncate text-meta font-medium text-text">
+                    <WarriorAvatar name={e.name} />
+                    <span className="min-w-0 flex-1 break-words text-body font-medium text-text">
                       {e.name}
                     </span>
                     <span
@@ -617,10 +600,10 @@ function Configure({
           {chosen.map((e) => (
             <span
               key={e.id}
-              className="inline-flex items-center gap-2 rounded-full bg-surface-2 py-1 pl-1 pr-3"
+              className="inline-flex items-center gap-2 rounded-xl bg-surface-2 py-1 pl-1 pr-3"
             >
-              <Avatar name={e.name} size={28} />
-              <span className="text-meta font-medium text-text">{e.name}</span>
+              <WarriorAvatar name={e.name} />
+              <span className="break-words text-body font-medium text-text">{e.name}</span>
             </span>
           ))}
         </div>
@@ -629,13 +612,11 @@ function Configure({
       {/* The work(s) they did */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between px-1">
-          <p className="text-meta font-semibold text-text-muted">
-            {t('staff.give.worksHeader')}
-          </p>
+          <p className="text-subheading text-text-muted">{t('staff.give.worksHeader')}</p>
           <button
             type="button"
             onClick={onAddMore}
-            className="text-cta text-brand active:opacity-70"
+            className="min-h-11 rounded-md px-2 text-cta text-brand active:opacity-70"
           >
             {t('staff.give.addMoreWork')}
           </button>
@@ -664,10 +645,11 @@ function Configure({
 
       {/* Day (defaults to today; tap to change to a recent day) */}
       <div className="flex flex-col gap-1.5">
-        <label className="px-1 text-subheading text-text-muted">
+        <label htmlFor={dateId} className="px-1 text-subheading text-text-muted">
           {t('staff.give.date')}
         </label>
         <Input
+          id={dateId}
           type="date"
           value={workDate}
           max={maxDate}
@@ -733,33 +715,33 @@ function WorkRow({
       : null;
 
   return (
-    <li className="rounded-2xl border border-border bg-surface p-3">
+    <li className="rounded-xl border border-border bg-surface p-3">
       <div className="flex items-start gap-2">
-        <span className="min-w-0 flex-1 text-meta font-medium text-text">
+        <span className="min-w-0 flex-1 break-words text-body font-medium text-text">
           {pick(lang, item.labelEn, item.labelHi)}
         </span>
-        <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
+        <span className="shrink-0 rounded-md bg-brand-soft px-2.5 py-1 text-meta font-semibold text-brand">
           {t('staff.give.perEach', { points: fmtPoints(per) })}
         </span>
         {canRemove ? (
           <button
             type="button"
-            aria-label={t('staff.give.removeWork')}
+            aria-label={`${t('staff.give.removeWork')}: ${pick(lang, item.labelEn, item.labelHi)}`}
             onClick={() => onRemove(item.code)}
-            className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-text-subtle active:bg-surface-2"
+            className="-mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
           >
-            <X width={16} strokeWidth={2} />
+            <X aria-hidden className="h-5 w-5" strokeWidth={2} />
           </button>
         ) : null}
       </div>
 
-      {hint ? <p className="mt-1 text-meta text-text-muted">{hint}</p> : null}
+      {hint ? <p className="mt-1 break-words text-body text-text-muted">{hint}</p> : null}
 
       {isRupee ? (
         <div className="mt-2">
           <div
             className={cn(
-              'flex items-center gap-2 rounded-xl border bg-surface-2 px-3',
+              'flex items-center gap-2 rounded-md border bg-surface-2 px-3',
               showAmountError ? 'border-danger' : 'border-border-strong',
             )}
           >
@@ -774,33 +756,29 @@ function WorkRow({
             />
           </div>
           {showAmountError ? (
-            <p className="mt-1 px-1 text-meta text-danger">
-              {t('staff.amountRequired')}
-            </p>
+            <p className="mt-1 px-1 text-body text-danger">{t('staff.amountRequired')}</p>
           ) : null}
         </div>
       ) : isPerUnit ? (
-        <div className="mt-2 flex items-center justify-between rounded-xl bg-surface-2 px-3 py-2">
-          <span className="text-meta font-medium text-text">{unitLabel}</span>
+        <div className="mt-2 flex items-center justify-between gap-3 rounded-md bg-surface-2 px-3 py-2">
+          <span className="min-w-0 break-words text-body font-medium text-text">{unitLabel}</span>
           <div className="flex items-center gap-3">
             <button
               type="button"
-              aria-label="-"
+              aria-label={t('warr.give.less', { work: pick(lang, item.labelEn, item.labelHi) })}
               onClick={() => onQty(item.code, qty - 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface"
+              className="flex h-11 w-11 items-center justify-center rounded-md border border-border-strong text-text active:bg-surface"
             >
-              <Minus width={18} strokeWidth={2} />
+              <Minus aria-hidden className="h-5 w-5" strokeWidth={2} />
             </button>
-            <span className="w-8 text-center text-subheading text-text">
-              {qty}
-            </span>
+            <span className="min-w-8 text-center text-subheading tabular-nums text-text">{qty}</span>
             <button
               type="button"
-              aria-label="+"
+              aria-label={t('warr.give.more', { work: pick(lang, item.labelEn, item.labelHi) })}
               onClick={() => onQty(item.code, qty + 1)}
-              className="flex h-10 w-10 items-center justify-center rounded-full border border-border-strong text-text active:bg-surface"
+              className="flex h-11 w-11 items-center justify-center rounded-md border border-border-strong text-text active:bg-surface"
             >
-              <Plus width={18} strokeWidth={2} />
+              <Plus aria-hidden className="h-5 w-5" strokeWidth={2} />
             </button>
           </div>
         </div>
@@ -829,15 +807,12 @@ function WorkRow({
             placeholder={t('staff.workNotePlaceholder')}
             aria-invalid={showNoteError || undefined}
             className={cn(
-              'w-full resize-none rounded-xl border bg-surface-2 px-3 py-2 text-body text-text outline-none placeholder:text-text-subtle',
+              'w-full resize-none rounded-md border bg-surface-2 px-3 py-2 text-body text-text outline-none placeholder:text-text-subtle',
               showNoteError ? 'border-danger' : 'border-border-strong',
             )}
           />
           <p
-            className={cn(
-              'mt-1 px-1 text-meta',
-              showNoteError ? 'text-danger' : 'text-text-muted',
-            )}
+            className={cn('mt-1 px-1 text-body', showNoteError ? 'text-danger' : 'text-text-muted')}
           >
             {showNoteError ? t('staff.workNoteRequired') : t('staff.workNoteHint')}
           </p>

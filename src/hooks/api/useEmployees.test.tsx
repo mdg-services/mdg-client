@@ -6,7 +6,14 @@ import type * as ApiModule from '@/lib/api';
 import type * as StaffModule from '@/lib/staff';
 import { renderHookWithProviders, resetStores } from '@/test/utils';
 
-import { employeesQueryKey, useEmployees, windowBounds, type PointsWindow } from './useEmployees';
+import {
+  employeesQueryKey,
+  useEmployeeLeave,
+  useEmployees,
+  useEmployeesBetween,
+  windowBounds,
+  type PointsWindow,
+} from './useEmployees';
 
 vi.mock('@/lib/staff', async (orig) => {
   const actual = await orig<typeof StaffModule>();
@@ -21,6 +28,10 @@ describe('useEmployees window helpers', () => {
   it('windowBounds resolves today vs month bounds', () => {
     expect(windowBounds('today')).toEqual({ from: '2026-07-07', to: '2026-07-07' });
     expect(windowBounds('month')).toEqual({ from: '2026-07-01', to: '2026-07-07' });
+  });
+
+  it('windowBounds resolves last month as the whole of the month before', () => {
+    expect(windowBounds('lastMonth')).toEqual({ from: '2026-06-01', to: '2026-06-30' });
   });
 
   it('employeesQueryKey includes dealerId + from + to', () => {
@@ -83,5 +94,69 @@ describe('useEmployees', () => {
 
     resolveMonth();
     await waitFor(() => expect(result.current.data).toBe(rosterMonth));
+  });
+});
+
+describe('useEmployeesBetween', () => {
+  afterEach(() => {
+    vi.mocked(api.get).mockReset();
+    resetStores();
+  });
+
+  it('reads any two days, sharing the roster route (the same days of last month)', async () => {
+    vi.mocked(api.get).mockResolvedValue([]);
+    renderHookWithProviders(() => useEmployeesBetween('d1', '2026-06-01', '2026-06-07', true), {
+      withRouter: false,
+    });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/v1/dealers/d1/employees', {
+        from: '2026-06-01',
+        to: '2026-06-07',
+        includeInactive: 'true',
+      }),
+    );
+  });
+
+  it('waits when told to and when there is no dealer', () => {
+    renderHookWithProviders(
+      () => useEmployeesBetween('d1', '2026-06-01', '2026-06-07', false, false),
+      {
+        withRouter: false,
+      },
+    );
+    renderHookWithProviders(() => useEmployeesBetween(undefined, '2026-06-01', '2026-06-07'), {
+      withRouter: false,
+    });
+    expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('keeps the old roster key shape for the three windows', () => {
+    expect(employeesQueryKey('d1', '2026-06-01', '2026-06-30')).toEqual([
+      'staff',
+      'employees',
+      'd1',
+      '2026-06-01',
+      '2026-06-30',
+    ]);
+  });
+});
+
+describe('useEmployeeLeave', () => {
+  afterEach(() => {
+    vi.mocked(api.get).mockReset();
+    resetStores();
+  });
+
+  it('reads every leave day of the window for the dealer', async () => {
+    vi.mocked(api.get).mockResolvedValue([]);
+    renderHookWithProviders(() => useEmployeeLeave('d1', '2026-06-24', '2026-07-07'), {
+      withRouter: false,
+    });
+    await waitFor(() =>
+      expect(api.get).toHaveBeenCalledWith('/v1/dealers/d1/employees/leave', {
+        from: '2026-06-24',
+        to: '2026-07-07',
+      }),
+    );
   });
 });

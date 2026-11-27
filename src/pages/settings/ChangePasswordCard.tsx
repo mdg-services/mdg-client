@@ -66,65 +66,57 @@ export function ChangePasswordCard() {
     },
   });
 
+  const ids = React.useId();
   if (!user) return null;
+
+  const field = (
+    name: keyof PasswordValues,
+    labelKey: 'profile.currentPassword' | 'profile.newPassword' | 'profile.confirmPassword',
+    autoComplete: 'current-password' | 'new-password',
+    hint?: string,
+  ) => {
+    const error = errors[name]?.message;
+    const inputId = `${ids}-${name}`;
+    return (
+      <div className="flex flex-col gap-1">
+        <label htmlFor={inputId} className="text-subheading text-text">
+          {t(labelKey)}
+        </label>
+        <Input
+          id={inputId}
+          type="password"
+          autoComplete={autoComplete}
+          invalid={!!error}
+          aria-invalid={!!error}
+          aria-describedby={error || hint ? `${inputId}-note` : undefined}
+          {...register(name)}
+        />
+        {error ? (
+          <p id={`${inputId}-note`} role="alert" className="break-words text-body text-danger">
+            {error}
+          </p>
+        ) : hint ? (
+          <p id={`${inputId}-note`} className="break-words text-meta text-text-muted">
+            {hint}
+          </p>
+        ) : null}
+      </div>
+    );
+  };
 
   return (
     <Card>
       <CardContent>
-        <p className="mb-3 text-subheading text-text">
-          {t('profile.changePassword')}
-        </p>
+        <h2 className="mb-3 break-words text-heading text-text">{t('profile.changePassword')}</h2>
         <form
           onSubmit={handleSubmit((v) => mutation.mutate(v))}
           className="flex flex-col gap-3"
           noValidate
         >
-          <div className="flex flex-col gap-1">
-            <label className="text-subheading text-text-muted">
-              {t('profile.currentPassword')}
-            </label>
-            <Input
-              type="password"
-              autoComplete="current-password"
-              invalid={!!errors.currentPassword}
-              {...register('currentPassword')}
-            />
-            {errors.currentPassword ? (
-              <p className="text-meta text-danger">
-                {errors.currentPassword.message}
-              </p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-subheading text-text-muted">
-              {t('profile.newPassword')}
-            </label>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              invalid={!!errors.newPassword}
-              {...register('newPassword')}
-            />
-            {errors.newPassword ? (
-              <p className="text-meta text-danger">{errors.newPassword.message}</p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-subheading text-text-muted">
-              {t('profile.confirmPassword')}
-            </label>
-            <Input
-              type="password"
-              autoComplete="new-password"
-              invalid={!!errors.confirmPassword}
-              {...register('confirmPassword')}
-            />
-            {errors.confirmPassword ? (
-              <p className="text-meta text-danger">
-                {errors.confirmPassword.message}
-              </p>
-            ) : null}
-          </div>
+          {field('currentPassword', 'profile.currentPassword', 'current-password')}
+          {/* The rule is said BEFORE the first try, not only after it fails. */}
+          {field('newPassword', 'profile.newPassword', 'new-password', t('profile.min8'))}
+          {field('confirmPassword', 'profile.confirmPassword', 'new-password')}
           <Button type="submit" loading={mutation.isPending} fullWidth>
             {t('profile.updatePassword')}
           </Button>

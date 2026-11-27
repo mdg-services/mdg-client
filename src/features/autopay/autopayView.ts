@@ -1,8 +1,8 @@
-import { formatDayMonth, type StatusTone } from '@/features/payments/paymentView';
+import type { Status } from '@/components/kit/types';
+import { formatDayMonth, money } from '@/features/payments/paymentView';
 import { ApiError } from '@/lib/api';
 import type { MessageKey, TFunction } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
-import { formatPaise } from '@dk/shared';
 import type { StopAutopayDealerInput } from '@dk/shared/schemas';
 import type { AutopayStopReason, AutopayViewState, DealerAutopay } from '@dk/shared/types';
 import { AUTOPAY_STOP_REASONS } from '@dk/shared/types';
@@ -27,26 +27,26 @@ export const AUTOPAY_STATE_KEY: Record<AutopayViewState, MessageKey> = {
 };
 
 /**
- * The colour each state wears, from the same set the payment chips use. Amber
- * for "waiting on someone" and "a debit did not go through", green for on,
- * grey for off. Never red: a debit that bounced is not an error of the dealer's
- * that the screen should shout about.
+ * The shape each state wears, from the same five the bills and the reports use (a shape AND the
+ * word above, never colour alone). The clock for "waiting on someone", the triangle for "a debit
+ * did not go through", the tick for on, the circle-i for off. Never the octagon: a debit that
+ * bounced is not an error of the dealer's that the screen should shout about.
  */
-export const AUTOPAY_TONE: Record<AutopayViewState, StatusTone> = {
-  setting_up: 'warning',
-  on: 'success',
-  failing: 'warning',
-  off: 'neutral',
+export const AUTOPAY_STATUS: Record<AutopayViewState, Status> = {
+  setting_up: 'waiting',
+  on: 'ok',
+  failing: 'attention',
+  off: 'info',
 };
 
 /**
- * The line under "Autopay" on the Help row and on the Payments card. The amount
+ * The line under "Autopay" on the Bill and plan page's autopay row. The amount
  * and the days are the server's, written with the app's own money and date
  * helpers; a day the server does not know yet (`null`) is left out rather than
  * guessed.
  */
 export function autopaySubtitle(t: TFunction, lang: Lang, autopay: DealerAutopay): string {
-  const amount = formatPaise(autopay.amountPaise);
+  const amount = money(lang, autopay.amountPaise);
   switch (autopay.state) {
     case 'setting_up':
       return t('autopay.sub.settingUp');
@@ -76,7 +76,7 @@ export function autopayBody(t: TFunction, lang: Lang, autopay: DealerAutopay): s
         ? t('autopay.body.on', { date: formatDayMonth(lang, autopay.nextDebitOn) })
         : t('autopay.body.onNoDate');
     case 'failing':
-      return t('autopay.body.failing', { amount: formatPaise(autopay.amountPaise) });
+      return t('autopay.body.failing', { amount: money(lang, autopay.amountPaise) });
     case 'off':
       return null;
   }
@@ -112,9 +112,9 @@ export function showAskInChat(state: AutopayViewState): boolean {
 }
 
 /** "₹3,540 is being taken right now…", the dialog's first line — only while a debit is in flight. */
-export function inProgressLine(t: TFunction, autopay: DealerAutopay): string | null {
+export function inProgressLine(t: TFunction, lang: Lang, autopay: DealerAutopay): string | null {
   return autopay.debitInProgress
-    ? t('autopay.dialog.inProgress', { amount: formatPaise(autopay.amountPaise) })
+    ? t('autopay.dialog.inProgress', { amount: money(lang, autopay.amountPaise) })
     : null;
 }
 

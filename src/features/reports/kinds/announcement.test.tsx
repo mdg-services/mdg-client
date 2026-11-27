@@ -75,7 +75,7 @@ describe('announcement: the letter', () => {
     expect(a).toHaveAttribute('href', 'https://mdgservices.in/guide/tt-ack');
     expect(a).toHaveAttribute('target', '_blank');
     expect(a).toHaveAttribute('rel', 'noopener noreferrer');
-    expect(a.className).toContain('min-h-[48px]');
+    expect(a.className).toContain('min-h-12');
     expect(a).toHaveTextContent('Open the link');
     expect(a).toHaveTextContent('mdgservices.in');
     expect(a.getAttribute('aria-label')).toContain('opens in the browser');
@@ -151,5 +151,13 @@ describe('announcement: tile, alert, headline, share', () => {
     expect(text.split('\n')[0]).toBe('TT Acknowledgement ab raat ko hum karenge');
     expect(text).toContain('*hamari team*');
     expect(text).toContain('https://mdgservices.in/guide/tt-ack');
+  });
+});
+
+describe('announcement: sizes in rem', () => {
+  it('draws the link buttons and the letter without a fixed pixel height, width or text size', () => {
+    const { container } = renderOverlay(view, announcement());
+    expect(container.innerHTML).not.toMatch(/text-\[\d|h-\[\d+px|w-\[\d+px|rounded-\[\d+px/);
+    expect(within(screen.getByTestId('announcement-links')).getByRole('link').className).toContain('rounded-lg');
   });
 });

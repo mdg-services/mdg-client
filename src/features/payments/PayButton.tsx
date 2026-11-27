@@ -51,7 +51,7 @@ export function PayButton({
     return wrap(
       <p
         role="status"
-        className="rounded-lg bg-success-soft p-3 text-body font-medium text-emerald-800"
+        className="rounded-lg border border-status-ok bg-status-ok-soft p-3 text-body font-medium text-status-ok-ink"
       >
         {t('payments.paidNow')}
       </p>,
@@ -62,7 +62,10 @@ export function PayButton({
     // A `processing` row already says this itself, in the same words.
     if (!payable) return null;
     return wrap(
-      <p role="status" className="rounded-lg bg-warning-soft p-3 text-body text-warning-strong">
+      <p
+        role="status"
+        className="rounded-lg border border-status-waiting bg-status-waiting-soft p-3 text-body text-text"
+      >
         {t('payments.confirmingNote')}
       </p>,
     );
@@ -82,14 +85,22 @@ export function PayButton({
   return wrap(
     <div className="flex flex-col gap-2">
       {phase.name === 'failed' ? (
-        <p role="alert" className="text-body text-danger">
+        <p role="alert" className="text-body font-medium text-status-attention-ink">
           {t(phase.key, phase.vars)}
         </p>
       ) : null}
-      <Button size="lg" fullWidth loading={isBusy(phase)} onClick={() => void pay()}>
-        {isBusy(phase)
-          ? t('payments.opening')
-          : t('payments.pay', { amount: formatPaise(payment.amountPaise) })}
+      {/* The label is two words, because the amount is already on the screen (in the banner or on
+          the bill's row); the name a screen reader gets still carries it, so two bills can be told apart. */}
+      <Button
+        size="lg"
+        fullWidth
+        loading={isBusy(phase)}
+        aria-label={
+          isBusy(phase) ? undefined : t('bill.pay.name', { amount: formatPaise(payment.amountPaise) })
+        }
+        onClick={() => void pay()}
+      >
+        {isBusy(phase) ? t('payments.opening') : t('bill.pay.now')}
       </Button>
     </div>,
   );

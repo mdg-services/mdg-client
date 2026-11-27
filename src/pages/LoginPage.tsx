@@ -11,8 +11,11 @@ import { PrivacyLink } from '@/components/PrivacyLink';
 import { Button, Card, CardContent, Input, useToast } from '@/components/ui';
 import { ForgotPasswordSheet } from '@/features/auth/ForgotPasswordSheet';
 import { parseIdentifier } from '@/features/auth/identifier';
+import { fromOf, landingPath } from '@/features/auth/landing';
+import { FirstLanguageGate, LanguageSwitch } from '@/features/auth/LanguageSwitch';
 import { PasswordInput } from '@/features/auth/PasswordInput';
 import { requestSignIn, startSession } from '@/features/auth/signIn';
+import { WhichPump } from '@/features/auth/WhichPump';
 import { ApiError } from '@/lib/api';
 import { HELPLINE } from '@/lib/helpline';
 import { useT, type MessageKey } from '@/lib/i18n';
@@ -67,7 +70,20 @@ function clearNote(key: string): void {
   }
 }
 
+/**
+ * Sign in. On a phone nobody has used yet, "which language?" comes first (spec 4.9, once); after that
+ * the language switch is on this screen. Signing in carries on to where the person was going
+ * (`state.from`), and asks "which pump?" when the account has more than one.
+ */
 export function LoginPage() {
+  return (
+    <FirstLanguageGate>
+      <LoginScreen />
+    </FirstLanguageGate>
+  );
+}
+
+function LoginScreen() {
   const navigate = useNavigate();
   const toast = useToast();
   const t = useT();
@@ -83,10 +99,21 @@ export function LoginPage() {
   const location = useLocation();
   const handedIdentifier = (location.state as { identifier?: unknown } | null)?.identifier;
   const [forgotOpen, setForgotOpen] = React.useState(false);
+  // Where the sign-in was for: a push, report or chat link opened while signed out (`?c=` kept).
+  const from = fromOf(location.state);
+  const destination = landingPath(from);
+  // More than one pump on this login: the session is open, and the person says which to enter.
+  const [choosingPump, setChoosingPump] = React.useState(false);
+  const choosingRef = React.useRef(false);
+  // The keyboard of the one box: numbers for a mobile (what nearly everybody types), letters for an
+  // email. A number pad has no "@", so the switch under the box is how an email is typed.
+  const [emailKeys, setEmailKeys] = React.useState(
+    () => typeof handedIdentifier === 'string' && handedIdentifier.includes('@'),
+  );
 
   React.useEffect(() => {
-    if (token) navigate('/', { replace: true });
-  }, [token, navigate]);
+    if (token && !choosingRef.current && !choosingPump) navigate(destination, { replace: true });
+  }, [token, choosingPump, navigate, destination]);
 
   const schema = React.useMemo(
     () =>
@@ -138,12 +165,21 @@ export function LoginPage() {
         values.password,
       ),
     onSuccess: (data) => {
+      if (data.outlets && data.outlets.length > 0) {
+        // Held before the session opens, so the effect above does not carry on to the app.
+        choosingRef.current = true;
+        setChoosingPump(true);
+        startSession(data);
+        return;
+      }
       startSession(data);
-      navigate('/', { replace: true });
+      navigate(destination, { replace: true });
     },
     onError: (err) => {
       // Never leak a raw server/network string — always one warm sentence.
       toast.error(t(loginErrorKey(err)));
+      // The number is on more than one account: only an email tells them apart, so open its keyboard.
+      if (err instanceof ApiError && err.status === 409) setEmailKeys(true);
     },
   });
 
@@ -155,26 +191,36 @@ export function LoginPage() {
     if (loginFailed) resetLogin();
   }, [loginFailed, resetLogin]);
 
+  if (choosingPump) {
+    return (
+      <WhichPump
+        destination={destination}
+        onStay={() => navigate(destination, { replace: true })}
+      />
+    );
+  }
+
   return (
-    <div className="flex min-h-full items-center justify-center bg-bg px-4 py-12">
+    <div className="flex min-h-full flex-col items-center bg-bg px-4 pb-12 pt-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 flex flex-col items-center gap-1">
+        <div className="flex justify-end">
+          <LanguageSwitch />
+        </div>
+        <div className="mb-8 mt-4 flex flex-col items-center gap-1 text-center">
           <BrandMark size={48} className="text-text" />
-          <h1 className="mt-3 text-title text-text">
-            {t('auth.welcome')}
-          </h1>
-          <p className="text-meta text-text-muted">{t('auth.subtitle')}</p>
+          <h1 className="mt-3 text-title text-text">{t('first.login.title')}</h1>
+          <p className="text-body text-text-muted">{t('first.login.subtitle')}</p>
         </div>
         {deleted ? (
           // Straight after Settings → Account → Delete my account.
-          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-meta text-info">
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-body text-info">
             {t('account.deleted')}
           </p>
         ) : expired ? (
           // Why they are looking at this screen at all. A dealer session lasts
           // a year and refreshes itself, so this is now almost always the
           // single-active-session rule: somebody signed in on another phone.
-          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-meta text-info">
+          <p className="mb-4 rounded-xl bg-info-soft px-3 py-2 text-center text-body text-info">
             {t('chat.sessionExpired')}
           </p>
         ) : null}
@@ -186,25 +232,32 @@ export function LoginPage() {
               noValidate
             >
               <div className="flex flex-col gap-1.5">
-                <label className="text-subheading text-text" htmlFor="identifier">
+                <label className="text-balance text-subheading text-text" htmlFor="identifier">
                   {t('auth.identifier')}
                 </label>
                 <Input
                   id="identifier"
                   type="text"
                   autoComplete="username"
-                  inputMode="email"
+                  inputMode={emailKeys ? 'email' : 'tel'}
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
                   maxLength={200}
                   invalid={!!errors.identifier}
-                  placeholder={t('auth.identifierPlaceholder')}
+                  placeholder={t('first.login.identifierPlaceholder')}
                   {...register('identifier')}
                 />
                 {errors.identifier ? (
-                  <p className="text-meta text-danger">{errors.identifier.message}</p>
+                  <p className="text-body text-danger">{errors.identifier.message}</p>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() => setEmailKeys((v) => !v)}
+                  className="block min-h-11 max-w-full break-words rounded-md px-1 py-2 text-left text-cta text-brand underline underline-offset-4"
+                >
+                  {emailKeys ? t('first.login.useMobile') : t('first.login.useEmail')}
+                </button>
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-subheading text-text" htmlFor="password">
@@ -218,7 +271,7 @@ export function LoginPage() {
                   {...register('password')}
                 />
                 {errors.password ? (
-                  <p className="text-meta text-danger">
+                  <p className="text-body text-danger">
                     {errors.password.message}
                   </p>
                 ) : null}
@@ -234,7 +287,7 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => setForgotOpen(true)}
-                className="-mt-1 min-h-11 self-center rounded-lg px-3 text-meta font-medium text-brand underline underline-offset-4"
+                className="-mt-1 min-h-11 max-w-full break-words rounded-md px-3 py-2 text-center text-cta text-brand underline underline-offset-4"
               >
                 {t('auth.forgot')}
               </button>
@@ -246,14 +299,14 @@ export function LoginPage() {
             sign in with is sent to the enrolment form, in the app (a new phone
             opens there by itself: features/auth/firstScreen.ts). */}
         <div className="mt-6 flex flex-col items-center gap-3">
-          <p className="text-center text-meta leading-relaxed text-text-subtle">
+          <p className="text-center text-body leading-relaxed text-text-muted">
             {t('auth.noLogin')}
           </p>
           <Button
             variant="secondary"
             size="lg"
             fullWidth
-            onClick={() => navigate('/register')}
+            onClick={() => navigate('/register', from ? { state: { from } } : undefined)}
           >
             {t('auth.register')}
           </Button>
@@ -261,7 +314,7 @@ export function LoginPage() {
               mobile number, a switched-off login, or no code arriving. */}
           <a
             href={HELPLINE.href}
-            className="flex min-h-11 flex-col items-center rounded-lg px-3 py-1 text-center text-meta leading-relaxed text-text-subtle"
+            className="flex min-h-11 flex-col items-center rounded-md px-3 py-1 text-center text-meta leading-relaxed text-text-muted"
           >
             <span>{t('auth.helpTitle')}</span>
             <span className="text-subheading tabular-nums text-brand">
@@ -272,7 +325,7 @@ export function LoginPage() {
           {/* Reachable before anyone has signed in: the privacy policy must be
               readable from inside the app, and a dealer weighing whether to
               register is who wants it. */}
-          <PrivacyLink className="-mt-1 flex min-h-11 items-center rounded-lg px-3 text-meta text-text-subtle underline underline-offset-4" />
+          <PrivacyLink className="-mt-1 inline-flex min-h-11 items-center rounded-md px-3 text-meta text-text-muted underline underline-offset-4" />
         </div>
       </div>
       {forgotOpen ? (

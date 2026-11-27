@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -24,6 +24,7 @@ vi.mock('@/lib/nativeBridge', async (orig) => {
 const { OutletChip } = await import('./OutletChip');
 const { OutletSheet } = await import('./OutletSheet');
 const { SettingsPage } = await import('@/pages/SettingsPage');
+const { PumpPage } = await import('@/pages/PumpPage');
 const { hasOtherOutlets } = await import('./useOutlets');
 
 const FIRST: OutletChoice = { userId: 'u15', dealerId: 'd15', code: '15E', role: 'dealer-owner' };
@@ -180,7 +181,68 @@ describe('OutletSheet', () => {
   });
 });
 
-describe('Settings — "Switch pump"', () => {
+/**
+ * "Switch pump" moved from Settings to My pump (spec 4.5, 6.6). Settings no longer has the row and
+ * makes no request for the pump list; My pump has one button, which opens the same sheet.
+ */
+describe('My pump — "Switch pump"', () => {
+  /** The server's answers for the pump page: the pump list, and the one line the identity card draws. */
+  function answerPump(view: { current: OutletChoice | null; outlets: OutletChoice[] }) {
+    vi.mocked(api.get).mockImplementation(((path: string) => {
+      if (path === '/v1/auth/outlets') return Promise.resolve(view);
+      if (path === '/v1/me/outlet') return Promise.resolve({ fields: [] });
+      return Promise.reject(new ApiError(404, 'NOT_FOUND', `unexpected GET ${path}`));
+    }) as never);
+  }
+  function renderPump() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/pump" element={<PumpPage />} />
+      </Routes>,
+      { route: '/pump', withRouter: true },
+    );
+  }
+
+  it('is a button for a person with another pump, and says which one they are in', async () => {
+    person({ role: 'dealer-owner' });
+    answerPump({ current: FIRST, outlets: [SECOND] });
+    renderPump();
+    const button = await screen.findByRole('button', { name: 'Switch pump' });
+    expect(button).toBeInTheDocument();
+    expect(await screen.findByText('Pump 15E')).toBeInTheDocument();
+  });
+
+  it('opens the same sheet', async () => {
+    person({ role: 'dealer-owner' });
+    answerPump({ current: FIRST, outlets: [SECOND] });
+    renderPump();
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch pump' }));
+    expect(await screen.findByRole('dialog', { name: 'Your pumps' })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: '16E' })).toBeInTheDocument();
+  });
+
+  it('switches from there: one tap on the other pump posts its login', async () => {
+    person({ role: 'dealer-owner' });
+    answerPump({ current: FIRST, outlets: [SECOND] });
+    vi.mocked(api.post).mockReturnValue(new Promise(() => undefined) as never);
+    renderPump();
+    fireEvent.click(await screen.findByRole('button', { name: 'Switch pump' }));
+    fireEvent.click(await screen.findByRole('radio', { name: '16E' }));
+    await waitFor(() => expect(api.post).toHaveBeenCalledWith('/v1/auth/switch-outlet', { userId: 'u16' }));
+  });
+
+  it('has no such button for a one-pump login, which makes no request for the pump list', async () => {
+    signIn({ role: 'dealer-owner' });
+    answerPump({ current: FIRST, outlets: [SECOND] });
+    renderPump();
+    await screen.findByRole('heading', { name: 'Your pump' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('button', { name: 'Switch pump' })).not.toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.map((c) => String(c[0]))).not.toContain('/v1/auth/outlets');
+  });
+});
+
+describe('Settings — no "Switch pump" any more', () => {
   function renderSettings() {
     return renderWithProviders(
       <Routes>
@@ -190,23 +252,14 @@ describe('Settings — "Switch pump"', () => {
     );
   }
 
-  it('is the first row for a person with another pump, and says which one they are in', async () => {
+  it('has no such row even for a person with another pump, and does not ask for the pump list', async () => {
     person({ role: 'dealer-owner' });
     answerOutlets({ current: FIRST, outlets: [SECOND] });
     renderSettings();
-    const row = (await screen.findByText('Switch pump')).closest('button')!;
-    expect(within(row).getByText('You are in 15E now')).toBeInTheDocument();
-    const titles = screen.getAllByRole('button').map((b) => b.textContent ?? '');
-    expect(titles.findIndex((t) => t.startsWith('Switch pump'))).toBeLessThan(titles.findIndex((t) => t.startsWith('Account')));
-  });
-
-  it('opens the same sheet', async () => {
-    person({ role: 'dealer-owner' });
-    answerOutlets({ current: FIRST, outlets: [SECOND] });
-    renderSettings();
-    fireEvent.click((await screen.findByText('Switch pump')).closest('button')!);
-    expect(await screen.findByRole('dialog', { name: 'Your pumps' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: '16E' })).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText('Switch pump')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Your pumps' })).not.toBeInTheDocument();
+    expect(vi.mocked(api.get).mock.calls.map((c) => String(c[0]))).not.toContain('/v1/auth/outlets');
   });
 
   it('has no such row for a one-pump login, which makes no request', () => {

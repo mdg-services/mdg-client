@@ -2,10 +2,7 @@ import { Camera, ImageIcon, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Button, Input, useToast } from '@/components/ui';
-import {
-  staffDraftQueryKey,
-  useFinalizeStaffDraft,
-} from '@/hooks/api/useStaffDraft';
+import { staffDraftQueryKey, useFinalizeStaffDraft } from '@/hooks/api/useStaffDraft';
 import { type FlushResult } from '@/hooks/api/useStaffDraftSync';
 import { type ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -70,6 +67,8 @@ export function FinalizeSubmitSheet({
   const [note, setNote] = React.useState(defaultNote ?? '');
   const [submitting, setSubmitting] = React.useState(false);
 
+  const dateId = React.useId();
+  const noteId = React.useId();
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const galleryRef = React.useRef<HTMLInputElement>(null);
   const today = istDate();
@@ -160,7 +159,12 @@ export function FinalizeSubmitSheet({
   const submitDisabled = !file || notSynced || offline || rejected;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end">
+    <div
+      className="fixed inset-0 z-50 flex flex-col justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('staff.finalizeTitle')}
+    >
       <button
         type="button"
         aria-label={t('common.cancel')}
@@ -168,39 +172,35 @@ export function FinalizeSubmitSheet({
         className="absolute inset-0 bg-black/40"
       />
 
-      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-md flex-col rounded-t-2xl border border-border bg-surface shadow-lg">
+      <div className="relative mx-auto flex max-h-[92vh] w-full max-w-md flex-col rounded-t-xl border border-border bg-surface shadow-lg">
         <header className="flex items-center gap-2 border-b border-border px-3 py-3">
           <span className="h-11 w-11" />
-          <h2 className="flex-1 text-center text-meta font-semibold text-text">
+          <h2 className="min-w-0 flex-1 break-words text-center text-heading text-text">
             {t('staff.finalizeTitle')}
           </h2>
           <button
             type="button"
             aria-label={t('common.cancel')}
             onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
+            className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
           >
-            <X width={20} strokeWidth={1.75} />
+            <X aria-hidden className="h-6 w-6" strokeWidth={1.75} />
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
           <div className="flex flex-col gap-4">
-            <div className="rounded-2xl bg-brand-soft px-4 py-3 text-center">
+            <div className="rounded-xl bg-brand-soft px-4 py-3 text-center">
               <p className="text-title font-bold tabular-nums text-brand">
                 {fmtPoints(totalPoints)}
               </p>
-              <p className="text-meta text-text-muted">{t('staff.points')}</p>
+              <p className="text-body text-text-muted">{t('staff.points')}</p>
             </div>
 
             {/* Mandatory hardcopy photo */}
             <div className="flex flex-col gap-2">
-              <p className="px-1 text-meta font-semibold text-text-muted">
-                {t('staff.hardcopyPhoto')}
-              </p>
-              <p className="px-1 text-meta text-text-subtle">
-                {t('staff.hardcopyHint')}
-              </p>
+              <p className="px-1 text-subheading text-text-muted">{t('staff.hardcopyPhoto')}</p>
+              <p className="px-1 text-body text-text-muted">{t('staff.hardcopyHint')}</p>
 
               <input
                 ref={cameraRef}
@@ -219,7 +219,7 @@ export function FinalizeSubmitSheet({
               />
 
               {previewUrl ? (
-                <div className="relative overflow-hidden rounded-2xl border border-border">
+                <div className="relative overflow-hidden rounded-xl border border-border">
                   <img
                     src={previewUrl}
                     alt={t('staff.hardcopyPhoto')}
@@ -229,10 +229,10 @@ export function FinalizeSubmitSheet({
                   <button
                     type="button"
                     onClick={() => setFile(null)}
-                    aria-label={t('staff.removeLine')}
-                    className="absolute right-2 top-2 flex h-9 w-9 items-center justify-center rounded-full bg-black/50 text-white active:bg-black/70"
+                    aria-label={t('warr.photo.remove')}
+                    className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center rounded-md bg-black/60 text-white active:bg-black/80"
                   >
-                    <X width={18} strokeWidth={2} />
+                    <X aria-hidden className="h-5 w-5" strokeWidth={2} />
                   </button>
                 </div>
               ) : null}
@@ -261,10 +261,11 @@ export function FinalizeSubmitSheet({
 
             {/* Day + optional note */}
             <div className="flex flex-col gap-1.5">
-              <label className="px-1 text-subheading text-text-muted">
+              <label htmlFor={dateId} className="px-1 text-subheading text-text-muted">
                 {t('staff.give.date')}
               </label>
               <Input
+                id={dateId}
                 type="date"
                 value={workDate}
                 max={today}
@@ -273,10 +274,11 @@ export function FinalizeSubmitSheet({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="px-1 text-subheading text-text-muted">
+              <label htmlFor={noteId} className="px-1 text-subheading text-text-muted">
                 {t('staff.finalizeNote')}
               </label>
               <Input
+                id={noteId}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder={t('staff.notePlaceholder')}
@@ -287,21 +289,13 @@ export function FinalizeSubmitSheet({
 
         <footer className="flex flex-col gap-2 border-t border-border p-3">
           {rejected ? (
-            <p className="px-1 text-center text-meta text-danger">
-              {t('staff.rejectedSubmit')}
-            </p>
+            <p className="px-1 text-center text-body text-danger">{t('staff.rejectedSubmit')}</p>
           ) : offline ? (
-            <p className="px-1 text-center text-meta text-warning">
-              {t('staff.offlineSubmit')}
-            </p>
+            <p className="px-1 text-center text-body text-warning">{t('staff.offlineSubmit')}</p>
           ) : notSynced ? (
-            <p className="px-1 text-center text-meta text-text-muted">
-              {t('staff.waitSaving')}
-            </p>
+            <p className="px-1 text-center text-body text-text-muted">{t('staff.waitSaving')}</p>
           ) : !file ? (
-            <p className="px-1 text-center text-meta text-text-muted">
-              {t('staff.photoRequired')}
-            </p>
+            <p className="px-1 text-center text-body text-text-muted">{t('staff.photoRequired')}</p>
           ) : null}
           <Button
             fullWidth

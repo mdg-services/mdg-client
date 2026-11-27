@@ -1,13 +1,14 @@
 import { Copy } from 'lucide-react';
 import type { ReactElement } from 'react';
 
+import { SectionCard } from '@/components/kit';
 import { cn } from '@/lib/cn';
 import type { Lang } from '@/store/lang';
 import type { TankerDensityData } from '@dk/shared/types';
 
 import type { KindView, OverlayProps, ReportAction, ReportActionContext, Words } from '../types';
 
-import { clockWords, dayWords, fill, fuelName, leadingFor, num, say, shareLines, spokenDigits } from './_fmtTankerMoney';
+import { clockWords, dayWords, fill, fuelName, leadingFor, num, rv, say, shareLines, spokenDigits } from './_fmtTankerMoney';
 import { CopyButton, FactPill, FuelTitle, IconNote, Lead, NumberPlate, PLATE_INK, PLATE_YELLOW } from './_partsTankerMoney';
 
 /**
@@ -114,7 +115,7 @@ function DensityBlock({ line, lang }: { line: TankerDensityData['lines'][number]
     <section
       data-testid="density-block"
       data-product={line.productKey}
-      className="rounded-xl border border-border-strong bg-surface p-4"
+      className="rounded-lg border border-border bg-surface-2 p-3"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <FuelTitle productKey={line.productKey} lang={lang} fallback={line.family === 'UNKNOWN' ? undefined : line.family} />
@@ -139,13 +140,17 @@ function DensityBlock({ line, lang }: { line: TankerDensityData['lines'][number]
           <span
             data-testid="density-digits"
             aria-hidden="true"
-            className="block select-all break-all font-mono text-[clamp(2.5rem,15vw,3.5rem)] font-semibold leading-none tracking-tight text-text"
+            className="block select-all break-all font-mono text-display font-semibold leading-tight tracking-tight text-text"
           >
             {raw}
           </span>
           <span className="sr-only">{spokenDigits(raw, lang)}</span>
         </p>
-        <CopyButton text={raw} lang={lang} describe={`${say({ hi: 'कॉपी करें', hl: 'Copy karein', en: 'Copy' }, lang)} ${lineLabel(line, lang)} ${spokenDigits(raw, lang)}`} />
+        <CopyButton
+          text={raw}
+          lang={lang}
+          describe={rv(lang, 'rv3.density.copyOne', { fuel: lineLabel(line, lang), digits: spokenDigits(raw, lang) })}
+        />
       </div>
     </section>
   );
@@ -158,45 +163,48 @@ export function Overlay({ data, lang }: OverlayProps<'tanker_density'>): ReactEl
   const hidden = Math.max(0, data.droppedLines ?? 0);
   const stamp = invoiceStamp(data, lang);
   return (
-    <div data-kind-view="tanker_density" className="space-y-4 p-4">
+    <div data-kind-view="tanker_density" className="space-y-3 p-4">
       <Lead lang={lang}>{lead}</Lead>
       <NumberPlate text={v} lang={lang} emptyWords={T.plateEmpty} label={T.plateLabel} />
       {lines.length > 0 ? (
-        <>
-          <p className={cn('text-heading text-text', leadingFor(lang))}>{say(T.register, lang)}</p>
+        <SectionCard title={say(T.register, lang)}>
           <div className="space-y-3">
+            {lines.length > 1 ? (
+              <p data-testid="density-count" className={cn('text-body text-text-muted', leadingFor(lang))}>
+                {rv(lang, 'rv3.density.fuelCount', { n: lines.length })}
+              </p>
+            ) : null}
             {lines.map((line, i) => (
               <DensityBlock key={`${line.productKey}-${line.tankNo ?? ''}-${i}`} line={line} lang={lang} />
             ))}
+            {lines.length > 1 ? (
+              <CopyButton text={copyAllText(data, lang)} lang={lang} idleWords={T.copyAll} className="w-full" />
+            ) : null}
           </div>
-          {lines.length > 1 ? (
-            <CopyButton
-              text={copyAllText(data, lang)}
-              lang={lang}
-              idleWords={T.copyAll}
-              className="w-full"
-            />
-          ) : null}
-        </>
+        </SectionCard>
       ) : null}
       {hidden > 0 ? (
         <p className={cn('text-body text-text-muted', leadingFor(lang))}>
           {hidden === 1 ? say(T.moreOne, lang) : fill(T.more, lang, { n: String(hidden) })}
         </p>
       ) : null}
-      <ul className="space-y-2 border-t border-border pt-3">
-        <IconNote lang={lang} icon={<span className="inline-block h-4 w-6 rounded-sm border-2" style={{ backgroundColor: PLATE_YELLOW, borderColor: PLATE_INK }} />}>
-          {say(T.invoice, lang)}
-          {stamp ? `: ${stamp}` : ''}
-          {data.invoiceNo ? (
-            <>
-              <br />
-              <span className="text-text-muted">{say(T.invoiceNo, lang)} </span>
-              <span className="select-all break-all font-mono font-semibold">{data.invoiceNo}</span>
-            </>
-          ) : null}
-        </IconNote>
-      </ul>
+      {stamp || data.invoiceNo ? (
+        <SectionCard title={say(T.invoice, lang)}>
+          <ul className="space-y-2 p-0">
+            {stamp ? (
+              <IconNote lang={lang} icon={<span className="inline-block h-4 w-6 rounded-sm border-2" style={{ backgroundColor: PLATE_YELLOW, borderColor: PLATE_INK }} />}>
+                {stamp}
+              </IconNote>
+            ) : null}
+            {data.invoiceNo ? (
+              <IconNote lang={lang} icon={<span aria-hidden="true" className="inline-block h-4 w-6" />}>
+                <span className="text-text-muted">{say(T.invoiceNo, lang)} </span>
+                <span className="select-all break-all font-mono font-semibold">{data.invoiceNo}</span>
+              </IconNote>
+            ) : null}
+          </ul>
+        </SectionCard>
+      ) : null}
       <p className={cn('text-body text-text-muted', leadingFor(lang))}>{say(T.footer, lang)}</p>
     </div>
   );

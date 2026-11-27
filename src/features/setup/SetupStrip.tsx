@@ -166,7 +166,7 @@ export function SetupStrip({
           <button
             type="button"
             onClick={() => setPlaying(true)}
-            className="min-h-8 px-2 text-meta font-medium text-wa-bar-text underline-offset-2 hover:underline"
+            className="min-h-11 px-2 text-meta font-medium text-wa-bar-text underline-offset-2 hover:underline"
           >
             ▶ {t('setup.howItWorks')}
           </button>

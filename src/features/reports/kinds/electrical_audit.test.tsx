@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { useLangStore } from '@/store/lang';
+import { resetStores } from '@/test/utils';
 import type { ElectricalAuditData } from '@dk/shared/types';
 
 import { reportOf } from './_paperwork.fixtures';
@@ -18,7 +20,11 @@ const submitted: ElectricalAuditData = {
   filedAt: '2026-11-24T08:30:00.000Z',
 };
 
+afterEach(() => resetStores());
+
 function open(data: ElectricalAuditData, lang: 'hi' | 'hl' | 'en' = 'en') {
+  // The kit's own words follow the app's language.
+  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={reportOf('electrical_audit')} lang={lang} />);
 }
@@ -132,5 +138,42 @@ describe('electrical_audit', () => {
     const { container } = render(<Glyph size={40} />);
     expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 40 28');
     expect(container.querySelector('svg')).toHaveAttribute('height', '40');
+  });
+});
+
+describe('electrical_audit: the figures', () => {
+  it('shows the audits and the points as two tiles when something was filed', () => {
+    open(submitted);
+    const audits = screen.getByRole('group', { name: 'Audits: 2' });
+    expect(within(audits).getByText('2')).toBeInTheDocument();
+    const points = screen.getByRole('group', { name: 'Points: 6' });
+    expect(within(points).getByText('6')).toBeInTheDocument();
+    // A clean run says nothing but the numbers: no status pill on an ok tile.
+    expect(audits.querySelector('[data-status]')).toBeNull();
+  });
+
+  it('marks both tiles "Needs a look" with a shape when the run stopped part-way', () => {
+    open({
+      ...submitted,
+      outcome: 'partly',
+      audits: [{ auditNo: '4418', auditDate: '24-Nov-2026', points: 4, confirmed: false }],
+      pointsTotal: 4,
+    });
+    expect(screen.getByRole('group', { name: 'Audits: 1' }).querySelector('[data-status="attention"]')).not.toBeNull();
+    expect(screen.getByRole('group', { name: 'Points: 4' }).querySelector('[data-status="attention"]')).not.toBeNull();
+  });
+
+  it('shows no tiles when nothing was filed or the run failed', () => {
+    open({ ...submitted, outcome: 'failed' });
+    expect(screen.queryByRole('group', { name: /^Audits/ })).toBeNull();
+    expect(screen.queryByRole('group', { name: /^Points/ })).toBeNull();
+  });
+
+  it('says the labels in Hindi and keeps the clipboard in rem', () => {
+    const { container } = open(submitted, 'hi');
+    expect(screen.getByRole('group', { name: 'ऑडिट: 2' })).toBeInTheDocument();
+    expect(screen.getByRole('group', { name: 'पॉइंट: 6' })).toBeInTheDocument();
+    expect(container.innerHTML).not.toMatch(/h-\[\d+px|w-\[\d+px|text-\[\d/);
+    expect(container.querySelector('.max-w-xs')).not.toBeNull();
   });
 });

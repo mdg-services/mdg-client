@@ -18,16 +18,7 @@ vi.mock('@/lib/api', async (orig) => {
 const { SettingsPage } = await import('./SettingsPage');
 
 /** A stand-in for each place a row leads, so the test reads where a tap went. */
-const DESTINATIONS = [
-  '/settings/profile',
-  '/settings/account',
-  '/settings/team',
-  '/services',
-  '/staff',
-  '/payments',
-  '/settings/help',
-  '/login',
-];
+const DESTINATIONS = ['/settings/profile', '/settings/account', '/pump', '/login'];
 
 function renderSettings(route = '/settings') {
   useLangStore.setState({ lang: 'en', explicit: true });
@@ -62,47 +53,48 @@ afterEach(() => {
 });
 
 describe('SettingsPage — what is on it', () => {
-  it('lists the owner\'s rows in WhatsApp order, with a line saying what is behind each', () => {
+  // Settings is the quiet phone page: this person and this phone, nothing about the pump's business
+  // (that is My pump). The order is the order he reads it: who, language, password, then the small print.
+  it('lists the owner\'s rows: who, language, password, the legal pages, log out, and delete apart at the end', () => {
     signIn({ id: 'owner', name: 'Ramesh Kumar', role: 'dealer-owner', email: 'ramesh@pump.in' });
     renderSettings();
 
     const text = rows();
-    const order = [
-      'Account',
-      'Language',
-      'Your team',
-      'Your services',
-      'Warriors & points',
-      'Help videos',
-      'Log out',
-    ];
-    const positions = order.map((title) => text.findIndex((t) => t.startsWith(title)));
+    const order = ['Ramesh Kumar', 'Language', 'Change password', 'Privacy policy', 'Terms of service', 'Log out', 'Delete my account'];
+    const positions = order.map((title) => text.findIndex((t) => t.includes(title)));
     expect(positions.every((p) => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
-
-    // Each row says one thing under its title.
-    expect(screen.getByText('Change your password, or delete your account')).toBeInTheDocument();
-    expect(screen.getByText('Add your manager or a partner')).toBeInTheDocument();
-    expect(screen.getByText('Learn the app with short videos')).toBeInTheDocument();
+    // Delete is the very last thing, apart from the rest.
+    expect(text.at(-1)).toMatch(/^Delete my account/);
+    expect(screen.getByRole('region', { name: 'Delete account' })).toBeInTheDocument();
+    expect(screen.getByText('Choose a new password')).toBeInTheDocument();
   });
 
-  // ── billing ── What is due and the receipts, read-only; the owner's, like the bill.
-  it('has a "Payments & receipts" row for the owner that leads to the read-only Payments page', () => {
+  // Everything that is the pump's business moved to My pump: a row coming back here would be a second door.
+  it.each([
+    'Your team',
+    'Your services',
+    'Warriors & points',
+    'Payments & receipts',
+    'Help videos',
+    'IDs & passwords',
+    'Switch pump',
+  ])('has no "%s" row any more: that is on My pump', (title) => {
     signIn({ role: 'dealer-owner' });
     renderSettings();
-    expect(screen.getByText('Your bills, receipts and GST invoices')).toBeInTheDocument();
-    fireEvent.click(screen.getByText('Payments & receipts').closest('button')!);
-    expect(screen.getByText('went:/payments')).toBeInTheDocument();
+    expect(screen.queryByText(title)).not.toBeInTheDocument();
   });
 
-  it('says it in Hindi, and leaves it out for a manager', () => {
-    signIn({ role: 'dealer-owner' });
-    renderSettings();
-    cleanup();
+  it('shows a manager the same quiet page', () => {
     signIn({ role: 'dealer-staff' });
     renderSettings();
-    expect(screen.queryByText('Payments & receipts')).not.toBeInTheDocument();
-    cleanup();
+    const text = rows();
+    expect(text.some((t) => t.startsWith('Language'))).toBe(true);
+    expect(text.some((t) => t.startsWith('Change password'))).toBe(true);
+    expect(text.some((t) => t.startsWith('Log out'))).toBe(true);
+  });
+
+  it('says it in Hindi', () => {
     signIn({ role: 'dealer-owner' });
     useLangStore.setState({ lang: 'hi', explicit: true });
     renderWithProviders(
@@ -111,13 +103,15 @@ describe('SettingsPage — what is on it', () => {
       </Routes>,
       { route: '/settings', withRouter: true },
     );
-    expect(screen.getByText('भुगतान और रसीदें')).toBeInTheDocument();
+    expect(screen.getByText('पासवर्ड बदलें')).toBeInTheDocument();
+    expect(screen.getByText('नया पासवर्ड चुनें')).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'खाता हटाना' })).toBeInTheDocument();
   });
 
   it('is headed Settings, with a back arrow', () => {
     signIn({ role: 'dealer-owner' });
     renderSettings();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
@@ -131,42 +125,98 @@ describe('SettingsPage — what is on it', () => {
     expect(within(profile).queryByText('r@pump.in')).not.toBeInTheDocument();
   });
 
+  it('puts the email on its own line, under the name and role, so it has the card\'s whole width', () => {
+    signIn({ name: 'Ramesh Sharma', role: 'dealer-owner', email: 'owner@904s.test' });
+    renderSettings();
+    const email = screen.getByText('owner@904s.test');
+    expect(email.className).toContain('break-all');
+    // Not beside the picture: it is a line of the card, not of the name column.
+    expect(email.parentElement).toBe(screen.getByText('Ramesh Sharma').closest('button'));
+  });
+
+  it('has a heading above the delete card, which still says what happens before the tap', () => {
+    signIn({ role: 'dealer-owner' });
+    renderSettings();
+    const region = screen.getByRole('region', { name: 'Delete account' });
+    expect(within(region).getByRole('heading', { name: 'Delete account' })).toBeInTheDocument();
+    expect(within(region).getByRole('button', { name: 'Delete my account' })).toBeInTheDocument();
+  });
+
   it('falls back to the email when no phone is on file', () => {
     signIn({ name: 'Ramesh Kumar', role: 'dealer-owner', email: 'r@pump.in' });
     renderSettings();
     expect(screen.getByText('r@pump.in')).toBeInTheDocument();
   });
 
-  // Only the owner runs the team, and the server refuses everyone else.
-  it('leaves "Your team" out for a manager, who still gets Warriors & points', () => {
-    signIn({ role: 'dealer-staff' });
-    renderSettings();
-    expect(screen.queryByText('Your team')).not.toBeInTheDocument();
-    expect(screen.getByText('Warriors & points')).toBeInTheDocument();
-  });
-
-  // MDG asks for papers, the register page and Pump health photos IN THE CHAT now,
-  // so Settings has no door to a screen for any of them. A row coming back would
-  // be a screen the app no longer has.
-  it.each(['Your papers', 'Density register', 'Pump health'])(
-    'has no "%s" row — that is asked in the chat now',
-    (title) => {
-      signIn({ role: 'dealer-owner' });
-      renderSettings();
-      expect(screen.queryByText(title)).not.toBeInTheDocument();
-    },
-  );
-
-  it('never asks the server about the density service or a Kavach programme', () => {
+  // The extension's side panel has no bar and no "My pump" button, so Settings carries its one door.
+  it('has a My pump row only inside the extension\'s side panel', () => {
     signIn({ role: 'dealer-owner' });
     renderSettings();
-    expect(api.get).not.toHaveBeenCalled();
+    expect(screen.queryByText('My pump')).not.toBeInTheDocument();
+    cleanup();
+
+    window.sessionStorage.setItem('dk.embed', 'extension');
+    resetEmbeddedForTests({ framed: true });
+    try {
+      signIn({ role: 'dealer-owner' });
+      renderSettings();
+      fireEvent.click(screen.getByText('My pump').closest('button')!);
+      expect(screen.getByText('went:/pump')).toBeInTheDocument();
+    } finally {
+      window.sessionStorage.removeItem('dk.embed');
+      resetEmbeddedForTests();
+    }
+  });
+
+  it('keeps every row at least 44 pixels tall and every text at 16 or 14 pixels, with no cut-off names', () => {
+    signIn({ role: 'dealer-owner', name: 'Ramesh Kumar' });
+    const { container } = renderSettings();
+    const html = container.innerHTML;
+    expect(html).not.toMatch(/\btruncate\b|line-clamp|text-\[|min-h-\[|h-\[\d+px\]/);
+    for (const b of screen.getAllByRole('button')) {
+      if (b.getAttribute('aria-label') === 'Back') continue;
+      expect(b.className).toMatch(/min-h-(11|12|14|tap)|p-4/);
+    }
   });
 
   it('says so, with the bar still on screen, when nobody is signed in', () => {
     renderSettings();
     expect(screen.getByText('Not signed in')).toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+  });
+});
+
+// PINNED (spec 4.5, 11.1): Settings never asks the server. Everything on it is read from the sign-in
+// already on the phone and from the phone itself. A row that needed the server would make this page
+// slow and blank on a bad network, which is the one place the owner must always be able to log out from.
+describe('SettingsPage — never asks the server', () => {
+  it('makes no request of any kind, for an owner, a manager, inside the app, and in Hindi', () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    for (const role of ['dealer-owner', 'dealer-staff'] as const) {
+      for (const lang of ['en', 'hi'] as const) {
+        (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage: vi.fn() };
+        usePushStore.setState({ pushState: 'off' });
+        signIn({ role });
+        useLangStore.setState({ lang, explicit: true });
+        renderWithProviders(
+          <Routes>
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>,
+          { route: '/settings', withRouter: true },
+        );
+        cleanup();
+      }
+    }
+    expect(api.get).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not ask which pumps the person has: Switch pump lives on My pump', () => {
+    signIn({ role: 'dealer-owner', personId: 'p1' } as never);
+    renderSettings();
+    expect(api.get).not.toHaveBeenCalled();
+    expect(screen.queryByText('Switch pump')).not.toBeInTheDocument();
   });
 });
 
@@ -177,23 +227,19 @@ describe('SettingsPage — where a row goes', () => {
 
   it.each([
     ['Ramesh Kumar', '/settings/profile'],
-    ['Account', '/settings/account'],
-    ['Your team', '/settings/team'],
-    ['Your services', '/services'],
-    ['Warriors & points', '/staff'],
+    ['Change password', '/settings/account'],
   ])('%s opens %s', (title, path) => {
     renderSettings();
     fireEvent.click(screen.getByText(title).closest('button')!);
     expect(screen.getByText(`went:${path}`)).toBeInTheDocument();
   });
 
-  // The guide website is retired: the videos play in the app now.
-  it('opens the Help videos screen inside the app, and never a web page', () => {
-    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+  // Delete account stays reachable inside the app (the store's rule) at its old address, and it asks
+  // for the delete block to be brought into view.
+  it('Delete my account opens the Account page, scrolled to the delete block', () => {
     renderSettings();
-    fireEvent.click(screen.getByText('Help videos').closest('button')!);
-    expect(screen.getByText('went:/settings/help')).toBeInTheDocument();
-    expect(open).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Delete my account' }));
+    expect(screen.getByText('went:/settings/account')).toBeInTheDocument();
   });
 });
 
@@ -347,11 +393,12 @@ describe('SettingsPage — log out', () => {
   });
   afterEach(() => useAuthStore.setState({ logout: realLogout }));
 
-  it('is the last row, in red, and asks before it does anything', () => {
+  it('is in red, above the delete block, and asks before it does anything', () => {
     renderSettings();
-    const row = screen.getByText('Log out').closest('button')!;
-    expect(screen.getByText('Log out').className).toContain('text-danger');
-    expect(rows().at(-1)).toBe('Log out');
+    const row = screen.getByRole('button', { name: 'Log out' });
+    expect(row.className).toContain('text-danger');
+    const text = rows();
+    expect(text.findIndex((t) => t === 'Log out')).toBeLessThan(text.findIndex((t) => t.startsWith('Delete my account')));
 
     fireEvent.click(row);
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
@@ -364,7 +411,7 @@ describe('SettingsPage — log out', () => {
     fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Cancel' }));
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     expect(logout).not.toHaveBeenCalled();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('signs out and goes to the login screen when they confirm', async () => {
@@ -392,9 +439,9 @@ describe('SettingsPage — the legal pages', () => {
     const text = rows();
     const privacy = text.findIndex((t) => t.startsWith('Privacy policy'));
     const terms = text.findIndex((t) => t.startsWith('Terms of service'));
-    expect(privacy).toBeGreaterThan(text.findIndex((t) => t.startsWith('Help videos')));
+    expect(privacy).toBeGreaterThan(text.findIndex((t) => t.startsWith('Change password')));
     expect(terms).toBe(privacy + 1);
-    expect(text.at(-1)).toBe('Log out');
+    expect(text.findIndex((t) => t === 'Log out')).toBeGreaterThan(terms);
   });
 
   // The website pages open in the phone's own browser (the shell hands an https
@@ -407,7 +454,7 @@ describe('SettingsPage — the legal pages', () => {
     renderSettings();
     fireEvent.click(screen.getByText(title).closest('button')!);
     expect(open).toHaveBeenCalledWith(url, '_blank', 'noopener');
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('says both in Hindi', () => {
@@ -426,82 +473,120 @@ describe('SettingsPage — the legal pages', () => {
   });
 });
 
-describe('SettingsPage — the Notifications row', () => {
+describe('SettingsPage — "Messages reaching me"', () => {
   let postMessage: ReturnType<typeof vi.fn>;
   const posted = () => postMessage.mock.calls.map(([raw]) => JSON.parse(raw as string));
+  const w = () =>
+    window as unknown as { ReactNativeWebView?: unknown; __DK_NATIVE_PLATFORM__?: string; __DK_PHONE_MAKER__?: string };
 
   beforeEach(() => {
     signIn({ role: 'dealer-owner' });
     postMessage = vi.fn();
   });
+  afterEach(() => {
+    delete w().__DK_NATIVE_PLATFORM__;
+    delete w().__DK_PHONE_MAKER__;
+  });
 
   function renderInApp(state: PushState) {
-    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    w().ReactNativeWebView = { postMessage };
     usePushStore.setState({ pushState: state });
     return renderSettings();
   }
 
+  const row = (line: string) => screen.getByText(line).closest('button')!;
+
   // A browser has no phone to switch anything on.
-  it('is not there outside the app', () => {
+  // ...but the row is still there, so the owner knows where messages arrive; it has nothing to tap.
+  it('says where messages arrive outside the app, with nothing to switch on', () => {
     usePushStore.setState({ pushState: 'ask' });
     renderSettings();
-    expect(screen.queryByText('Notifications')).not.toBeInTheDocument();
+    const card = screen.getByRole('region', { name: 'Messages reaching me' });
+    expect(within(card).getByText('Messages come to your chat. Phone notifications work in the MDG app.')).toBeInTheDocument();
+    expect(within(card).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('is not there where there is nothing to turn on (Expo Go, a build with no notifications)', () => {
     renderInApp('unavailable');
-    expect(screen.queryByText('Notifications')).not.toBeInTheDocument();
+    expect(screen.queryByText('Messages reaching me')).not.toBeInTheDocument();
   });
 
-  it('sits with the other settings, after Language and before the team', () => {
+  it('is one card, between the password and the legal pages, with a shape and a word', () => {
     renderInApp('on');
     const text = rows();
-    const at = (title: string) => text.findIndex((t) => t.startsWith(title));
-    expect(at('Notifications')).toBeGreaterThan(at('Language'));
-    expect(at('Notifications')).toBeLessThan(at('Your team'));
+    const at = (title: string) => text.findIndex((t) => t.includes(title));
+    expect(at('Notifications are on')).toBeGreaterThan(at('Change password'));
+    expect(at('Notifications are on')).toBeLessThan(at('Privacy policy'));
+    const card = screen.getByRole('region', { name: 'Messages reaching me' });
+    // The state is a pill with a word beside its shape, never colour alone.
+    expect(card.querySelector('[data-status="ok"]')).not.toBeNull();
   });
 
   it.each([
-    ['on', 'On'],
-    ['off', 'Off — tap to turn on in Settings'],
-    ['ask', 'Not turned on yet'],
+    ['on', 'Notifications are on', 'ok'],
+    ['off', 'Notifications are off. Tap to turn them on in your phone', 'attention'],
+    ['ask', 'Notifications are not on yet. Tap to turn them on', 'attention'],
     // An older shell that never said: asking again is harmless, so it reads as "not yet".
-    ['unknown', 'Not turned on yet'],
-  ] as const)('while %s it says "%s"', (state, line) => {
+    ['unknown', 'Notifications are not on yet. Tap to turn them on', 'attention'],
+  ] as const)('while %s it says "%s"', (state, line, status) => {
     renderInApp(state);
-    const row = screen.getByText('Notifications').closest('button')!;
-    expect(within(row).getByText(line)).toBeInTheDocument();
+    const card = screen.getByRole('region', { name: 'Messages reaching me' });
+    expect(within(card).getByText(line)).toBeInTheDocument();
+    expect(card.querySelector(`[data-status="${status}"]`)).not.toBeNull();
   });
 
   it('never asked: a tap lets the phone show its prompt', () => {
     renderInApp('ask');
-    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    fireEvent.click(row('Notifications are not on yet. Tap to turn them on'));
     expect(posted()).toEqual([{ type: 'push:register' }]);
   });
 
-  it('refused: a tap opens the phone\'s Settings — asking again cannot work', () => {
+  it('refused: a tap opens the phone\'s Settings: asking again cannot work', () => {
     renderInApp('off');
-    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    fireEvent.click(row('Notifications are off. Tap to turn them on in your phone'));
     expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
   });
 
   it('on: a tap opens the phone\'s Settings, so it can be changed', () => {
     renderInApp('on');
-    fireEvent.click(screen.getByText('Notifications').closest('button')!);
+    fireEvent.click(row('Notifications are on'));
     expect(posted()).toEqual([{ type: 'permission:openSettings' }]);
   });
 
   it('follows the phone: the line changes the moment the answer arrives', () => {
     renderInApp('ask');
     act(() => usePushStore.setState({ pushState: 'on' }));
-    const row = screen.getByText('Notifications').closest('button')!;
-    expect(within(row).getByText('On')).toBeInTheDocument();
+    expect(screen.getByText('Notifications are on')).toBeInTheDocument();
+  });
+
+  // One question, one row: "will MDG's messages reach me?" folds the battery-saver warning in, on the
+  // phone makers that hide notifications, instead of a second row of its own.
+  it('folds the battery-saver warning in, with its own button, only on a phone that hides messages', () => {
+    w().__DK_NATIVE_PLATFORM__ = 'android';
+    w().__DK_PHONE_MAKER__ = 'xiaomi';
+    renderInApp('on');
+    const card = screen.getByRole('region', { name: 'Messages reaching me' });
+    expect(within(card).getByText('Your phone may hide messages to save battery.')).toBeInTheDocument();
+    // A fact to know, not a fault: the pill is the plain "info" one, not "needs a look".
+    expect(card.querySelector('[data-status="info"]')).not.toBeNull();
+    fireEvent.click(within(card).getByRole('button', { name: 'See the steps' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    // No separate "Messages not arriving?" row any more.
+    expect(screen.queryByText('Messages not arriving?')).not.toBeInTheDocument();
+  });
+
+  it('says no battery word on a phone that does not hide messages', () => {
+    w().__DK_NATIVE_PLATFORM__ = 'android';
+    w().__DK_PHONE_MAKER__ = 'google';
+    renderInApp('on');
+    expect(screen.queryByText('Your phone may hide messages to save battery.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'See the steps' })).not.toBeInTheDocument();
   });
 
   it('says it in Hindi', () => {
     renderInApp('off');
     cleanup();
-    (window as unknown as { ReactNativeWebView?: unknown }).ReactNativeWebView = { postMessage };
+    w().ReactNativeWebView = { postMessage };
     signIn({ role: 'dealer-owner' });
     useLangStore.setState({ lang: 'hi', explicit: true });
     renderWithProviders(
@@ -510,7 +595,7 @@ describe('SettingsPage — the Notifications row', () => {
       </Routes>,
       { route: '/settings', withRouter: true },
     );
-    expect(screen.getByText('नोटिफ़िकेशन')).toBeInTheDocument();
-    expect(screen.getByText('बंद — सेटिंग में चालू करने के लिए दबाइए')).toBeInTheDocument();
+    expect(screen.getByText('मुझ तक आने वाले मैसेज')).toBeInTheDocument();
+    expect(screen.getByText('नोटिफ़िकेशन बंद हैं। फ़ोन में चालू करने के लिए दबाएँ')).toBeInTheDocument();
   });
 });

@@ -24,6 +24,7 @@ import { type Attachment, type Message, type MessageReaction } from '@dk/shared/
 
 import type { AskPhase } from './askView';
 import { AttachmentStack, splitAttachments } from './AttachmentPreview';
+import { type ChatSide, chatLook, sideOf } from './chatLook';
 import { ComplaintBox } from './Complaints/ComplaintBox';
 import { DeclarationsBox } from './Declarations/DeclarationsBox';
 import { DuOtpAckBox } from './DuOtpAckBox';
@@ -129,14 +130,14 @@ function QuoteBlock({
     <button
       type="button"
       onClick={() => onJumpTo?.(rc.messageId, message.id)}
-      className="mb-1 flex w-full items-stretch overflow-hidden rounded-md bg-black/[0.06] text-left active:bg-black/10"
+      className={cn(chatLook.quote, 'active:bg-black/10')}
     >
       <span className="w-1 shrink-0 bg-wa-accent" aria-hidden />
       <span className="min-w-0 flex-1 px-2 py-1">
-        <span className="block truncate text-meta font-medium leading-tight text-wa-accent-strong">
+        <span className={chatLook.quoteName}>
           {replySenderLabel(rc, currentUserId, t, dealerSideIds)}
         </span>
-        <span className="flex items-center gap-1 text-meta leading-snug text-wa-meta">
+        <span className={chatLook.quoteWords}>
           {Icon ? <Icon width={13} strokeWidth={1.75} className="shrink-0" /> : null}
           <span className="line-clamp-2 break-words">{preview.text}</span>
         </span>
@@ -189,7 +190,7 @@ function groupReactions(
  * left for theirs, right for mine. Drawn in the bubble's own colour (`currentColor`),
  * so one shape serves both.
  */
-function Tail({ mine }: { mine: boolean }) {
+function Tail({ fromMdg, side }: { fromMdg: boolean; side: ChatSide }) {
   return (
     <svg
       data-tail=""
@@ -197,10 +198,7 @@ function Tail({ mine }: { mine: boolean }) {
       viewBox="0 0 8 10"
       width={8}
       height={10}
-      className={cn(
-        'pointer-events-none absolute top-0 fill-current',
-        mine ? '-right-[7px] scale-x-[-1] text-wa-out' : '-left-[7px] text-wa-in',
-      )}
+      className={chatLook.tail(fromMdg, side)}
     >
       <path d="M8 0H0q5 .5 8 10z" />
     </svg>
@@ -527,6 +525,8 @@ export const MessageBubble = React.memo(function MessageBubble({
   const fromMdg =
     message.system || message.senderRole === 'admin' || isSystemSenderName(message.senderName);
   const senderLabel = fromMdg ? t('chat.senderMdg') : message.senderName;
+  // The dealer's own words sit on the right and the team's on the left (the admin shows it the other way round).
+  const side = sideOf('dealer', fromMdg);
 
   // MDG's notices carry every language, and what MDG's team or assistant wrote is
   // translated for each reader: each sees their own (owner and manager may differ).
@@ -658,10 +658,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   const time = formatTime(message.createdAt, lang);
   const meta = (overlay: boolean) => (
     <span
-      className={cn(
-        'flex items-center gap-1 whitespace-nowrap text-micro leading-none',
-        overlay ? 'text-white' : 'text-wa-meta',
-      )}
+      className={cn(chatLook.meta, overlay ? 'text-white' : 'text-wa-meta')}
     >
       <span>{time}</span>
       {mine ? <MessageTicks message={message} /> : null}
@@ -674,34 +671,19 @@ export const MessageBubble = React.memo(function MessageBubble({
   const showName = !!showSender && !mine && first && !!senderLabel;
 
   return (
-    <div className={cn('flex w-full', mine ? 'justify-end' : 'justify-start')}>
-      <div
-        className={cn(
-          'flex flex-col',
-          mine ? 'items-end' : 'items-start',
-          // A request (or a login box, or a video) is as wide as a picture, so its button is
-          // worth pressing.
-          wide ? 'w-[min(80%,330px)]' : 'max-w-[80%]',
-        )}
-      >
+    <div className={chatLook.row(side)}>
+      {/* A request (or a login box, or a video) is as wide as a picture, so its button is
+          worth pressing. */}
+      <div className={chatLook.column(side, wide)}>
         <div
           {...longPress}
-          className={cn(
-            'relative min-w-0 rounded-md text-wa-bubble-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
-            wide && 'w-full',
-            mine ? 'bg-wa-out' : 'bg-wa-in',
-            first && (mine ? 'rounded-tr-none' : 'rounded-tl-none'),
-            hasMedia || hasOther ? 'p-[3px]' : 'px-[9px] pb-[7px] pt-[6px]',
-          )}
+          className={chatLook.bubble({ fromMdg, side, first, wide, padded: !(hasMedia || hasOther) })}
         >
-          {first ? <Tail mine={mine} /> : null}
+          {first ? <Tail fromMdg={fromMdg} side={side} /> : null}
 
           {showName ? (
             <span
-              className={cn(
-                'block truncate text-meta font-medium leading-tight',
-                hasMedia || hasOther ? 'px-1.5 pb-1 pt-1' : 'pb-0.5',
-              )}
+              className={cn(chatLook.name, hasMedia || hasOther ? 'px-1.5 pb-1 pt-1' : 'pb-0.5')}
               style={{ color: `hsl(${senderHue(message.senderId)} 55% 40%)` }}
             >
               {senderLabel}
@@ -783,7 +765,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 // NOT selectable: long-press selects the message (Copy lives in
                 // the bar above), so the browser's text-selection long-press
                 // must not race it.
-                'whitespace-pre-wrap break-words text-body leading-[1.35] [&_a]:text-wa-accent-strong',
+                chatLook.words,
                 hasMedia || hasOther ? 'px-[6px] pb-0.5 pt-1' : '',
               )}
             >
@@ -897,13 +879,13 @@ export const MessageBubble = React.memo(function MessageBubble({
               <span
                 key={g.emoji}
                 className={cn(
-                  'flex items-center gap-0.5 rounded-full border bg-wa-in px-1.5 py-0.5 text-meta shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]',
+                  chatLook.reaction,
                   g.mine ? 'border-wa-accent' : 'border-wa-divider',
                 )}
               >
                 <span>{g.emoji}</span>
                 {g.count > 1 ? (
-                  <span className="text-micro tabular-nums text-wa-meta">
+                  <span className={chatLook.reactionCount}>
                     {g.count}
                   </span>
                 ) : null}

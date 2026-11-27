@@ -2,9 +2,9 @@ import { VideoOff, X } from 'lucide-react';
 import * as React from 'react';
 
 import { Spinner } from '@/components/ui';
+import { useWatchReport } from '@/features/yourVideos/useYourVideos';
 import { useT } from '@/lib/i18n';
 import { useDialog } from '@/lib/useDialog';
-import { useWatchReport } from '@/features/yourVideos/useYourVideos';
 
 import { playableSrc } from './helpView';
 import { fetchGuideVideoPlay } from './useGuideVideos';
@@ -98,11 +98,11 @@ export function GuideVideoSheet({
           type="button"
           aria-label={t('help.close')}
           onClick={onClose}
-          className="flex h-12 w-12 items-center justify-center rounded-full active:bg-white/15"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full active:bg-white/15"
         >
           <X width={24} height={24} strokeWidth={1.75} aria-hidden />
         </button>
-        <p className="min-w-0 flex-1 truncate pr-4 text-body">{title}</p>
+        <p className="min-w-0 flex-1 break-words pr-4 text-body">{title}</p>
       </div>
 
       <div className="relative min-h-0 flex-1">

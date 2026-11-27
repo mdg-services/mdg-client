@@ -21,6 +21,7 @@ export function staffBatchesQueryKey(dealerId: string | undefined) {
 }
 
 const summaryQueryKeyRoot = ['staff', 'summary'] as const;
+const ledgerQueryKeyRoot = ['staff', 'ledger'] as const;
 
 /** Body accepted by PUT /staff-points/draft (autosave — a full replace). */
 export interface SaveStaffDraftInput {
@@ -107,6 +108,7 @@ export function useFinalizeStaffDraft(dealerId: string | undefined) {
         qc.setQueryData(staffDraftQueryKey(dealerId), null);
         void qc.invalidateQueries({ queryKey: employeesQueryKeyRoot });
         void qc.invalidateQueries({ queryKey: summaryQueryKeyRoot });
+        void qc.invalidateQueries({ queryKey: ledgerQueryKeyRoot });
         void qc.invalidateQueries({ queryKey: staffBatchesQueryKey(dealerId) });
       },
     },

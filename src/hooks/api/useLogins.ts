@@ -12,11 +12,13 @@ import { portalLoginsKey } from './usePortalLogins';
  */
 export const loginsKey = ['logins', 'me'] as const;
 
-export function useLogins() {
+export function useLogins(options: { enabled?: boolean } = {}) {
   const token = useAuthStore((s) => s.token);
   return useQuery({
     queryKey: loginsKey,
-    enabled: !!token,
+    // `enabled: false` is for a page that also draws for a manager (My pump): the logins are the
+    // owner's, and a manager's phone must never ask for them.
+    enabled: !!token && options.enabled !== false,
     // A change made from the chat box, or by MDG's team, shows when the page is opened again.
     staleTime: 0,
     queryFn: () => api.get<LoginsView>('/v1/me/logins'),

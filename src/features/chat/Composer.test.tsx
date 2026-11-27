@@ -2,9 +2,12 @@ import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-libra
 import * as React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type * as MicPolicyModule from '@/lib/micPolicy';
+import type * as NativeBridgeModule from '@/lib/nativeBridge';
 import { useLangStore } from '@/store/lang';
 import { makeMessage, renderWithProviders } from '@/test/utils';
 
+import type * as AttachmentPreviewModule from './AttachmentPreview';
 import { Composer, type ComposerHandle } from './Composer';
 
 // Unmount BEFORE the shared teardown resets the language store: that reset runs
@@ -91,20 +94,20 @@ const bridge = vi.hoisted(() => ({
   haptic: vi.fn(),
 }));
 vi.mock('@/lib/nativeBridge', async (orig) => ({
-  ...(await orig<typeof import('@/lib/nativeBridge')>()),
+  ...(await orig<typeof NativeBridgeModule>()),
   ...bridge,
 }));
 
 /** Whether the new Android app is live on Play (lib/micPolicy's switch). */
 const policy = vi.hoisted(() => ({ live: false }));
 vi.mock('@/lib/micPolicy', async (orig) => ({
-  ...(await orig<typeof import('@/lib/micPolicy')>()),
+  ...(await orig<typeof MicPolicyModule>()),
   androidMicUpdateLive: () => policy.live,
 }));
 
 const playback = vi.hoisted(() => ({ pauseAllVoiceNotes: vi.fn(() => false) }));
 vi.mock('./AttachmentPreview', async (orig) => ({
-  ...(await orig<typeof import('./AttachmentPreview')>()),
+  ...(await orig<typeof AttachmentPreviewModule>()),
   pauseAllVoiceNotes: playback.pauseAllVoiceNotes,
 }));
 
@@ -1324,6 +1327,19 @@ describe('Composer quick-reply chips', () => {
   it('shows no row for an empty list (the choice is still loading)', () => {
     renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={[]} />);
     expect(document.querySelector('.scrollbar-thin')).toBeNull();
+  });
+
+  it('draws each chip at least 44px tall, wrapping inside itself and never wider than the strip', () => {
+    renderWithProviders(<Composer onSend={vi.fn()} showQuickReplies quickReplies={CHIPS} />);
+    for (const label of CHIPS) {
+      const chip = screen.getByRole('button', { name: label });
+      // A tap target of 44px (min-h-11 is rem, so it grows with the reader's text) and a label that
+      // wraps in its own chip: a long Hindi sentence is never cut or pushed off the screen.
+      expect(chip.className).toMatch(/\bmin-h-11\b/);
+      expect(chip.className).toMatch(/\bmax-w-\[85%\]/);
+      expect(chip.className).toMatch(/\bwhitespace-normal\b/);
+      expect(chip.className).not.toMatch(/(^|\s)h-\d|\bpy-1\.5\b|truncate|line-clamp/);
+    }
   });
 
   it('has no "Talk to support" chip — a person is reached by a ticket, not a tap', () => {

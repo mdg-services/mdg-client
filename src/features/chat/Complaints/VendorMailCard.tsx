@@ -1,8 +1,8 @@
 import { Check, Copy, Mail } from "lucide-react";
 import * as React from "react";
 
-import { cn } from "@/lib/cn";
 import { copyText } from "@/lib/clipboard";
+import { cn } from "@/lib/cn";
 import { useLang, useT } from "@/lib/i18n";
 import { openWebPage } from "@/lib/legalLinks";
 import { sayIn, type ComplaintVendorMailView } from "@dk/shared/types";

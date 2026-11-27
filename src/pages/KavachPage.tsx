@@ -1,54 +1,84 @@
 import { onlineManager } from '@tanstack/react-query';
-import { CheckCircle2, ChevronDown, RefreshCw, ShieldCheck, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { AppBar, type AppBarMenuItem } from '@/components/AppBar';
+import {
+  AsOf,
+  EmptyCalm,
+  ErrorCard,
+  HelpChip,
+  PageHeader,
+  PillGroup,
+  ProgressBar,
+  SectionCard,
+  SkeletonBlock,
+} from '@/components/kit';
 import { PdfViewer } from '@/components/PdfViewer';
-import { Button, EmptyState } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { KavachDetailSheet } from '@/features/kavach/KavachDetailSheet';
 import { KavachRow } from '@/features/kavach/KavachRow';
-import { KavachSummary } from '@/features/kavach/KavachSummary';
-import { sectionsOf, titleOf, type KavachSections } from '@/features/kavach/kavachView';
+import { KavachSummary, type JumpTarget } from '@/features/kavach/KavachSummary';
+import {
+  DATA_LIMIT,
+  UPCOMING_LIMIT,
+  WEEK_LIMIT,
+  clockWords,
+  countsOfSections,
+  countsOutOfStep,
+  dailyJobsOf,
+  dayWords,
+  leftWords,
+  nextJobAt,
+  sectionsOf,
+  titleOf,
+  worthOf,
+  type RowSection,
+} from '@/features/kavach/kavachView';
 import { rowKey, useKavachActions } from '@/features/kavach/useKavachActions';
-import { OutletChip } from '@/features/outlets/OutletChip';
-import { OutletSheet } from '@/features/outlets/OutletSheet';
+import { useKavachEventSends } from '@/features/kavach/useKavachEventSends';
 import { PhotoConfirmSheet } from '@/features/today/PhotoConfirmSheet';
-import { MoreButton, SectionHeading } from '@/features/today/TodayRows';
 import { fetchKavachSheet, useKavach } from '@/hooks/api/useKavach';
-import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import { imageAccept } from '@/lib/imageAccept';
+import { tnIn } from '@/lib/messages/_plural';
 import { fetchPdfBytes } from '@/lib/pdf';
 import { markFirstScreen } from '@/lib/perfReport';
 import { useAuthStore } from '@/store/auth';
 import type { KavachDealerItem } from '@dk/shared/types';
 
-/** How many "Coming up" rows show before "N more". */
-const UPCOMING_LIMIT = 5;
+/** The guide video behind "How this works". The chip hides itself when the video is not in the list. */
+const KAVACH_VIDEO = 'kavach_photos';
+
+/** The two views of the checklist, and which one is showing. */
+type Tab = 'todo' | 'done';
 
 /**
- * The Kavach tab (ADR 0057 §5): how much of the pump's checklist is done today, and what is left.
+ * The Kavach door (ADR 0057 §5, spec 4.4): how ready the pump is for an inspection, what costs marks,
+ * and what can be finished today.
  *
- * Top to bottom: the ring with the % and one plain sentence; "Do now" (sent back first, then late,
- * then due soonest), each row with its one button; "With MDG" (sent, waiting for a check); "Done"
- * (folded away until opened); "Coming up"; and "When it happens", the points with no clock, each with
- * Send photo. Everything sits on ruled white sheets, in the reader's language.
+ * Top to bottom: the score card (ring, points, three counts); "Needs you" (only if a photo was sent back or a
+ * job is late, each with MDG's reason and one button); today's jobs ("5 of 9 daily jobs done" and the next
+ * deadline); then a switch, To do | Done. To do holds Do today, This week (five, then "N more"), With MDG,
+ * what MDG checks from your reports, the other member's jobs (folded), Coming up and When it happens.
  *
- * It reads the one `GET /v1/kavach/me` the tab badge and the Today tile read too. A photo goes
- * out through the camera, the "Send this photo?" sheet and the Kavach upload; the row moves to
- * "With MDG" at once. The dealer never marks a point done: MDG's check, or our own data, does.
+ * It reads the one `GET /v1/kavach/me` the door's badge and the Today tile read too. A photo goes out
+ * through the camera, the "Send this photo?" sheet and the Kavach upload; the row moves to With MDG at
+ * once, and a photo already With MDG can be replaced. The dealer never marks a point done: MDG's check,
+ * or our own data, does. The percent is the server's: nothing here recomputes it.
  *
- * Where Kavach is not started for the pump the tab is not shown, and this address says so calmly.
+ * Where Kavach is not started for the pump the door is not shown, and this address says so calmly.
  */
 export function KavachPage() {
   const t = useT();
   const lang = useLang();
   const navigate = useNavigate();
   const q = useKavach();
-  const actions = useKavachActions(lang);
+  const role = useAuthStore((st) => st.user?.role);
+  const isOwner = role === 'dealer-owner';
+  const eventSends = useKavachEventSends();
+  const actions = useKavachActions(lang, { onEventSent: eventSends.remember });
   const view = q.data;
-  const isOwner = useAuthStore((st) => st.user?.role) === 'dealer-owner';
 
   const online = React.useSyncExternalStore(
     (notify) => onlineManager.subscribe(notify),
@@ -56,19 +86,29 @@ export function KavachPage() {
     () => true,
   );
 
-  const [outletsOpen, setOutletsOpen] = React.useState(false);
-  const closeOutlets = React.useCallback(() => setOutletsOpen(false), []);
-  const menu = React.useMemo<AppBarMenuItem[]>(
-    () => [{ key: 'settings', label: t('chatlist.settings'), onSelect: () => navigate('/settings') }],
-    [t, navigate],
-  );
+  // The clock the countdowns and "due today" are read from; it moves every minute.
+  const [at, setAt] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const id = window.setInterval(() => setAt(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const settled = !q.isPending || q.isError || q.fetchStatus === 'idle';
   React.useEffect(() => {
     if (settled) markFirstScreen();
   }, [settled]);
 
-  const sections = React.useMemo(() => (view ? sectionsOf(view, actions.sentKeys) : null), [view, actions.sentKeys]);
+  const events = eventSends.items;
+  const sections = React.useMemo(
+    () => (view ? sectionsOf(view, actions.sentKeys, at, { role, events }) : null),
+    [view, actions.sentKeys, at, role, events],
+  );
+  // The counts under the ring are read from these same sections: one list, one set of numbers.
+  const counts = React.useMemo(() => (sections ? countsOfSections(sections) : null), [sections]);
+  const daily = React.useMemo(
+    () => (view ? dailyJobsOf(view, actions.sentKeys, at, role) : null),
+    [view, actions.sentKeys, at, role],
+  );
 
   // One camera input and one picker for the whole page: the row that asked is remembered.
   const cameraRef = React.useRef<HTMLInputElement>(null);
@@ -96,27 +136,42 @@ export function KavachPage() {
     [retry, openCamera],
   );
 
-  const [detail, setDetail] = React.useState<{ item: KavachDealerItem; section: keyof KavachSections } | null>(null);
+  const [tab, setTab] = React.useState<Tab>('todo');
+  const [weekAll, setWeekAll] = React.useState(false);
+  const [upcomingAll, setUpcomingAll] = React.useState(false);
+  const [dataAll, setDataAll] = React.useState(false);
+  const [othersOpen, setOthersOpen] = React.useState(false);
+  const [detail, setDetail] = React.useState<{ item: KavachDealerItem; section: RowSection } | null>(null);
   // The sheet shows the row as it stands now (MDG may approve or send it back while it is open).
   const live = React.useMemo(() => {
     if (!detail || !sections) return detail;
-    for (const sec of ['now', 'week', 'others', 'data', 'waiting', 'done', 'upcoming', 'events'] as const) {
+    for (const sec of ['needs', 'now', 'week', 'others', 'data', 'waiting', 'done', 'upcoming', 'events'] as const) {
       const hit = sections[sec].find((i) => rowKey(i) === rowKey(detail.item));
       if (hit) return { item: hit, section: sec };
     }
     return detail;
   }, [detail, sections]);
   const [sheet, setSheet] = React.useState<KavachDealerItem | null>(null);
-  const [doneOpen, setDoneOpen] = React.useState(false);
-  const [othersOpen, setOthersOpen] = React.useState(false);
-  const [dataOpen, setDataOpen] = React.useState(false);
-  const [upcomingAll, setUpcomingAll] = React.useState(false);
 
-  const row = (item: KavachDealerItem, section: keyof KavachSections) => (
+  // A count under the ring takes the reader to the list it counts. "Do today" is on the To do switch, so
+  // that opens first; the move waits for the page to draw it.
+  const jump = React.useCallback((to: JumpTarget) => {
+    setTab('todo');
+    const id = to === 'needs' ? 'kavach-needs' : 'kavach-now';
+    window.requestAnimationFrame(() => {
+      const el = document.getElementById(id);
+      el?.scrollIntoView?.({ block: 'start' });
+      el?.focus?.({ preventScroll: true });
+    });
+  }, []);
+
+  const row = (item: KavachDealerItem, section: RowSection) => (
     <KavachRow
       key={rowKey(item) + section}
       item={item}
       section={section}
+      role={role}
+      worth={view ? worthOf(item, view) : null}
       send={actions.entries[rowKey(item)]}
       onCamera={openCamera}
       onChoose={openChoose}
@@ -129,164 +184,213 @@ export function KavachPage() {
   let body: React.ReactNode;
   const parked = q.isPending && q.fetchStatus === 'paused';
   if ((q.isError || parked) && !view) {
+    body = <ErrorCard text={t('kv.error')} onRetry={() => void q.refetch()} />;
+  } else if (!view || !sections || !counts) {
     body = (
-      <EmptyState
-        icon={<ShieldCheck width={28} strokeWidth={1.5} />}
-        title={t('kavach.error.title')}
-        description={t('kavach.error.desc')}
-        cta={
-          <Button size="lg" onClick={() => void q.refetch()} loading={q.isFetching} leftIcon={<RefreshCw width={16} strokeWidth={1.75} />}>
-            {t('common.retry')}
-          </Button>
-        }
-      />
+      <div data-testid="kavach-skeleton">
+        <span className="sr-only">{t('kv.loading')}</span>
+        <SkeletonBlock lines={6} />
+      </div>
     );
-  } else if (!view || !sections) {
-    body = <Loading />;
   } else if (!view.on) {
     body = (
-      <EmptyState
-        icon={<ShieldCheck width={28} strokeWidth={1.5} />}
-        title={t('kavach.off.title')}
-        description={t('kavach.off.desc')}
-        cta={
-          <Button size="lg" variant="secondary" onClick={() => navigate('/', { replace: true })}>
-            {t('kavach.off.back')}
-          </Button>
-        }
+      <EmptyCalm
+        text={t('kv.off')}
+        action={{ label: t('kv.off.back'), onPress: () => navigate('/', { replace: true }) }}
       />
     );
   } else {
-    const { now, week, others, data, waiting, done, upcoming, events } = sections;
+    const { needs, now, week, others, data, waiting, done, upcoming, events: eventRows } = sections;
+    const weekShown = weekAll ? week : week.slice(0, WEEK_LIMIT);
+    const dataShown = dataAll ? data : data.slice(0, DATA_LIMIT);
     const upcomingShown = upcomingAll ? upcoming : upcoming.slice(0, UPCOMING_LIMIT);
+    const nextAt = nextJobAt(sections);
+    const clear = needs.length === 0 && now.length === 0;
+    // The server counts something sent back or late that no list shows: say so, never draw a tick over it.
+    const outOfStep = clear && countsOutOfStep(view, sections, actions.sentKeys);
+    const todoCount = needs.length + now.length + week.length;
+    const next = daily?.next ?? null;
+
     body = (
       <>
-        <KavachSummary view={view} />
+        <HelpChip videoId={KAVACH_VIDEO} className="self-start" />
 
-        <section aria-labelledby="kavach-now">
-          <SectionHeading id="kavach-now" count={now.length}>
-            {t('kavach.sec.now')}
-          </SectionHeading>
-          {now.length > 0 ? (
-            <Rows labelledBy="kavach-now">{now.map((i) => row(i, 'now'))}</Rows>
-          ) : (
-            <p
-              data-testid="kavach-all-done"
-              className="flex items-start gap-2.5 border-y border-border px-0.5 py-3 text-body text-text-muted"
-            >
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-status-ok-ink" strokeWidth={1.75} aria-hidden />
-              <span>{waiting.length > 0 ? t('kavach.sec.nowClear') : t('kavach.allDone')}</span>
-            </p>
-          )}
-        </section>
+        <KavachSummary view={view} sections={sections} counts={counts} onJump={jump} />
 
-        {week.length > 0 ? (
-          <section aria-labelledby="kavach-week">
-            <SectionHeading id="kavach-week" count={week.length}>
-              {t('kavach.sec.week')}
-            </SectionHeading>
-            <Rows labelledBy="kavach-week">{week.map((i) => row(i, 'week'))}</Rows>
-          </section>
+        {needs.length > 0 ? (
+          <div id="kavach-needs" tabIndex={-1} className="scroll-mt-4 outline-none" data-testid="kavach-needs">
+            <SectionCard variant="tinted" title={t('kv.needs.title')} count={needs.length}>
+              <List>{needs.map((i) => row(i, 'needs'))}</List>
+            </SectionCard>
+          </div>
         ) : null}
 
-        {waiting.length > 0 ? (
-          <section aria-labelledby="kavach-waiting">
-            <SectionHeading id="kavach-waiting" count={waiting.length}>
-              {t('kavach.sec.waiting')}
-            </SectionHeading>
-            <Rows labelledBy="kavach-waiting">{waiting.map((i) => row(i, 'waiting'))}</Rows>
-          </section>
-        ) : null}
-
-        {others.length > 0 ? (
-          <Folded
-            id="kavach-others"
-            title={t(isOwner ? 'kavach.sec.managerDoes' : 'kavach.sec.ownerDoes')}
-            count={others.length}
-            open={othersOpen}
-            onToggle={() => setOthersOpen((v) => !v)}
-          >
-            {others.map((i) => row(i, 'others'))}
-          </Folded>
-        ) : null}
-
-        {data.length > 0 ? (
-          <Folded
-            id="kavach-data"
-            title={t('kavach.sec.data')}
-            count={data.length}
-            open={dataOpen}
-            onToggle={() => setDataOpen((v) => !v)}
-          >
-            {data.map((i) => row(i, 'data'))}
-          </Folded>
-        ) : null}
-
-        {done.length > 0 ? (
-          <section aria-labelledby="kavach-done">
-            <h2 id="kavach-done" className="mb-1 text-heading text-text">
-              <button
-                type="button"
-                aria-expanded={doneOpen}
-                aria-controls="kavach-done-list"
-                onClick={() => setDoneOpen((v) => !v)}
-                data-testid="kavach-done-toggle"
-                className="flex min-h-12 w-full items-center gap-2 px-0.5 text-left"
-              >
-                <span>{t('kavach.sec.done')}</span>
-                <span className="font-normal tabular-nums text-text-muted">{done.length}</span>
-                <ChevronDown
-                  width={20}
-                  strokeWidth={1.75}
-                  aria-hidden
-                  className={cn('ml-auto shrink-0 transition-transform duration-150', doneOpen && 'rotate-180')}
-                />
-              </button>
-            </h2>
-            {doneOpen ? (
-              <div id="kavach-done-list">
-                <Rows labelledBy="kavach-done">{done.map((i) => row(i, 'done'))}</Rows>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        {upcoming.length > 0 ? (
-          <section aria-labelledby="kavach-upcoming">
-            <SectionHeading id="kavach-upcoming" count={upcoming.length}>
-              {t('kavach.sec.upcoming')}
-            </SectionHeading>
-            <Rows labelledBy="kavach-upcoming">{upcomingShown.map((i) => row(i, 'upcoming'))}</Rows>
-            {upcoming.length > UPCOMING_LIMIT ? (
-              <MoreButton
-                hiddenCount={upcoming.length - UPCOMING_LIMIT}
-                expanded={upcomingAll}
-                about={t('kavach.sec.upcoming')}
-                onToggle={() => setUpcomingAll((v) => !v)}
+        {daily ? (
+          <SectionCard title={t('kv.jobs.title')}>
+            <div className="flex flex-col gap-2">
+              <ProgressBar
+                value={daily.done}
+                max={daily.total}
+                text={tnIn(lang, 'kv.jobs.progress', daily.total, { done: daily.done, total: daily.total })}
               />
-            ) : null}
-          </section>
+              {daily.withMdg > 0 ? (
+                <p className="text-meta text-text-muted">{t('kv.jobs.withMdg', { n: daily.withMdg })}</p>
+              ) : null}
+              {next?.dueAt ? (
+                <p className="break-words text-body text-text" data-testid="kavach-next">
+                  {t('kv.jobs.next', {
+                    title: titleOf(next, lang),
+                    time: clockWords(next.dueAt, lang),
+                    left: leftWords(next.dueAt, at, lang),
+                  })}
+                </p>
+              ) : null}
+            </div>
+          </SectionCard>
         ) : null}
 
-        {events.length > 0 ? (
-          <section aria-labelledby="kavach-events">
-            <SectionHeading id="kavach-events">{t('kavach.sec.events')}</SectionHeading>
-            <Rows labelledBy="kavach-events">{events.map((i) => row(i, 'events'))}</Rows>
-          </section>
-        ) : null}
+        <PillGroup<Tab>
+          label={t('kv.switch.label')}
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: 'todo', label: t('kv.switch.todo'), count: todoCount },
+            { id: 'done', label: t('kv.switch.done'), count: done.length },
+          ]}
+        />
+
+        {tab === 'todo' ? (
+          <>
+            {now.length > 0 ? (
+              <div id="kavach-now" tabIndex={-1} className="scroll-mt-4 outline-none">
+                <SectionCard title={t('kv.sec.now')} count={now.length}>
+                  <List>{now.map((i) => row(i, 'now'))}</List>
+                </SectionCard>
+              </div>
+            ) : outOfStep ? (
+              <SectionCard title={t('kv.sec.now')}>
+                <div data-testid="kavach-counting">
+                  <EmptyCalm
+                    className="py-2"
+                    text={t('kv.stale')}
+                    action={{ label: t('kv.stale.retry'), onPress: () => void q.refetch() }}
+                  />
+                </div>
+              </SectionCard>
+            ) : clear ? (
+              <SectionCard title={t('kv.sec.now')}>
+                <div data-testid="kavach-all-done">
+                  <EmptyCalm
+                    className="py-2"
+                    status="ok"
+                    text={
+                      waiting.length > 0
+                        ? t('kv.waiting.clear')
+                        : nextAt
+                          ? t('kv.allDone.next', { date: dayWords(nextAt, lang, at) })
+                          : t('kv.allDone')
+                    }
+                  />
+                </div>
+              </SectionCard>
+            ) : null}
+
+            {week.length > 0 ? (
+              <SectionCard title={t('kv.sec.week')} count={week.length}>
+                <List>{weekShown.map((i) => row(i, 'week'))}</List>
+                {week.length > WEEK_LIMIT ? (
+                  <MoreButton
+                    hiddenCount={week.length - WEEK_LIMIT}
+                    expanded={weekAll}
+                    about={t('kv.sec.week')}
+                    onToggle={() => setWeekAll((v) => !v)}
+                  />
+                ) : null}
+              </SectionCard>
+            ) : null}
+
+            {waiting.length > 0 ? (
+              <SectionCard title={t('kv.sec.waiting')} count={waiting.length}>
+                <List>{waiting.map((i) => row(i, 'waiting'))}</List>
+              </SectionCard>
+            ) : null}
+
+            {data.length > 0 ? (
+              <SectionCard title={t('kv.sec.data')} count={data.length}>
+                <List>{dataShown.map((i) => row(i, 'data'))}</List>
+                {data.length > DATA_LIMIT ? (
+                  <MoreButton
+                    hiddenCount={data.length - DATA_LIMIT}
+                    expanded={dataAll}
+                    about={t('kv.sec.data')}
+                    onToggle={() => setDataAll((v) => !v)}
+                  />
+                ) : null}
+              </SectionCard>
+            ) : null}
+
+            {others.length > 0 ? (
+              <SectionCard title={t(isOwner ? 'kv.sec.managerJobs' : 'kv.sec.ownerJobs')} count={others.length}>
+                <Button
+                  variant="secondary"
+                  fullWidth
+                  aria-expanded={othersOpen}
+                  aria-controls="kavach-others-list"
+                  onClick={() => setOthersOpen((v) => !v)}
+                  data-testid="kavach-others-toggle"
+                >
+                  {t(othersOpen ? 'kv.fold.close' : 'kv.fold.open', {
+                    title: t(isOwner ? 'kv.sec.managerJobs' : 'kv.sec.ownerJobs'),
+                  })}
+                </Button>
+                {othersOpen ? (
+                  <div id="kavach-others-list">
+                    <List>{others.map((i) => row(i, 'others'))}</List>
+                  </div>
+                ) : null}
+              </SectionCard>
+            ) : null}
+
+            {upcoming.length > 0 ? (
+              <SectionCard title={t('kv.sec.upcoming')} count={upcoming.length}>
+                <List>{upcomingShown.map((i) => row(i, 'upcoming'))}</List>
+                {upcoming.length > UPCOMING_LIMIT ? (
+                  <MoreButton
+                    hiddenCount={upcoming.length - UPCOMING_LIMIT}
+                    expanded={upcomingAll}
+                    about={t('kv.sec.upcoming')}
+                    onToggle={() => setUpcomingAll((v) => !v)}
+                  />
+                ) : null}
+              </SectionCard>
+            ) : null}
+
+            {eventRows.length > 0 ? (
+              <SectionCard title={t('kv.sec.events')} count={eventRows.length}>
+                {/* Said once here, not under every row. */}
+                <p className="break-words text-body text-text-muted">{t('kv.line.event')}</p>
+                <List>{eventRows.map((i) => row(i, 'events'))}</List>
+              </SectionCard>
+            ) : null}
+          </>
+        ) : done.length > 0 ? (
+          <SectionCard title={t('kv.sec.done')} count={done.length}>
+            <List>{done.map((i) => row(i, 'done'))}</List>
+          </SectionCard>
+        ) : (
+          <EmptyCalm text={t('kv.done.none')} />
+        )}
       </>
     );
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col" data-testid="kavach-page">
-      <AppBar
-        variant="home"
-        title={t('kavach.title')}
-        actions={<OutletChip onOpen={() => setOutletsOpen(true)} />}
-        menu={menu}
+    <div className="flex min-h-full flex-1 flex-col bg-bg" data-testid="kavach-page">
+      <PageHeader
+        variant="tab"
+        title={t('kv.title')}
+        subtitle={view?.on && view.summary ? <AsOf at={view.summary.computedAt} /> : undefined}
       />
-      {outletsOpen ? <OutletSheet onClose={closeOutlets} /> : null}
 
       {(!online || q.isError) && view ? (
         <p
@@ -294,12 +398,12 @@ export function KavachPage() {
           data-testid="kavach-offline"
           className="mx-4 mt-3 flex items-center gap-2 rounded-lg bg-status-info-soft px-3 py-2.5 text-body font-medium text-status-info-ink"
         >
-          <WifiOff width={20} strokeWidth={2} className="shrink-0" aria-hidden />
-          {t('kavach.offline')}
+          <WifiOff aria-hidden className="h-5 w-5 shrink-0" strokeWidth={2} />
+          {t('kv.offline')}
         </p>
       ) : null}
 
-      <div className="flex flex-1 flex-col gap-6 px-4 pb-10 pt-4">{body}</div>
+      <div className="flex flex-1 flex-col gap-3 px-4 pb-10 pt-4">{body}</div>
 
       {/* The pickers: the camera goes straight to the back lens; the other takes a photo or, where the point allows, a PDF. */}
       <input
@@ -330,7 +434,17 @@ export function KavachPage() {
       ) : null}
 
       {detail && live ? (
-        <KavachDetailSheet item={live.item} section={live.section} onClose={() => setDetail(null)} />
+        <KavachDetailSheet
+          item={live.item}
+          section={live.section}
+          role={role}
+          send={actions.entries[rowKey(live.item)]}
+          onClose={() => setDetail(null)}
+          onCamera={openCamera}
+          onChoose={openChoose}
+          onSheet={setSheet}
+          onRetry={onRetry}
+        />
       ) : null}
 
       {/* Our own sheet, read inside the app: the file never leaves it. */}
@@ -345,71 +459,35 @@ export function KavachPage() {
   );
 }
 
-/** A section folded away until opened: for rows this reader only needs to know about. */
-function Folded({
-  id,
-  title,
-  count,
-  open,
+/** A list of rows inside a card, ruled with hairlines. */
+function List({ children }: { children: React.ReactNode }) {
+  return <ul className="divide-y divide-border">{children}</ul>;
+}
+
+/** "Show 3 more" / "Show fewer": a list that is capped, opened and closed by a 44 px button. */
+function MoreButton({
+  hiddenCount,
+  expanded,
+  about,
   onToggle,
-  children,
 }: {
-  id: string;
-  title: string;
-  count: number;
-  open: boolean;
+  hiddenCount: number;
+  expanded: boolean;
+  about: string;
   onToggle: () => void;
-  children: React.ReactNode;
 }) {
-  return (
-    <section aria-labelledby={id}>
-      <h2 id={id} className="mb-1 text-heading text-text">
-        <button
-          type="button"
-          aria-expanded={open}
-          aria-controls={`${id}-list`}
-          onClick={onToggle}
-          className="flex min-h-12 w-full items-center gap-2 px-0.5 text-left"
-        >
-          <span>{title}</span>
-          <span className="font-normal tabular-nums text-text-muted">{count}</span>
-          <ChevronDown
-            width={20}
-            strokeWidth={1.75}
-            aria-hidden
-            className={cn('ml-auto shrink-0 transition-transform duration-150', open && 'rotate-180')}
-          />
-        </button>
-      </h2>
-      {open ? (
-        <div id={`${id}-list`}>
-          <Rows labelledBy={id}>{children}</Rows>
-        </div>
-      ) : null}
-    </section>
-  );
-}
-
-/** The rounded white sheet a list of rows sits on. */
-function Rows({ children, labelledBy }: { children: React.ReactNode; labelledBy: string }) {
-  return (
-    <ul aria-labelledby={labelledBy} className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-surface">
-      {children}
-    </ul>
-  );
-}
-
-/** Grey blocks where the sheets will be, so the page has its shape before the answer comes. */
-function Loading() {
   const t = useT();
+  const word = expanded ? t('kv.fewer') : t('kv.more', { n: hiddenCount });
   return (
-    <div role="status" aria-busy="true" data-testid="kavach-skeleton" className="flex flex-col gap-6">
-      <span className="sr-only">{t('kavach.loading')}</span>
-      <div aria-hidden className="h-52 animate-pulse rounded-xl border border-border bg-surface" />
-      <div aria-hidden>
-        <div className="mb-2.5 h-5 w-32 animate-pulse rounded bg-surface-2" />
-        <div className="h-48 animate-pulse rounded-xl border border-border bg-surface" />
-      </div>
-    </div>
+    <Button
+      variant="secondary"
+      fullWidth
+      aria-expanded={expanded}
+      aria-label={`${about}: ${word}`}
+      onClick={onToggle}
+      className="mt-2"
+    >
+      {word}
+    </Button>
   );
 }

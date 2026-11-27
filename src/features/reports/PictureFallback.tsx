@@ -44,14 +44,14 @@ function PictureTile({ attachment, source, onOpen }: PictureTileProps) {
       <div
         role="alert"
         data-testid="picture-failed"
-        className="flex flex-col items-center gap-3 rounded-2xl border border-wa-divider bg-wa-in px-4 py-8 text-center"
+        className="flex flex-col items-center gap-3 rounded-xl border border-border bg-surface px-4 py-8 text-center shadow-sm"
       >
-        <ImageOff width={32} strokeWidth={1.75} className="text-wa-meta" aria-hidden />
-        <p className="text-body font-medium text-wa-bubble-text">{t('report.picture.failed')}</p>
+        <ImageOff width={32} strokeWidth={1.75} className="text-text-muted" aria-hidden />
+        <p className="text-body font-medium text-text">{t('report.picture.failed')}</p>
         <button
           type="button"
           onClick={retry}
-          className="inline-flex min-h-12 items-center gap-2 rounded-xl border border-wa-divider bg-wa-chip px-4 text-cta text-wa-bubble-text active:bg-wa-row-active"
+          className="inline-flex min-h-12 items-center gap-2 rounded-md border border-border bg-surface px-4 text-cta text-text shadow-sm active:bg-surface-2"
         >
           <RefreshCw width={18} strokeWidth={2} aria-hidden />
           {t('report.picture.retry')}
@@ -66,7 +66,7 @@ function PictureTile({ attachment, source, onOpen }: PictureTileProps) {
       onClick={onOpen}
       aria-label={t('report.picture.zoom')}
       data-testid="picture-tile"
-      className="relative block w-full overflow-hidden rounded-2xl border border-wa-divider bg-white text-left active:opacity-90"
+      className="relative block w-full overflow-hidden rounded-xl border border-border bg-white text-left shadow-sm active:opacity-90"
     >
       {src ? (
         <img
@@ -138,8 +138,8 @@ export function PictureFallback({
 
   return (
     <div data-testid="picture-fallback" className="flex flex-col gap-3">
-      <p className="text-body leading-relaxed text-wa-bubble-text">{t('report.picture.note')}</p>
-      {headline ? <p className="text-body font-medium leading-relaxed text-wa-bubble-text">{headline}</p> : null}
+      <p className="text-body leading-relaxed text-text">{t('report.picture.note')}</p>
+      {headline ? <p className="text-body font-medium leading-relaxed text-text">{headline}</p> : null}
       {images.map((a) => (
         <PictureTile
           key={a.storageKey}
@@ -153,7 +153,7 @@ export function PictureFallback({
           key={a.storageKey}
           type="button"
           onClick={() => void download(a, source)}
-          className="flex min-h-14 items-center gap-3 rounded-2xl border border-wa-divider bg-wa-in px-4 text-left text-cta text-wa-bubble-text active:bg-wa-row-active"
+          className="flex min-h-14 items-center gap-3 rounded-xl border border-border bg-surface px-4 text-left text-cta text-text shadow-sm active:bg-surface-2"
         >
           <FileText width={24} strokeWidth={1.75} className="shrink-0" aria-hidden />
           <span className="min-w-0 flex-1 break-words">{t('report.picture.openFile')}</span>

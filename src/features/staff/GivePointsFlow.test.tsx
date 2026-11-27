@@ -40,7 +40,17 @@ const OTHER = work({
   points: 4.5,
 });
 
-const CATALOG = [NAMED, OTHER];
+const PER_UNIT = work({
+  code: 'tanker-unload',
+  srNo: 3,
+  labelEn: 'Tanker unloading help',
+  labelHi: 'टैंकर उतारने में मदद',
+  distribution: 'PER_UNIT',
+  points: 2,
+  unit: 'kl',
+});
+
+const CATALOG = [NAMED, OTHER, PER_UNIT];
 
 vi.mock('@/hooks/api/useDealerWorkItems', () => ({
   useDealerWorkItems: () => ({ data: CATALOG, isLoading: false }),
@@ -65,8 +75,7 @@ async function pickWork(user: ReturnType<typeof userEvent.setup>, label: string)
   await user.click(screen.getByRole('button', { name: /आगे बढ़ें|Continue/ }));
 }
 
-const entriesInDraft = () =>
-  useStaffDraftStore.getState().byDealer[DEALER]?.entries ?? [];
+const entriesInDraft = () => useStaffDraftStore.getState().byDealer[DEALER]?.entries ?? [];
 
 beforeEach(() => {
   useStaffDraftStore.setState({ byDealer: {}, sync: {} });
@@ -145,10 +154,7 @@ describe('GivePointsFlow — description for the "Other …" works', () => {
     open();
     await pickWork(user, 'अन्य सफाई से जुड़ा काम');
 
-    await user.type(
-      screen.getByRole('textbox', { name: /उन्होंने क्या काम किया/ }),
-      '    ',
-    );
+    await user.type(screen.getByRole('textbox', { name: /उन्होंने क्या काम किया/ }), '    ');
     await user.click(screen.getByRole('button', { name: /सूची में जोड़ें/ }));
 
     // Shown inline on the field AND as a toast (the field may be scrolled away).
@@ -162,5 +168,43 @@ describe('GivePointsFlow — the sheet still says "warrior"', () => {
     open();
     const sheet = screen.getByText('काम किसने किया?').closest('div');
     expect(within(sheet as HTMLElement).getByText('रमेश')).toBeInTheDocument();
+  });
+});
+
+describe('GivePointsFlow — every control has a spoken name and a 44px tap', () => {
+  it('names the sheet\'s Back arrow "Back", not the first step\'s title', async () => {
+    const user = userEvent.setup();
+    open();
+    await user.click(screen.getByText('रमेश'));
+    const back = await screen.findByRole('button', { name: /^(वापस|Back)$/ });
+    expect(back.className).toContain('h-11');
+    expect(back.className).toContain('w-11');
+  });
+
+  it('names the plus and minus after the work, so no button is read as "+" or "-"', async () => {
+    const user = userEvent.setup();
+    open();
+    await pickWork(user, 'टैंकर उतारने में मदद');
+    const more = screen.getByRole('button', {
+      name: /टैंकर उतारने में मदद, एक और|One more: Tanker unloading help/,
+    });
+    const less = screen.getByRole('button', {
+      name: /टैंकर उतारने में मदद, एक कम|One less: Tanker unloading help/,
+    });
+    expect(more.className).toContain('h-11');
+    expect(less.className).toContain('h-11');
+    expect(screen.queryByRole('button', { name: /^[-+]$/ })).toBeNull();
+    await user.click(more);
+    // The count follows the plus.
+    expect(screen.getByText('2')).toBeInTheDocument();
+  });
+
+  it('lets the count grow past one digit at large text (a minimum width, not a fixed one)', async () => {
+    const user = userEvent.setup();
+    open();
+    await pickWork(user, 'टैंकर उतारने में मदद');
+    const count = screen.getByText('1');
+    expect(count.className).toContain('min-w-8');
+    expect(count.className).not.toMatch(/(^|\s)w-8(\s|$)/);
   });
 });

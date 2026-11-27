@@ -1,6 +1,9 @@
+import { fmtTime } from '@/lib/fmt';
 import type { TFunction } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { Conversation } from '@dk/shared/types';
+
+import { ticketBarView } from './ticketBarView';
 
 /** A human title for a dealer-side conversation row/header. */
 export function conversationTitle(conv: Conversation, t: TFunction): string {
@@ -118,7 +121,7 @@ function startOfDay(d: Date): number {
 }
 
 /**
- * The time on the right of a chat-list row, the way WhatsApp prints it: today as
+ * The time on a chat-list row, the way WhatsApp prints it: today as
  * the clock time, yesterday as the word, the last week as the weekday, and
  * anything older as day/month/year.
  *
@@ -138,6 +141,9 @@ export function formatListTime(
 
   const daysAgo = Math.round((startOfDay(now) - startOfDay(d)) / DAY_MS);
   if (daysAgo <= 0) {
+    // Hindi and Hinglish readers get the clock the way Today says it ("सुबह 5:35", "subah 5:35"),
+    // not "5:35 am". English keeps the phone's own clock, as before.
+    if (lang !== 'en') return fmtTime(d, lang, now);
     const h = d.getHours();
     const m = String(d.getMinutes()).padStart(2, '0');
     return `${h % 12 || 12}:${m} ${h < 12 ? 'am' : 'pm'}`;
@@ -149,4 +155,67 @@ export function formatListTime(
   const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   return `${dd}/${mm}/${String(d.getFullYear()).slice(-2)}`;
+}
+
+/**
+ * How many open tasks wait in each chat, from the Today feed (`feed.tasks[].conversationId`). A task
+ * with no chat id, or a feed that has not answered, adds nothing: the row then says nothing about
+ * tasks rather than a guessed zero.
+ */
+export function tasksByConversation(
+  tasks: readonly { conversationId?: string }[] | undefined,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const task of tasks ?? []) {
+    if (!task.conversationId) continue;
+    out.set(task.conversationId, (out.get(task.conversationId) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** How long the preview under a row's name may run, in letters. Shorter at large text. */
+const PREVIEW_LETTERS = 90;
+const PREVIEW_LETTERS_LARGE = 50;
+
+/**
+ * The preview for a row, cut by us and not by the screen. A row may not clip its words (`truncate` and
+ * `line-clamp` are banned: at 200% text they cut a sentence to a few letters), so a long first-line reply
+ * (up to 280 letters of Hindi) is shortened to a whole-word start and an ellipsis here, and the rest wraps
+ * as it likes. Line breaks become spaces. Search still reads the full text (`conversationPreview`).
+ */
+export function rowPreview(text: string, large = false): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  const max = large ? PREVIEW_LETTERS_LARGE : PREVIEW_LETTERS;
+  if (flat.length <= max) return flat;
+  const cut = flat.slice(0, max);
+  const lastSpace = cut.lastIndexOf(' ');
+  // A whole word when a space is near the end; a hard cut for one long unbroken run.
+  const head = lastSpace >= max * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return `${head.replace(/[\s,;:.\-–—]+$/, '')}…`;
+}
+
+/** The shape a row's ticket line carries (the kit's `Status`): a tick for done, a triangle for late, a clock while MDG is on it, a plain "i" otherwise. */
+export type TicketLineStatus = 'ok' | 'attention' | 'waiting' | 'info';
+
+/**
+ * Where the dealer's question stands, in the words the pinned bar in the thread uses ("We are looking
+ * at it", "We are on it · update by 6:00 pm", "Done ✓"): the same helper, so the list and the thread
+ * can never say two different things. `null` when no ticket is open or recently closed.
+ */
+export function ticketLine(
+  conv: Pick<Conversation, 'tickets'>,
+  lang: Lang,
+  now: Date = new Date(),
+): { text: string; status: TicketLineStatus } | null {
+  const view = ticketBarView(conv.tickets, lang, now);
+  if (!view) return null;
+  const status: TicketLineStatus =
+    view.phase === 'closed'
+      ? 'ok'
+      : view.phase === 'late'
+        ? 'attention'
+        : view.phase === 'working'
+          ? 'waiting'
+          : 'info';
+  return { text: view.text, status };
 }

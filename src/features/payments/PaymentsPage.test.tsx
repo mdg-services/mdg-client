@@ -32,6 +32,11 @@ vi.mock('./checkout', async (orig) => {
 
 const { PaymentsPage } = await import('./PaymentsPage');
 
+/** The table of bills: one card, whatever its state (open bills first, then what was paid). */
+const bills = () => screen.findByRole('region', { name: 'Your bills' });
+/** One bill's row, found by its title. */
+const rowOf = (title: string) => within(screen.getByText(title).closest('li') as HTMLElement);
+
 function listReturns(...items: DealerPayment[]) {
   vi.mocked(api.get).mockResolvedValue({ items });
 }
@@ -61,7 +66,7 @@ describe('PaymentsPage — states', () => {
     expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
     // The bar is there even now, with a way back.
-    expect(screen.getByText('Payments')).toBeInTheDocument();
+    expect(screen.getByText('Bill and plan')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
 
@@ -71,12 +76,14 @@ describe('PaymentsPage — states', () => {
     renderPayments();
 
     expect(await screen.findByText("We couldn't show your payments just now")).toBeInTheDocument();
-    expect(screen.queryByText('No payments yet')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Your first bill appears after your services start.'),
+    ).not.toBeInTheDocument();
 
     listReturns(makePayment());
     await user.click(screen.getByRole('button', { name: 'Try again' }));
 
-    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Dealer Kavach, November 2026')).toBeInTheDocument();
     expect(screen.queryByText("We couldn't show your payments just now")).not.toBeInTheDocument();
   });
 
@@ -105,7 +112,7 @@ describe('PaymentsPage — states', () => {
     listReturns(makePayment());
     await user.click(screen.getByRole('button', { name: 'Try again' }));
 
-    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Dealer Kavach, November 2026')).toBeInTheDocument();
   });
 
   // A proxy answering during a restart, or a busy Razorpay, is a 503 too. It is
@@ -129,7 +136,9 @@ describe('PaymentsPage — states', () => {
     listReturns();
     renderPayments();
 
-    expect(await screen.findByText('No payments yet')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Your first bill appears after your services start.'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('Due')).not.toBeInTheDocument();
   });
 
@@ -137,41 +146,55 @@ describe('PaymentsPage — states', () => {
     listReturns(makePaidPayment());
     renderPayments();
 
-    expect(await screen.findByText('Nothing is due right now.')).toBeInTheDocument();
-    expect(screen.getByText('Dealer Kavach — Oct 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing is due.')).toBeInTheDocument();
+    expect(screen.getByText('Dealer Kavach, October 2026')).toBeInTheDocument();
   });
 });
 
 describe('PaymentsPage — in a browser', () => {
-  it('shows what is due with a big amount, its date and a Pay button', async () => {
+  it('shows what is due as a row of the table: its name, amount, date, status and a Pay button', async () => {
     listReturns(makePayment({ note: 'ignored on the list' }), makePaidPayment());
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    expect(within(due).getByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
-    expect(within(due).getByText('₹4,999')).toBeInTheDocument();
-    expect(within(due).getByText('Due by 5 Nov 2026')).toBeInTheDocument();
-    // The section's own heading, and the card's status chip.
-    expect(within(due).getAllByText('Due')).toHaveLength(2);
-    expect(within(due).getByRole('button', { name: 'Pay ₹4,999' })).toBeInTheDocument();
+    const table = within(await bills());
+    const row = rowOf('Dealer Kavach, November 2026');
+    expect(table.getByText('Dealer Kavach, November 2026')).toBeInTheDocument();
+    expect(row.getByText('Rs 4,999')).toBeInTheDocument();
+    expect(row.getByText('Due by 5 Nov 2026')).toBeInTheDocument();
+    // The status is a shape and a word, in the kit's pill.
+    expect(row.getByText('Due').closest('[data-status]')).toHaveAttribute('data-status', 'attention');
+    // The one Pay button sits in the banner under "Bill due", not in the row: the amount is on the
+    // screen once in the banner's sentence and once on the row, never a third time on a button.
+    expect(row.queryByRole('button')).not.toBeInTheDocument();
+    const pay = screen.getByRole('button', { name: 'Pay now, ₹4,999' });
+    expect(pay.closest('[data-verdict]')).not.toBeNull();
+    expect(pay).toHaveTextContent('Pay now');
+    expect(pay).not.toHaveTextContent('4,999');
   });
 
-  it('shows what was paid below, with its status, date, method and receipt number', async () => {
+  it('shows what was paid in the same table, with its status, date, method and receipt number', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments();
 
-    const history = (await screen.findByRole('region', {
-      name: 'Paid and earlier',
-    })) as HTMLElement;
-    expect(within(history).getByText('Dealer Kavach — Oct 2026')).toBeInTheDocument();
-    expect(within(history).getByText('Paid')).toBeInTheDocument();
-    expect(within(history).getByText('Paid on 5 Oct 2026 · UPI')).toBeInTheDocument();
-    expect(within(history).getByText('Receipt MDG-2026-00007')).toBeInTheDocument();
+    await bills();
+    const row = rowOf('Dealer Kavach, October 2026');
+    // Paid on 5 Oct, due 5 Nov: on time.
+    expect(row.getByText('Paid on time')).toBeInTheDocument();
+    expect(row.getByText('Paid on 5 Oct 2026 · UPI')).toBeInTheDocument();
+    expect(row.getByText('Receipt MDG-2026-00007')).toBeInTheDocument();
     // Nothing to pay on a payment already paid.
-    expect(within(history).queryByRole('button')).not.toBeInTheDocument();
+    expect(row.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('shows refunded, part refunded and cancelled payments as history, in plain words', async () => {
+  it('says "Paid late" when the money came after the due day', async () => {
+    listReturns(makePaidPayment({ dueDate: '2026-09-30' }));
+    renderPayments();
+
+    await bills();
+    expect(rowOf('Dealer Kavach, October 2026').getByText('Paid late')).toBeInTheDocument();
+  });
+
+  it('shows refunded, part refunded and cancelled payments in plain words, with no Pay button', async () => {
     listReturns(
       makePaidPayment({
         id: 'r1',
@@ -189,27 +212,22 @@ describe('PaymentsPage — in a browser', () => {
     );
     renderPayments();
 
-    const history = (await screen.findByRole('region', {
-      name: 'Paid and earlier',
-    })) as HTMLElement;
-    expect(within(history).getByText('Refunded')).toBeInTheDocument();
-    expect(within(history).getByText('Part refunded')).toBeInTheDocument();
-    expect(within(history).getByText('Cancelled')).toBeInTheDocument();
-    expect(within(history).getByText('₹500 refunded')).toBeInTheDocument();
-    expect(within(history).queryByRole('button')).not.toBeInTheDocument();
+    const table = within(await bills());
+    expect(table.getByText('Refunded')).toBeInTheDocument();
+    expect(table.getByText('Part refunded')).toBeInTheDocument();
+    expect(table.getByText('Cancelled')).toBeInTheDocument();
+    expect(table.getByText('Rs 500 refunded')).toBeInTheDocument();
+    expect(table.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('opens a payment’s own page from its card', async () => {
+  it('opens a payment’s own page from its row', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    const links = screen.getAllByRole('link');
-    expect(links.map((a) => a.getAttribute('href')).sort()).toEqual([
-      '/payments/p1',
-      '/payments/p2',
-    ]);
-    expect(within(due).getByRole('link')).toHaveAttribute('href', '/payments/p1');
+    const table = within(await bills());
+    const links = table.getAllByRole('link');
+    expect(links.map((a) => a.getAttribute('href')).sort()).toEqual(['/payments/p1', '/payments/p2']);
+    expect(rowOf('Dealer Kavach, November 2026').getByRole('link')).toHaveAttribute('href', '/payments/p1');
   });
 
   it('lists the soonest due date first, and a payment with no date last', async () => {
@@ -220,8 +238,7 @@ describe('PaymentsPage — in a browser', () => {
     );
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    const titles = within(due)
+    const titles = within(await bills())
       .getAllByRole('link')
       .map((a) => a.textContent ?? '');
     expect(titles[0]).toContain('Sooner');
@@ -229,28 +246,43 @@ describe('PaymentsPage — in a browser', () => {
     expect(titles[2]).toContain('No date');
   });
 
+  it('puts what is open above what was paid, inside a year, and the newest year first', async () => {
+    listReturns(
+      makePaidPayment({ id: 'old', title: 'Paid 2025', dueDate: '2025-12-05', paidAt: '2025-12-04T05:00:00.000Z' }),
+      makePaidPayment({ id: 'mid', title: 'Paid 2026', dueDate: '2026-09-05', paidAt: '2026-09-04T05:00:00.000Z' }),
+      makePayment({ id: 'open', title: 'Open 2026', dueDate: '2026-11-05' }),
+    );
+    renderPayments();
+
+    const table = within(await bills());
+    expect(table.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['2026', '2025']);
+    expect(table.getAllByRole('link').map((a) => a.textContent ?? '')).toEqual([
+      expect.stringContaining('Open 2026'),
+      expect.stringContaining('Paid 2026'),
+      expect.stringContaining('Paid 2025'),
+    ]);
+  });
+
   it('has no Pay button on a payment that is already being confirmed', async () => {
     listReturns(makePayment({ status: 'processing' }));
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    expect(within(due).getByText('Being confirmed')).toBeInTheDocument();
+    await bills();
+    const row = rowOf('Dealer Kavach, November 2026');
+    expect(row.getByText('Being confirmed')).toBeInTheDocument();
     expect(
-      within(due).getByText(
-        'Your payment is being confirmed. You will get a message when it is done.',
-      ),
+      row.getByText('Your payment is being confirmed. You will get a message when it is done.'),
     ).toBeInTheDocument();
-    expect(within(due).queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
+    expect(row.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
   });
 
   it('is in Hindi by default', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments('hi');
 
-    expect(await screen.findByRole('region', { name: 'बाकी भुगतान' })).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'हो चुके भुगतान' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '₹4,999 चुकाएँ' })).toBeInTheDocument();
-    expect(screen.getByText('चुका दिया')).toBeInTheDocument();
+    expect(await screen.findByRole('region', { name: 'आपके बिल' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'बिल भरें, ₹4,999' })).toBeInTheDocument();
+    expect(screen.getByText('समय पर चुकाया')).toBeInTheDocument();
     expect(screen.getByText('रसीद MDG-2026-00007')).toBeInTheDocument();
   });
 });
@@ -280,15 +312,15 @@ describe('PaymentsPage — tapping Pay', () => {
       });
     renderPayments();
 
-    await user.click(await screen.findByRole('button', { name: 'Pay ₹4,999' }));
+    await user.click(await screen.findByRole('button', { name: 'Pay now, ₹4,999' }));
 
     await waitFor(() => expect(openCheckout).toHaveBeenCalledWith(makeCheckout()));
     expect(api.post).toHaveBeenCalledWith('/v1/payments/me/p1/checkout');
     expect(await screen.findByText('Payment received. Thank you.')).toBeInTheDocument();
     await waitFor(() =>
-      expect(screen.queryByRole('button', { name: 'Pay ₹4,999' })).not.toBeInTheDocument(),
+      expect(screen.queryByRole('button', { name: 'Pay now, ₹4,999' })).not.toBeInTheDocument(),
     );
-    expect(await screen.findByText('Nothing is due right now.')).toBeInTheDocument();
+    expect(await screen.findByText('Nothing is due.')).toBeInTheDocument();
   });
 
   it('keeps the Pay button, and says so in words, when the dealer closes the pop-up', async () => {
@@ -302,12 +334,12 @@ describe('PaymentsPage — tapping Pay', () => {
     }) as typeof api.post);
     renderPayments();
 
-    await user.click(await screen.findByRole('button', { name: 'Pay ₹4,999' }));
+    await user.click(await screen.findByRole('button', { name: 'Pay now, ₹4,999' }));
 
     expect(
       await screen.findByText('The payment was not completed. You can try again.'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pay ₹4,999' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Pay now, ₹4,999' })).toBeEnabled();
   });
 
   it('says payments are not switched on when the server has no Razorpay keys', async () => {
@@ -318,7 +350,7 @@ describe('PaymentsPage — tapping Pay', () => {
     );
     renderPayments();
 
-    await user.click(await screen.findByRole('button', { name: 'Pay ₹4,999' }));
+    await user.click(await screen.findByRole('button', { name: 'Pay now, ₹4,999' }));
 
     expect(
       await screen.findByText('Online payment is not switched on yet. Please try again later.'),
@@ -329,13 +361,13 @@ describe('PaymentsPage — tapping Pay', () => {
   it('loads Razorpay’s script ahead of the tap only when something can be paid', async () => {
     listReturns(makePaidPayment());
     const first = renderPayments();
-    await screen.findByText('Nothing is due right now.');
+    await screen.findByText('Nothing is due.');
     expect(loadCheckoutScript).not.toHaveBeenCalled();
     first.unmount();
 
     listReturns(makePayment());
     renderPayments();
-    await screen.findByRole('button', { name: 'Pay ₹4,999' });
+    await screen.findByRole('button', { name: 'Pay now, ₹4,999' });
     expect(loadCheckoutScript).toHaveBeenCalled();
   });
 });
@@ -343,31 +375,31 @@ describe('PaymentsPage — tapping Pay', () => {
 describe('PaymentsPage — inside the Android app', () => {
   beforeEach(() => enterNativeShell());
 
-  it('shows the same lists, read-only: what is due and what was paid', async () => {
+  it('shows the same table, read-only: what is due and what was paid', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    expect(within(due).getByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
-    expect(within(due).getByText('₹4,999')).toBeInTheDocument();
-    expect(within(due).getByText('Due by 5 Nov 2026')).toBeInTheDocument();
+    await bills();
+    const due = rowOf('Dealer Kavach, November 2026');
+    expect(due.getByText('Rs 4,999')).toBeInTheDocument();
+    expect(due.getByText('Due by 5 Nov 2026')).toBeInTheDocument();
 
-    const history = screen.getByRole('region', { name: 'Paid and earlier' });
-    expect(within(history).getByText('Paid on 5 Oct 2026 · UPI')).toBeInTheDocument();
-    expect(within(history).getByText('Receipt MDG-2026-00007')).toBeInTheDocument();
+    const paid = rowOf('Dealer Kavach, October 2026');
+    expect(paid.getByText('Paid on 5 Oct 2026 · UPI')).toBeInTheDocument();
+    expect(paid.getByText('Receipt MDG-2026-00007')).toBeInTheDocument();
   });
 
   it('has no Pay button and no link on what is due, and never loads Razorpay', async () => {
     listReturns(makePayment(), makePaidPayment());
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    await bills();
     // Only the bar's Back arrow is a button.
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
       'Back',
     ]);
     // What is due leads nowhere.
-    expect(within(due).queryAllByRole('link')).toHaveLength(0);
+    expect(rowOf('Dealer Kavach, November 2026').queryAllByRole('link')).toHaveLength(0);
     expect(loadCheckoutScript).not.toHaveBeenCalled();
     expect(openCheckout).not.toHaveBeenCalled();
   });
@@ -383,7 +415,7 @@ describe('PaymentsPage — inside the Android app', () => {
     );
     renderPayments();
 
-    await screen.findByRole('region', { name: 'Due' });
+    await bills();
     const hrefs = screen
       .getAllByRole('link')
       .map((a) => a.getAttribute('href'))
@@ -398,7 +430,7 @@ describe('PaymentsPage — inside the Android app', () => {
     listReturns(makePayment());
     renderPayments('hi');
 
-    await screen.findByRole('region', { name: 'बाकी भुगतान' });
+    await screen.findByRole('region', { name: 'आपके बिल' });
     expect(screen.queryByText(/चुकाएँ/)).not.toBeInTheDocument();
     expect(screen.queryAllByRole('link')).toHaveLength(0);
   });
@@ -425,16 +457,16 @@ function serveWithAutopay(
 describe('PaymentsPage — the autopay card', () => {
   const card = () => screen.queryByRole('link', { name: /^Autopay/ });
 
-  it('sits at the top, above what is due, and says what autopay is doing', async () => {
+  it('sits above the table of bills, and says what autopay is doing', async () => {
     serveWithAutopay([makePayment(), makePaidPayment()]);
     renderPayments();
 
     const autopay = await screen.findByRole('link', { name: /^Autopay/ });
-    expect(within(autopay).getByText('₹3,540')).toBeInTheDocument();
+    expect(within(autopay).getByText('Rs 3,540')).toBeInTheDocument();
     expect(within(autopay).getByText('On')).toBeInTheDocument();
-    expect(within(autopay).getByText('₹3,540 a month · next 24 Nov')).toBeInTheDocument();
-    const due = await screen.findByRole('region', { name: 'Due' });
-    expect(autopay.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(autopay).getByText('Rs 3,540 a month · next 24 Nov')).toBeInTheDocument();
+    const table = await bills();
+    expect(autopay.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH);
   });
 
@@ -449,7 +481,7 @@ describe('PaymentsPage — the autopay card', () => {
 
   it.each([
     [{ state: 'setting_up', nextDebitOn: null }, 'Waiting', 'Waiting for your approval'],
-    [{ state: 'on' }, 'On', '₹3,540 a month · next 24 Nov'],
+    [{ state: 'on' }, 'On', 'Rs 3,540 a month · next 24 Nov'],
     [{ state: 'failing' }, 'Needs attention', 'Last payment did not go through'],
     [{ state: 'off', nextDebitOn: null }, 'Off', 'Off · works till 24 Nov'],
   ] as const)('wears the chip for %o', async (over, chip, line) => {
@@ -461,13 +493,16 @@ describe('PaymentsPage — the autopay card', () => {
     expect(within(autopay).getByText(line)).toBeInTheDocument();
   });
 
-  it('wears the same chip colours as a payment status', async () => {
+  // One family of pills: the kit's shape and word, the same for a bill and for autopay.
+  it('wears the same pill as a bill that needs a look, a shape with a word, never red', async () => {
     serveWithAutopay([makePayment()], makeAutopayStatus({ state: 'failing' }));
     renderPayments();
-    const chip = await screen.findByText('Needs attention');
-    // The amber of "Due" on the bill below.
-    expect(chip.className).toContain('bg-warning-soft');
-    expect(chip.className).toContain('text-warning-strong');
+    const chip = (await screen.findByText('Needs attention')).closest('[data-status]') as HTMLElement;
+    expect(chip).toHaveAttribute('data-status', 'attention');
+    expect(chip.querySelector('svg')).not.toBeNull();
+    const bill = screen.getByText('Due').closest('[data-status]') as HTMLElement;
+    expect(bill.className).toBe(chip.className);
+    expect(chip.className).not.toMatch(/danger|red/);
   });
 
   it('is in Hindi', async () => {
@@ -482,22 +517,28 @@ describe('PaymentsPage — the autopay card', () => {
   it('stays above the empty state too', async () => {
     serveWithAutopay([]);
     renderPayments();
-    expect(await screen.findByText('No payments yet')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Your first bill appears after your services start.'),
+    ).toBeInTheDocument();
     expect(card()).toBeInTheDocument();
   });
 
-  it('is not there when there is no autopay to show', async () => {
+  // The row is always there once the server has said so, so the Autopay screen is not a hidden
+  // address: with no autopay it says "Not on at this pump" and still opens that screen.
+  it('says it is not on when the owner has no autopay, and still opens the Autopay screen', async () => {
     serveWithAutopay([makePayment()], makeAutopayStatus(null));
     renderPayments();
-    await screen.findByRole('region', { name: 'Due' });
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith(AUTOPAY_PATH));
-    expect(card()).not.toBeInTheDocument();
+    await bills();
+    const autopay = await screen.findByRole('link', { name: /^Autopay/ });
+    expect(within(autopay).getByText('Not on at this pump.')).toBeInTheDocument();
+    expect(autopay).toHaveAttribute('href', '/settings/autopay');
+    expect(within(autopay).queryByText(/₹|Rs/)).not.toBeInTheDocument();
   });
 
   it('is not there for a manager, who is not even asked about it', async () => {
     serveWithAutopay([makePayment()]);
     renderPayments('en', 'dealer-staff');
-    await screen.findByRole('region', { name: 'Due' });
+    await bills();
     expect(card()).not.toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalledWith(AUTOPAY_PATH);
   });
@@ -505,8 +546,8 @@ describe('PaymentsPage — the autopay card', () => {
   it('is not there while it loads, and the bills do not wait on it', async () => {
     serveWithAutopay([makePayment()], 'pending');
     renderPayments();
-    const due = await screen.findByRole('region', { name: 'Due' });
-    expect(within(due).getByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
+    const due = await bills();
+    expect(within(due).getByText('Dealer Kavach, November 2026')).toBeInTheDocument();
     expect(card()).not.toBeInTheDocument();
   });
 
@@ -515,7 +556,7 @@ describe('PaymentsPage — the autopay card', () => {
   it('is still there when it fails, saying so, and the bills still show', async () => {
     serveWithAutopay([makePayment()], new ApiError(500, 'INTERNAL', 'boom'));
     renderPayments();
-    await screen.findByRole('region', { name: 'Due' });
+    await bills();
     const autopay = await screen.findByRole('link', { name: /^Autopay/ });
     expect(within(autopay).getByText('Could not load just now. Tap to open.')).toBeInTheDocument();
     expect(autopay).toHaveAttribute('href', '/settings/autopay');
@@ -533,7 +574,7 @@ describe('PaymentsPage — the autopay card', () => {
   it('is not drawn for a manager when nothing was asked', async () => {
     serveWithAutopay([makePayment()], new ApiError(500, 'INTERNAL', 'boom'));
     renderPayments('en', 'dealer-staff');
-    await screen.findByRole('region', { name: 'Due' });
+    await bills();
     expect(card()).not.toBeInTheDocument();
   });
 
@@ -555,8 +596,8 @@ describe('PaymentsPage — a bill waiting for its autopay approval', () => {
     listReturns(makePayment({ waitingForAutopayApproval: true }));
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    expect(within(due).getByText(WAITING)).toBeInTheDocument();
+    const table = within(await bills());
+    expect(table.getByText(WAITING)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
   });
 
@@ -567,8 +608,8 @@ describe('PaymentsPage — a bill waiting for its autopay approval', () => {
     );
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
-    expect(within(due).getAllByText(WAITING)).toHaveLength(1);
+    const table = within(await bills());
+    expect(table.getAllByText(WAITING)).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: /Pay/ })).toHaveLength(1);
   });
 
@@ -577,8 +618,10 @@ describe('PaymentsPage — a bill waiting for its autopay approval', () => {
     listReturns(makePayment({ waitingForAutopayApproval: true }));
     renderPayments();
 
-    const line = await screen.findByText(WAITING);
-    expect(line.textContent).not.toMatch(/link|pay now|pay here/i);
+    // Said twice: in the sentence at the top, and on the bill's own row.
+    const lines = await screen.findAllByText(WAITING);
+    expect(lines).toHaveLength(2);
+    for (const line of lines) expect(line.textContent).not.toMatch(/link|pay now|pay here/i);
     expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
   });
 });
@@ -589,7 +632,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     listReturns(makePayment({ autopayOn: '2020-10-28' }));
     renderPayments();
 
-    const due = await screen.findByRole('region', { name: 'Due' });
+    const due = await bills();
     expect(
       within(due).getByText('Autopay could not take this yet. It is trying again.'),
     ).toBeInTheDocument();
@@ -601,7 +644,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    const due = await bills();
     expect(within(due).getByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
     expect(within(due).queryByText(/Due by/)).not.toBeInTheDocument();
   });
@@ -610,8 +653,8 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments('hi');
 
-    const due = (await screen.findByRole('region', { name: 'बाकी भुगतान' })) as HTMLElement;
-    expect(within(due).getByText(/^ऑटोपे 28 अक्टू.* को काटेगा$/)).toBeInTheDocument();
+    const due = (await screen.findByRole('region', { name: 'आपके बिल' })) as HTMLElement;
+    expect(within(due).getByText(/^ऑटोपे 28 अक्तूबर को काटेगा$/)).toBeInTheDocument();
     expect(within(due).queryByText(/तक देना है/)).not.toBeInTheDocument();
   });
 
@@ -622,7 +665,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     );
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    const due = await bills();
     expect(within(due).getAllByText('Autopay will take this on 28 Oct')).toHaveLength(1);
     expect(within(due).getByText('Due by 1 Dec 2026')).toBeInTheDocument();
   });
@@ -634,7 +677,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     );
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    const due = await bills();
     expect(within(due).getAllByRole('button', { name: /Pay/ })).toHaveLength(1);
   });
 
@@ -643,7 +686,7 @@ describe('PaymentsPage — a due bill that autopay will take', () => {
     listReturns(makePayment({ autopayOn: '2036-10-28' }));
     renderPayments();
 
-    const due = (await screen.findByRole('region', { name: 'Due' })) as HTMLElement;
+    const due = await bills();
     expect(within(due).getByText('Autopay will take this on 28 Oct')).toBeInTheDocument();
   });
 });

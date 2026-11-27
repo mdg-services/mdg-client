@@ -112,7 +112,7 @@ export function SetupJourneyCard({
             >
               {answer ? (
                 <>
-                  <p className="text-micro text-wa-meta">{t(STRIP_LABEL_KEYS[step])}</p>
+                  <p className="text-meta text-wa-meta">{t(STRIP_LABEL_KEYS[step])}</p>
                   <p className="break-words text-meta font-semibold">{answer}</p>
                 </>
               ) : (
@@ -122,7 +122,7 @@ export function SetupJourneyCard({
               )}
               {/* What MDG is doing now, on MDG's own step: a dealer's step has its form's own question. */}
               {state === 'current' && !form && caption ? (
-                <p className="break-words text-micro text-wa-meta" aria-live="polite">
+                <p className="break-words text-meta text-wa-meta" aria-live="polite">
                   {t(caption)}
                 </p>
               ) : null}

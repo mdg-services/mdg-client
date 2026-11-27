@@ -1,24 +1,55 @@
-import { ChevronRight, ImageOff } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, ImageOff, Users } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import { AppBar } from '@/components/AppBar';
-import { Avatar, EmptyState, Spinner } from '@/components/ui';
-import { ChatAvatar } from '@/features/chat/ChatAvatar';
-import { conversationTitle, isSharedChat } from '@/features/chat/conversationLabel';
+import { BrandMark } from '@/components/BrandMark';
+import {
+  ErrorCard,
+  ListRow,
+  PageHeader,
+  SectionCard,
+  SkeletonBlock,
+  StatusPill,
+} from '@/components/kit';
+import { Avatar, Card } from '@/components/ui';
+import { conversationTitle, isSharedChat, ticketLine } from '@/features/chat/conversationLabel';
 import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
-import { useT, type TFunction } from '@/lib/i18n';
+import { api } from '@/lib/api';
+import { cn } from '@/lib/cn';
+import { pick, useLang, useT, type TFunction } from '@/lib/i18n';
+import { useTn } from '@/lib/messages/_plural';
 import { useFreshImageSrc } from '@/lib/useFreshImageSrc';
-import { useGoBack } from '@/lib/useGoBack';
+import { useLargeText } from '@/lib/useLargeText';
 import { useAuthStore } from '@/store/auth';
+import { serviceLabel } from '@dk/shared';
 import type {
   ConversationMediaItem,
   ConversationParticipant,
+  DealerService,
 } from '@dk/shared/types';
 
 /** How many of the newest pictures the media row shows. */
 const PEEK_COUNT = 4;
+
+/** How many service names the shortcut row spells out before it says "and N more". */
+const SERVICE_NAMES_SHOWN = 3;
+
+/**
+ * Services that are never listed to a dealer (spec 4.2, N4). The server hides them from the new
+ * `/me/services` route; this page reads the route that exists today (`/dealers/:id/services`), so
+ * it keeps its own copy of the list, and works against a server of either age.
+ */
+const NEVER_LISTED = new Set([
+  'sdms-password-reset',
+  'sdms-old-password-reset',
+  'iras-password-reset',
+  'hpcl-account',
+  'custom-request',
+]);
+/** Owner-only services: a manager does not see them (spec 4.2). */
+const OWNER_ONLY = new Set(['credit-dod-monitoring', 'calibration-claim']);
 
 function roleText(p: ConversationParticipant, t: TFunction): string | undefined {
   // The server's own title first ("Owner", "Manager"); the role when it sent none.
@@ -30,17 +61,25 @@ function roleText(p: ConversationParticipant, t: TFunction): string | undefined 
 }
 
 /**
- * Chat info — what opens when the chat's name is tapped: the picture and name of
- * the chat, a row into Media, links and docs with the newest pictures peeking
- * out of it, and who is in the chat (a group's members, or who answers in the
- * support chat).
+ * "Your MDG team": what opens when the chat's name is tapped (spec 4.6). It says who answers, where
+ * the dealer's question to MDG stands, what has been shared here (photos, papers, links), and the
+ * doors a dealer is usually looking for: Reports, Papers and licences, and the services MDG runs.
+ *
+ * Nothing here is a guess: the question comes from the chat's own ticket (the same words as the pinned
+ * bar in the thread), and the services come from the route the Services screen reads. A part that
+ * cannot load says less; it never hides the parts that did.
  */
 export function ChatInfoPage() {
   const t = useT();
+  const tn = useTn();
+  const lang = useLang();
   const navigate = useNavigate();
+  const large = useLargeText();
   const { id: conversationId } = useParams<{ id: string }>();
-  const goBack = useGoBack(`/chat/${conversationId ?? ''}`);
+  const chatPath = `/chat/${conversationId ?? ''}`;
   const myId = useAuthStore((s) => s.user?.id);
+  const role = useAuthStore((s) => s.user?.role);
+  const dealerId = useAuthStore((s) => s.user?.dealerId) ?? undefined;
 
   const listQuery = useMyConversations();
   const conversation = React.useMemo(
@@ -48,42 +87,45 @@ export function ChatInfoPage() {
     [listQuery.data, conversationId],
   );
   const media = useConversationMedia(conversationId, 'media');
+  // The services MDG runs. Only names are read, and a failure only leaves the shortcut without them.
+  const servicesQuery = useQuery<DealerService[]>({
+    queryKey: ['dealer-services', dealerId],
+    enabled: !!dealerId,
+    queryFn: () => api.get<DealerService[]>(`/v1/dealers/${dealerId}/services`),
+  });
 
-  const bar = <AppBar title={t('chat.infoTitle')} onBack={goBack} />;
+  const bar = (
+    <PageHeader
+      variant="sub"
+      title={t('chatl.info.title')}
+      back={{ to: chatPath, label: t('chatl.place.chat') }}
+    />
+  );
 
   if (listQuery.isLoading && !conversation) {
     return (
       <>
         {bar}
-        <div className="flex flex-1 items-center justify-center">
-          <Spinner size={20} />
+        <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+          <Card className="p-4">
+            <SkeletonBlock lines={4} />
+          </Card>
         </div>
       </>
     );
   }
 
-  // A FAILED LIST IS NOT A MISSING CHAT. Both leave `conversation` undefined, and
-  // saying "this chat is not available" to a dealer whose request timed out is
-  // the same lie the empty chat list used to tell.
-  // Offline, the list is PAUSED rather than failed — the same answer applies.
+  // A FAILED LIST IS NOT A MISSING CHAT. Both leave `conversation` undefined, and saying "this chat is
+  // not available" to a dealer whose request timed out is the same lie the empty chat list used to
+  // tell. Offline, the list is PAUSED rather than failed: the same answer applies.
   const listPaused = listQuery.status === 'pending' && listQuery.fetchStatus === 'paused';
   if (!conversation && (listQuery.isError || listPaused)) {
     return (
       <>
         {bar}
-        <EmptyState
-          title={t('chat.listErrorTitle')}
-          description={t('chat.listErrorDesc')}
-          cta={
-            <button
-              type="button"
-              onClick={() => void listQuery.refetch()}
-              className="rounded-full bg-wa-accent px-4 py-2 text-cta text-text-inverse active:opacity-90"
-            >
-              {t('common.retry')}
-            </button>
-          }
-        />
+        <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+          <ErrorCard text={t('chatl.error')} onRetry={() => void listQuery.refetch()} />
+        </div>
       </>
     );
   }
@@ -92,7 +134,13 @@ export function ChatInfoPage() {
     return (
       <>
         {bar}
-        <EmptyState title={t('chat.conversationNotFound')} />
+        <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+          <Card className="p-4">
+            <p className="break-words text-body text-text-muted">
+              {t('chat.conversationNotFound')}
+            </p>
+          </Card>
+        </div>
       </>
     );
   }
@@ -103,92 +151,162 @@ export function ChatInfoPage() {
   const subtitle = isGroup
     ? t('chat.infoGroupSubtitle', { n: members.length })
     : t('chat.barSupportSubtitle');
+  const ticket = ticketLine(conversation, lang);
 
   const items = (media.data?.pages.flat() ?? []).filter((i) => !!i.attachment);
   const peek = items.slice(0, PEEK_COUNT);
   const count = items.length;
+  // A bare number beside an arrow said nothing ("0" of what?), so the count is a sentence under the
+  // name: nothing sent, or how many photos, papers and links are in this chat.
+  const mediaSub = !media.isSuccess
+    ? t('chatl.info.mediaSub')
+    : count === 0 && !media.hasNextPage
+      ? t('chatl.info.mediaNone')
+      : media.hasNextPage
+        ? t('chatl.info.mediaMore', { n: count })
+        : tn('chatl.info.mediaCount', count);
+  const goMedia = () => navigate(`/chat/${conversationId}/media`);
+
+  // The services shortcut says what runs, in the dealer's words, when the list has answered.
+  const names = Array.from(
+    new Set(
+      (servicesQuery.data ?? [])
+        .filter(
+          (s) =>
+            s.status === 'ACTIVE' &&
+            !NEVER_LISTED.has(s.serviceId) &&
+            (role === 'dealer-owner' || !OWNER_ONLY.has(s.serviceId)),
+        )
+        .map((s) => {
+          const label = serviceLabel(s.serviceId);
+          return pick(lang, label.en, label.hi);
+        }),
+    ),
+  );
+  const shown = names.slice(0, SERVICE_NAMES_SHOWN).join(', ');
+  const rest = names.length - SERVICE_NAMES_SHOWN;
+  const servicesSub =
+    names.length === 0
+      ? t('chatl.info.servicesSub')
+      : rest > 0
+        ? `${shown} · ${tn('kit.more', rest)}`
+        : shown;
 
   return (
     <>
       {bar}
-      <div className="flex flex-1 flex-col gap-2 bg-wa-row-active pb-6">
-        <section className="flex flex-col items-center bg-wa-bar px-4 pb-6 pt-8">
-          <ChatAvatar kind={conversation.kind} size={96} />
-          <h1 className="mt-4 text-center text-title text-wa-bar-text">{title}</h1>
-          <p className="mt-1 text-center text-meta text-wa-meta">{subtitle}</p>
-        </section>
+      <div className="flex flex-1 flex-col gap-3 px-4 py-3">
+        {isSharedChat(conversation) && members.length > 0 ? (
+          <SectionCard title={t('chatl.info.members')} count={members.length} variant="list">
+            {members.map((p) => (
+              <ListRow
+                key={p.userId}
+                leading={<Avatar name={p.name} size={44} />}
+                title={
+                  p.userId === myId ? t('chat.you') : (p.name ?? t('chat.supportFallbackName'))
+                }
+                {...(roleText(p, t) ? { subtitle: roleText(p, t)! } : {})}
+              />
+            ))}
+          </SectionCard>
+        ) : (
+          <SectionCard title={t('chatl.info.who')}>
+            {/* At large text the picture sits above the words: beside them at 200% it took a third of the width and cut the sentence into lines of two words. */}
+            <div className={cn('flex gap-3 py-1', large ? 'flex-col items-start' : 'items-start')}>
+              <TeamAvatar group={isGroup} large={large} />
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                <p className="break-words text-body font-medium text-text">{title}</p>
+                <p className="break-words text-meta text-text-muted">{subtitle}</p>
+                {isGroup ? null : (
+                  <p className="break-words text-body text-text">{t('chat.infoWhoAnswers')}</p>
+                )}
+              </div>
+            </div>
+          </SectionCard>
+        )}
 
-        <section className="bg-wa-bar">
+        <SectionCard title={t('chatl.info.ticket')}>
+          {ticket ? (
+            <div className="py-1">
+              <StatusPill status={ticket.status} word={ticket.text} />
+            </div>
+          ) : (
+            <p className="break-words py-1 text-body text-text-muted">{t('chatl.info.noTicket')}</p>
+          )}
+          {/* Its own button, not a `ListRow`: that row is 56px tall with its words centred, which left an empty strip under "Open this chat" inside the card. */}
           <button
             type="button"
-            onClick={() => navigate(`/chat/${conversationId}/media`)}
-            className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:bg-wa-row-active"
+            onClick={() => navigate(chatPath)}
+            className="mt-1 flex min-h-11 w-full items-center gap-3 rounded-lg text-left active:bg-surface-2"
           >
-            <span className="min-w-0 flex-1 text-body text-wa-bar-text">
-              {t('chat.menuMedia')}
+            <span className="min-w-0 flex-1 break-words text-body font-medium text-text">
+              {t('chatl.info.openChat')}
             </span>
-            {media.isSuccess ? (
-              <span className="shrink-0 text-meta tabular-nums text-wa-meta">
-                {count}
-                {media.hasNextPage ? '+' : ''}
-              </span>
-            ) : null}
-            <ChevronRight width={20} strokeWidth={1.75} className="shrink-0 text-wa-meta" />
+            <ChevronRight aria-hidden className="h-5 w-5 shrink-0 text-text-subtle" />
           </button>
+        </SectionCard>
+
+        <Card className="p-4">
+          <ListRow title={t('chatl.info.media')} subtitle={mediaSub} onPress={goMedia} />
           {media.isLoading ? (
-            <div className="flex h-[88px] items-center justify-center">
-              <Spinner size={18} />
+            <div className="pt-2">
+              <SkeletonBlock lines={1} />
             </div>
           ) : media.isError ? (
-            // The row above still opens the gallery, which can retry. What is
-            // wrong here is only the peek, and it says so instead of vanishing.
-            <p className="px-4 pb-3.5 text-meta text-wa-meta">{t('chat.mediaLoadFailed')}</p>
+            // The row above still opens the gallery, which can retry. What is wrong here is only the
+            // peek, and it says so instead of vanishing.
+            <p className="break-words pt-2 text-meta text-text-muted">
+              {t('chat.mediaLoadFailed')}
+            </p>
           ) : peek.length > 0 ? (
-            <div className="grid grid-cols-4 gap-1 px-4 pb-3.5">
+            <div className="grid grid-cols-4 gap-1 pt-2">
               {peek.map((item) => (
                 <PeekPicture
                   key={`${item.messageId}:${item.attachment!.storageKey}`}
                   item={item}
                   conversationId={conversation.id}
-                  onOpen={() => navigate(`/chat/${conversationId}/media`)}
+                  onOpen={goMedia}
                 />
               ))}
             </div>
           ) : null}
-        </section>
+        </Card>
 
-        {isSharedChat(conversation) ? (
-          <section className="bg-wa-bar pb-1">
-            <p className="px-4 pb-1 pt-3.5 text-meta text-wa-meta">
-              {t('chat.infoMembers', { n: members.length })}
-            </p>
-            {members.length === 0 ? null : (
-              <ul>
-                {members.map((p) => (
-                  <li key={p.userId} className="flex items-center gap-4 px-4 py-2.5">
-                    <Avatar name={p.name} size={44} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-body text-wa-bar-text">
-                        {p.userId === myId ? t('chat.you') : (p.name ?? t('chat.supportFallbackName'))}
-                      </span>
-                      {roleText(p, t) ? (
-                        <span className="block truncate text-meta text-wa-meta">
-                          {roleText(p, t)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        ) : (
-          <section className="bg-wa-bar px-4 py-4">
-            <p className="text-body leading-snug text-wa-bar-text">{t('chat.infoWhoAnswers')}</p>
-          </section>
-        )}
+        <SectionCard title={t('chatl.info.shortcuts')} variant="list">
+          <ListRow
+            title={t('chatl.info.reports')}
+            subtitle={t('chatl.info.reportsSub')}
+            onPress={() => navigate('/reports')}
+          />
+          <ListRow
+            title={t('chatl.info.papers')}
+            subtitle={t('chatl.info.papersSub')}
+            onPress={() => navigate('/pump/papers')}
+          />
+          <ListRow
+            title={t('chatl.info.services')}
+            subtitle={servicesSub}
+            onPress={() => navigate('/services')}
+          />
+        </SectionCard>
       </div>
     </>
+  );
+}
+
+/** The round picture of who answers: the MDG mark for the support chat, a group glyph for the manager chat. */
+function TeamAvatar({ group, large }: { group: boolean; large: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'flex shrink-0 items-center justify-center rounded-full bg-brand-soft text-text',
+        // 2.5rem is 80px at 200% text; the usual 3rem is 96px.
+        large ? 'h-10 w-10' : 'h-12 w-12',
+      )}
+    >
+      {group ? <Users className="h-6 w-6" strokeWidth={1.75} /> : <BrandMark size={32} />}
+    </span>
   );
 }
 
@@ -212,7 +330,7 @@ function PeekPicture({
       type="button"
       onClick={onOpen}
       aria-label={attachment.filename}
-      className="relative aspect-square w-full overflow-hidden rounded-md bg-wa-row-active"
+      className="relative aspect-square w-full overflow-hidden rounded-md bg-surface-2"
     >
       {src && !failed ? (
         <img
@@ -225,8 +343,8 @@ function PeekPicture({
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <span className="absolute inset-0 flex items-center justify-center text-wa-meta">
-          <ImageOff width={18} strokeWidth={1.5} />
+        <span className="absolute inset-0 flex items-center justify-center text-text-subtle">
+          <ImageOff aria-hidden className="h-5 w-5" strokeWidth={1.5} />
         </span>
       )}
     </button>

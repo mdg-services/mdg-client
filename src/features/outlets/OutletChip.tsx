@@ -20,7 +20,7 @@ export function OutletChip({ onOpen }: { onOpen: () => void }) {
       type="button"
       onClick={onOpen}
       aria-label={t('outlets.chipLabel', { code })}
-      className="mr-1 flex h-8 shrink-0 items-center gap-0.5 rounded-full bg-wa-row-active pl-3 pr-2 text-meta font-semibold text-wa-accent-strong"
+      className="mr-1 flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-0.5 rounded-full bg-wa-row-active pl-3 pr-2 text-meta font-semibold text-wa-accent-strong"
     >
       {code}
       <ChevronDown width={16} height={16} strokeWidth={2.25} aria-hidden />

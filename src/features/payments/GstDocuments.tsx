@@ -67,10 +67,14 @@ function GstDocumentCard({
 
   return (
     <Card role="region" aria-labelledby={headingId}>
-      <CardContent className="p-5">
+      <CardContent>
         <h2 id={headingId} className="text-heading text-text">
           {t(isCreditNote ? 'payments.invoice.creditNoteTitle' : 'payments.invoice.title')}
         </h2>
+        {/* "Credit note" is a word an accountant knows and a pump owner does not. */}
+        {isCreditNote ? (
+          <p className="mt-1 break-words text-meta text-text-muted">{t('bill.papers.creditNoteHelp')}</p>
+        ) : null}
         <dl className="mt-1 divide-y divide-border">
           <Row
             label={t(

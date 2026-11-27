@@ -1,7 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-
-
 import { useToast } from '@/components/ui';
 import { api, type ApiError } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -16,34 +14,50 @@ import type {
   AwardStaffPointsInput,
   AwardStaffPointsResult,
   EmployeeWithPoints,
+  StaffPointAward,
   StaffPointsSummary,
   StaffWorkItem,
 } from '@dk/shared/types';
 
-import {
-  employeesQueryKeyRoot,
-  windowBounds,
-  type PointsWindow,
-} from './useEmployees';
+import { employeesQueryKeyRoot, windowBounds, type PointsWindow } from './useEmployees';
 import { staffWorkItemsQueryKey } from './useStaffWorkItems';
-
 
 const summaryQueryKeyRoot = ['staff', 'summary'] as const;
 
-/** Leaderboard aggregate for a window (a lighter mirror of the roster totals). */
-export function useStaffSummary(
+/** Prefix key for every ledger read, so a finished sheet refreshes the person pages. */
+export const staffLedgerQueryKeyRoot = ['staff', 'ledger'] as const;
+
+/** The server cuts the ledger at this many rows, newest first, and says nothing when it does. */
+export const STAFF_LEDGER_CAP = 1000;
+
+/**
+ * One warrior's award rows between two days (`GET .../staff-points?employeeId&from&to`), newest
+ * first, capped at `STAFF_LEDGER_CAP`. A single person stays far under the cap at normal volume; a
+ * caller that gets the cap's worth of rows says its figures may be short.
+ */
+export function useStaffLedger(
   dealerId: string | undefined,
-  window: PointsWindow = 'today',
+  employeeId: string | undefined,
+  from: string,
+  to: string,
 ) {
+  return useQuery<StaffPointAward[]>({
+    queryKey: [...staffLedgerQueryKeyRoot, dealerId, employeeId, from, to],
+    enabled: !!dealerId && !!employeeId,
+    staleTime: 60_000,
+    queryFn: () =>
+      api.get<StaffPointAward[]>(`/v1/dealers/${dealerId}/staff-points`, { employeeId, from, to }),
+  });
+}
+
+/** Leaderboard aggregate for a window (a lighter mirror of the roster totals). */
+export function useStaffSummary(dealerId: string | undefined, window: PointsWindow = 'today') {
   const { from, to } = windowBounds(window);
   return useQuery<StaffPointsSummary>({
     queryKey: ['staff', 'summary', dealerId, from, to],
     enabled: !!dealerId,
     queryFn: () =>
-      api.get<StaffPointsSummary>(
-        `/v1/dealers/${dealerId}/staff-points/summary`,
-        { from, to },
-      ),
+      api.get<StaffPointsSummary>(`/v1/dealers/${dealerId}/staff-points/summary`, { from, to }),
   });
 }
 
@@ -62,9 +76,7 @@ export function useUndoAward(dealerId: string | undefined) {
   return useMutation<void, ApiError, UndoVars>({
     mutationFn: ({ id, scope }) =>
       api.del<void>(
-        `/v1/dealers/${dealerId}/staff-points/${id}${
-          scope === 'batch' ? '?scope=batch' : ''
-        }`,
+        `/v1/dealers/${dealerId}/staff-points/${id}${scope === 'batch' ? '?scope=batch' : ''}`,
       ),
     onSuccess: () => {
       toast.success(t('staff.award.undone'));
@@ -99,15 +111,11 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
     { snapshots: [readonly unknown[], EmployeeWithPoints[] | undefined][] }
   >({
     mutationFn: (input) =>
-      api.post<AwardStaffPointsResult>(
-        `/v1/dealers/${dealerId}/staff-points`,
-        input,
-      ),
+      api.post<AwardStaffPointsResult>(`/v1/dealers/${dealerId}/staff-points`, input),
     onMutate: async (input) => {
       await qc.cancelQueries({ queryKey: employeesQueryKeyRoot });
 
-      const catalog =
-        qc.getQueryData<StaffWorkItem[]>(staffWorkItemsQueryKey) ?? [];
+      const catalog = qc.getQueryData<StaffWorkItem[]>(staffWorkItemsQueryKey) ?? [];
       const works = input.items
         .map((sel): WorkSelection | null => {
           const item = catalog.find((w) => w.code === sel.workItemCode);
@@ -138,9 +146,7 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
             input.employeeIds.includes(e.id)
               ? {
                   ...e,
-                  pointsInWindow: inWindow
-                    ? round2(e.pointsInWindow + per)
-                    : e.pointsInWindow,
+                  pointsInWindow: inWindow ? round2(e.pointsInWindow + per) : e.pointsInWindow,
                   totalPoints: round2(e.totalPoints + per),
                 }
               : e,
@@ -179,10 +185,9 @@ export function useAwardStaffPoints(dealerId: string | undefined) {
           { action: undoAction },
         );
       } else {
-        toast.success(
-          t('staff.award.toastMany', { count: input.employeeIds.length }),
-          { action: undoAction },
-        );
+        toast.success(t('staff.award.toastMany', { count: input.employeeIds.length }), {
+          action: undoAction,
+        });
       }
     },
     onSettled: () => {

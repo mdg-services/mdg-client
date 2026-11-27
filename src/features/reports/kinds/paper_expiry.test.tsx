@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { useLangStore } from '@/store/lang';
+import { resetStores } from '@/test/utils';
 import type { PaperExpiryData } from '@dk/shared/types';
 
 import { reportOf } from './_paperwork.fixtures';
@@ -33,6 +35,8 @@ const outlet: PaperExpiryData = {
 };
 
 function open(data: PaperExpiryData, lang: 'hi' | 'hl' | 'en' = 'en') {
+  // The kit's own words follow the app's language.
+  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={reportOf('paper_expiry')} lang={lang} />);
 }
@@ -42,7 +46,10 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-11-24T06:00:00.000Z'));
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  resetStores();
+});
 
 describe('paper_expiry', () => {
   it('opens with the most urgent paper as one sentence', () => {
@@ -73,7 +80,7 @@ describe('paper_expiry', () => {
     open(tanker);
     expect(screen.getByText('Road permit, 3 days left')).toBeInTheDocument();
     expect(screen.getByText('Fitness certificate, 12 days left')).toBeInTheDocument();
-    expect(screen.getByText('3')).toHaveClass('text-4xl');
+    expect(screen.getByText('3')).toHaveClass('text-display');
     expect(screen.getByText('Until 27 Nov')).toBeInTheDocument();
   });
 
@@ -119,8 +126,10 @@ describe('paper_expiry', () => {
     const { container } = open(outlet);
     expect(screen.getByText('Fire NOC ends in 12 days.')).toBeInTheDocument();
     expect(container.querySelector('[data-vehicle="outlet"]')).not.toBeNull();
-    expect(screen.queryByRole('heading')).toBeNull();
-    expect(screen.getByText('12')).toHaveClass('text-5xl');
+    // No plate heading: the only heading is the card's own "Your papers".
+    expect(screen.queryByRole('heading', { name: /BR/ })).toBeNull();
+    expect(screen.getByRole('heading', { name: /Your papers/ })).toBeInTheDocument();
+    expect(container.querySelector('[data-vehicle="outlet"] .text-display')).toHaveTextContent('12');
     expect(screen.getByText('Until 6 Dec')).toBeInTheDocument();
   });
 
@@ -220,5 +229,52 @@ describe('paper_expiry: days counted again from the end date', () => {
     const gone = liveData(outlet);
     expect(gone.items[0]!.daysLeft).toBeLessThan(0);
     expect(gone.allLapsed).toBe(true);
+  });
+});
+
+describe('paper_expiry: the paper that runs out first', () => {
+  it('is one tile with the day count, the plate and the paper, and a shape and word for how bad it is', () => {
+    open(tanker);
+    const tile = screen.getByRole('group', { name: /Runs out first/ });
+    expect(within(tile).getByText('Runs out first')).toBeInTheDocument();
+    // The insurance of BR01GA1234 ran out two days ago: the answer, counted again from today.
+    expect(within(tile).getByText('2')).toBeInTheDocument();
+    expect(within(tile).getByText('days ago')).toBeInTheDocument();
+    expect(within(tile).getByText('BR01GA1234 · Insurance')).toBeInTheDocument();
+    expect(tile.querySelector('[data-status="problem"]')).not.toBeNull();
+  });
+
+  it('counts again from the end date, so a stale snapshot never says "3 days" two days late', () => {
+    vi.setSystemTime(new Date('2026-11-26T06:00:00.000Z'));
+    open({ ...tanker, items: [tanker.items[0]!] });
+    const tile = screen.getByRole('group', { name: /Runs out first/ });
+    expect(within(tile).getByText('1')).toBeInTheDocument();
+    expect(within(tile).getByText('day left')).toBeInTheDocument();
+  });
+
+  it('says "Last day" for a paper that ends today, with no number', () => {
+    vi.setSystemTime(new Date('2026-11-27T06:00:00.000Z'));
+    open({ ...tanker, items: [tanker.items[0]!] });
+    const tile = screen.getByRole('group', { name: /Runs out first/ });
+    expect(within(tile).getByText('Last day')).toBeInTheDocument();
+  });
+
+  it('puts the leaves under one card that counts the papers, and has no tile for an empty list', () => {
+    open(tanker);
+    expect(screen.getByRole('region', { name: /Your papers/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /Your papers/ })).toHaveTextContent('4');
+    expect(view.kind).toBe('paper_expiry');
+  });
+
+  it('reads in Hindi', () => {
+    const { container } = open(tanker, 'hi');
+    expect(container.textContent).toContain('सबसे पहले खत्म होने वाला');
+    expect(container.textContent).toContain('आपके कागज़');
+  });
+
+  it('draws no tile and no card for an empty list', () => {
+    open({ ...tanker, items: [] });
+    expect(screen.queryByRole('group', { name: /Runs out first/ })).toBeNull();
+    expect(screen.queryByRole('region', { name: /Your papers/ })).toBeNull();
   });
 });

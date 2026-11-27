@@ -229,7 +229,7 @@ function Overlay({ data, lang }: OverlayProps<'announcement'>): React.ReactEleme
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`${sayWords(W.openLink, lang)}: ${hostOf(url)} (${sayWords(W.opensInBrowser, lang)})`}
-                className="flex min-h-[48px] items-center justify-between gap-3 rounded-[10px] border border-border-strong bg-surface px-4 py-2 text-cta text-text active:bg-surface-2"
+                className="flex min-h-12 items-center justify-between gap-3 rounded-lg border border-border-strong bg-surface px-4 py-2 text-cta text-text active:bg-surface-2"
               >
                 <span className="min-w-0">
                   <span className="block">{sayWords(W.openLink, lang)}</span>

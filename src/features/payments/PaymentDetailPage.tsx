@@ -1,13 +1,15 @@
 import { AlertCircle, SearchX, Wallet } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
+import { Num, SectionCard, SkeletonBlock } from '@/components/kit';
 import { SubPage } from '@/components/SubPage';
-import { Button, Card, CardContent, Spinner } from '@/components/ui';
+import { Button, Card, CardContent } from '@/components/ui';
 import { ApiError } from '@/lib/api';
 import { useLang, useT } from '@/lib/i18n';
 import { formatPaise } from '@dk/shared';
 
 import { usePayment } from './api';
+import { billMonthLabel, billName, gstBreakdownOf } from './billView';
 import { failureReasonKey, isNotConfigured, isTryAgainSoon } from './errors';
 import { GstDocuments } from './GstDocuments';
 import { PayButton } from './PayButton';
@@ -16,6 +18,16 @@ import { dueNote, hasReceipt, isWaitingForApproval, showsPayButton } from './pay
 import { canPayHere } from './policy';
 import { Receipt } from './Receipt';
 import { StateBlock } from './StateBlock';
+
+/** One line of the bill's make-up: what it is, and its figure on the right. */
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 py-3">
+      <p className="min-w-0 break-words text-body text-text-muted">{label}</p>
+      <Num className="text-body font-medium text-text">{value}</Num>
+    </div>
+  );
+}
 
 /**
  * One payment: the amount, what it is for, where it stands, and — once it has
@@ -37,9 +49,9 @@ export function PaymentDetailPage() {
   let body;
   if (query.isLoading) {
     body = (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <Spinner size={20} />
-      </div>
+      <Card className="p-4">
+        <SkeletonBlock lines={5} />
+      </Card>
     );
   } else if (!payment) {
     if (isNotConfigured(query.error)) {
@@ -80,19 +92,19 @@ export function PaymentDetailPage() {
   } else {
     const due = dueNote(t, lang, payment);
     const reasonKey = failureReasonKey(payment.lastFailure?.reason);
+    const month = billMonthLabel(lang, payment);
+    const split = gstBreakdownOf(payment);
     const lastFailureText = reasonKey
       ? t('payments.lastFailure', { reason: t(reasonKey) })
       : t('payments.lastFailureGeneric');
     body = (
       <>
         <Card>
-          <CardContent className="flex flex-col gap-3 p-5">
-            <h2 className="break-words text-title text-text">{payment.title}</h2>
+          <CardContent className="flex flex-col gap-3">
+            <h2 className="break-words text-title text-text">{billName(t, lang, payment)}</h2>
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-              <p className="text-4xl font-bold tabular-nums text-text">
-                {formatPaise(payment.amountPaise)}
-              </p>
-              <PaymentStatusChip status={payment.status} />
+              <Num className="text-display text-text">{formatPaise(payment.amountPaise)}</Num>
+              <PaymentStatusChip payment={payment} />
             </div>
             {payment.note ? (
               <p className="whitespace-pre-line break-words text-body text-text-muted">
@@ -109,7 +121,7 @@ export function PaymentDetailPage() {
             {payment.status === 'processing' ? (
               <p
                 role="status"
-                className="rounded-lg bg-warning-soft p-3 text-body text-warning-strong"
+                className="rounded-lg border border-status-waiting bg-status-waiting-soft p-3 text-body text-text"
               >
                 {t('payments.confirmingNote')}
               </p>
@@ -127,18 +139,31 @@ export function PaymentDetailPage() {
             {canPayHere() && showsPayButton(payment) ? <PayButton payment={payment} /> : null}
           </CardContent>
         </Card>
+        {payment.status !== 'cancelled' ? (
+          <SectionCard title={t('bill.detail.thisBill')} variant="list">
+            {month ? <Line label={t('bill.detail.covers')} value={month} /> : null}
+            <Line label={t('bill.detail.before')} value={formatPaise(split.beforePaise)} />
+            <Line
+              label={t('bill.detail.gst', { rate: split.ratePercent })}
+              value={formatPaise(split.gstPaise)}
+            />
+          </SectionCard>
+        ) : null}
         {hasReceipt(payment.status) ? (
           <>
             <Receipt payment={payment} />
             <GstDocuments payment={payment} />
           </>
+        ) : payment.status !== 'cancelled' ? (
+          // A bill not yet paid has no receipt or invoice: say where they will be rather than leave a bare page.
+          <p className="break-words px-1 text-body text-text-muted">{t('bill.detail.afterPaid')}</p>
         ) : null}
       </>
     );
   }
 
   return (
-    <SubPage title={t('payments.detailTitle')} fallback="/payments" className="gap-4 pb-10">
+    <SubPage title={t('bill.detail.title')} fallback="/payments" className="gap-3 pb-10">
       {body}
     </SubPage>
   );

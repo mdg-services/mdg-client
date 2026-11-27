@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
+import { OWNER_ONLY_REPORT_KINDS } from '@dk/shared';
 import { REPORT_KINDS } from '@dk/shared/types';
 
-import { ALL_GROUP_NAME, KIND_FAMILIES, KIND_GROUPS, KIND_STYLE, kindStyle, kindsOfGroup } from './kindStyle';
+
+import { ALL_GROUP_NAME, KIND_FAMILIES, KIND_GROUPS, KIND_STYLE, chipGroups, kindStyle, kindsOfGroup } from './kindStyle';
 import { STATUS_STYLE } from './StatusBadge';
 import { sayWords } from './types';
 
@@ -113,5 +115,34 @@ describe('kindStyle: one look per report kind', () => {
     expect([...seen].sort()).toEqual([...REPORT_KINDS].sort());
     expect(new Set(seen).size).toBe(seen.length);
     expect(sayWords(ALL_GROUP_NAME, 'en')).toBe('All');
+  });
+
+  it('orders the chips as the spec does and gives every chip all three languages', () => {
+    expect(chipGroups(true).map((g) => g.group)).toEqual(['sales_stock', 'money', 'papers', 'tanker', 'supply']);
+    for (const g of chipGroups(true)) {
+      expect(sayWords(g.names, 'hi')).toMatch(/[ऀ-ॿ]|MDG/);
+      expect(sayWords(g.names, 'hl')).not.toMatch(/[ऀ-ॿ]/);
+    }
+  });
+
+  it('gives a manager no chip made only of owner-only kinds, so Money is never an empty chip', () => {
+    const manager = chipGroups(false).map((g) => g.group);
+    expect(manager).not.toContain('money');
+    expect(manager).toEqual(['sales_stock', 'papers', 'tanker', 'supply']);
+    // No chip a manager is given holds only kinds he can never read.
+    for (const g of chipGroups(false)) {
+      expect(g.kinds.some((k) => !OWNER_ONLY_REPORT_KINDS.has(k))).toBe(true);
+    }
+    // The owner has it; and the rule follows the shared list, not a hand-kept flag.
+    expect(chipGroups(true).map((g) => g.group)).toContain('money');
+    for (const g of KIND_GROUPS) {
+      expect(g.ownerOnly).toBe(g.kinds.every((k) => OWNER_ONLY_REPORT_KINDS.has(k)));
+    }
+  });
+
+  it("keeps MDG's own notes in a group but not in a chip, and the water checks with supply", () => {
+    expect(chipGroups(true).some((g) => g.kinds.includes('announcement'))).toBe(false);
+    expect(KIND_GROUPS.find((g) => g.group === 'mdg')!.kinds).toEqual(['announcement']);
+    expect(kindsOfGroup('supply')).toEqual(['water_ingress', 'ro_supply', 'du_otp']);
   });
 });

@@ -1,6 +1,8 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { useLangStore } from '@/store/lang';
+import { resetStores } from '@/test/utils';
 import type { DeclarationFiledData } from '@dk/shared/types';
 
 import { reportOf, signedPhoto } from './_paperwork.fixtures';
@@ -41,7 +43,11 @@ const washroom: DeclarationFiledData = {
   ref: 'row2',
 };
 
+afterEach(() => resetStores());
+
 function open(data: DeclarationFiledData, lang: 'hi' | 'hl' | 'en' = 'en', attachments = [signedPhoto('k/outside.jpg', 'https://signed/o')]) {
+  // The kit's own words follow the app's language.
+  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={reportOf('declaration_filed', attachments)} lang={lang} />);
 }
@@ -79,7 +85,27 @@ describe('declaration_filed', () => {
     expect(within(list).getAllByRole('listitem')).toHaveLength(14);
     expect(within(list).getByText('23 Nov: Filed, This report')).toBeInTheDocument();
     expect(within(list).getByText('21 Nov: No filing')).toBeInTheDocument();
-    expect(screen.getByText('2 days in a row')).toBeInTheDocument();
+    // The streak is one tile: the number, "days in a row", and when the next one is due.
+    const tile = screen.getByRole('group', { name: 'Safety declaration, filed: 2 days in a row' });
+    expect(within(tile).getByText('2')).toBeInTheDocument();
+    expect(within(tile).getByText('days in a row')).toBeInTheDocument();
+    expect(within(tile).getByText('Next one due 24 Nov')).toBeInTheDocument();
+  });
+
+  it('draws no streak tile for one day, for the washroom paper, or when the streak is not in the snapshot', () => {
+    const { unmount } = open({ ...safety, streak: 1 });
+    expect(screen.queryByRole('group', { name: /days in a row/ })).toBeNull();
+    unmount();
+    const w = open(washroom);
+    expect(screen.queryByRole('group', { name: /days in a row/ })).toBeNull();
+    w.unmount();
+    open({ ...safety, streak: undefined });
+    expect(screen.queryByRole('group', { name: /days in a row/ })).toBeNull();
+  });
+
+  it('says the streak in Hindi', () => {
+    const { container } = open(safety, 'hi');
+    expect(container.textContent).toContain('दिन लगातार');
   });
 
   it('safety has no photos and no calendar when the snapshot has no recent days', () => {

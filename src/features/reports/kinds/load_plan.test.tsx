@@ -186,15 +186,16 @@ describe('load_plan: overlay', () => {
     expect(label).toContain('Diesel 4,000 L');
     expect(label).toContain('Petrol 2,000 L');
     expect(label).toContain('Empty');
-    // Fuel letters sit above the chambers and litres inside them.
-    const texts = [...lorry.querySelectorAll('text')].map((x) => x.textContent);
-    expect(texts).toEqual(expect.arrayContaining(['HSD', 'MS', '4,000', '2,000']));
+    // The picture holds no text of its own (an SVG's text shrinks under 12 px on a phone): the fuel and
+    // the litres are real text in the table under it.
+    expect(lorry.querySelectorAll('text')).toHaveLength(0);
+    expect(screen.getAllByText('Diesel').length).toBeGreaterThan(0);
   });
 
   it('lists the chambers as real text: fuel, litres, tank, and "about" when the tank size is an estimate', () => {
     open();
     expect(screen.getByRole('table', { name: 'Tanker' })).toBeInTheDocument();
-    expect(screen.getByRole('table', { name: 'Stock and days left' })).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Stock and days left' })).toBeInTheDocument();
     const rows = screen.getAllByRole('row').map((r) => r.textContent ?? '');
     // Chamber 1 sits on tank 4 whose size was estimated.
     expect(rows.some((r) => r.includes('1(Tank 4)') && r.includes('Diesel') && r.includes('about 4,000 L'))).toBe(true);
@@ -227,23 +228,26 @@ describe('load_plan: overlay', () => {
 
   it('shows stock and days left per pool, with tank numbers only where a fuel has two pools', () => {
     const { container } = open();
-    const rows = [...container.querySelectorAll('tr[data-pool]')];
+    const rows = [...container.querySelectorAll('li[data-pool]')];
     expect(rows).toHaveLength(3);
     const first = rows.find((r) => r.getAttribute('data-pool') === 'HSD-4-6')!;
     expect(first.textContent).toContain('Tank 4, 6');
     expect(first.textContent).toContain('6,000 L');
-    expect(first.textContent).toContain('2.4 days');
+    expect(first.textContent).toContain('lasts 2.4 days');
     expect(first.textContent).toContain('At the minimum');
-    expect(first.querySelector('[aria-hidden="true"] div')).toBeTruthy();
+    // The bar is a labelled progress bar with a tick at the low line, and says its number in words.
+    const bar = first.querySelector('[role="progressbar"]')!;
+    expect(bar).toBeTruthy();
+    expect(bar.getAttribute('aria-valuetext')).toContain('Low line');
     const petrol = rows.find((r) => r.getAttribute('data-pool') === 'MS-1')!;
     expect(petrol.textContent).not.toContain('Tank');
-    expect(petrol.textContent).toContain('9.2 days');
+    expect(petrol.textContent).toContain('lasts 9.2 days');
     expect(petrol.textContent).not.toContain('At the minimum');
   });
 
   it('says "not enough days of sales yet" instead of a number or a zero', () => {
     const { container } = open();
-    const row = container.querySelector('tr[data-pool="HSD-8"]')!;
+    const row = container.querySelector('li[data-pool="HSD-8"]')!;
     expect(row.textContent).toContain('not enough days of sales yet');
     expect(row.textContent).not.toMatch(/\b0\s*days/);
   });
@@ -260,7 +264,7 @@ describe('load_plan: overlay', () => {
     expect(cells[1]!.textContent).toContain('No order');
     expect(cells[2]!.textContent).toContain('Depot closed');
     // Copy buttons only on the days with an order, 48 px high.
-    expect(cells[0]!.querySelector('button')!.className).toContain('min-h-[48px]');
+    expect(cells[0]!.querySelector('button')!.className).toContain('min-h-12');
     expect(cells[1]!.querySelector('button')).toBeNull();
     expect(cells[2]!.querySelector('button')).toBeNull();
   });
@@ -336,6 +340,11 @@ describe('load_plan: overlay', () => {
   it('warns that an old plan is old, with its date', () => {
     open(loadPlanData({ planDay: '2026-11-21' }));
     expect(screen.getByTestId('old-plan').textContent).toContain('This is the plan of 21 Nov. Check the date before you order.');
+  });
+
+  it('does not wear an alarm for an old urgent plan: the list and Today read it as information', () => {
+    open(loadPlanData({ planDay: '2026-11-21', severity: 'urgent' }));
+    expect(screen.getByTestId('severity-banner').querySelector('[data-status]')).toHaveAttribute('data-status', 'info');
   });
 
   it('has no old-plan warning for today’s plan', () => {

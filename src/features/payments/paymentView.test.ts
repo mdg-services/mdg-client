@@ -105,7 +105,7 @@ describe('formatDayMonth', () => {
 
   it('writes the month in Hindi for a Hindi reader', () => {
     expect(formatDayMonth('hi', '2026-11-24')).toMatch(/^24 नव/);
-    expect(formatDayMonth('hi', '2036-10-28')).toMatch(/^28 अक्टू/);
+    expect(formatDayMonth('hi', '2036-10-28')).toMatch(/^28 अक्तूबर/);
   });
 
   it('hands back what it cannot read', () => {
@@ -127,7 +127,7 @@ describe('dueNote', () => {
   it('says autopay will take a due bill, in place of the due date', () => {
     const p = makePayment({ autopayOn: '2036-10-28' });
     expect(dueNote(en, 'en', p)).toBe('Autopay will take this on 28 Oct');
-    expect(dueNote(hi, 'hi', p)).toMatch(/^ऑटोपे 28 अक्टू.* को काटेगा$/);
+    expect(dueNote(hi, 'hi', p)).toMatch(/^ऑटोपे 28 अक्तूबर को काटेगा$/);
   });
 
   it('uses the autopay day even when the bill has no due date of its own', () => {

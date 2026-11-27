@@ -38,7 +38,7 @@ const RegisterPage = lazyRoute(() =>
 const TodayPage = lazyRoute(() =>
   import('@/pages/TodayPage').then((m) => ({ default: m.TodayPage })),
 );
-// The Reports tab (ADR 0056): the last 30 days, grouped by day, with a chip for each family.
+// The Reports pill of the Services door (ADR 0056): the last 30 days, grouped by day, with a chip for each family.
 const ReportsPage = lazyRoute(() =>
   import('@/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
@@ -63,6 +63,22 @@ const ServicesPage = lazyRoute(() =>
 const StaffPage = lazyRoute(() =>
   import('@/pages/StaffPage').then((m) => ({ default: m.StaffPage })),
 );
+// One warrior's page (spec 4.7): points by day, top jobs, leave, entries.
+const StaffPersonPage = lazyRoute(() =>
+  import('@/pages/StaffPersonPage').then((m) => ({ default: m.StaffPersonPage })),
+);
+// One page per service (spec 4.3), opened from a row of the Services door.
+const ServicePage = lazyRoute(() =>
+  import('@/pages/ServicePage').then((m) => ({ default: m.ServicePage })),
+);
+// "My pump" and its Papers and licences page (spec 4.5): the pump's own business, which used to be
+// rows of Settings.
+const PumpPage = lazyRoute(() =>
+  import('@/pages/PumpPage').then((m) => ({ default: m.PumpPage })),
+);
+const PapersPage = lazyRoute(() =>
+  import('@/pages/PapersPage').then((m) => ({ default: m.PapersPage })),
+);
 const SettingsPage = lazyRoute(() =>
   import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
 );
@@ -75,15 +91,15 @@ const SettingsAccountPage = lazyRoute(() =>
 const SettingsTeamPage = lazyRoute(() =>
   import('@/pages/settings/TeamPage').then((m) => ({ default: m.SettingsTeamPage })),
 );
-// Settings → Help videos: MDG's short videos, played in the app. Its own chunk.
+// My pump → Help videos: MDG's short videos, played in the app. Its own chunk.
 const HelpVideosPage = lazyRoute(() =>
   import('@/features/help/HelpVideosPage').then((m) => ({ default: m.HelpVideosPage })),
 );
-// Settings → Autopay: shown and stopped, never started, in the app. Its own chunk.
+// Bill and plan → Autopay: shown and stopped, never started, in the app. Its own chunk.
 const AutopayPage = lazyRoute(() =>
   import('@/features/autopay/AutopayPage').then((m) => ({ default: m.AutopayPage })),
 );
-// Settings → IDs & passwords: the owner's portal logins, with their history. Its own chunk.
+// My pump → IDs & passwords: the owner's portal logins, with their history. Its own chunk.
 const LoginsPage = lazyRoute(() =>
   import('@/features/logins/LoginsPage').then((m) => ({ default: m.LoginsPage })),
 );
@@ -118,7 +134,7 @@ function usePreloadScreens() {
     () =>
       preloadScreens(
         [
-          // The Chats tab's list first: Today is the screen already on show, so it
+          // The Chat door's list first: Today is the screen already on show, so it
           // is not worth a slow link's budget, and the list is one tap away. Today
           // stays in the long list for a cold open at /chat/:id.
           ChatListPage,
@@ -129,6 +145,8 @@ function usePreloadScreens() {
           ReportHost,
           ReportsPage,
           KavachPage,
+          // "My pump" is one tap from every door's top bar.
+          PumpPage,
           SettingsPage,
           ChatInfoPage,
           ChatMediaPage,
@@ -200,7 +218,7 @@ function ProtectedLayout() {
     if (!token || !hasUser) return <EmbedStatus loading={!!token} />;
   } else if (!token) {
     // Register on a phone nobody has signed in on, Sign in otherwise (`firstScreen.ts`).
-    return <Navigate to={firstScreen()} replace state={{ from: location.pathname }} />;
+    return <Navigate to={firstScreen()} replace state={{ from: `${location.pathname}${location.search}` }} />;
   }
   if (mustChangePassword) return <ForcedPasswordChange />;
   return <SignedInShell />;
@@ -229,12 +247,12 @@ function useMonitoringIdentity() {
   }, [user]);
 }
 
-/** The Reports tab: the panel has none (no tab bar, no Today), so its address goes to the chat. */
+/** The Reports pill of the Services door: the panel has none (no tab bar, no Today), so its address goes to the chat. */
 function ReportsRoute() {
   return isEmbedded() ? <Navigate to="/chat" replace /> : <ReportsPage />;
 }
 
-/** The Kavach tab: the panel has none either, so its address goes to the chat. */
+/** The Kavach door: the panel has none either, so its address goes to the chat. */
 function KavachRoute() {
   return isEmbedded() ? <Navigate to="/chat" replace /> : <KavachPage />;
 }
@@ -268,20 +286,20 @@ export function App() {
               element={embedded ? <Navigate to="/chat" replace /> : <RegisterPage />}
             />
             <Route element={<ProtectedLayout />}>
-              {/* Tabs (ADR 0055, 0056). The app opens on TODAY: what is waiting on the
-                  dealer and the newest report of each kind. REPORTS is the last 30 days
-                  of them, by day. CHATS is the
-                  conversation LIST — always a list, even for a member with a single
-                  thread, as WhatsApp does — and the team's messages and every box
-                  stay in the thread. `/?c=<id>` and `/chat?c=<id>` (what a push
-                  naming only a conversation turns into in the native shell) are
-                  sent on into the thread. */}
+              {/* The doors of the bar at the bottom (ADR 0055, 0056, 0057, as changed by the
+                  redesign, spec 2.5): TODAY (`/`), SERVICES (`/services`, with REPORTS as its
+                  second pill, so `/reports` still opens), KAVACH and CHAT. The app opens on TODAY:
+                  what is waiting on the dealer and the newest report of each kind. CHAT is the
+                  conversation LIST — always a list, even for a member with a single thread, as
+                  WhatsApp does — and the team's messages and every box stay in the thread.
+                  `/?c=<id>` and `/chat?c=<id>` (what a push naming only a conversation turns into
+                  in the native shell) are sent on into the thread. */}
               <Route path="/" element={<Home />} />
               {/* The report overlay (ADR 0056). It is drawn by the shell over the screen
                   behind it, which is what `Routes location={background}` above matches, so
                   this route is only reached when nothing is behind the report: Today. */}
               <Route path="/report/:conversationId/:messageId" element={<Home />} />
-              {/* The Reports tab: every report of the last 30 days. */}
+              {/* The Reports pill of the Services door: every report of the last 30 days. */}
               <Route path="/reports" element={<ReportsRoute />} />
               <Route path="/kavach" element={<KavachRoute />} />
               {/* The page was briefly its own address; keep the link working. */}
@@ -292,31 +310,37 @@ export function App() {
               <Route path="/chat/:id/media" element={<ChatMediaPage />} />
               {/* Who is in the thread, and a way into its media. */}
               <Route path="/chat/:id/info" element={<ChatInfoPage />} />
-              {/* Settings, and what hangs off it. Reached from the ⋮ menu on the
-                  chat list. */}
+              {/* "My pump" (spec 4.5): the pump's own business, reached by the labelled
+                  button on every door's top bar. A sub-page, so no bar. */}
+              <Route path="/pump" element={<PumpPage />} />
+              <Route path="/pump/papers" element={<PapersPage />} />
+              {/* The quiet phone page, and what hangs off it. The addresses under it keep their
+                  names: eight push types land on `/settings/autopay`. */}
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/profile" element={<SettingsProfilePage />} />
               <Route path="/settings/account" element={<SettingsAccountPage />} />
               <Route path="/settings/team" element={<SettingsTeamPage />} />
               <Route path="/settings/help" element={<HelpVideosPage />} />
-              {/* Autopay: reached from the Help screen and the Payments page, never
-                  from a Settings row. The owner can see it and stop it; nothing on it
-                  starts one (features/payments/policy.ts). */}
+              {/* Autopay: reached from Bill and plan, never from a row of Settings or
+                  of My pump. The owner can see it and stop it; nothing on it starts one
+                  (features/payments/policy.ts). */}
               <Route path="/settings/autopay" element={<AutopayPage />} />
-              {/* The owner's portal logins and what they were before. A Settings row
+              {/* The owner's portal logins and what they were before. A row of My pump
                   (owner only) opens it; the server refuses anyone else. */}
               <Route path="/settings/logins" element={<LoginsPage />} />
               {/* The old name for Settings (it was the Profile tab). A SECOND MOUNT
                   and not a redirect: nothing about it needs to change address. */}
               <Route path="/profile" element={<SettingsPage />} />
-              {/* Services — Settings → Your services. */}
+              {/* Services: a door of the bar (its Services pill), and a page for each service. */}
               <Route path="/services" element={<ServicesPage />} />
-              {/* Staff Points — owner/manager tool, Settings → Warriors & points. */}
+              <Route path="/services/:serviceId" element={<ServicePage />} />
+              {/* Warriors and points — owner/manager tool, reached from My pump. */}
               <Route path="/staff" element={<StaffPage />} />
-              {/* Payments — what MDG has asked this pump to pay, and what it has
-                  paid (ADR 0022). NO MENU OR SETTINGS ROW POINTS HERE YET: the
-                  owner will say where it belongs, so for now it opens by address
-                  only. Inside the Android app both screens are read-only (no Pay
+              <Route path="/staff/:employeeId" element={<StaffPersonPage />} />
+              {/* Bill and plan — what MDG has asked this pump to pay, and what it has
+                  paid (ADR 0022, spec 4.8). The owner reaches it from the money row of
+                  My pump, the bill notice on Today and a push; a manager gets no new
+                  entry point (owner decision Q3). Inside the Android app both screens are read-only (no Pay
                   button, no link on to a payment page) — that rule lives in
                   features/payments/policy.ts. */}
               <Route path="/payments" element={<PaymentsPage />} />
@@ -330,8 +354,8 @@ export function App() {
                   world still lands somewhere that makes sense — a push from
                   last week (`/documents?ask=<id>`), the native shell's shipped
                   `density` token, a bookmark. Each opens the member's own chat,
-                  where the ask is waiting. (`/kavach` is the Kavach tab now,
-                  ADR 0057.) */}
+                  where the ask is waiting. (`/kavach` is a door of the bar now,
+                  ADR 0057, ADR 0061.) */}
               <Route path="/asks" element={<OpenMyChat />} />
               <Route path="/documents" element={<OpenMyChat />} />
               <Route path="/density" element={<OpenMyChat />} />

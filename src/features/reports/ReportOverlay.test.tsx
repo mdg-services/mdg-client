@@ -22,6 +22,8 @@ vi.mock('@/lib/downloadAttachment', () => ({
 }));
 const copyText = vi.hoisted(() => vi.fn());
 vi.mock('@/lib/clipboard', () => ({ copyText }));
+const largeText = vi.hoisted(() => ({ on: false }));
+vi.mock('@/lib/useLargeText', () => ({ useLargeText: () => largeText.on }));
 
 // The kinds' own drawings are other builders' work and are tested with them. The shell is
 // tested against a stand-in view that says what it was given.
@@ -217,12 +219,41 @@ describe('the shell of a report: header, body, actions', () => {
       expect(screen.getByTestId('report-status').querySelector('svg')).not.toBeNull();
     });
 
+    it('sits right beside the report\'s name, not in the pinned Close row', async () => {
+      apiGet.mockResolvedValue(detail({ status: 'attention' }));
+      setup();
+      await screen.findByTestId('kind-overlay');
+      const status = screen.getByTestId('report-status');
+      const title = screen.getByRole('heading', { level: 1 });
+      // Same row as the name, so at large text it wraps under the name instead of drifting to a corner.
+      expect(status.parentElement).toBe(title.parentElement);
+      expect(screen.getByTestId('report-header-row')).not.toContainElement(status);
+      expect(screen.getByTestId('report-title-band')).toContainElement(status);
+    });
+
+    it('draws no badge for a plain "info" report (nothing to say)', async () => {
+      apiGet.mockResolvedValue(detail({ status: 'info' }));
+      setup();
+      await screen.findByTestId('kind-overlay');
+      expect(screen.queryByTestId('report-status')).toBeNull();
+    });
+
     it('lets the kind call a problem a problem', async () => {
       view.alert = { headline: 'Diesel 412 L short', line: 'x', severity: 'problem' };
       apiGet.mockResolvedValue(detail({ status: 'attention' }));
       setup();
       await screen.findByTestId('kind-overlay');
       expect(within(screen.getByTestId('report-status')).getByText('Problem')).toBeInTheDocument();
+    });
+
+    it('reads an aged alarm as information, like the Services rows and the Reports list do', async () => {
+      // The server turned this water check's tag to "info" once its day passed; the frozen snapshot still alerts.
+      view.alert = { headline: 'x', line: 'x', severity: 'attention' };
+      apiGet.mockResolvedValue(detail({ kind: 'water_ingress', status: 'info', data: { ...snapshot, kind: 'water_ingress' } as never }));
+      setup();
+      await screen.findByTestId('kind-overlay');
+      expect(screen.queryByText('Needs a look')).toBeNull();
+      expect(screen.queryByTestId('report-status')).toBeNull();
     });
 
     it('drops an older report to grey and says so, so a stale red is never taken for today\'s', async () => {
@@ -236,7 +267,7 @@ describe('the shell of a report: header, body, actions', () => {
     });
   });
 
-  it('has Share and See in chat pinned at the bottom, 48 px tall', async () => {
+  it('has Share and See in chat pinned at the bottom, 48 px tall, and nothing else', async () => {
     apiGet.mockResolvedValue(detail());
     setup();
     await screen.findByTestId('kind-overlay');
@@ -245,9 +276,24 @@ describe('the shell of a report: header, body, actions', () => {
     }
     expect(screen.getByTestId('report-share')).toHaveTextContent('Share');
     expect(screen.getByTestId('report-see-in-chat')).toHaveTextContent('See in chat');
+    // Two buttons, never a stack of four; with no kind button of its own, Share is the main one.
+    expect(within(screen.getByTestId('report-footer')).getAllByRole('button')).toHaveLength(2);
+    expect(screen.getByTestId('report-share').className).toMatch(/bg-brand/);
+    expect(screen.getByTestId('report-see-in-chat').className).not.toMatch(/bg-brand/);
+    expect(screen.queryByTestId('report-more')).toBeNull();
     // Footer sits outside the scrolling body, so it stays put.
     expect(screen.getByTestId('report-body').contains(screen.getByTestId('report-share'))).toBe(false);
     expect(screen.getByTestId('report-close').closest('header')).not.toBeNull();
+  });
+
+  it('keeps the buttons at 8 px corners and never in a fixed pixel size', async () => {
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    for (const id of ['report-share', 'report-see-in-chat', 'report-close']) {
+      expect(screen.getByTestId(id).className).toMatch(/rounded-md/);
+      expect(screen.getByTestId(id).className).not.toMatch(/\[\d+px\]/);
+    }
   });
 
   it('closes from the Close button and from Escape', async () => {
@@ -486,9 +532,11 @@ describe('a message from before snapshots: the picture, shown inline', () => {
     setup();
     const words = await screen.findByTestId('report-words-only');
     expect(words).toHaveTextContent('Kal ki bikri ki report taiyaar hai.');
-    // Nothing to share, but the chat is one tap away.
+    // Nothing to share, but the chat is one tap away: the only button, so it is the main one, with no More.
     expect(screen.queryByTestId('report-share')).toBeNull();
     expect(screen.getByTestId('report-see-in-chat')).toBeInTheDocument();
+    expect(screen.getByTestId('report-see-in-chat').className).toMatch(/bg-brand/);
+    expect(screen.queryByTestId('report-more')).toBeNull();
   });
 
   it('does the same for a snapshot of a version this app cannot read, rather than draw half of it', async () => {
@@ -517,8 +565,13 @@ describe('a kind\'s drawing that fails does not take the shell down', () => {
 
 const words = (en: string) => ({ hi: `${en} hi`, hl: `${en} hl`, en });
 
-describe('a report\'s own buttons: pinned above Share and See in chat', () => {
-  it('draws at most two, first, in the brand black, 48 px tall, and keeps Share and See in chat', async () => {
+const openMore = () => {
+  fireEvent.click(screen.getByTestId('report-more'));
+  return screen.getByTestId('report-more-sheet');
+};
+
+describe('a report\'s own buttons: the main one pinned, the rest behind "More"', () => {
+  it('draws at most two kind buttons: the first is the main button, the second goes behind More with Share and See in chat', async () => {
     view.actions = () => [
       { id: 'one', label: words('Copy density'), run: () => undefined },
       { id: 'two', label: words('Second'), run: () => undefined },
@@ -528,23 +581,112 @@ describe('a report\'s own buttons: pinned above Share and See in chat', () => {
     setup();
     await screen.findByTestId('kind-overlay');
     const bar = screen.getByTestId('report-actions');
-    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy density', 'Second']);
+    // Two buttons in the footer, never the old stack of four.
+    expect(within(bar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy density', 'More']);
     expect(screen.getByTestId('report-action-one').className).toMatch(/min-h-12/);
     expect(screen.getByTestId('report-action-one').className).toMatch(/bg-brand/);
-    // The bar is above Share / See in chat and outside the scrolling body.
-    const footer = screen.getByTestId('report-footer');
-    expect(footer.firstElementChild!.firstElementChild).toBe(bar);
+    // The bar is outside the scrolling body.
+    expect(screen.getByTestId('report-footer').firstElementChild!.firstElementChild).toBe(bar);
     expect(screen.getByTestId('report-body').contains(bar)).toBe(false);
-    expect(screen.getByTestId('report-share')).toBeInTheDocument();
-    expect(screen.getByTestId('report-see-in-chat')).toBeInTheDocument();
+    // Nothing else is drawn until More is opened.
+    expect(screen.queryByTestId('report-share')).toBeNull();
+    expect(screen.queryByTestId('report-action-three')).toBeNull();
+    const sheet = openMore();
+    expect(within(sheet).getAllByRole('button').map((b) => b.textContent)).toEqual(['Second', 'Share', 'See in chat', 'Close']);
+    expect(within(sheet).getByTestId('report-share')).toBeInTheDocument();
+    expect(within(sheet).getByTestId('report-see-in-chat')).toBeInTheDocument();
   });
 
-  it('draws no bar at all for a kind with no buttons, and See in chat keeps its solid look', async () => {
+  it('draws no kind buttons for a kind with none: Share is the main button and See in chat the second', async () => {
     apiGet.mockResolvedValue(detail());
     setup();
     await screen.findByTestId('kind-overlay');
-    expect(screen.queryByTestId('report-actions')).toBeNull();
-    expect(screen.getByTestId('report-see-in-chat').className).toMatch(/bg-brand text-text-inverse/);
+    expect(within(screen.getByTestId('report-actions')).getAllByRole('button')).toHaveLength(2);
+    expect(screen.getByTestId('report-share').className).toMatch(/bg-brand text-text-inverse/);
+  });
+
+  it('names what is behind More for a screen reader, and says whether it is open', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    const more = screen.getByTestId('report-more');
+    expect(more).toHaveAttribute('aria-label', 'More: Share, See in chat');
+    expect(more).toHaveAttribute('aria-expanded', 'false');
+    openMore();
+    expect(more).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('group', { name: 'More for this report' })).toBeInTheDocument();
+  });
+
+  it('runs a row of More, and closes the list first', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    apiGet.mockResolvedValue(detail());
+    const { onSeeInChat } = setup();
+    await screen.findByTestId('kind-overlay');
+    openMore();
+    fireEvent.click(screen.getByTestId('report-see-in-chat'));
+    expect(onSeeInChat).toHaveBeenCalledWith({ conversationId: 'c1', messageId: 'm1' });
+    expect(screen.queryByTestId('report-more-sheet')).toBeNull();
+  });
+
+  it('shares from More the same way the main Share button does', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    const share = vi.fn().mockResolvedValue(undefined);
+    setShare(share);
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    openMore();
+    fireEvent.click(screen.getByTestId('report-share'));
+    await waitFor(() => expect(share).toHaveBeenCalled());
+    expect(share.mock.calls[0]![0]).toMatchObject({ text: 'share:dsr_sales:en' });
+  });
+
+  it('closes the list with Escape and leaves the report open, then Escape closes the report', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    apiGet.mockResolvedValue(detail());
+    const { onClose } = setup();
+    await screen.findByTestId('kind-overlay');
+    openMore();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByTestId('report-more-sheet')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    // Focus goes back to the button that opened it.
+    expect(document.activeElement).toBe(screen.getByTestId('report-more'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves focus into the list, and closes it from the scrim and from its own Close', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    apiGet.mockResolvedValue(detail());
+    const { onClose } = setup();
+    await screen.findByTestId('kind-overlay');
+    const sheet = openMore();
+    expect(sheet.contains(document.activeElement)).toBe(true);
+    fireEvent.click(screen.getByTestId('report-more-scrim'));
+    expect(screen.queryByTestId('report-more-sheet')).toBeNull();
+    openMore();
+    fireEvent.click(screen.getByTestId('report-more-close'));
+    expect(screen.queryByTestId('report-more-sheet')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('writes More in Hindi and Hinglish, and every row in the sheet is at least 48 px tall', async () => {
+    view.actions = () => [{ id: 'one', label: words('Do it'), run: () => undefined }];
+    apiGet.mockResolvedValue(detail());
+    useLangStore.setState({ lang: 'hi', explicit: true });
+    const hi = setup();
+    await screen.findByTestId('kind-overlay');
+    expect(screen.getByTestId('report-more')).toHaveTextContent('और विकल्प');
+    expect(screen.getByTestId('report-more')).toHaveAttribute('aria-label', 'और विकल्प: शेयर करें, चैट में देखें');
+    const sheet = openMore();
+    for (const b of within(sheet).getAllByRole('button')) expect(b.className).toMatch(/min-h-12/);
+    hi.unmount();
+    useLangStore.setState({ lang: 'hl', explicit: true });
+    setup();
+    await screen.findByTestId('kind-overlay');
+    expect(screen.getByTestId('report-more')).toHaveTextContent('Aur vikalp');
   });
 
   it('writes a button in the reader\'s language', async () => {
@@ -649,8 +791,12 @@ describe('a report\'s own buttons: pinned above Share and See in chat', () => {
     await waitFor(() => expect(screen.getByTestId('report-action-once')).toHaveAttribute('aria-disabled', 'true'));
     fireEvent.click(screen.getByTestId('report-action-once'));
     expect(once).toHaveBeenCalledTimes(1);
+    // The second button lives behind More; a normal button stays usable.
+    openMore();
     fireEvent.click(screen.getByTestId('report-action-again'));
-    await waitFor(() => expect(screen.getByTestId('report-action-again')).not.toHaveAttribute('aria-disabled'));
+    await waitFor(() => expect(again).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId('report-more')).not.toHaveAttribute('aria-disabled'));
+    openMore();
     fireEvent.click(screen.getByTestId('report-action-again'));
     await waitFor(() => expect(again).toHaveBeenCalledTimes(2));
   });
@@ -674,7 +820,9 @@ describe('a report\'s own buttons: pinned above Share and See in chat', () => {
     apiGet.mockResolvedValue(detail());
     setup();
     expect(await screen.findByTestId('kind-overlay')).toBeInTheDocument();
-    expect(screen.queryByTestId('report-actions')).toBeNull();
+    expect(screen.queryByTestId('report-action-x')).toBeNull();
+    expect(screen.queryByTestId('report-more')).toBeNull();
+    expect(screen.getByTestId('report-share')).toBeInTheDocument();
     expect(screen.getByTestId('report-see-in-chat')).toBeInTheDocument();
   });
 
@@ -684,6 +832,7 @@ describe('a report\'s own buttons: pinned above Share and See in chat', () => {
     setup();
     await screen.findByTestId('report-empty');
     expect(screen.queryByTestId('report-actions')).toBeNull();
+    expect(screen.queryByTestId('report-more')).toBeNull();
   });
 });
 
@@ -816,8 +965,10 @@ describe('a report the team removed is not something to act on', () => {
     fireEvent.click(within(screen.getByTestId('report-footer')).getByTestId('report-go-today'));
     expect(onGoToday).toHaveBeenCalled();
     expect(onSeeInChat).not.toHaveBeenCalled();
-    // The figures it was showing stay readable and shareable.
+    // The figures it was showing stay readable and shareable: Share is the main button, Today's page the second.
     expect(screen.getByTestId('report-share')).toBeInTheDocument();
+    expect(screen.getByTestId('report-share').className).toMatch(/bg-brand/);
+    expect(screen.queryByTestId('report-more')).toBeNull();
   });
 
   it('still offers the kind button and See in chat for a report that is there', async () => {
@@ -826,6 +977,7 @@ describe('a report the team removed is not something to act on', () => {
     setup();
     await screen.findByTestId('kind-overlay');
     expect(screen.getByTestId('report-action-photo')).toBeInTheDocument();
+    openMore();
     expect(screen.getByTestId('report-see-in-chat')).toBeInTheDocument();
     expect(screen.queryByTestId('report-go-today')).toBeNull();
   });
@@ -842,7 +994,7 @@ describe('the frame survives a notch and very large text', () => {
     expect(row.closest('header')!.className).not.toContain('safe-top');
   });
 
-  it('pins only the Close row and the badge: the title scrolls with the report, and the footer is capped at 30% of the screen', async () => {
+  it('pins only the Close row: the title and its badge scroll with the report, and the footer is capped at 40% of the screen', async () => {
     apiGet.mockResolvedValue(detail());
     setup();
     await screen.findByTestId('kind-overlay');
@@ -852,7 +1004,47 @@ describe('the frame survives a notch and very large text', () => {
     expect(screen.getByTestId('report-body')).toContainElement(screen.getByTestId('report-when'));
     // The scrolling body is the one flexible part; the footer scrolls inside its own cap.
     expect(screen.getByTestId('report-body').className).toMatch(/min-h-0.*flex-1.*overflow-y-auto/);
-    expect(screen.getByTestId('report-footer').className).toContain('max-h-[30vh]');
+    expect(screen.getByTestId('report-footer').className).toContain('max-h-[40vh]');
     expect(screen.getByTestId('report-footer').className).toContain('overflow-y-auto');
+  });
+  it('never lets a wide child make the report wider than the screen', async () => {
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    const root = screen.getByTestId('report-overlay');
+    expect(root.className).toMatch(/\bw-full\b/);
+    expect(root.className).toMatch(/\bmin-w-0\b/);
+    expect(root.className).toMatch(/\bmax-w-full\b/);
+    expect(root.className).toContain('overflow-x-hidden');
+    expect(screen.getByTestId('report-body').className).toContain('overflow-x-hidden');
+    // The kind's drawing sits in a box that may shrink, with the same margin on both sides.
+    const box = screen.getByTestId('report-kind-view');
+    expect(box.className).toMatch(/\bmin-w-0\b/);
+    expect(box.className).toMatch(/\bp-4\b/);
+  });
+
+  it('keeps the icon beside the name at normal text and puts it above the name at large text', async () => {
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    expect(screen.getByTestId('report-title-row').className).not.toContain('flex-col');
+    cleanup();
+    largeText.on = true;
+    try {
+      setup();
+      await screen.findByTestId('kind-overlay');
+      expect(screen.getByTestId('report-title-row').className).toContain('flex-col');
+    } finally {
+      largeText.on = false;
+    }
+  });
+
+  it('draws the Close cross in rem, so it grows with the text', async () => {
+    apiGet.mockResolvedValue(detail());
+    setup();
+    await screen.findByTestId('kind-overlay');
+    const cross = screen.getByTestId('report-close').querySelector('svg')!;
+    expect(cross.getAttribute('class')).toContain('h-6');
+    expect(cross.getAttribute('class')).toContain('w-6');
   });
 });

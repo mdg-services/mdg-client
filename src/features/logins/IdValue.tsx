@@ -21,7 +21,7 @@ export function IdValue({ value, name }: { value: string; name: string }) {
         type="button"
         onClick={() => void copy()}
         aria-label={t('logins.copyIdFor', { name })}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
       >
         <Copy width={18} strokeWidth={1.75} aria-hidden />
       </button>

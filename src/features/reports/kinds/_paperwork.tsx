@@ -250,7 +250,7 @@ export interface PhotoFrameProps {
   src: string | undefined;
   /** What the picture is ("Outside photo"). Shown under it and used as its alt text. */
   label: string;
-  /** Side of the square, in px. It never grows past the screen: the frame shrinks to fit. */
+  /** Side of the square, as a number of 16-px steps (156 is 9.75rem): drawn in rem so it grows with the text. It never grows past the screen. */
   size: number;
   lang: Lang;
   /** Opens the picture full screen (`usePhotoViewer`). Without it the photo is only shown. */
@@ -259,18 +259,19 @@ export interface PhotoFrameProps {
 
 /**
  * A square photo with a label under it. No address, or a picture that fails to load, shows a
- * calm box with a camera and a sentence; a failed one also gets a 48 px "Try again". With `onOpen`
+ * calm box with a camera and a sentence; a failed one also gets a 3rem "Try again". With `onOpen`
  * the photo is one big button (the whole square) that opens it full screen.
  */
 export function PhotoFrame({ src, label, size, lang, onOpen }: PhotoFrameProps): ReactElement {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const showImage = Boolean(src) && !failed;
+  const side = `${size / 16}rem`;
   return (
-    <figure className="m-0" style={{ width: size, maxWidth: '100%' }}>
+    <figure className="m-0" style={{ width: side, maxWidth: '100%' }}>
       <div
         className="relative flex items-center justify-center overflow-hidden rounded-xl border border-border bg-kind-paperwork-soft"
-        style={{ width: size, maxWidth: '100%', aspectRatio: '1 / 1' }}
+        style={{ width: side, maxWidth: '100%', aspectRatio: '1 / 1' }}
       >
         {showImage ? (
           onOpen ? (
@@ -319,7 +320,7 @@ export function PhotoFrame({ src, label, size, lang, onOpen }: PhotoFrameProps):
                   setFailed(false);
                   setAttempt((n) => n + 1);
                 }}
-                className="min-h-12 rounded-[10px] border border-border-strong bg-surface px-3 text-cta text-text active:bg-surface-2"
+                className="min-h-12 rounded-lg border border-border-strong bg-surface px-3 text-cta text-text active:bg-surface-2"
               >
                 {TRY_AGAIN[lang]}
               </button>

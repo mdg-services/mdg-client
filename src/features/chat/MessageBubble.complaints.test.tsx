@@ -24,7 +24,6 @@ vi.mock('@/lib/api', async (orig) => ({
   api: { get: h.get, post: h.post },
 }));
 
-const VIEW_PATH = '/v1/me/complaints';
 const ANSWER_PATH = '/v1/me/complaints/answer';
 
 let replies: Array<ComplaintsMeView | ComplaintDealerView | Error> = [];

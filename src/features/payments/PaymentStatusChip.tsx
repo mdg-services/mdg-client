@@ -1,43 +1,23 @@
-import { CheckCircle2, Clock, Undo2, XCircle, type LucideIcon } from 'lucide-react';
-
-import { cn } from '@/lib/cn';
+import { StatusPill } from '@/components/kit';
 import { useT } from '@/lib/i18n';
-import type { PaymentStatus } from '@dk/shared/types';
+import type { DealerPayment } from '@dk/shared/types';
 
-import { STATUS_KEY, STATUS_TONE, type StatusTone } from './paymentView';
+import { billStatus } from './billView';
 
-// Every pair is dark text on its own pale ground, checked to stay above 4.5:1:
-// the reader is outdoors, on a cheap screen, and the chip is the one word on the
-// card that says where the money stands.
-export const TONE_CLASS: Record<StatusTone, string> = {
-  warning: 'bg-warning-soft text-warning-strong',
-  success: 'bg-success-soft text-emerald-800',
-  info: 'bg-info-soft text-blue-800',
-  neutral: 'bg-neutral-soft text-neutral',
-};
-
-const STATUS_ICON: Record<PaymentStatus, LucideIcon> = {
-  due: Clock,
-  processing: Clock,
-  paid: CheckCircle2,
-  cancelled: XCircle,
-  partially_refunded: Undo2,
-  refunded: Undo2,
-};
-
-/** The status of a payment in a word, in the dealer's language. 16px, like the rest. */
-export function PaymentStatusChip({ status }: { status: PaymentStatus }) {
+/**
+ * Where a bill stands, as a shape AND a word (spec 3.1): the tick for "Paid on time", the clock for
+ * "Being confirmed" and for a bill autopay is about to take, the triangle for "Due", the circle-i
+ * for money that went back. Never red, never colour alone. The kit's `StatusPill` draws it.
+ */
+export function PaymentStatusChip({
+  payment,
+}: {
+  payment: Pick<
+    DealerPayment,
+    'status' | 'paidAt' | 'dueDate' | 'autopayOn' | 'waitingForAutopayApproval'
+  >;
+}) {
   const t = useT();
-  const Icon = STATUS_ICON[status];
-  return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-body font-medium',
-        TONE_CLASS[STATUS_TONE[status]],
-      )}
-    >
-      <Icon width={16} height={16} strokeWidth={2} aria-hidden />
-      {t(STATUS_KEY[status])}
-    </span>
-  );
+  const { status, key } = billStatus(payment);
+  return <StatusPill status={status} word={t(key)} />;
 }

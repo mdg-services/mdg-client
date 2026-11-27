@@ -1,8 +1,8 @@
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
-import type { Attachment, KavachDealerCheck, KavachDealerView } from '@dk/shared/types';
+import type { Attachment, KavachDealerCheck, KavachDealerItem, KavachDealerView } from '@dk/shared/types';
 
 /**
  * The outlet's Kavach, as the dealer sees it (ADR 0057 §11): one call, `GET /v1/kavach/me`.
@@ -47,9 +47,33 @@ export function useKavachCheck(checkId: string | null) {
   });
 }
 
+/**
+ * Several checks at once: the when-it-happens photos this phone sent (`useKavachEventSends`). They
+ * share the cache entry of `useKavachCheck`, so a sheet opened on one costs no second request, and
+ * `invalidateKavach` (the socket event, a send) asks for all of them again. A check that cannot be read
+ * comes back with no `data`; the caller falls back to what it remembers.
+ */
+export function useKavachChecks(checkIds: readonly string[]) {
+  const token = useAuthStore((s) => s.token);
+  return useQueries({
+    queries: checkIds.map((id) => ({
+      queryKey: kavachCheckKey(id),
+      enabled: !!token,
+      staleTime: 15_000,
+      retry: false,
+      queryFn: () => api.get<KavachDealerCheck>(`${ME}/checks/${encodeURIComponent(id)}`),
+    })),
+  });
+}
+
 /** A short-lived signed link to the sheet MDG made for this check (an inline PDF). */
 export function fetchKavachSheet(checkId: string): Promise<{ url: string }> {
   return api.get<{ url: string }>(`${ME}/checks/${encodeURIComponent(checkId)}/sheet`);
+}
+
+/** What the server answers a send with: the check as the dealer now sees it. (Read as optional: an older server may send less.) */
+export interface KavachSendResult {
+  check?: KavachDealerItem;
 }
 
 export interface KavachSendInput {
@@ -75,8 +99,8 @@ export function useKavachSend() {
     mutationFn: ({ target, files, note }: KavachSendInput) => {
       const body = { files, note: note ?? null };
       return 'checkId' in target
-        ? api.post<unknown>(`${ME}/checks/${encodeURIComponent(target.checkId)}/submit`, body)
-        : api.post<unknown>(`${ME}/events/${encodeURIComponent(target.code)}`, body);
+        ? api.post<KavachSendResult>(`${ME}/checks/${encodeURIComponent(target.checkId)}/submit`, body)
+        : api.post<KavachSendResult>(`${ME}/events/${encodeURIComponent(target.code)}`, body);
     },
     onSettled: () => invalidateKavach(qc),
   });

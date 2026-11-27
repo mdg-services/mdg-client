@@ -1,8 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { reportDetail } from './_supplyTestKit';
 import { ChatButton, More, clockWords, dayWords, istParts, leading, num, plural, stampWords, timeWords, twoLang } from './_supplyKit';
+import { reportDetail } from './_supplyTestKit';
 
 afterEach(cleanup);
 

@@ -1,5 +1,7 @@
 import type { ReactElement } from 'react';
 
+import { Num, StatTile } from '@/components/kit';
+import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { ElectricalAuditData } from '@dk/shared/types';
 
@@ -111,10 +113,10 @@ function StateIcon({ state }: { state: AuditLineState }): ReactElement {
 
 function Clipboard({ data, lang }: { data: Data; lang: Lang }): ReactElement {
   return (
-    <div className="relative mx-auto w-full max-w-[320px] pt-5" data-clipboard>
+    <div className="relative mx-auto w-full max-w-xs pt-5" data-clipboard>
       {/* the board, then the paper on it, then the clip across the top edge */}
       <div className="rounded-xl border border-kind-paperwork bg-kind-paperwork-soft p-2 pt-6">
-        <div className="max-h-[300px] overflow-y-auto rounded-lg bg-surface">
+        <div className="max-h-72 overflow-y-auto rounded-lg bg-surface">
           {data.audits.length === 0 ? (
             <p className={`p-4 text-body text-text ${lineHeight(lang)}`}>{sayWords(t.nothingOpen, lang)}</p>
           ) : (
@@ -155,9 +157,26 @@ function Clipboard({ data, lang }: { data: Data; lang: Lang }): ReactElement {
 
 function Overlay({ data, lang }: OverlayProps<'electrical_audit'>): ReactElement {
   const open = pointsStillOpen(data);
+  const showFigures = (data.outcome === 'submitted' || data.outcome === 'partly') && data.audits.length > 0;
   return (
     <div data-kind="electrical_audit" className="space-y-4 p-4">
       <Lead lang={lang}>{lead(data, lang)}</Lead>
+      {showFigures ? (
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
+          <StatTile
+            label={translate(lang, 'rv2.elec.audits')}
+            value={<Num value={data.audits.length} />}
+            status={data.outcome === 'partly' ? 'attention' : 'ok'}
+            ariaLabel={`${translate(lang, 'rv2.elec.audits')}: ${data.audits.length}`}
+          />
+          <StatTile
+            label={translate(lang, 'rv2.elec.points')}
+            value={<Num value={data.pointsTotal} />}
+            status={data.outcome === 'partly' ? 'attention' : 'ok'}
+            ariaLabel={`${translate(lang, 'rv2.elec.points')}: ${data.pointsTotal}`}
+          />
+        </div>
+      ) : null}
       <Clipboard data={data} lang={lang} />
       {open > 0 ? (
         <Line lang={lang}>

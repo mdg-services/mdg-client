@@ -14,7 +14,7 @@ vi.mock('@/lib/api', async (orig) => {
 });
 vi.mock('@/lib/monitoring', () => ({ reportIssue: vi.fn(), addCrumb: vi.fn() }));
 
-const { usePushBridge, requestPushPermission } = await import('./usePushBridge');
+const { usePushBridge } = await import('./usePushBridge');
 
 type ShellWindow = {
   ReactNativeWebView?: unknown;

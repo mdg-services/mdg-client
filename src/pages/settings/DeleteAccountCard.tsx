@@ -52,10 +52,11 @@ export function DeleteAccountCard() {
 
   return (
     <>
-      <Card>
+      {/* Set apart from the password card above it: it cannot be undone from the app. */}
+      <Card className="border-danger/40">
         <CardContent>
-          <p className="mb-1 text-subheading text-text">{t('account.delete')}</p>
-          <p className="mb-3 text-meta text-text-muted">
+          <h2 className="mb-1 break-words text-heading text-text">{t('account.delete')}</h2>
+          <p className="mb-3 break-words text-body text-text-muted">
             {t('account.deleteDesc', { days: ACCOUNT_WIPE_AFTER_DAYS })}
           </p>
           <Button variant="danger" onClick={() => setConfirming(true)}>
@@ -90,7 +91,7 @@ function DeleteConfirm({
   const panelRef = useDialog(onCancel);
   const days = ACCOUNT_WIPE_AFTER_DAYS;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <button
         type="button"
         aria-label={t('common.cancel')}
@@ -104,20 +105,20 @@ function DeleteConfirm({
         aria-modal="true"
         aria-labelledby="delete-account-title"
         tabIndex={-1}
-        className="relative w-full max-w-sm rounded-2xl bg-wa-bar p-6 shadow-lg outline-none animate-in"
+        className="animate-in relative max-h-full w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-lg outline-none"
       >
-        <p id="delete-account-title" className="text-heading text-wa-bar-text">
+        <p id="delete-account-title" className="break-words text-heading text-text">
           {t('account.deleteTitle')}
         </p>
-        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-meta text-wa-meta">
+        <ul className="mt-3 flex list-disc flex-col gap-2 pl-5 text-body text-text-muted">
           <li>{t('account.deleteNow')}</li>
           {allOutlets ? <li>{t('account.deleteAllOutlets')}</li> : null}
           <li>{t('account.deleteWipe', { days })}</li>
           <li>{t('account.deleteRecordsStay')}</li>
           <li>{t('account.deleteUndo', { days })}</li>
         </ul>
-        <div className="mt-6 flex justify-end gap-2">
-          <Button variant="ghost" onClick={onCancel} disabled={busy}>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" onClick={onCancel} disabled={busy}>
             {t('common.cancel')}
           </Button>
           <Button variant="danger" onClick={onConfirm} loading={busy}>

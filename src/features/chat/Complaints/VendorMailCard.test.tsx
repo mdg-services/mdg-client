@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "@/lib/api";
+import { type ApiError } from "@/lib/api";
 import { useLangStore } from "@/store/lang";
 import {
   makeComplaintOption,

@@ -1,3 +1,4 @@
+import { fmtMoney, fmtTime, indiaDay } from '@/lib/fmt';
 import type { MessageKey, TFunction } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { SETTLED_STATUSES } from '@dk/shared/types';
@@ -100,20 +101,97 @@ export function splitPayments(items: readonly DealerPayment[]): {
   return { due, history };
 }
 
-const locale = (lang: Lang) => (lang === 'hi' ? 'hi-IN' : 'en-IN');
+/**
+ * A space that never breaks a line: "Rs 3,540" stays in one piece at 200% text. Used for amounts and
+ * for the days inside the new sentences. The plain day formatters below keep ordinary spaces on
+ * purpose: `shellNoPayPath.test.tsx` (pinned, unchanged) looks the old sentences up by their exact
+ * text, and a testing-library text match folds a no-break space into a plain one.
+ */
+export function nb(text: string): string {
+  return text.replace(/ /g, '\u00a0');
+}
+
+/**
+ * Rupees from paise on the money screens (spec 3.3): `Rs 3,540` in English and Hinglish, `₹3,540` in
+ * Hindi, never split across two lines. The one place the Bill and plan screens write an amount.
+ */
+export function money(lang: Lang, paise: number): string {
+  return nb(fmtMoney(paise, lang));
+}
+
+/**
+ * Month names written out, not asked of `Intl`: a cheap Android WebView can ship without the Hindi
+ * locale data and print English months to a Hindi reader (the defect `lib/fmt.ts` was made to end).
+ * Hinglish reads English's letters.
+ */
+const MONTHS: Record<'en' | 'hi', readonly string[]> = {
+  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  hi: [
+    'जनवरी',
+    'फ़रवरी',
+    'मार्च',
+    'अप्रैल',
+    'मई',
+    'जून',
+    'जुलाई',
+    'अगस्त',
+    'सितंबर',
+    'अक्तूबर',
+    'नवंबर',
+    'दिसंबर',
+  ],
+};
+
+const PLAIN_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** `{ y, m, d }` of a `YYYY-MM-DD`, or null when it is not a real calendar day. */
+function readDay(ymd: string): { y: number; m: number; d: number } | null {
+  const m = PLAIN_DAY.exec(ymd);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const check = new Date(Date.UTC(y, mo - 1, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== mo - 1 || check.getUTCDate() !== d) {
+    return null;
+  }
+  return { y, m: mo, d };
+}
+
+function monthName(lang: Lang, m: number): string {
+  return MONTHS[lang === 'hi' ? 'hi' : 'en'][m - 1] ?? '';
+}
+
+const MONTHS_FULL_EN = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
+
+/** A month written out in full for a bill's name ("November", "नवंबर"); Hinglish reads English's letters. */
+export function monthFull(lang: Lang, m: number): string {
+  return lang === 'hi' ? (MONTHS.hi[m - 1] ?? '') : (MONTHS_FULL_EN[m - 1] ?? '');
+}
+
+/** `{ y, m, d }` of a plain calendar day, or null. */
+export function readCalendarDay(ymd: string): { y: number; m: number; d: number } | null {
+  return readDay(ymd);
+}
 
 /** `2026-11-05` → "5 Nov 2026". A calendar date has no time zone, so none is applied. */
 export function formatDueDate(lang: Lang, ymd: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-  if (!m) return ymd;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  if (Number.isNaN(d.getTime())) return ymd;
-  return new Intl.DateTimeFormat(locale(lang), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(d);
+  const day = readDay(ymd);
+  if (!day) return ymd;
+  return `${day.d} ${monthName(lang, day.m)} ${day.y}`;
 }
 
 /**
@@ -122,26 +200,14 @@ export function formatDueDate(lang: Lang, ymd: string): string {
  * phone-width line. Same calendar-day reading as `formatDueDate`.
  */
 export function formatDayMonth(lang: Lang, ymd: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
-  if (!m) return ymd;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  if (Number.isNaN(d.getTime())) return ymd;
-  return new Intl.DateTimeFormat(locale(lang), {
-    day: 'numeric',
-    month: 'short',
-    timeZone: 'UTC',
-  }).format(d);
+  const day = readDay(ymd);
+  if (!day) return ymd;
+  return `${day.d} ${monthName(lang, day.m)}`;
 }
 
 /** Today's calendar day in India, `YYYY-MM-DD`, whatever time zone the phone is set to. */
 export function todayIst(now: number = Date.now()): string {
-  // The "en-CA" locale writes a date as year-month-day.
-  return new Intl.DateTimeFormat('en-CA', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Kolkata',
-  }).format(new Date(now));
+  return indiaDay(new Date(now));
 }
 
 /**
@@ -183,27 +249,14 @@ export function dueNote(
 export function formatDay(lang: Lang, iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat(locale(lang), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Asia/Kolkata',
-  }).format(d);
+  return formatDueDate(lang, indiaDay(d));
 }
 
 /** A moment on a receipt, "5 Nov 2026, 3:20 pm" — always Indian time, whatever the phone says. */
 export function formatDateTimeIst(lang: Lang, iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat(locale(lang), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-    timeZone: 'Asia/Kolkata',
-  }).format(d);
+  return `${formatDay(lang, iso)}, ${fmtTime(d, lang)}`;
 }
 
 const METHOD_KEY: Record<string, MessageKey> = {

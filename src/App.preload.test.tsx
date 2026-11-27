@@ -45,11 +45,16 @@ vi.mock('@/pages/SettingsPage', () => {
   h.loaded.push('settings');
   return { SettingsPage: () => <div>settings-page</div> };
 });
+// "My pump" is one tap from every door's top bar, so it is in the long list.
+vi.mock('@/pages/PumpPage', () => {
+  h.loaded.push('pump');
+  return { PumpPage: () => <div>pump-page</div> };
+});
 
 afterEach(() => resetStores());
 
 describe('the screens the app downloads ahead of the tap (ADR 0055)', () => {
-  it('puts the Chats tab\'s list in the short list for a slow link, not the screen already on show', async () => {
+  it('puts the Chat door\'s list in the short list for a slow link, not the screen already on show', async () => {
     markAccountHere();
     signIn();
     renderWithProviders(<App />, { route: '/asks', withRouter: true });
@@ -61,8 +66,8 @@ describe('the screens the app downloads ahead of the tap (ADR 0055)', () => {
     await Promise.all(h.lists!.slow.map((s) => s.preload()));
     expect([...h.loaded].sort()).toEqual(['chat', 'chats']);
 
-    // The long list is the short one plus the rest, Today and Settings among them.
+    // The long list is the short one plus the rest, Today, My pump and Settings among them.
     await Promise.all(h.lists!.all.map((s) => s.preload()));
-    expect([...h.loaded].sort()).toEqual(['chat', 'chats', 'settings', 'today']);
+    expect([...h.loaded].sort()).toEqual(['chat', 'chats', 'pump', 'settings', 'today']);
   });
 });

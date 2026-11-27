@@ -1,6 +1,6 @@
-import { PhotoRejected } from './uploadMockDrillPhoto';
 import { resolveFileType } from './uploadAttachment';
 import { preparePhoto, presignAndPut, type PreparedPhoto } from './uploadCommon';
+import { PhotoRejected } from './uploadMockDrillPhoto';
 
 /**
  * Prepare and upload one photo for the work-permit box (ADR 0053): the letterhead,

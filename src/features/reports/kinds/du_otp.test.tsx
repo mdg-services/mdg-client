@@ -160,3 +160,34 @@ describe('DU OTP: no tile, no alert (it is a task), plain headline and share', (
     expect(groups[0]!.events).toHaveLength(2);
   });
 });
+
+describe('DU OTP: the kit parts', () => {
+  it('puts the dispenser cards in one card that counts the dispensers', () => {
+    renderOverlay(view, duOtp());
+    const card = screen.getByRole('region', { name: /Dispensers/ });
+    expect(within(card).getByRole('heading', { name: /Dispensers/ })).toHaveTextContent('2');
+    expect(within(card).getAllByTestId('du-card')).toHaveLength(2);
+  });
+
+  it('puts what we need from the dealer under its own heading while it is pending, and nowhere once submitted', () => {
+    renderOverlay(view, duOtp());
+    expect(screen.getByRole('region', { name: 'What we need from you' })).toBeInTheDocument();
+    cleanup();
+    renderOverlay(view, duOtp({ phase: 'submitted', supplyBlocked: undefined, submittedAt: '2026-11-24T08:35:00.000Z' }));
+    expect(screen.queryByRole('region', { name: 'What we need from you' })).toBeNull();
+  });
+
+  it('says "Dispensers" in Hindi and draws no card when the message has no list', () => {
+    renderOverlay(view, duOtp(), 'hi');
+    expect(screen.getByRole('region', { name: /डिस्पेंसर/ })).toBeInTheDocument();
+    cleanup();
+    renderOverlay(view, duOtp({ events: [] }));
+    expect(screen.queryByRole('region', { name: /Dispensers/ })).toBeNull();
+    expect(screen.getByTestId('du-no-events')).toBeInTheDocument();
+  });
+
+  it('uses no fixed pixel height on the chips', () => {
+    const { container } = renderOverlay(view, duOtp());
+    expect(container.innerHTML).not.toMatch(/h-\[\d+px|w-\[\d+px|text-\[\d/);
+  });
+});

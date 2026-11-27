@@ -7,8 +7,7 @@
  * is translated a few seconds after it arrives (`Message.bodyByLang` + `bodyLang`).
  * These two helpers pick this reader's own.
  */
-import { sayIn, type DealerLang } from '@dk/shared/types';
-import type { Message } from '@dk/shared/types';
+import { sayIn, type DealerLang, type Message } from '@dk/shared/types';
 
 /**
  * The message with this reader's own-language pictures in `attachments`, so every

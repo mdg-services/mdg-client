@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { Route, Routes } from 'react-router-dom';
+import { Route, Routes, useNavigate } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { AppBar } from '@/components/AppBar';
@@ -89,8 +89,9 @@ const { ChatListPage } = await import('./pages/ChatListPage');
 /**
  * The shell: the frame every screen is drawn in.
  *
- * The shell draws NO header — each screen draws one `AppBar` of its own — and its
- * only bottom bar is the tab one, on Today, Chats, Reports and Kavach alone (ADR 0055, 0056, 0057). So this
+ * The shell draws NO header — each screen draws one bar of its own — and its
+ * only bottom bar is the tab one, on Today, Services, Kavach and Chat alone (ADR 0055, 0056, 0057,
+ * and the redesign's four doors, spec 2.1; Reports is the Services door's second pill). So this
  * file pins the frame: nothing stacked above a screen's own bar, nothing reserved
  * at the bottom, and a fixed-height frame for an open conversation only.
  *
@@ -120,13 +121,28 @@ function conv(over: Partial<Conversation> = {}): Conversation {
   } as Conversation;
 }
 
+/** A button that presses the phone's Back, so a test can see where Back lands. */
+function PhoneBack() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" onClick={() => navigate(-1)}>
+      phone-back
+    </button>
+  );
+}
+
 /**
- * A stand-in for a screen: nothing but its own top bar. A route stub WITHOUT one
+ * A stand-in for a screen: nothing but its own top bar (and a button that presses the phone's Back). A route stub WITHOUT one
  * would prove nothing about what hangs under a bar. The bar's title is the
  * stub's only text.
  */
 function Screen({ name }: { name: string }) {
-  return <AppBar title={name} />;
+  return (
+    <>
+      <AppBar title={name} />
+      <PhoneBack />
+    </>
+  );
 }
 
 function renderShell(route: string) {
@@ -142,6 +158,9 @@ function renderShell(route: string) {
         <Route path="/chat/:id/info" element={<Screen name="info-page" />} />
         <Route path="/settings" element={<Screen name="settings-page" />} />
         <Route path="/services" element={<Screen name="services-page" />} />
+        <Route path="/services/:serviceId" element={<Screen name="service-page" />} />
+        <Route path="/pump" element={<Screen name="pump-page" />} />
+        <Route path="/kavach" element={<Screen name="kavach-page" />} />
       </Route>
     </Routes>,
     { route, withRouter: true },
@@ -178,15 +197,17 @@ describe('AppShell — the frame', () => {
   // The bar has three doors (a fourth where Kavach is on), and only on the screens they open.
   it.each([
     ['/', 'today-page', 'Today'],
-    ['/chat', 'Dealer Kavach', 'Chats'],
-    ['/reports', 'reports-page', 'Reports'],
-  ])('draws the Today / Chats / Reports bar on %s, with %s\'s tab selected', async (route, marker, selected) => {
+    ['/chat', 'Chats', 'Chat'],
+    ['/services', 'services-page', 'Services'],
+    // Reports is the Services door's second pill: the old address still opens, on that door.
+    ['/reports', 'reports-page', 'Services'],
+  ])('draws the Today / Services / Chat bar on %s, with %s\'s door %s selected', async (route, marker, selected) => {
     h.convos = [conv({ id: 'only' })];
     renderShell(route);
     await screen.findByText(marker);
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual(['Today', 'Chats', 'Reports']);
+    expect(tabs.map((tab) => tab.textContent?.replace(/\d+$/, ''))).toEqual(['Today', 'Services', 'Chat']);
     expect(screen.getByRole('tab', { name: new RegExp(`^${selected}`) })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -195,18 +216,20 @@ describe('AppShell — the frame', () => {
 
   it('adds the Kavach door, with the points to do on it, where Kavach is on for the pump', async () => {
     h.convos = [conv({ id: 'only' })];
-    h.kavach = { on: true, now: [{}, {}] };
-    renderShell('/reports');
-    await screen.findByText('reports-page');
+    const todo = { canSend: true, how: 'photo', everyDays: 1, state: 'todo', late: false };
+    h.kavach = { on: true, now: [todo, todo] };
+    renderShell('/services');
+    await screen.findByText('services-page');
     const tabs = screen.getAllByRole('tab');
     // The badge's number comes before the word.
-    expect(tabs.map((tab) => tab.textContent?.replace(/^\d+/, ''))).toEqual(['Today', 'Chats', 'Reports', 'Kavach']);
+    expect(tabs.map((tab) => tab.textContent?.replace(/^\d+/, ''))).toEqual(['Today', 'Services', 'Kavach', 'Chat']);
     expect(screen.getByRole('img', { name: '2 to do' })).toHaveTextContent('2');
   });
 
   it.each([
     ['/settings', 'settings-page'],
-    ['/services', 'services-page'],
+    ['/services/dsr_sales', 'service-page'],
+    ['/pump', 'pump-page'],
     ['/chat/c1', 'thread-page'],
     ['/chat/c1/info', 'info-page'],
   ])('draws no tab bar on %s — not in a chat, not on Settings, not on a sub-page', async (route, title) => {
@@ -224,7 +247,7 @@ describe('AppShell — the frame', () => {
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
-  it('counts what is waiting: open tasks on Today, chats with something unread on Chats', async () => {
+  it('counts what is waiting: open tasks on Today, chats with something unread on Chat', async () => {
     h.feed = { tasks: [{}, {}, {}] };
     h.convos = [
       conv({ id: 'a', unreadCount: 2 }),
@@ -234,26 +257,52 @@ describe('AppShell — the frame', () => {
     renderShell('/');
     await screen.findByText('today-page');
 
-    expect(screen.getByRole('img', { name: '3 to do' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: '3 for you' })).toBeInTheDocument();
     expect(screen.getByRole('img', { name: '2 unread' })).toBeInTheDocument();
   });
 
-  it('moves between the tabs, one screen replacing the other', async () => {
+  it('moves between the doors, one screen replacing the other', async () => {
     h.convos = [conv({ id: 'only' })];
     const user = userEvent.setup();
     renderShell('/');
     await screen.findByText('today-page');
 
-    await user.click(screen.getByRole('tab', { name: /^Chats/ }));
-    expect(await screen.findByText('Dealer Kavach')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /^Chat/ }));
+    expect(await screen.findByText('Chats')).toBeInTheDocument();
     expect(screen.queryByText('today-page')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: /^Today/ }));
     expect(await screen.findByText('today-page')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('tab', { name: /^Reports/ }));
-    expect(await screen.findByText('reports-page')).toBeInTheDocument();
+    await user.click(screen.getByRole('tab', { name: /^Services/ }));
+    expect(await screen.findByText('services-page')).toBeInTheDocument();
     expect(screen.queryByText('today-page')).not.toBeInTheDocument();
+  });
+
+  // The Back rule (spec 2.4): Back from another door lands on Today, and Back on Today leaves.
+  it('the phone\'s Back from Services lands on Today: Today pushed one entry', async () => {
+    const user = userEvent.setup();
+    renderShell('/');
+    await screen.findByText('today-page');
+    await user.click(screen.getByRole('tab', { name: /^Services/ }));
+    expect(await screen.findByText('services-page')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'phone-back' }));
+    expect(await screen.findByText('today-page')).toBeInTheDocument();
+  });
+
+  it('the phone\'s Back from the next door still lands on Today: one door to another replaces', async () => {
+    h.kavach = { on: true, now: [] };
+    const user = userEvent.setup();
+    renderShell('/');
+    await screen.findByText('today-page');
+    await user.click(screen.getByRole('tab', { name: /^Services/ }));
+    await screen.findByText('services-page');
+    await user.click(screen.getByRole('tab', { name: /^Kavach/ }));
+    expect(await screen.findByText('kavach-page')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'phone-back' }));
+    expect(await screen.findByText('today-page')).toBeInTheDocument();
   });
 
   /**
@@ -332,7 +381,7 @@ describe('AppShell — the frame', () => {
   it('leaves the chat list as an ordinary scrolling page', async () => {
     h.convos = [conv({ id: 'support' })];
     const { container } = renderShell('/chat');
-    await screen.findByText('Dealer Kavach');
+    await screen.findByText('Chats');
 
     expect((container.firstElementChild as HTMLElement).style.height).toBe('');
     expect(container.querySelector('main')!.className).not.toMatch(/overflow-hidden/);
@@ -385,7 +434,7 @@ describe('AppShell — no ask strip', () => {
   it('draws nothing under the chat list bar either', async () => {
     h.convos = [conv({ id: 'only' })];
     renderShell('/chat');
-    await screen.findByText('Dealer Kavach');
+    await screen.findByText('Chats');
 
     expect(screen.queryByRole('button', { name: /to send|Send /i })).not.toBeInTheDocument();
   });

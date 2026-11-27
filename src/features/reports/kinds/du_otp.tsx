@@ -1,6 +1,8 @@
 import { Check, FileText, Minus, MessageSquareText, Pencil, Wrench } from 'lucide-react';
 import * as React from 'react';
 
+import { SectionCard } from '@/components/kit';
+import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { DuOtpEvent, DuOtpSnapReason, ReportDataOf } from '@dk/shared/types';
 
@@ -17,7 +19,7 @@ import {
   type Words,
 } from '../types';
 
-import { BlockTitle, GlyphBox, Lead, More, Note, dayWords, leading, stampWords, timeWords } from './_supplyKit';
+import { GlyphBox, Lead, More, Note, dayWords, leading, stampWords, timeWords } from './_supplyKit';
 
 /**
  * DU OTP (ADR 0056): the PADLOCK. A dispenser was opened or re-checked and IndianOil wants
@@ -265,7 +267,7 @@ function Padlock({ phase, count }: { phase: Phase; count: number }): React.React
 
 function Chip({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }): React.ReactElement {
   return (
-    <span className="inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-3 py-1 text-body text-text">
+    <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border-strong bg-surface-2 px-3 py-1 text-body text-text">
       {icon}
       <span className="break-words">{children}</span>
     </span>
@@ -398,11 +400,13 @@ function Overlay({ data, lang }: OverlayProps<'du_otp'>): React.ReactElement {
           {sayWords(W.noEvents, lang)}
         </Note>
       ) : (
-        <ul className="flex list-none flex-col gap-2 p-0" data-testid="du-cards">
-          {shown.map((g) => (
-            <DuCard key={g.key} group={g} lang={lang} submitted={submitted} />
-          ))}
-        </ul>
+        <SectionCard title={translate(lang, 'rv2.du.dispensers')} count={groups.length}>
+          <ul className="flex list-none flex-col gap-2 p-0" data-testid="du-cards">
+            {shown.map((g) => (
+              <DuCard key={g.key} group={g} lang={lang} submitted={submitted} />
+            ))}
+          </ul>
+        </SectionCard>
       )}
       {hiddenDus > 0 ? (
         <p className="text-subheading text-text" data-testid="du-more">
@@ -416,24 +420,25 @@ function Overlay({ data, lang }: OverlayProps<'du_otp'>): React.ReactElement {
       ) : null}
 
       {!submitted ? (
-        <section className="flex flex-col gap-2" aria-label={sayWords(W.needTitle, lang)} data-testid="du-need">
-          <BlockTitle>{sayWords(W.needTitle, lang)}</BlockTitle>
-          <ul className="flex list-none flex-wrap gap-2 p-0">
-            <li>
-              <Chip icon={<MessageSquareText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needWhy, lang)}</Chip>
-            </li>
-            <li>
-              <Chip icon={<FileText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needCertificate, lang)}</Chip>
-            </li>
-            <li>
-              <Chip icon={<FileText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needReport, lang)}</Chip>
-            </li>
-            <li>
-              <Chip icon={<Pencil aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needRemark, lang)}</Chip>
-            </li>
-          </ul>
-          <p className={`text-body text-text-muted ${leading(lang)}`}>{sayWords(W.needNote, lang)}</p>
-        </section>
+        <SectionCard title={sayWords(W.needTitle, lang)} variant="tinted">
+          <div className="flex flex-col gap-2" data-testid="du-need">
+            <ul className="flex list-none flex-wrap gap-2 p-0">
+              <li>
+                <Chip icon={<MessageSquareText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needWhy, lang)}</Chip>
+              </li>
+              <li>
+                <Chip icon={<FileText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needCertificate, lang)}</Chip>
+              </li>
+              <li>
+                <Chip icon={<FileText aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needReport, lang)}</Chip>
+              </li>
+              <li>
+                <Chip icon={<Pencil aria-hidden="true" className="h-4 w-4" />}>{sayWords(W.needRemark, lang)}</Chip>
+              </li>
+            </ul>
+            <p className={`text-body text-text-muted ${leading(lang)}`}>{sayWords(W.needNote, lang)}</p>
+          </div>
+        </SectionCard>
       ) : null}
 
       {groups.some((g) => g.events.some((e) => e.portalStatus)) && submitted ? (

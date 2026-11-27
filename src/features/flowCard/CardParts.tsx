@@ -50,11 +50,11 @@ export function CardFrame({
           <h3 id={titleId} className="min-w-0 break-words text-body font-semibold">
             {title}
           </h3>
-          {meta ? <span className="text-micro tabular-nums text-wa-meta">{meta}</span> : null}
+          {meta ? <span className="text-meta tabular-nums text-wa-meta">{meta}</span> : null}
         </div>
         {progress ? (
           <div className="mt-1">
-            <p className="text-micro font-medium text-wa-meta">{progress.label}</p>
+            <p className="text-meta font-medium text-wa-meta">{progress.label}</p>
             <div
               role="progressbar"
               aria-valuemin={0}
@@ -80,7 +80,7 @@ export type MarkKind = 'done' | 'open' | 'later' | 'problem' | 'working';
 
 /** The round mark at a row's left: what state the row is in, never by colour alone. */
 export function RowMark({ kind, n }: { kind: MarkKind; n?: number }) {
-  const base = 'grid size-5 shrink-0 place-items-center rounded-full text-[0.6875rem] font-semibold leading-none';
+  const base = 'grid size-5 shrink-0 place-items-center rounded-full text-micro font-semibold leading-none';
   if (kind === 'done') {
     return (
       <span aria-hidden className={cn(base, 'bg-status-ok text-white flow-tick')}>
@@ -177,7 +177,7 @@ export function Pill({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex min-h-9 flex-col items-center justify-center rounded-full border py-1 text-center',
+        'inline-flex min-h-11 flex-col items-center justify-center rounded-full border py-1 text-center',
         tight ? 'min-w-[2.5rem] px-2.5' : 'min-w-[2.75rem] px-3',
         'text-meta font-semibold transition-[background-color,border-color,color,transform] duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
@@ -190,7 +190,7 @@ export function Pill({
     >
       <span className="leading-none">{children}</span>
       {hint ? (
-        <span className={cn('mt-0.5 text-[0.6875rem] font-normal leading-none', on ? 'text-white/80' : 'text-wa-meta')}>{hint}</span>
+        <span className={cn('mt-0.5 text-meta font-normal leading-none', on ? 'text-white/80' : 'text-wa-meta')}>{hint}</span>
       ) : null}
     </button>
   );
@@ -224,7 +224,7 @@ export function FootButton({
       disabled={disabled}
       aria-busy={busy || undefined}
       className={cn(
-        'inline-flex min-h-10 min-w-[7rem] flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-meta font-semibold',
+        'inline-flex min-h-11 min-w-[7rem] flex-1 items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-meta font-semibold',
         'transition-[background-color,opacity,transform] duration-150 ease-out active:scale-[0.98] motion-reduce:transition-none',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring',
         tone === 'primary'
@@ -252,7 +252,7 @@ export function ProblemRow({ text, detail }: { text: string; detail: string[] })
         <span className="sr-only">{t('flow.stateProblem')}: </span>
         <p className="break-words text-meta font-semibold text-status-problem-ink">{text}</p>
         {detail.map((d, i) => (
-          <p key={i} className="mt-0.5 break-words text-micro text-wa-bubble-text/80">
+          <p key={i} className="mt-0.5 break-words text-meta text-wa-bubble-text/80">
             {d}
           </p>
         ))}
@@ -264,7 +264,7 @@ export function ProblemRow({ text, detail }: { text: string; detail: string[] })
 /** A warning line above the main button: read it, it never stops the order. */
 export function WarningLine({ children }: { children: React.ReactNode }) {
   return (
-    <p className="mt-1 flex gap-1.5 text-micro text-status-attention-ink">
+    <p className="mt-1 flex gap-1.5 text-meta text-status-attention-ink">
       <TriangleAlert aria-hidden className="mt-px size-3.5 shrink-0" strokeWidth={2} />
       <span className="min-w-0 break-words">{children}</span>
     </p>
@@ -288,7 +288,7 @@ export function VideoRow({ title, seconds, onPlay }: { title: string; seconds: n
       type="button"
       onClick={onPlay}
       aria-label={`${t('flow.watch')}: ${title}`}
-      className="flex min-h-9 min-w-0 flex-1 basis-[11rem] items-center gap-1.5 rounded-md px-2 text-left text-micro text-wa-meta active:bg-wa-row-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
+      className="flex min-h-11 min-w-0 flex-1 basis-[11rem] items-center gap-1.5 rounded-md px-2 text-left text-meta text-wa-meta active:bg-wa-row-active focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
     >
       <Play aria-hidden width="1em" height="1em" strokeWidth={2.5} className="shrink-0 fill-current" />
       <span className="min-w-0 break-words">

@@ -1,13 +1,25 @@
-import { MessageCircle, PlayCircle, VideoOff } from 'lucide-react';
+import { MessageCircle, PlayCircle, Sparkles, VideoOff } from 'lucide-react';
 import * as React from 'react';
 
+import { ListRow } from '@/components/kit/ListRow';
+import { ProgressBar } from '@/components/kit/ProgressBar';
+import { SectionCard } from '@/components/kit/SectionCard';
+import { SkeletonBlock } from '@/components/kit/SkeletonBlock';
+import { StatusPill } from '@/components/kit/StatusPill';
 import { SubPageBar } from '@/components/SubPage';
-import { Button, Spinner } from '@/components/ui';
-import { useOwnerAutopay } from '@/features/autopay/api';
-import { AutopayHelpRow } from '@/features/autopay/AutopayHelpRow';
+import { Button, Card } from '@/components/ui';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
+import {
+  helpGroups,
+  helpProgress,
+  type HelpGroupId,
+  type HelpKnown,
+  type HelpRow,
+} from '@/features/pump/pumpModel';
+import { useYourVideos } from '@/features/yourVideos/useYourVideos';
 import { useLang, useT } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
+import { WHATS_NEW_VIDEO } from '@dk/shared';
 import type { GuideVideoListItem } from '@dk/shared/types';
 
 import { GuideVideoSheet } from './GuideVideoSheet';
@@ -15,21 +27,19 @@ import { durationLabel, playableVideos, videoSummary, videoTitle } from './helpV
 import { useGuideVideos } from './useGuideVideos';
 
 /**
- * Settings → Help videos: MDG's short videos, played right here.
+ * Help videos (`/settings/help`, spec 4.5): MDG's short videos, played right here, with the ones for
+ * the services this pump has first, a tick on each one already watched, and "6 of 13 watched, next:
+ * ..." on top. A row "Replay what is new" brings back the one-time video the app plays by itself.
  *
- * This replaced a link that left the app for a separate video website. The list
- * comes from the server (`GET /v1/me/guide-videos`), so a video MDG adds shows up
- * here with no new version of the app; tapping one opens the in-app player.
+ * The list comes from the server (`GET /v1/me/guide-videos`), so a video MDG adds shows up here with
+ * no new version of the app. Which of them are for this pump's services, and which this person has
+ * watched, comes from `GET /v1/me/your-videos`: the same videos, the same person's ticks. Where that
+ * answer is not there (an older server, a failed call) the page draws every video in one plain list
+ * without ticks, and never says anything it could not know.
  *
- * Nothing here points at a way to pay: the server never sends the "paying your
- * bill" video to the app, and this screen adds no link of its own. Under the list
- * is the other way to get help: ask in the chat.
- *
- * At the very top, for the owner and only while there is an autopay to show (or
- * its status would not load: then the row says so and still opens the Autopay
- * screen, which has its own Try again), is the Autopay row (ADR 0022 §13): where
- * autopay is seen and stopped from inside the app. The videos never wait on it,
- * and it never says how to turn it on.
+ * Nothing here points at a way to pay: the server never sends the "paying your bill" video to the
+ * app, and this screen adds no link of its own. Autopay is not here any more: it lives on Bill and
+ * plan. Under the list is the other way to get help: ask in the chat.
  *
  * The bar is on every state, including a failed load, so there is always a way out.
  */
@@ -37,8 +47,7 @@ export function HelpVideosPage() {
   const t = useT();
   const lang = useLang();
   const q = useGuideVideos();
-  // After the videos' own query, so the list is the first thing asked for.
-  const { autopay, failed: autopayFailed } = useOwnerAutopay();
+  const mine = useYourVideos();
   const openChat = useOpenMyChat();
   const [playing, setPlaying] = React.useState<GuideVideoListItem | null>(null);
   const closePlayer = React.useCallback(() => setPlaying(null), []);
@@ -48,24 +57,71 @@ export function HelpVideosPage() {
   // false for both, and a spinner waiting on a network that is not there never ends.
   const failed = !q.data && (q.isError || (q.status === 'pending' && q.fetchStatus === 'paused'));
 
+  const view = mine.data;
+  const known = React.useMemo<HelpKnown | null>(() => {
+    // Anything but the two lists is "no answer": the page then draws without groups or ticks.
+    if (!view || !Array.isArray(view.mine) || !Array.isArray(view.more)) return null;
+    const all = [...view.mine, ...view.more];
+    return {
+      mine: new Set(view.mine.map((r) => r.id)),
+      more: new Set(view.more.map((r) => r.id)),
+      watched: new Set(all.filter((r) => r.watched).map((r) => r.id)),
+    };
+  }, [view]);
+
+  const whatsNew = videos.find((v) => v.id === WHATS_NEW_VIDEO.id) ?? null;
+  const groups = helpGroups(videos, known, whatsNew ? [whatsNew.id] : []);
+  const progress = helpProgress(groups);
+
   return (
     <>
       <SubPageBar title={t('help.title')} />
-      <div className="flex flex-1 flex-col bg-wa-bar pb-6">
-        {/* The owner's autopay, when there is one. Above everything and
-            independent of it: the videos never wait on this row. */}
-        {autopay || autopayFailed ? <AutopayHelpRow autopay={autopay} /> : null}
+      <div className="flex flex-1 flex-col gap-3 bg-bg p-4 pb-6">
         {q.data ? (
           videos.length > 0 ? (
             <>
-              <p className="px-5 pb-1 pt-4 text-meta text-wa-meta">{t('help.intro')}</p>
-              <ul data-testid="help-videos">
-                {videos.map((v) => (
-                  <li key={v.id}>
-                    <VideoRow video={v} lang={lang} onPlay={() => setPlaying(v)} />
-                  </li>
+              {progress.total > 0 ? (
+                <Card className="flex flex-col gap-3 p-4">
+                  <ProgressBar
+                    value={progress.done}
+                    max={progress.total}
+                    text={t('yourVideos.progress', { done: progress.done, total: progress.total })}
+                  />
+                  {progress.next ? (
+                    <Button variant="secondary" onClick={() => setPlaying(progress.next)} className="self-start text-left">
+                      {t('pump.help.next', { title: videoTitle(progress.next, lang) })}
+                    </Button>
+                  ) : (
+                    <p className="break-words text-body text-text-muted">{t('pump.help.allWatched')}</p>
+                  )}
+                </Card>
+              ) : null}
+
+              {whatsNew ? (
+                <Card className="px-4">
+                  <ListRow
+                    leading={<Sparkles aria-hidden className="h-5 w-5 text-text-muted" strokeWidth={1.75} />}
+                    title={t('pump.help.replayRow')}
+                    subtitle={t('pump.help.replayDesc')}
+                    onPress={() => setPlaying(whatsNew)}
+                  />
+                </Card>
+              ) : null}
+
+              <p className="break-words text-body text-text-muted">{t('help.intro')}</p>
+              <div data-testid="help-videos" className="flex flex-col gap-3">
+                {groups.map((g) => (
+                  <SectionCard key={g.id} title={t(GROUP_TITLE[g.id])} variant="list">
+                    <ul>
+                      {g.rows.map((row) => (
+                        <li key={row.video.id}>
+                          <VideoRow row={row} lang={lang} onPlay={() => setPlaying(row.video)} />
+                        </li>
+                      ))}
+                    </ul>
+                  </SectionCard>
                 ))}
-              </ul>
+              </div>
             </>
           ) : (
             <Notice title={t('help.emptyTitle')} description={t('help.emptyDesc')} />
@@ -81,56 +137,48 @@ export function HelpVideosPage() {
             }
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center py-20">
-            <Spinner size={22} />
-          </div>
+          <SkeletonBlock lines={4} />
         )}
 
-        <ul className="mt-2 border-t border-wa-divider">
-          <li>
-            <button
-              type="button"
-              onClick={openChat}
-              className="flex min-h-[64px] w-full items-center gap-5 px-5 py-2.5 text-left active:bg-wa-row-active"
-            >
-              <span aria-hidden className="flex h-6 w-6 shrink-0 items-center justify-center text-wa-bar-icon">
-                <MessageCircle width={24} height={24} strokeWidth={1.75} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-body text-wa-bar-text">
-                  {t('help.askInChat')}
-                </span>
-                <span className="block truncate text-meta text-wa-meta">
-                  {t('help.askInChatDesc')}
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
+        <Card className="px-4">
+          <ListRow
+            leading={<MessageCircle aria-hidden className="h-5 w-5 text-text-muted" strokeWidth={1.75} />}
+            title={t('help.askInChat')}
+            subtitle={t('help.askInChatDesc')}
+            onPress={openChat}
+          />
+        </Card>
       </div>
 
       {playing ? (
-        <GuideVideoSheet
-          id={playing.id}
-          title={videoTitle(playing, lang)}
-          onClose={closePlayer}
-        />
+        <GuideVideoSheet id={playing.id} title={videoTitle(playing, lang)} onClose={closePlayer} />
       ) : null}
     </>
   );
 }
 
-/** One video: a play mark, its title, one line on what it shows, and how long it is. */
+const GROUP_TITLE = {
+  mine: 'pump.help.group.mine',
+  general: 'pump.help.group.general',
+  more: 'pump.help.group.more',
+  all: 'pump.help.group.all',
+} as const satisfies Record<HelpGroupId, string>;
+
+/**
+ * One video: a play mark, its title, what it shows, how long it is, and, for a video the server keeps
+ * a tick for, the word "Watched" with a tick shape once it has been. Names and summaries wrap.
+ */
 function VideoRow({
-  video,
+  row,
   lang,
   onPlay,
 }: {
-  video: GuideVideoListItem;
+  row: HelpRow<GuideVideoListItem>;
   lang: Lang;
   onPlay: () => void;
 }) {
   const t = useT();
+  const { video, watched } = row;
   const title = videoTitle(video, lang);
   const summary = videoSummary(video, lang);
   const length = durationLabel(video.durationMs);
@@ -138,24 +186,18 @@ function VideoRow({
     <button
       type="button"
       onClick={onPlay}
-      aria-label={t('help.play', { title })}
-      className="flex min-h-[72px] w-full items-center gap-4 border-b border-wa-divider px-5 py-3 text-left active:bg-wa-row-active"
+      aria-label={t(watched ? 'yourVideos.playWatched' : 'help.play', { title })}
+      className="flex min-h-14 w-full items-center gap-3 py-3 text-left active:bg-surface-2"
     >
-      <span
-        aria-hidden
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-wa-accent/10 text-wa-accent"
-      >
-        <PlayCircle width={28} height={28} strokeWidth={1.75} />
+      <span aria-hidden className="flex shrink-0 items-center justify-center rounded-lg bg-surface-2 p-2 text-text">
+        <PlayCircle className="h-6 w-6" strokeWidth={1.75} />
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-body leading-snug text-wa-bar-text">{title}</span>
-        {summary ? (
-          <span className="line-clamp-2 text-meta leading-snug text-wa-meta">{summary}</span>
-        ) : null}
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="break-words text-body font-medium leading-snug text-text">{title}</span>
+        {summary ? <span className="break-words text-meta leading-snug text-text-muted">{summary}</span> : null}
+        {watched ? <StatusPill status="ok" word={t('yourVideos.watched')} className="mt-1 self-start" /> : null}
       </span>
-      {length ? (
-        <span className="shrink-0 text-meta tabular-nums text-wa-meta">{length}</span>
-      ) : null}
+      {length ? <span className="shrink-0 self-start pt-0.5 text-meta tabular-nums text-text-muted">{length}</span> : null}
     </button>
   );
 }
@@ -171,16 +213,13 @@ function Notice({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-8 py-12 text-center">
-      <span
-        aria-hidden
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-text-muted"
-      >
+    <Card className="flex flex-col items-center gap-3 px-6 py-8 text-center">
+      <span aria-hidden className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-2 text-text-muted">
         <VideoOff width={28} strokeWidth={1.5} />
       </span>
-      <p className="text-heading text-wa-bar-text">{title}</p>
-      <p className="max-w-xs text-body text-wa-meta">{description}</p>
+      <p className="break-words text-heading text-text">{title}</p>
+      <p className="max-w-xs break-words text-body text-text-muted">{description}</p>
       {action ? <div className="mt-2">{action}</div> : null}
-    </div>
+    </Card>
   );
 }

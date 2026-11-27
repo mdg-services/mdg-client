@@ -1,12 +1,26 @@
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
-import { OVER_BLOCK, SHORT_BLOCK, fakeReport, salesBlock, variationBlock, variationData } from './dsr_sales/fixtures';
-import { CONSEQUENCE_WORDS, positionWords, view } from './dsr_variation';
+import { useLangStore } from '@/store/lang';
+import { resetStores } from '@/test/utils';
+
+import {
+  OVER_BLOCK,
+  SHORT_BLOCK,
+  fakeReport,
+  salesBlock,
+  variationBlock,
+  variationData,
+} from './dsr_sales/fixtures';
+import { CONSEQUENCE_WORDS, positionWords, roomLeft, scaleNote, view } from './dsr_variation';
 
 const M = '−';
 
+afterEach(() => resetStores());
+
 function open(data = variationData(), lang: 'hi' | 'hl' | 'en' = 'en') {
+  // The kit's own words follow the app's language.
+  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={fakeReport('dsr_variation')} lang={lang} />);
 }
@@ -86,24 +100,38 @@ describe('dsr_variation: alert', () => {
     const a = view.alert(variationData(), 'en')!;
     // The stock variation (the tile says -520 L); the 100 L beyond the limit is in the line.
     expect(a.headline).toBe('Diesel 520 L short');
-    expect(a.line).toBe('Your stock is 100 L below the permitted limit. You may be asked to explain.');
+    expect(a.line).toBe(
+      'Your stock is 100 L below the permitted limit. You may be asked to explain.',
+    );
     expect(a.severity).toBe('problem');
     expect(view.tile(variationData(), 'en')!.value).toBe(`Diesel ${M}520 L`);
   });
 
   it('says the litres beyond the limit in Hindi and Hinglish too', () => {
-    expect(view.alert(variationData(), 'hi')!.line).toBe('आपका स्टॉक मान्य सीमा से 100 L कम है। आपसे लिखित स्पष्टीकरण माँगा जा सकता है।');
-    expect(view.alert(variationData(), 'hl')!.line).toBe('Aapka stock maanya seema se 100 L kam hai. Aapse likhit jawab maanga ja sakta hai.');
+    expect(view.alert(variationData(), 'hi')!.line).toBe(
+      'आपका स्टॉक मान्य सीमा से 100 L कम है। आपसे लिखित स्पष्टीकरण माँगा जा सकता है।',
+    );
+    expect(view.alert(variationData(), 'hl')!.line).toBe(
+      'Aapka stock maanya seema se 100 L kam hai. Aapse likhit jawab maanga ja sakta hai.',
+    );
     expect(view.alert(variationData(), 'hi')!.headline).toBe('डीज़ल 520 L कम है');
   });
 
   it('ranks an excess above a shortage, though both are problems', () => {
     expect(view.alert(variationData(), 'en')!.weight).toBe(0);
-    expect(view.alert(variationData({ products: [{ key: 'MS', tankNos: [1], variation: OVER_BLOCK }] }), 'en')!.weight).toBe(1);
+    expect(
+      view.alert(
+        variationData({ products: [{ key: 'MS', tankNos: [1], variation: OVER_BLOCK }] }),
+        'en',
+      )!.weight,
+    ).toBe(1);
   });
 
   it('raises a problem card for an over fuel, and the two are told apart by words as well as severity', () => {
-    const a = view.alert(variationData({ products: [{ key: 'MS', tankNos: [1], variation: OVER_BLOCK }] }), 'en')!;
+    const a = view.alert(
+      variationData({ products: [{ key: 'MS', tankNos: [1], variation: OVER_BLOCK }] }),
+      'en',
+    )!;
     expect(a.headline).toBe('Petrol 380 L over');
     expect(a.line).toContain('Your stock is 70 L above the limit');
     expect(a.line).toContain('Sales can be stopped');
@@ -131,13 +159,17 @@ describe('dsr_variation: headline and share', () => {
     expect(view.headline(allFine(), 'en')).toBe('All fuels within the limit');
     expect(view.headline(variationData(), 'en')).toBe(`Diesel ${M}520 L (Short)`);
     expect(view.headline(bothOut(), 'en')).toBe(`Petrol +380 L (Over), Diesel ${M}520 L (Short)`);
-    expect(view.headline(variationData({ beforeInspection: true }), 'en')).toBe('Before the first inspection: not counted');
+    expect(view.headline(variationData({ beforeInspection: true }), 'en')).toBe(
+      'Before the first inspection: not counted',
+    );
   });
 
   it('shares the figures with the allowed range and the verdict, as plain text', () => {
     const text = view.share(variationData(), 'en').split('\n');
     expect(text[0]).toBe('Stock variation · 12E · 23 Nov');
-    expect(text[1]).toBe(`Diesel (HSD): ${M}520 L · Allowed ${M}420 to +310 L · short, 100 L beyond the limit`);
+    expect(text[1]).toBe(
+      `Diesel (HSD): ${M}520 L · Allowed ${M}420 to +310 L · short, 100 L beyond the limit`,
+    );
     expect(text[2]).toBe(`Petrol (MS): ${M}200 L · Allowed ${M}420 to +310 L · within the limit`);
   });
 
@@ -166,11 +198,33 @@ describe('dsr_variation: overlay', () => {
     expect(label).toContain('Allowed range: from 420 L short to 310 L over.');
   });
 
-  it('prints the signed number with a true minus at 40 px and the word Short in a triangle badge', () => {
+  it('says in one plain line what the scale allows and how far the fuel is, with the marker number in its own row above the bar', () => {
+    open();
+    const diesel = document.querySelector('article[data-fuel="HSD"]') as HTMLElement;
+    expect(within(diesel).getByTestId('scale-note')).toHaveTextContent(
+      'Up to 420 L short is allowed; yours is 520 L short.',
+    );
+    const row = within(diesel).getByTestId('bar-marker-row');
+    expect(row.className).toContain('mb-2');
+    expect(within(row).getByTestId('bar-marker')).toHaveTextContent(`${M}520 L`);
+    // the number is real text, not inside the drawing, so it cannot touch the pointer
+    expect(diesel.querySelector('svg text[font-size="18"]')).toBeNull();
+    expect(scaleNote(SHORT_BLOCK, 'hi')).toBe('सीमा 420 L तक कम चल सकता है; आपका 520 L कम है।');
+    expect(scaleNote(OVER_BLOCK, 'hi')).toBe(
+      'सीमा 310 L तक ज़्यादा चल सकता है; आपका 380 L ज़्यादा है।',
+    );
+    expect(scaleNote(SHORT_BLOCK, 'hl')).toBe(
+      'Seema 420 L tak kam chal sakta hai; aapka 520 L kam hai.',
+    );
+    expect(scaleNote(variationBlock({ variationL: 0 }), 'en')).toMatch(/^Allowed: from/);
+  });
+
+  it('prints the signed number with a true minus at the display size and the word Short in a triangle badge', () => {
     open();
     const numbers = screen.getAllByTestId('big-number');
     expect(numbers[0]!.textContent).toBe(`${M}520 L`);
-    expect(numbers[0]!.className).toContain('text-[40px]');
+    expect(numbers[0]!.className).toContain('text-display');
+    expect(numbers[0]!.className).not.toMatch(/text-\[\d/);
     const diesel = numbers[0]!.closest('article')!;
     const badge = diesel.querySelector('[data-status]') as HTMLElement;
     expect(badge.getAttribute('data-status')).toBe('problem');
@@ -190,35 +244,55 @@ describe('dsr_variation: overlay', () => {
     expect(shortPointer.getAttribute('style')).toContain('--status-problem');
     expect(overPointer.getAttribute('style')).toContain('--status-problem');
     // Down arrow vs up arrow: the tip is the last point for short (bottom) and the first for over (top).
-    const pts = (el: Element) => el.getAttribute('points')!.split(' ').map((p) => p.split(',').map(Number) as [number, number]);
+    const pts = (el: Element) =>
+      el
+        .getAttribute('points')!
+        .split(' ')
+        .map((p) => p.split(',').map(Number) as [number, number]);
     const s = pts(shortPointer);
     expect(s[2]![1]).toBeGreaterThan(s[0]![1]);
     const o = pts(overPointer);
     expect(o[0]![1]).toBeLessThan(o[1]![1]);
     // The badge outlines differ too.
-    const shapes = new Set([...container.querySelectorAll('span[data-status] svg')].map((s) => s.innerHTML));
+    const shapes = new Set(
+      [...container.querySelectorAll('span[data-status] svg')].map((s) => s.innerHTML),
+    );
     expect(shapes.size).toBeGreaterThanOrEqual(2);
   });
 
   it('writes the three rows: variation, permissible variation, beyond the limit', () => {
     open(bothOut());
     const shortCard = document.querySelector('article[data-fuel="HSD"]') as HTMLElement;
-    expect(within(shortCard).getByRole('row', { name: new RegExp(`Variation ${M}520 L`) })).toBeInTheDocument();
-    expect(within(shortCard).getByRole('row', { name: /Permissible variation.*420 L/ })).toBeInTheDocument();
-    expect(within(shortCard).getByRole('row', { name: new RegExp(`Beyond the limit ${M}100 L`) })).toBeInTheDocument();
+    expect(
+      within(shortCard).getByRole('row', { name: new RegExp(`Variation ${M}520 L`) }),
+    ).toBeInTheDocument();
+    expect(
+      within(shortCard).getByRole('row', { name: /Permissible variation.*420 L/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(shortCard).getByRole('row', { name: new RegExp(`Beyond the limit ${M}100 L`) }),
+    ).toBeInTheDocument();
     // The parts of the permissible band: 4% of stock and the evaporation part (short only).
     expect(within(shortCard).getByText(/4% of tank stock \(310 L\)/)).toBeInTheDocument();
-    expect(within(shortCard).getByText(/0\.5% of sales for evaporation and handling \(110 L\)/)).toBeInTheDocument();
+    expect(
+      within(shortCard).getByText(/0\.5% of sales for evaporation and handling \(110 L\)/),
+    ).toBeInTheDocument();
     const overCard = document.querySelector('article[data-fuel="MS"]') as HTMLElement;
-    expect(within(overCard).getByText('The evaporation allowance counts only when stock is short.')).toBeInTheDocument();
+    expect(
+      within(overCard).getByText('The evaporation allowance counts only when stock is short.'),
+    ).toBeInTheDocument();
   });
 
   it('shows the what-to-do box and the guideline consequence only when a fuel is out', () => {
     open(bothOut());
     const shortCard = document.querySelector('article[data-fuel="HSD"]') as HTMLElement;
     const overCard = document.querySelector('article[data-fuel="MS"]') as HTMLElement;
-    expect(within(shortCard).getByTestId('what-to-do').textContent).toContain('Top up about 100 L from the dispenser into the tank.');
-    expect(within(overCard).getByTestId('what-to-do').textContent).toContain('Account for about 70 L');
+    expect(within(shortCard).getByTestId('what-to-do').textContent).toContain(
+      'Top up about 100 L from the dispenser into the tank.',
+    );
+    expect(within(overCard).getByTestId('what-to-do').textContent).toContain(
+      'Account for about 70 L',
+    );
     expect(within(shortCard).getByText('MDG guideline 5.1.11')).toBeInTheDocument();
     expect(within(shortCard).getByText(/negative variation beyond the limit/i)).toBeInTheDocument();
     expect(within(overCard).getByText(/positive variation beyond the limit/i)).toBeInTheDocument();
@@ -238,18 +312,44 @@ describe('dsr_variation: overlay', () => {
           key: 'HSD',
           tankNos: [4],
           variation: variationBlock({
-            how: { meterSalesL: 100_000, afterTestingL: 99_360, totalStockL: 40_000, dipStockL: 39_500, dipSalesL: 99_860 },
-            band: { stockPct: 4, stockL: 310, leakPct: 0.5, leakL: 110, leakApplies: true, tiers: { firstPct: 0.5, restPct: 0.3, tier1L: 50_000, tier2L: 49_360, thresholdL: 50_000, days: 30 } },
+            how: {
+              meterSalesL: 100_000,
+              afterTestingL: 99_360,
+              totalStockL: 40_000,
+              dipStockL: 39_500,
+              dipSalesL: 99_860,
+            },
+            band: {
+              stockPct: 4,
+              stockL: 310,
+              leakPct: 0.5,
+              leakL: 110,
+              leakApplies: true,
+              tiers: {
+                firstPct: 0.5,
+                restPct: 0.3,
+                tier1L: 50_000,
+                tier2L: 49_360,
+                thresholdL: 50_000,
+                days: 30,
+              },
+            },
           }),
         },
       ],
     });
     open(d);
-    expect(screen.getByText('Total received since the inspection on 12 Oct: 1,20,000 L')).toBeInTheDocument();
-    expect(screen.getByText('Total testing since the inspection on 12 Oct: 640 L')).toBeInTheDocument();
+    expect(
+      screen.getByText('Total received since the inspection on 12 Oct: 1,20,000 L'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Total testing since the inspection on 12 Oct: 640 L'),
+    ).toBeInTheDocument();
     expect(screen.getByText('How we worked this out')).toBeInTheDocument();
     expect(screen.getByText('Meter sales')).toBeInTheDocument();
-    expect(screen.getByText(/0\.5% on the first 50,000 L of sales, 0\.3% after that \(30 days\)/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.5% on the first 50,000 L of sales, 0\.3% after that \(30 days\)/),
+    ).toBeInTheDocument();
   });
 
   it('prints the allowance rates as they really are: 0.25% and 0.20% (diesel), 0.75% (petrol), never 0.3% / 0.2% / 0.8%', () => {
@@ -260,7 +360,21 @@ describe('dsr_variation: overlay', () => {
           tankNos: [4],
           variation: variationBlock({
             variationL: -520,
-            band: { stockPct: 4, stockL: 310, leakPct: 0.25, leakL: 581, leakApplies: true, tiers: { firstPct: 0.25, restPct: 0.2, tier1L: 1_643, tier2L: 0, thresholdL: 1_643, days: 30 } },
+            band: {
+              stockPct: 4,
+              stockL: 310,
+              leakPct: 0.25,
+              leakL: 581,
+              leakApplies: true,
+              tiers: {
+                firstPct: 0.25,
+                restPct: 0.2,
+                tier1L: 1_643,
+                tier2L: 0,
+                thresholdL: 1_643,
+                days: 30,
+              },
+            },
           }),
         },
         {
@@ -268,22 +382,46 @@ describe('dsr_variation: overlay', () => {
           tankNos: [1],
           variation: variationBlock({
             variationL: -520,
-            band: { stockPct: 4, stockL: 310, leakPct: 0.75, leakL: 90, leakApplies: true, tiers: { firstPct: 0.75, restPct: 0.6, tier1L: 1_000, tier2L: 0, thresholdL: 1_000, days: 30 } },
+            band: {
+              stockPct: 4,
+              stockL: 310,
+              leakPct: 0.75,
+              leakL: 90,
+              leakApplies: true,
+              tiers: {
+                firstPct: 0.75,
+                restPct: 0.6,
+                tier1L: 1_000,
+                tier2L: 0,
+                thresholdL: 1_000,
+                days: 30,
+              },
+            },
           }),
         },
       ],
     });
     open(d);
-    expect(screen.getByText(/0\.25% of sales for evaporation and handling \(581 L\)/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.25% on the first 1,643 L of sales, 0\.2% after that/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.75% of sales for evaporation and handling \(90 L\)/)).toBeInTheDocument();
-    expect(screen.getByText(/0\.75% on the first 1,000 L of sales, 0\.6% after that/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.25% of sales for evaporation and handling \(581 L\)/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.25% on the first 1,643 L of sales, 0\.2% after that/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.75% of sales for evaporation and handling \(90 L\)/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/0\.75% on the first 1,000 L of sales, 0\.6% after that/),
+    ).toBeInTheDocument();
   });
 
   it('says "was, now" for a revised fuel', () => {
     const d = variationData({
       revised: true,
-      revision: { changed: [{ productKey: 'HSD', fromL: -310, toL: -120, wasWithin: false, isWithin: true }] },
+      revision: {
+        changed: [{ productKey: 'HSD', fromL: -310, toL: -120, wasWithin: false, isWithin: true }],
+      },
     });
     open(d);
     expect(screen.getByText(`Diesel was ${M}310 L, now ${M}120 L.`)).toBeInTheDocument();
@@ -302,7 +440,14 @@ describe('dsr_variation: overlay', () => {
   });
 
   it('leaves out a fuel with no variation figure', () => {
-    open(variationData({ products: [{ key: 'HSD', tankNos: [4], variation: SHORT_BLOCK }, { key: 'MS', tankNos: [1] }] }));
+    open(
+      variationData({
+        products: [
+          { key: 'HSD', tankNos: [4], variation: SHORT_BLOCK },
+          { key: 'MS', tankNos: [1] },
+        ],
+      }),
+    );
     expect(document.querySelectorAll('article')).toHaveLength(1);
   });
 
@@ -341,7 +486,9 @@ describe('dsr_variation: the guideline consequence in three languages', () => {
   });
 
   it('writes where the pointer is, in words', () => {
-    expect(positionWords(SHORT_BLOCK, 'en')).toBe('520 L short of zero. Allowed range: from 420 L short to 310 L over.');
+    expect(positionWords(SHORT_BLOCK, 'en')).toBe(
+      '520 L short of zero. Allowed range: from 420 L short to 310 L over.',
+    );
     expect(positionWords(OVER_BLOCK, 'hl')).toContain('Zero se 380 L zyada');
     expect(positionWords(variationBlock({ variationL: 0 }), 'en')).toMatch(/^Exactly at zero/);
   });
@@ -356,5 +503,49 @@ describe('dsr_variation: glyph', () => {
     expect(svg).toHaveAttribute('width', '40');
     expect(svg.querySelector('polygon')).toBeTruthy();
     expect(view.kind).toBe('dsr_variation');
+  });
+});
+
+describe('dsr_variation: room left before the limit', () => {
+  it('says how much room a fuel inside the band still has, on the side it is drifting to', () => {
+    open();
+    // Petrol is fine at -200 L against a 420 L allowance on the short side: 220 L left.
+    const tile = screen.getByRole('group', { name: /Petrol: Room left before the limit 220 L/ });
+    expect(within(tile).getByText('220')).toBeInTheDocument();
+    expect(within(tile).getByText('of 420 L allowed on this side')).toBeInTheDocument();
+  });
+
+  it('measures an excess against the excess edge', () => {
+    open(
+      variationData({
+        products: [{ key: 'MS', tankNos: [1], variation: variationBlock({ variationL: 90 }) }],
+      }),
+    );
+    const tile = screen.getByRole('group', { name: /Room left before the limit 220 L/ });
+    expect(within(tile).getByText('of 310 L allowed on this side')).toBeInTheDocument();
+  });
+
+  it('draws no room tile for a fuel already beyond the limit: the "beyond" figure says that', () => {
+    open(bothOut());
+    expect(screen.queryByText('Room left before the limit')).toBeNull();
+  });
+
+  it('has the helper say the same numbers, and nothing for a band with no edge', () => {
+    expect(roomLeft(variationBlock({ variationL: -100 }))).toEqual({ roomL: 320, allowedL: 420 });
+    expect(roomLeft(variationBlock({ variationL: 0 }))).toEqual({ roomL: 310, allowedL: 310 });
+    expect(roomLeft(SHORT_BLOCK)).toBeNull();
+    expect(roomLeft(variationBlock({ variationL: 5, highEdgeL: 0 }))).toBeNull();
+  });
+
+  it('puts each fuel in a card named for the fuel and uses no fixed pixel size', () => {
+    const { container } = open();
+    expect(screen.getByRole('heading', { name: 'Diesel (HSD)' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Petrol (MS)' })).toBeInTheDocument();
+    expect(container.innerHTML).not.toMatch(/text-\[\d|h-\[\d+px|w-\[\d+px/);
+  });
+
+  it('reads the room tile in Hindi', () => {
+    const { container } = open(variationData(), 'hi');
+    expect(container.textContent).toContain('सीमा तक अभी गुंजाइश');
   });
 });

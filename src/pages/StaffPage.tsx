@@ -1,350 +1,117 @@
-import {
-  ChevronDown,
-  ChevronUp,
-  ImageIcon,
-  MessageCircle,
-  Pencil,
-  Plus,
-  RotateCcw,
-  Trophy,
-  UserPlus,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageCircle, UserPlus } from 'lucide-react';
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 
-
-
-import { PhotoViewer } from '@/components/PhotoViewer';
-import { SubPage } from '@/components/SubPage';
-import { Avatar, Button, EmptyState, Spinner, useToast } from '@/components/ui';
+import { EmptyCalm } from '@/components/kit/EmptyCalm';
+import { ErrorCard } from '@/components/kit/ErrorCard';
+import { SkeletonBlock } from '@/components/kit/SkeletonBlock';
+import { StickyAction } from '@/components/kit/StickyAction';
+import { SubPageBar } from '@/components/SubPage';
+import { Card, Button, useToast } from '@/components/ui';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
 import { AddEmployeeForm } from '@/features/staff/AddEmployeeForm';
-import { EditWorkerDialog } from '@/features/staff/EditWorkerDialog';
 import { GivePointsFlow } from '@/features/staff/GivePointsFlow';
 import { PendingSubmissionPanel } from '@/features/staff/PendingSubmissionPanel';
+import { PeriodSwitch } from '@/features/staff/PeriodSwitch';
+import { RemovedRoster } from '@/features/staff/RemovedRoster';
+import { SheetsSent } from '@/features/staff/SheetsSent';
+import { activeOnly, rankRows, teamTotal, whoIsBehind } from '@/features/staff/staffInsights';
+import { TeamStrip } from '@/features/staff/TeamStrip';
+import { useDraftSummary } from '@/features/staff/useDraftSummary';
+import { WarriorRow } from '@/features/staff/WarriorRow';
 import { useDealerWorkItems } from '@/hooks/api/useDealerWorkItems';
 import {
   useEmployees,
+  useEmployeesBetween,
   useUpdateEmployee,
+  windowBounds,
   type PointsWindow,
 } from '@/hooks/api/useEmployees';
-import { useStaffBatches, useStaffDraft } from '@/hooks/api/useStaffDraft';
+import { useStaffDraft } from '@/hooks/api/useStaffDraft';
 import { useStaffDraftSync } from '@/hooks/api/useStaffDraftSync';
-import { cn } from '@/lib/cn';
 import { useT } from '@/lib/i18n';
-import { fmtPoints } from '@/lib/staff';
+import { fmtPointsGrouped, istDate, sameDaysLastMonthBounds } from '@/lib/staff';
+import { useLargeText } from '@/lib/useLargeText';
 import { useAuthStore } from '@/store/auth';
-import { useStaffDraftStore } from '@/store/staffDraft';
-import { STAFF_DAILY_POINT_TARGET } from '@dk/shared/types';
 import type { EmployeeWithPoints } from '@dk/shared/types';
 
-function WindowToggle({
-  value,
-  onChange,
-}: {
-  value: PointsWindow;
-  onChange: (w: PointsWindow) => void;
-}) {
-  const t = useT();
-  const options: { value: PointsWindow; label: string }[] = [
-    { value: 'today', label: t('staff.windowToday') },
-    { value: 'month', label: t('staff.windowMonth') },
-  ];
-  return (
-    <div
-      role="radiogroup"
-      aria-label={t('staff.title')}
-      className="inline-flex items-center rounded-full bg-surface-2 p-0.5"
-    >
-      {options.map((opt) => {
-        const active = opt.value === value;
-        return (
-          <button
-            key={opt.value}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(opt.value)}
-            className={cn(
-              'flex min-h-[44px] items-center justify-center rounded-full px-4 text-meta font-medium transition-colors',
-              active
-                ? 'bg-brand text-text-inverse shadow-sm'
-                : 'text-text-muted hover:text-text',
-            )}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function LeaderboardRow({
-  employee,
-  window,
-  onEdit,
-}: {
-  employee: EmployeeWithPoints;
-  window: PointsWindow;
-  onEdit: (e: EmployeeWithPoints) => void;
-}) {
-  const t = useT();
-  const reached = employee.pointsInWindow >= STAFF_DAILY_POINT_TARGET;
-  // On leave today (today view) explains a 0 — they were off, they didn't slack.
-  const onLeaveToday = window === 'today' && employee.onLeaveToday;
-  // Only stand in "छुट्टी" for the number when there's nothing earned to show —
-  // leave must never look like it wiped out points they actually earned.
-  const showLeaveInsteadOfPoints = onLeaveToday && employee.pointsInWindow <= 0;
-  // In the month view, show how many days off contributed to a lower total.
-  const leaveDays = window === 'month' ? employee.leaveDaysInWindow : 0;
-  return (
-    <li
-      className={cn(
-        'flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-3',
-        onLeaveToday && 'bg-surface-2/50',
-      )}
-    >
-      <Avatar name={employee.name} size={44} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-subheading text-text">
-          {employee.name}
-        </p>
-        {employee.designation ? (
-          <p className="truncate text-meta text-text-muted">
-            {employee.designation}
-          </p>
-        ) : null}
-        {onLeaveToday ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
-            {t('staff.onLeave')}
-          </span>
-        ) : reached ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-meta font-medium text-success">
-            {t('staff.reached')}
-          </span>
-        ) : leaveDays > 0 ? (
-          <span className="mt-1 inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
-            {t('staff.leaveDays', { n: leaveDays })}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex shrink-0 flex-col items-end leading-none">
-        {showLeaveInsteadOfPoints ? (
-          <span className="text-meta font-semibold text-warning">
-            {t('staff.onLeaveShort')}
-          </span>
-        ) : (
-          <>
-            <span className="text-title font-bold tabular-nums text-text">
-              {fmtPoints(employee.pointsInWindow)}
-            </span>
-            <span className="mt-0.5 text-meta text-text-subtle">
-              {t('staff.points')}
-            </span>
-          </>
-        )}
-      </div>
-      <button
-        type="button"
-        aria-label={t('staff.editWorker')}
-        onClick={() => onEdit(employee)}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-text-subtle active:bg-surface-2"
-      >
-        <Pencil width={16} strokeWidth={1.75} />
-      </button>
-    </li>
-  );
-}
-
-function RemovedRoster({
-  employees,
-  onReactivate,
-  pendingId,
-}: {
-  employees: EmployeeWithPoints[];
-  onReactivate: (e: EmployeeWithPoints) => void;
-  pendingId: string | null;
-}) {
-  const t = useT();
-  const [open, setOpen] = React.useState(false);
-  if (employees.length === 0) return null;
-
-  return (
-    <div className="flex flex-col gap-2">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 self-start px-1 text-meta font-semibold text-text-muted active:opacity-70"
-      >
-        {open ? (
-          <ChevronUp width={14} strokeWidth={2} />
-        ) : (
-          <ChevronDown width={14} strokeWidth={2} />
-        )}
-        {open ? t('staff.hideRemoved') : t('staff.showRemoved', { n: employees.length })}
-      </button>
-      {open ? (
-        <ul className="flex flex-col gap-1.5">
-          {employees.map((e) => (
-            <li
-              key={e.id}
-              className="flex items-center gap-3 rounded-2xl border border-border bg-surface-2/60 px-3 py-2.5"
-            >
-              <Avatar name={e.name} size={36} />
-              <span className="min-w-0 flex-1 truncate text-meta font-medium text-text-muted">
-                {e.name}
-              </span>
-              <Button
-                size="sm"
-                variant="secondary"
-                leftIcon={<RotateCcw width={14} strokeWidth={1.75} />}
-                loading={pendingId === e.id}
-                onClick={() => onReactivate(e)}
-              >
-                {t('staff.reactivate')}
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </div>
-  );
-}
-
-function PastSubmissions({ dealerId }: { dealerId: string | undefined }) {
-  const t = useT();
-  const [open, setOpen] = React.useState(false);
-  // View the hardcopy in an in-app lightbox (matching chat) rather than a
-  // target=_blank that would bounce the user out to the OS browser.
-  const [lightbox, setLightbox] = React.useState<string | null>(null);
-  const batchesQuery = useStaffBatches(dealerId, open);
-  const batches = batchesQuery.data ?? [];
-
-  return (
-    <div className="flex flex-col gap-2 border-t border-border pt-3">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 self-start px-1 text-meta font-semibold text-text-muted active:opacity-70"
-      >
-        {open ? (
-          <ChevronUp width={14} strokeWidth={2} />
-        ) : (
-          <ChevronDown width={14} strokeWidth={2} />
-        )}
-        {t('staff.pastSubmissions')}
-      </button>
-      {open ? (
-        batchesQuery.isLoading ? (
-          <div className="flex justify-center py-4">
-            <Spinner size={16} />
-          </div>
-        ) : batchesQuery.isError ? (
-          // NOT "no past submissions". A dealer who has submitted every day for
-          // a month, told there is no record of any of it, has been given a
-          // reason to stop trusting the screen.
-          <div className="flex flex-col items-start gap-2 px-1 py-2">
-            <p className="text-meta text-text-subtle">{t('common.loadFailed')}</p>
-            <button
-              type="button"
-              onClick={() => void batchesQuery.refetch()}
-              className="rounded-full border border-border px-3 py-1 text-meta text-text-muted active:bg-surface-2"
-            >
-              {t('common.retry')}
-            </button>
-          </div>
-        ) : batches.length === 0 ? (
-          <p className="px-1 py-2 text-meta text-text-subtle">
-            {t('staff.pastEmpty')}
-          </p>
-        ) : (
-          <ul className="flex flex-col gap-1.5">
-            {batches.map((b) => (
-              <li
-                key={b.id}
-                className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="text-meta font-medium text-text">{b.workDate}</p>
-                  <p className="text-meta text-text-muted">
-                    {t('staff.batchSummary', {
-                      points: fmtPoints(b.totalPoints),
-                      workers: b.employeeCount,
-                    })}
-                  </p>
-                </div>
-                {b.hardCopyImageUrl ? (
-                  <button
-                    type="button"
-                    onClick={() => setLightbox(b.hardCopyImageUrl!)}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-meta font-semibold text-text active:opacity-70"
-                  >
-                    <ImageIcon width={14} strokeWidth={1.75} />
-                    {t('staff.viewHardcopy')}
-                  </button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        )
-      ) : null}
-
-      {lightbox ? (
-        // Zoomable, because a hardcopy is a photographed sheet of handwriting:
-        // fit to a phone screen it is legible only to whoever wrote it.
-        <PhotoViewer
-          src={lightbox}
-          alt={t('staff.viewHardcopy')}
-          onClose={() => setLightbox(null)}
-        />
-      ) : null}
-    </div>
-  );
-}
-
+/**
+ * Warriors and points (`/staff`, spec 4.7). It answers one question: "Is my crew pulling, and is there
+ * a sheet I must send?" Top to bottom:
+ *
+ *  1. the team strip: this month's points, against the same days last month, how many earned any;
+ *  2. waiting to send (only when something is): "3 warriors, 62 points not sent yet", with the send
+ *     button inside the card, because points count only after the sheet is sent;
+ *  3. the switch Today | This month | Last month, and the warriors: rank, points, share of the team,
+ *     change against last month, who is behind, a Call button and a one-tap Leave; a tap on a name
+ *     opens that warrior's own page;
+ *  4. the sheets sent, with the days that have none;
+ *  5. how points are worked out;
+ *  and "Give points" kept on screen at the bottom. Adding a warrior moved into the bar's menu (it
+ *  happens once a year; giving points happens every day).
+ *
+ * The 100-point legend and chip are the owner's decision Q2 and stay exactly as they were. Nothing new
+ * is measured against 100: "behind" is against the team average.
+ */
 export function StaffPage() {
   const t = useT();
+  const navigate = useNavigate();
   const openMyChat = useOpenMyChat();
   const toast = useToast();
+  const large = useLargeText();
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId ?? undefined;
 
-  const [window, setWindow] = React.useState<PointsWindow>('today');
+  const [period, setPeriod] = React.useState<PointsWindow>('today');
   const [addOpen, setAddOpen] = React.useState(false);
   const [giveOpen, setGiveOpen] = React.useState(false);
-  const [editing, setEditing] = React.useState<EmployeeWithPoints | null>(null);
+  const [showHow, setShowHow] = React.useState(false);
 
-  // Roster INCLUDES removed (INACTIVE) workers so the "show removed" toggle can
-  // list and reactivate them; the leaderboard shows only the active ones.
-  const employeesQuery = useEmployees(dealerId, window, true);
-  const employees = employeesQuery.data ?? [];
-  const activeEmployees = React.useMemo(
-    () => employees.filter((e) => e.status === 'ACTIVE'),
-    [employees],
-  );
-  const removedEmployees = React.useMemo(
-    () => employees.filter((e) => e.status === 'INACTIVE'),
-    [employees],
-  );
-  const sorted = React.useMemo(
+  // Three reads of one route. The roster INCLUDES removed workers so the fold at the foot can list
+  // and bring them back; the totals and the list count only the active ones. "This month" is always
+  // read (the strip needs it whatever the switch says) and is the same cache entry as the switch's
+  // own month view.
+  const month = useEmployees(dealerId, 'month', true);
+  const sameDays = sameDaysLastMonthBounds(istDate());
+  const lastMonthSameDays = useEmployeesBetween(dealerId, sameDays.from, sameDays.to, true);
+  const shown = useEmployees(dealerId, period, true);
+
+  const roster = React.useMemo(() => shown.data ?? [], [shown.data]);
+  const active = React.useMemo(() => activeOnly(roster), [roster]);
+  const removed = React.useMemo(() => roster.filter((e) => e.status === 'INACTIVE'), [roster]);
+  const total = teamTotal(active);
+  const ranked = React.useMemo(() => rankRows(active), [active]);
+  // A standing means something only when the points differ. If everyone has the same, no rank is
+  // drawn (three people would each read "1"); if some share a place, those rows say "tied".
+  const rankCounts = React.useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const r of ranked) counts.set(r.rank, (counts.get(r.rank) ?? 0) + 1);
+    return counts;
+  }, [ranked]);
+  const showRanks = total > 0 && !(ranked.length > 1 && rankCounts.size === 1);
+  const behind = React.useMemo(
     () =>
-      [...activeEmployees].sort((a, b) => b.pointsInWindow - a.pointsInWindow),
-    [activeEmployees],
+      period === 'today' ? new Map<string, number>() : whoIsBehind(roster, windowBounds(period)),
+    [roster, period],
+  );
+  const previousById = React.useMemo(
+    () =>
+      lastMonthSameDays.data
+        ? new Map(lastMonthSameDays.data.map((e) => [e.id, e.pointsInWindow]))
+        : null,
+    [lastMonthSameDays.data],
   );
 
-  const workItemsQuery = useDealerWorkItems(dealerId);
-  const workItems = workItemsQuery.data ?? [];
-
+  const workItems = useDealerWorkItems(dealerId).data;
+  const workList = React.useMemo(() => workItems ?? [], [workItems]);
   const draftQuery = useStaffDraft(dealerId);
   const draftSync = useStaffDraftSync(dealerId, draftQuery.data);
-  const draftEntries = useStaffDraftStore((s) =>
-    dealerId ? s.byDealer[dealerId]?.entries : undefined,
-  );
-  const hasDraft = (draftEntries?.length ?? 0) > 0;
+  const month_ = month.data;
+  const everyone = React.useMemo(() => month_ ?? roster, [month_, roster]);
+  const draft = useDraftSummary(dealerId, workList, everyone);
 
   const update = useUpdateEmployee(dealerId);
   const [reactivatingId, setReactivatingId] = React.useState<string | null>(null);
-
   const onReactivate = (e: EmployeeWithPoints) => {
     setReactivatingId(e.id);
     update.mutate(
@@ -356,130 +123,178 @@ export function StaffPage() {
     );
   };
 
-  const hasActiveWorkers = activeEmployees.length > 0;
-  const showEmpty = !hasActiveWorkers && !addOpen && !hasDraft;
+  const hasActiveWorkers = active.length > 0;
+  const showEmpty = !hasActiveWorkers && !addOpen && !draft.waiting && !shown.isPlaceholderData;
+  // The window a reader switched to is not loaded yet: the old rows are kept on screen by the cache so
+  // the list does not blank, but they are not "Today" and must not be read as it.
+  const switching = shown.isPlaceholderData;
+  const ready = !shown.isLoading && !shown.isError;
+
+  const menu = [
+    {
+      key: 'add',
+      label: t('staff.addWorker'),
+      onSelect: () => setAddOpen(true),
+      icon: <UserPlus aria-hidden className="h-5 w-5" strokeWidth={1.75} />,
+    },
+  ];
 
   return (
-    <SubPage title={t('staff.title')} className="gap-4">
-      <div className="flex items-center justify-end gap-2">
-        <WindowToggle value={window} onChange={setWindow} />
-      </div>
-
-      {employeesQuery.isLoading ? (
-        <div className="flex flex-1 items-center justify-center py-12">
-          <Spinner size={20} />
-        </div>
-      ) : employeesQuery.isError ? (
-        <div className="flex flex-1 flex-col gap-4">
-          <EmptyState
-            icon={<Trophy width={28} strokeWidth={1.5} />}
-            title={t('staff.errorTitle')}
-            description={t('common.helpDesc')}
-            cta={
-              <Button
-                variant="secondary"
-                leftIcon={<MessageCircle width={16} strokeWidth={1.75} />}
-                onClick={openMyChat}
-              >
-                {t('staff.messageUs')}
-              </Button>
-            }
-          />
-        </div>
-      ) : showEmpty ? (
-        <EmptyState
-          icon={<UserPlus width={28} strokeWidth={1.5} />}
-          title={t('staff.emptyTitle')}
-          description={t('staff.emptyDesc')}
-          cta={
+    <>
+      <SubPageBar title={t('staff.title')} menu={menu} />
+      <div className="flex flex-1 flex-col gap-3 px-4 pb-4 pt-4">
+        {shown.isLoading ? (
+          <SkeletonBlock lines={6} className="py-6" />
+        ) : shown.isError ? (
+          <div className="flex flex-col items-start gap-3">
+            <ErrorCard text={t('staff.errorTitle')} onRetry={() => void shown.refetch()} />
             <Button
-              leftIcon={<UserPlus width={16} strokeWidth={1.75} />}
-              onClick={() => setAddOpen(true)}
-            >
-              {t('staff.addWorker')}
-            </Button>
-          }
-        />
-      ) : (
-        <>
-          {/* Primary + secondary actions */}
-          <div className="flex gap-2">
-            <Button
-              fullWidth
-              size="lg"
-              leftIcon={<Plus width={18} strokeWidth={2} />}
-              disabled={!hasActiveWorkers}
-              onClick={() => setGiveOpen(true)}
-            >
-              {t('staff.givePoints')}
-            </Button>
-            <Button
-              size="lg"
               variant="secondary"
-              leftIcon={<UserPlus width={18} strokeWidth={1.75} />}
-              onClick={() => setAddOpen((v) => !v)}
+              leftIcon={<MessageCircle aria-hidden className="h-5 w-5" strokeWidth={1.75} />}
+              onClick={openMyChat}
             >
-              {t('staff.addWorker')}
+              {t('staff.messageUs')}
             </Button>
           </div>
+        ) : showEmpty ? (
+          <EmptyCalm
+            text={`${t('staff.emptyTitle')}. ${t('staff.emptyDesc')}`}
+            action={{
+              label: t('staff.addWorker'),
+              onPress: () => setAddOpen(true),
+              variant: 'primary',
+            }}
+          />
+        ) : (
+          <>
+            {addOpen ? (
+              <AddEmployeeForm
+                dealerId={dealerId}
+                onDone={() => setAddOpen(false)}
+                onCancel={() => setAddOpen(false)}
+              />
+            ) : null}
 
-          {addOpen ? (
-            <AddEmployeeForm
+            {month.data ? (
+              <TeamStrip month={month.data} previous={lastMonthSameDays.data ?? null} />
+            ) : null}
+
+            <PendingSubmissionPanel
               dealerId={dealerId}
-              onDone={() => setAddOpen(false)}
-              onCancel={() => setAddOpen(false)}
+              workItems={workList}
+              employees={everyone}
+              sync={draftSync}
             />
-          ) : null}
 
-          <PendingSubmissionPanel
-            dealerId={dealerId}
-            workItems={workItems}
-            employees={employees}
-            sync={draftSync}
-          />
+            {/* At large text the button would cover the list when pinned: it is placed here instead. */}
+            {large && ready ? (
+              <Button
+                size="lg"
+                fullWidth
+                disabled={!hasActiveWorkers}
+                onClick={() => setGiveOpen(true)}
+              >
+                {t('staff.givePoints')}
+              </Button>
+            ) : null}
 
-          <p className="px-1 text-meta text-text-subtle">
-            {t('staff.targetLegend')}
-          </p>
+            <PeriodSwitch<PointsWindow>
+              label={t('warr.window.label')}
+              value={period}
+              onChange={setPeriod}
+              options={[
+                { id: 'today', label: t('staff.windowToday') },
+                { id: 'month', label: t('staff.windowMonth') },
+                { id: 'lastMonth', label: t('warr.window.last') },
+              ]}
+            />
 
-          {hasActiveWorkers ? (
-            <ul className="flex flex-col gap-2">
-              {sorted.map((e) => (
-                <LeaderboardRow
-                  key={e.id}
-                  employee={e}
-                  window={window}
-                  onEdit={setEditing}
-                />
-              ))}
-            </ul>
-          ) : null}
+            {/* The owner's decision Q2: this legend and the "Reached 100" chip stay exactly as they were. */}
+            <p className="px-1 text-body text-text-muted">{t('staff.targetLegend')}</p>
 
-          <RemovedRoster
-            employees={removedEmployees}
-            onReactivate={onReactivate}
-            pendingId={reactivatingId}
-          />
+            {switching ? (
+              <SkeletonBlock lines={4} className="py-4" />
+            ) : (
+              <>
+                {period === 'today' && total === 0 && hasActiveWorkers ? (
+                  <p className="px-1 text-body text-text">
+                    {draft.waiting
+                      ? t('warr.empty.todayWaiting', { points: fmtPointsGrouped(draft.points) })
+                      : t('warr.empty.today')}
+                  </p>
+                ) : null}
 
-          <PastSubmissions dealerId={dealerId} />
-        </>
-      )}
+                {hasActiveWorkers ? (
+                  <Card>
+                    <ul className="divide-y divide-border">
+                      {ranked.map(({ row, rank }) => (
+                        <WarriorRow
+                          key={row.id}
+                          dealerId={dealerId}
+                          employee={row}
+                          {...(showRanks ? { rank, tied: (rankCounts.get(rank) ?? 0) > 1 } : {})}
+                          window={period}
+                          teamPoints={total}
+                          {...(period === 'month' && previousById?.has(row.id)
+                            ? { previousPoints: previousById.get(row.id)! }
+                            : {})}
+                          {...(behind.has(row.id) ? { behindPercent: behind.get(row.id)! } : {})}
+                          onOpen={(id) => navigate(`/staff/${id}`)}
+                        />
+                      ))}
+                    </ul>
+                  </Card>
+                ) : null}
+              </>
+            )}
+
+            <SheetsSent dealerId={dealerId} />
+
+            <RemovedRoster
+              employees={removed}
+              onReactivate={onReactivate}
+              pendingId={reactivatingId}
+            />
+
+            <Card className="flex flex-col">
+              <button
+                type="button"
+                aria-expanded={showHow}
+                onClick={() => setShowHow((v) => !v)}
+                className="flex min-h-11 w-full items-center gap-3 px-4 py-2 text-left text-body font-medium text-text active:bg-surface-2"
+              >
+                <span className="min-w-0 flex-1 break-words">{t('warr.how.link')}</span>
+                {showHow ? (
+                  <ChevronUp aria-hidden className="h-5 w-5 shrink-0 text-text-subtle" />
+                ) : (
+                  <ChevronDown aria-hidden className="h-5 w-5 shrink-0 text-text-subtle" />
+                )}
+              </button>
+              {showHow ? (
+                <p className="break-words px-4 pb-3 text-body text-text-muted">
+                  {t('warr.how.body')}
+                </p>
+              ) : null}
+            </Card>
+          </>
+        )}
+      </div>
+
+      {ready && !showEmpty && !large ? (
+        <StickyAction
+          label={t('staff.givePoints')}
+          disabled={!hasActiveWorkers}
+          onPress={() => setGiveOpen(true)}
+        />
+      ) : null}
 
       {giveOpen ? (
         <GivePointsFlow
           dealerId={dealerId}
-          employees={sorted}
+          employees={ranked.map((r) => r.row)}
           onClose={() => setGiveOpen(false)}
         />
       ) : null}
-
-      {editing ? (
-        <EditWorkerDialog
-          dealerId={dealerId}
-          employee={editing}
-          onClose={() => setEditing(null)}
-        />
-      ) : null}
-    </SubPage>
+    </>
   );
 }

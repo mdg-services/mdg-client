@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactElement, type ReactNode } from '
 
 import { copyText } from '@/lib/clipboard';
 import { cn } from '@/lib/cn';
+import { useLargeText } from '@/lib/useLargeText';
 import type { Lang } from '@/store/lang';
 
 import type { Words } from '../types';
@@ -22,10 +23,21 @@ import { fuelFamilyOfKey, fuelName, leadingFor, say, type FuelFamily } from './_
 export const PLATE_YELLOW = '#facc15';
 export const PLATE_INK = '#18181b';
 
-/** The one plain sentence an overlay opens with: 20 px bold, before any figure. */
-export function Lead({ lang, children, className }: { lang: Lang; children: ReactNode; className?: string }): ReactElement {
+/** The one plain sentence an overlay opens with: `heading` size, before any figure. */
+export function Lead({
+  lang,
+  children,
+  className,
+}: {
+  lang: Lang;
+  children: ReactNode;
+  className?: string;
+}): ReactElement {
   return (
-    <p data-testid="report-lead" className={cn('text-heading text-text', leadingFor(lang), className)}>
+    <p
+      data-testid="report-lead"
+      className={cn('text-heading text-text', leadingFor(lang), className)}
+    >
       {children}
     </p>
   );
@@ -37,7 +49,7 @@ export interface NumberPlateProps {
   lang: Lang;
   /** What the dashed plate says when there is no number. */
   emptyWords: Words;
-  /** `lg` is the tanker density plate (40 px); `md` the fuel order's TT plate (28 px). */
+  /** `lg` is the tanker density plate; `md` the fuel order's smaller TT plate. */
   size?: 'lg' | 'md';
   /** What a screen reader hears before the number ("Tanker number"). */
   label: Words;
@@ -48,14 +60,23 @@ export interface NumberPlateProps {
  * long-pressed, and a screen reader reads the number character by character. It wraps
  * (never scrolls sideways) when text size is doubled.
  */
-export function NumberPlate({ text, lang, emptyWords, size = 'lg', label }: NumberPlateProps): ReactElement {
+export function NumberPlate({
+  text,
+  lang,
+  emptyWords,
+  size = 'lg',
+  label,
+}: NumberPlateProps): ReactElement {
+  // At large text the plate's figures would not fit a phone, and a number broken across lines is
+  // worse than a smaller plate: so the figures drop to body size and the plate keeps its shape.
+  const large = useLargeText();
   const value = (text ?? '').trim();
   if (!value) {
     return (
       <div
         data-testid="number-plate-empty"
         className={cn(
-          'flex min-h-[64px] w-full items-center justify-center rounded-xl border-[3px] border-dashed border-border-strong bg-surface-2 px-4 py-3 text-center text-cta text-text-muted',
+          'flex min-h-16 w-full items-center justify-center rounded-xl border-[3px] border-dashed border-border-strong bg-surface-2 px-4 py-3 text-center text-cta text-text-muted',
           leadingFor(lang),
         )}
       >
@@ -70,18 +91,27 @@ export function NumberPlate({ text, lang, emptyWords, size = 'lg', label }: Numb
       role="group"
       aria-label={`${say(label, lang)} ${value.split('').join(' ')}`}
       className={cn(
-        'relative flex w-full items-center justify-center rounded-xl border-[3px] px-5',
-        big ? 'min-h-[84px] py-3' : 'min-h-[56px] py-2',
+        'relative flex w-full items-center justify-center rounded-xl border-[3px]',
+        large ? 'px-6' : 'px-5',
+        big ? 'min-h-20 py-3' : 'min-h-14 py-2',
       )}
       style={{ backgroundColor: PLATE_YELLOW, borderColor: PLATE_INK, color: PLATE_INK }}
     >
-      <span aria-hidden="true" className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full" style={{ backgroundColor: PLATE_INK, opacity: 0.55 }} />
-      <span aria-hidden="true" className="absolute right-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full" style={{ backgroundColor: PLATE_INK, opacity: 0.55 }} />
+      <span
+        aria-hidden="true"
+        className="absolute left-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full"
+        style={{ backgroundColor: PLATE_INK, opacity: 0.55 }}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute right-2 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full"
+        style={{ backgroundColor: PLATE_INK, opacity: 0.55 }}
+      />
       <span
         aria-hidden="true"
         className={cn(
-          'select-all break-all text-center font-mono font-semibold leading-tight tracking-wider',
-          big ? 'text-[clamp(1.75rem,9vw,2.5rem)]' : 'text-display',
+          'select-all break-all text-center font-mono font-semibold leading-tight',
+          large ? 'whitespace-nowrap text-meta tracking-normal' : 'text-display tracking-wider',
         )}
       >
         {value}
@@ -96,21 +126,44 @@ const FUEL_VAR: Record<FuelFamily, string> = {
   other: 'var(--fuel-other)',
 };
 
-/** A 10 px swatch plus the fuel letters ("HSD"): the colour is never the only cue. */
-export function FuelSwatch({ productKey, className }: { productKey: string | null | undefined; className?: string }): ReactElement | null {
+/** A small swatch plus the fuel letters ("HSD"): the colour is never the only cue. */
+export function FuelSwatch({
+  productKey,
+  className,
+}: {
+  productKey: string | null | undefined;
+  className?: string;
+}): ReactElement | null {
   const letters = (productKey ?? '').trim();
   if (!letters) return null;
   const family = fuelFamilyOfKey(letters);
   return (
-    <span className={cn('inline-flex items-center gap-1.5 font-mono text-subheading text-text', className)}>
-      <span aria-hidden="true" className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: FUEL_VAR[family] }} />
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 font-mono text-subheading text-text',
+        className,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-block h-2.5 w-2.5 shrink-0 rounded-sm"
+        style={{ backgroundColor: FUEL_VAR[family] }}
+      />
       {letters}
     </span>
   );
 }
 
 /** "Diesel" with its swatch and letters, e.g. for a fuel block's title. */
-export function FuelTitle({ productKey, lang, fallback }: { productKey: string | null | undefined; lang: Lang; fallback?: string }): ReactElement {
+export function FuelTitle({
+  productKey,
+  lang,
+  fallback,
+}: {
+  productKey: string | null | undefined;
+  lang: Lang;
+  fallback?: string;
+}): ReactElement {
   const name = fuelName(productKey, lang) || fallback || '';
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5 text-subheading text-text">
@@ -120,47 +173,93 @@ export function FuelTitle({ productKey, lang, fallback }: { productKey: string |
   );
 }
 
-/** A small pill of fact ("Quantity 6 KL", "Tank T018"). Plain text, 14 px. */
+/** A small pill of fact ("Quantity 6 KL", "Tank T018"). Plain text, `cta` size. */
 export function FactPill({ children }: { children: ReactNode }): ReactElement {
   return (
-    <span className="inline-flex min-h-[28px] items-center rounded-full border border-border-strong bg-surface-2 px-3 text-cta text-text">
+    <span className="inline-flex min-h-7 items-center rounded-full border border-border-strong bg-surface-2 px-3 text-cta text-text">
       {children}
     </span>
   );
 }
 
 /**
- * "More" row: closed by default, 48 px tall. Detail (how a figure was worked out, exact
+ * "More" row: closed by default, 3rem tall. Detail (how a figure was worked out, exact
  * amounts) sits under it so the first screen stays calm.
  */
-export function MoreRow({ title, lang, children }: { title: Words; lang: Lang; children: ReactNode }): ReactElement {
+export function MoreRow({
+  title,
+  lang,
+  children,
+}: {
+  title: Words;
+  lang: Lang;
+  children: ReactNode;
+}): ReactElement {
   return (
     <details data-testid="more-row" className="group rounded-xl border border-border bg-surface">
-      <summary className={cn('flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-4 text-cta text-text', leadingFor(lang))}>
+      <summary
+        className={cn(
+          'flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-cta text-text',
+          leadingFor(lang),
+        )}
+      >
         <span>{say(title, lang)}</span>
-        <ChevronDown aria-hidden="true" className="h-5 w-5 shrink-0 text-text-muted transition-transform group-open:rotate-180" />
+        <ChevronDown
+          aria-hidden="true"
+          className="h-5 w-5 shrink-0 text-text-muted transition-transform group-open:rotate-180"
+        />
       </summary>
-      <div className={cn('border-t border-border px-4 py-3 text-body text-text', leadingFor(lang))}>{children}</div>
+      <div className={cn('border-t border-border px-4 py-3 text-body text-text', leadingFor(lang))}>
+        {children}
+      </div>
     </details>
   );
 }
 
 /** IndianOil's own words, verbatim, in a labelled quote so the dealer knows they are not ours. */
-export function IndianOilSays({ lang, children }: { lang: Lang; children: ReactNode }): ReactElement {
-  const title: Words = { hi: 'IndianOil का कहना है', hl: 'IndianOil kehta hai', en: 'IndianOil says' };
+export function IndianOilSays({
+  lang,
+  children,
+}: {
+  lang: Lang;
+  children: ReactNode;
+}): ReactElement {
+  const title: Words = {
+    hi: 'IndianOil का कहना है',
+    hl: 'IndianOil kehta hai',
+    en: 'IndianOil says',
+  };
   return (
-    <figure data-testid="indianoil-says" className="rounded-xl border border-border-strong bg-surface-2 px-4 py-3">
-      <figcaption className={cn('flex items-center gap-2 text-subheading uppercase tracking-wide text-text-muted', leadingFor(lang))}>
+    <figure
+      data-testid="indianoil-says"
+      className="rounded-xl border border-border-strong bg-surface-2 px-4 py-3"
+    >
+      <figcaption
+        className={cn(
+          'flex items-center gap-2 text-subheading uppercase tracking-wide text-text-muted',
+          leadingFor(lang),
+        )}
+      >
         <Quote aria-hidden="true" className="h-4 w-4" />
         {say(title, lang)}
       </figcaption>
-      <blockquote className="mt-1 break-words text-body leading-snug text-text">{children}</blockquote>
+      <blockquote className="mt-1 break-words text-body leading-snug text-text">
+        {children}
+      </blockquote>
     </figure>
   );
 }
 
-/** One quiet line with a small icon in front: 16 px, never smaller. */
-export function IconNote({ icon, children, lang }: { icon: ReactNode; children: ReactNode; lang: Lang }): ReactElement {
+/** One quiet line with a small icon in front: body size, never smaller. */
+export function IconNote({
+  icon,
+  children,
+  lang,
+}: {
+  icon: ReactNode;
+  children: ReactNode;
+  lang: Lang;
+}): ReactElement {
   return (
     <li className={cn('flex items-start gap-3 text-body text-text', leadingFor(lang))}>
       <span aria-hidden="true" className="mt-0.5 shrink-0 text-text-muted">
@@ -176,7 +275,11 @@ type CopyState = 'idle' | 'copied' | 'failed';
 const COPY_WORDS: Record<CopyState, Words> = {
   idle: { hi: 'कॉपी करें', hl: 'Copy karein', en: 'Copy' },
   copied: { hi: 'कॉपी हो गया', hl: 'Copy ho gaya', en: 'Copied' },
-  failed: { hi: 'दबाकर रखें और कॉपी करें', hl: 'Dabaakar rakhein, phir copy', en: 'Press and hold to copy' },
+  failed: {
+    hi: 'दबाकर रखें और कॉपी करें',
+    hl: 'Dabaakar rakhein, phir copy',
+    en: 'Press and hold to copy',
+  },
 };
 
 export interface CopyButtonProps {
@@ -191,11 +294,17 @@ export interface CopyButtonProps {
 }
 
 /**
- * A 48 px copy button. Tapping it copies `text` and, for two seconds, changes to a tick and
+ * A 3rem copy button. Tapping it copies `text` and, for two seconds, changes to a tick and
  * the word "Copied": the confirmation is an icon and a word, not a colour. If the phone
  * refuses the copy it says so and tells the dealer to press and hold the number instead.
  */
-export function CopyButton({ text, lang, idleWords, describe, className }: CopyButtonProps): ReactElement {
+export function CopyButton({
+  text,
+  lang,
+  idleWords,
+  describe,
+  className,
+}: CopyButtonProps): ReactElement {
   const [state, setState] = useState<CopyState>('idle');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
@@ -218,12 +327,16 @@ export function CopyButton({ text, lang, idleWords, describe, className }: CopyB
         });
       }}
       className={cn(
-        'inline-flex min-h-[48px] min-w-[48px] items-center justify-center gap-2 rounded-[10px] border border-border-strong bg-surface px-4 text-cta text-text active:bg-surface-2',
+        'inline-flex min-h-12 min-w-12 items-center justify-center gap-2 rounded-lg border border-border-strong bg-surface px-4 text-cta text-text shadow-sm active:bg-surface-2',
         leadingFor(lang),
         className,
       )}
     >
-      {state === 'copied' ? <Check aria-hidden="true" className="h-5 w-5" /> : <Copy aria-hidden="true" className="h-5 w-5" />}
+      {state === 'copied' ? (
+        <Check aria-hidden="true" className="h-5 w-5" />
+      ) : (
+        <Copy aria-hidden="true" className="h-5 w-5" />
+      )}
       <span aria-live="polite">{label}</span>
     </button>
   );

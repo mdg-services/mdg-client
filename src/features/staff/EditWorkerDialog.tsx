@@ -3,8 +3,7 @@ import { X } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
-
-
+import { StatusPill } from '@/components/kit/StatusPill';
 import { Button, Input, useToast } from '@/components/ui';
 import {
   useRemoveEmployeeLeave,
@@ -43,6 +42,7 @@ export function EditWorkerDialog({
   const setLeave = useSetEmployeeLeave(dealerId);
   const removeLeave = useRemoveEmployeeLeave(dealerId);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
+  const fieldId = React.useId();
   // Lock the StaffPage behind the dialog so its backdrop doesn't scroll the page.
   useScrollLock();
   // The phone's Back button closes the sheet, not the screen behind it.
@@ -126,7 +126,12 @@ export function EditWorkerDialog({
   const leaveBusy = setLeave.isPending || removeLeave.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('staff.editWorker')}
+    >
       <button
         type="button"
         aria-label={t('common.cancel')}
@@ -134,18 +139,16 @@ export function EditWorkerDialog({
         className="absolute inset-0 bg-black/40"
       />
 
-      <div className="animate-in relative w-full max-w-sm rounded-2xl border border-border bg-surface p-4 shadow-lg">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-meta font-semibold text-text">
-            {t('staff.editWorker')}
-          </h2>
+      <div className="animate-in relative max-h-full w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-surface p-4 shadow-lg">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="min-w-0 break-words text-heading text-text">{t('staff.editWorker')}</h2>
           <button
             type="button"
             aria-label={t('common.cancel')}
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
           >
-            <X width={18} strokeWidth={1.75} />
+            <X aria-hidden className="h-6 w-6" strokeWidth={1.75} />
           </button>
         </div>
 
@@ -153,19 +156,17 @@ export function EditWorkerDialog({
             find this immediately, not scroll past the Save button. */}
         <div className="mb-3 rounded-xl border border-border bg-surface-2/40 p-3">
           {employee.onLeaveToday ? (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-meta font-medium text-warning">
-                  {t('staff.onLeave')}
-                </span>
-                <span className="truncate text-meta text-text-muted">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <StatusPill status="info" word={t('staff.onLeave')} />
+                <span className="break-words text-body text-text-muted">
                   {t('staff.leaveTodayHint')}
                 </span>
               </div>
               <Button
                 type="button"
                 variant="secondary"
-                size="sm"
+                size="md"
                 loading={leaveBusy}
                 onClick={onClearLeave}
               >
@@ -174,12 +175,12 @@ export function EditWorkerDialog({
             </div>
           ) : (
             <div className="flex flex-col gap-2">
-              <p className="text-meta text-text-muted">{t('staff.markLeaveHint')}</p>
-              <div className="flex gap-2">
+              <p className="break-words text-body text-text-muted">{t('staff.markLeaveHint')}</p>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
+                  size="md"
                   fullWidth
                   loading={leaveBusy}
                   onClick={() => markLeave()}
@@ -189,7 +190,7 @@ export function EditWorkerDialog({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="md"
                   loading={leaveBusy}
                   onClick={() => markLeave(yesterdayIST)}
                 >
@@ -201,10 +202,11 @@ export function EditWorkerDialog({
         </div>
 
         <form onSubmit={onSave} className="flex flex-col gap-2" noValidate>
-          <label className="px-1 text-subheading text-text-muted">
+          <label htmlFor={`${fieldId}-name`} className="px-1 text-subheading text-text-muted">
             {t('staff.workerName')}
           </label>
           <Input
+            id={`${fieldId}-name`}
             autoFocus
             autoCapitalize="words"
             autoComplete="off"
@@ -214,25 +216,25 @@ export function EditWorkerDialog({
             {...register('name')}
           />
           {errors.name ? (
-            <p className="px-1 text-meta text-danger">
-              {t('staff.form.nameRequired')}
-            </p>
+            <p className="px-1 text-body text-danger">{t('staff.form.nameRequired')}</p>
           ) : null}
 
-          <label className="mt-1 px-1 text-subheading text-text-muted">
+          <label htmlFor={`${fieldId}-role`} className="mt-1 px-1 text-subheading text-text-muted">
             {t('staff.workerDesignation')}
           </label>
           <Input
+            id={`${fieldId}-role`}
             placeholder={t('staff.form.designationPlaceholder')}
             autoCapitalize="words"
             spellCheck={false}
             {...register('designation')}
           />
 
-          <label className="mt-1 px-1 text-subheading text-text-muted">
+          <label htmlFor={`${fieldId}-phone`} className="mt-1 px-1 text-subheading text-text-muted">
             {t('staff.workerPhone')}
           </label>
           <Input
+            id={`${fieldId}-phone`}
             type="tel"
             inputMode="tel"
             placeholder={t('staff.form.phonePlaceholder')}
@@ -253,10 +255,10 @@ export function EditWorkerDialog({
         <div className="mt-3 border-t border-border pt-3">
           {confirmRemove ? (
             <div className="flex flex-col gap-2">
-              <p className="text-meta text-text-muted">
+              <p className="break-words text-body text-text-muted">
                 {t('staff.removeWorkerConfirm', { name: employee.name })}
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="danger"

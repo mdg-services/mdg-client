@@ -249,7 +249,7 @@ describe('PaymentDetailPage — the GST invoice', () => {
   it('has nothing to say about GST on a payment that is not paid', async () => {
     renderDetail(makePayment());
 
-    await screen.findByRole('button', { name: 'Pay ₹4,999' });
+    await screen.findByRole('button', { name: 'Pay now, ₹4,999' });
     expect(screen.queryByText('GST invoice is being prepared')).not.toBeInTheDocument();
     expect(screen.queryByRole('region', { name: 'GST invoice' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Download/ })).not.toBeInTheDocument();

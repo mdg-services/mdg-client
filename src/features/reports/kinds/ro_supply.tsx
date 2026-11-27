@@ -1,13 +1,13 @@
 import { Clock, TriangleAlert } from 'lucide-react';
 import * as React from 'react';
 
+import { SectionCard, StatusPill } from '@/components/kit';
 import type { Lang } from '@/store/lang';
 import type { ReportDataOf, RoSupplyCond, TodayTaskKind } from '@dk/shared/types';
 
-import { StatusBadge } from '../StatusBadge';
 import { sayWords, type KindAlert, type KindTile, type KindView, type OverlayProps, type ReportStatusKey, type Words } from '../types';
 
-import { BlockTitle, ChatButton, GlyphBox, Lead, Note, leading, stampWords } from './_supplyKit';
+import { ChatButton, GlyphBox, Lead, Note, leading, rv, rvn, stampWords } from './_supplyKit';
 
 /**
  * Supply status (ADR 0056): the BOOM-BARRIER GATE. The dealer's question is "can my pump
@@ -402,7 +402,7 @@ function Gate({ verdict }: { verdict: SupplyVerdict }): React.ReactElement {
       data-testid="supply-gate"
       data-verdict={verdict}
       data-angle={angle}
-      className="mx-auto block h-auto w-full max-w-[420px] rounded-xl bg-kind-supply-soft"
+      className="mx-auto block h-auto w-full max-w-md rounded-xl bg-kind-supply-soft"
     >
       {/* ground */}
       <rect x="0" y="136" width="328" height="14" className="fill-kind-supply-ink" opacity="0.18" />
@@ -493,6 +493,9 @@ function ConditionRow({
     >
       <RowLamp mark={row.mark} />
       <div className={`min-w-0 flex-1 text-body text-text ${leading(lang)}`}>
+        <p data-testid="supply-row-state" className="text-meta font-semibold text-text-muted">
+          {stateWord}
+        </p>
         <p className="break-words font-semibold">{rowText(row, lang)}</p>
         {copy ? (
           <p className="break-words text-body text-text-muted">{sayWords(W.portalTerm(row.portalText || copy.portal), lang)}</p>
@@ -504,7 +507,7 @@ function ConditionRow({
           <div className="mt-2 flex flex-col gap-2">
             <span
               data-testid="supply-fixer"
-              className="inline-flex w-fit min-h-[28px] items-center rounded-full border border-border-strong px-2.5 py-0.5 text-cta"
+              className="inline-flex min-h-7 w-fit items-center rounded-full border border-border-strong px-2.5 py-0.5 text-cta"
             >
               {sayWords(W.whoFixes(who), lang)}
             </span>
@@ -524,6 +527,20 @@ function ConditionRow({
       </div>
     </li>
   );
+}
+
+/** The big word of the summary: Open, Stopped, or Not clear. A supply with work pending is still open. */
+export function supplyWord(verdict: SupplyVerdict, lang: Lang): string {
+  return rv(lang, verdict === 'stopped' ? 'rv3.supply.stopped' : verdict === 'unclear' ? 'rv3.supply.unclear' : 'rv3.supply.open');
+}
+
+/** Under the big word: how many conditions are pending, and what that means for the supply. */
+export function supplyPendingLine(data: Data, verdict: SupplyVerdict, lang: Lang): string {
+  const n = data.failingCount;
+  if (verdict === 'stopped') return n > 0 ? rvn(lang, 'rv3.supply.pending', n, { n }) : '';
+  if (verdict === 'pending') return rvn(lang, 'rv3.supply.pendingRisk', n, { n });
+  if (verdict === 'clear') return rv(lang, 'rv3.supply.allClear');
+  return '';
 }
 
 function badgeWord(verdict: SupplyVerdict, lang: Lang): string {
@@ -547,11 +564,21 @@ function Overlay({ data, report, lang }: OverlayProps<'ro_supply'>): React.React
       ? sayWords(data.failingCount === 0 ? W.stoppedCleanSub : W.stoppedSub, lang)
       : null;
   return (
-    <div data-kind="ro_supply" data-verdict={verdict} className="flex flex-col gap-4 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <StatusBadge status={VERDICT_STATUS[verdict]} lang={lang} word={badgeWord(verdict, lang)} />
-        {checked ? <span className="text-body text-text-muted">{sayWords(W.checkedAt(checked), lang)}</span> : null}
-      </div>
+    <div data-kind="ro_supply" data-verdict={verdict} className="flex flex-col gap-3 p-4">
+      <SectionCard title={rv(lang, 'rv3.supply.label')}>
+        <div className="flex flex-col gap-2" data-testid="supply-summary">
+          <p data-testid="supply-word" className="break-words text-display text-text">
+            {supplyWord(verdict, lang)}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status={VERDICT_STATUS[verdict]} word={badgeWord(verdict, lang)} />
+          </div>
+          {supplyPendingLine(data, verdict, lang) ? (
+            <p className={`text-body text-text ${leading(lang)}`}>{supplyPendingLine(data, verdict, lang)}</p>
+          ) : null}
+          {checked ? <p className="text-meta text-text-muted">{sayWords(W.checkedAt(checked), lang)}</p> : null}
+        </div>
+      </SectionCard>
       <Lead lang={lang}>{leadText(data, lang)}</Lead>
       {sub ? <p className={`text-body text-text ${leading(lang)}`}>{sub}</p> : null}
 
@@ -579,14 +606,13 @@ function Overlay({ data, report, lang }: OverlayProps<'ro_supply'>): React.React
       ) : null}
 
       {rows.length > 0 ? (
-        <section className="flex flex-col gap-2" aria-label={sayWords(W.conditions, lang)}>
-          <BlockTitle>{sayWords(W.conditions, lang)}</BlockTitle>
+        <SectionCard title={sayWords(W.conditions, lang)} count={rows.length}>
           <ul className="flex list-none flex-col gap-2 p-0">
             {rows.map((row, i) => (
               <ConditionRow key={`${row.cond}-${i}`} row={row} lang={lang} report={report} />
             ))}
           </ul>
-        </section>
+        </SectionCard>
       ) : null}
 
       <Note lang={lang} testId="supply-rule">
