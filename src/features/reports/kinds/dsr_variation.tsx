@@ -580,10 +580,20 @@ function tile(data: DsrVariationData, lang: Lang): KindTile | null {
   const sub = [word, allowedRange(worst.variation, lang), more > 0 ? (lang === 'hi' ? `+${more} और` : lang === 'hl' ? `+${more} aur` : `+${more} more`) : null]
     .filter(Boolean)
     .join(' · ');
+  // One row per fuel outside its limit, worst first: the figure is the thing to read, the reason
+  // ("over"/"short") sits beside the name, and the allowed range is said once, when one fuel is out.
+  const rows = out.map((o) => ({
+    label: fuelName(o.key, lang),
+    value: `${signed(o.variation.variationL)} L`,
+    hint: toneOf(o.variation) === 'high' ? t(W.over, lang) : t(W.short, lang),
+  }));
   return {
     value: `${fuelName(worst.key, lang)} ${signed(worst.variation.variationL)} L`,
     sub,
     status: statusOf(tone),
+    rows,
+    // A non-breaking space keeps the unit with its figure: "+731 L" never leaves the L alone on a line.
+    lines: out.length === 1 ? [allowedRange(worst.variation, lang).replace(/ L\b/g, '\u00A0L')] : [],
   };
 }
 

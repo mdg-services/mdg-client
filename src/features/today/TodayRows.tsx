@@ -2,6 +2,7 @@ import { CheckCircle2, ChevronRight } from 'lucide-react';
 import * as React from 'react';
 
 import { FuelOrderCardView } from '@/features/chat/FuelOrderCardView';
+import { keepPiecesTogether } from '@/features/reports/keepTogether';
 import { kindStyle } from '@/features/reports/kindStyle';
 import { StatusBadge, statusWord } from '@/features/reports/StatusBadge';
 import { sayWords } from '@/features/reports/types';
@@ -117,7 +118,7 @@ export function DoneRow({
           <Icon width={18} strokeWidth={1.75} />
         </span>
         <span className="flex min-w-0 flex-1 flex-col">
-          <span className="break-words text-body font-medium text-text">{headline}</span>
+          <span className="break-words text-body font-medium text-text">{keepPiecesTogether(headline)}</span>
           {when ? <span className="text-meta text-text-muted">{when}</span> : null}
         </span>
         <ChevronRight width={18} strokeWidth={1.75} className="shrink-0 text-text-subtle" aria-hidden />

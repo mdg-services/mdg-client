@@ -6,6 +6,7 @@ import type { ReportKind } from '@dk/shared/types';
 
 import { familyVar } from './familyVar';
 import { kindStyle } from './kindStyle';
+import { keepPiecesTogether } from './keepTogether';
 import { getKindView } from './registry';
 import { rowHeadline, rowStatus, type HistoryRow } from './reportsHistoryView';
 import { clockWords } from './reportView';
@@ -42,8 +43,8 @@ function Tag({ children }: { children: React.ReactNode }) {
 /**
  * One report in the Reports tab. The whole row is one tap target (72 px or more) that opens the
  * overlay. A replaced report is muted and says so; a corrected one says so; a message from before
- * snapshots says it opens as a picture. At large text the status drops under the words instead of
- * squeezing them.
+ * snapshots says it opens as a picture. Three bands in one column: the name with its time, the words
+ * across the full width, then the status and any notes, so nothing squeezes the words.
  */
 export function ReportHistoryRow({ row, onOpen }: { row: HistoryRow; onOpen: (row: HistoryRow) => void }) {
   const t = useT();
@@ -53,6 +54,7 @@ export function ReportHistoryRow({ row, onOpen }: { row: HistoryRow; onOpen: (ro
   const headline = rowHeadline(report, lang);
   const status = rowStatus(report, lang);
   const time = clockWords(report.sentAt, lang);
+  const showStatus = !row.replaced && status !== 'info';
   return (
     <li>
       <button
@@ -61,40 +63,36 @@ export function ReportHistoryRow({ row, onOpen }: { row: HistoryRow; onOpen: (ro
         data-kind={report.kind}
         data-replaced={row.replaced || undefined}
         onClick={() => onOpen(row)}
-        className="flex min-h-[72px] w-full flex-wrap items-center gap-x-3.5 gap-y-2 border-b border-border px-4 py-3.5 text-left transition-colors duration-150 active:bg-surface-2"
+        className="flex min-h-[72px] w-full items-start gap-3.5 border-b border-border px-4 py-3.5 text-left transition-colors duration-150 active:bg-surface-2"
       >
         <IdentityTile kind={report.kind} />
-        <span className="min-w-[9rem] flex-1">
-          <span
-            className={cn(
-              'block break-words text-subheading leading-normal',
-              row.replaced ? 'text-text-muted' : 'text-text',
-            )}
-          >
-            {sayWords(style.names, lang)}
-          </span>
-          {headline ? (
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          {/* Who and when on one line, so the words below get the row's whole width. */}
+          <span className="flex items-baseline justify-between gap-3">
             <span
               className={cn(
-                'block whitespace-pre-line break-words text-body leading-normal',
-                'text-text-muted',
+                'min-w-0 break-words text-subheading leading-normal',
+                row.replaced ? 'text-text-muted' : 'text-text',
               )}
             >
-              {headline}
+              {sayWords(style.names, lang)}
+            </span>
+            {time ? <span className="shrink-0 text-meta tabular-nums text-text-muted">{time}</span> : null}
+          </span>
+          {headline ? (
+            <span className="block whitespace-pre-line break-words text-body leading-normal text-text-muted">
+              {keepPiecesTogether(headline)}
             </span>
           ) : null}
-          {row.replaced || row.corrected || row.picture ? (
-            <span className="mt-1 flex flex-wrap gap-1.5">
+          {/* How it stands, then any note about the row. "Info" says nothing on a list. */}
+          {showStatus || row.replaced || row.corrected || row.picture ? (
+            <span className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              {showStatus ? <StatusBadge status={status} lang={lang} /> : null}
               {row.replaced ? <Tag>{t('reports.tagReplaced')}</Tag> : null}
               {row.corrected ? <Tag>{t('reports.tagCorrected')}</Tag> : null}
               {row.picture ? <Tag>{t('reports.tagPicture')}</Tag> : null}
             </span>
           ) : null}
-        </span>
-        <span className="flex shrink-0 flex-col items-end gap-1">
-          {time ? <span className="text-meta tabular-nums text-text-muted">{time}</span> : null}
-          {/* "Info" says nothing on a list: only a state with something to say gets a tag. */}
-          {row.replaced || status === 'info' ? null : <StatusBadge status={status} lang={lang} />}
         </span>
       </button>
     </li>

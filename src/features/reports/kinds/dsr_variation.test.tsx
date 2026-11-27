@@ -63,6 +63,22 @@ describe('dsr_variation: tile', () => {
     expect(tile.sub).toContain('+1 more');
   });
 
+  it('draws one row per fuel that is out, worst first, with over/short beside the name', () => {
+    const tile = view.tile(bothOut(), 'en')!;
+    expect(tile.rows).toEqual([
+      { label: 'Petrol', value: '+380 L', hint: 'Over' },
+      { label: 'Diesel', value: `${M}520 L`, hint: 'Short' },
+    ]);
+    // With more than one fuel out the allowed range is the report's to say, not the tile's.
+    expect(tile.lines).toEqual([]);
+  });
+
+  it('says the allowed range once, with the unit kept to its figure, when one fuel is out', () => {
+    const tile = view.tile(variationData(), 'en')!;
+    expect(tile.rows).toHaveLength(1);
+    expect(tile.lines).toEqual([`Allowed ${M}420 to +310\u00A0L`]);
+  });
+
   it('counts nothing before the first inspection', () => {
     const tile = view.tile(variationData({ beforeInspection: true }), 'en')!;
     expect(tile.value).toBe('Not counted yet');
