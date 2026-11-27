@@ -68,9 +68,9 @@ export function LoginForm({
 
   return (
     <form onSubmit={(e) => void submit(e)} autoComplete="off" noValidate className="flex flex-col gap-3">
-      {lead ? <p className="break-words text-body font-medium text-text">{lead}</p> : null}
+      {lead ? <p className="text-meta font-medium text-text">{lead}</p> : null}
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${ids}-id`} className="text-subheading text-text">
+        <label htmlFor={`${ids}-id`} className="text-subheading text-text-muted">
           {t('chat.portalUserId')}
         </label>
         <Input
@@ -87,7 +87,7 @@ export function LoginForm({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${ids}-pw`} className="text-subheading text-text">
+        <label htmlFor={`${ids}-pw`} className="text-subheading text-text-muted">
           {t('chat.portalPassword')}
         </label>
         <div className="relative">
@@ -109,7 +109,7 @@ export function LoginForm({
             onClick={() => setShow((v) => !v)}
             aria-label={show ? t('chat.portalHidePassword') : t('chat.portalShowPassword')}
             aria-pressed={show}
-            className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
+            className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
           >
             {show ? (
               <EyeOff width={18} strokeWidth={1.75} aria-hidden />
@@ -120,7 +120,7 @@ export function LoginForm({
         </div>
       </div>
       {errorKey ? (
-        <p role="alert" className="break-words rounded-lg bg-warning-soft px-3 py-2 text-body text-warning-strong">
+        <p role="alert" className="rounded-lg bg-warning-soft px-3 py-2 text-meta text-warning-strong">
           {t(errorKey)}
         </p>
       ) : null}

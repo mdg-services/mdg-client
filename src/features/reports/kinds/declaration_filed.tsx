@@ -1,7 +1,5 @@
 import { useId, type ReactElement } from 'react';
 
-import { Num, StatTile } from '@/components/kit';
-import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { DeclarationFiledData, FiledPhoto } from '@dk/shared/types';
 
@@ -168,7 +166,7 @@ function Seal({ data, lang, size = 148 }: { data: Data; lang: Lang; size?: numbe
           {sayWords(onPortal ? t.sealTopPortal : t.sealTop, lang)}
         </textPath>
       </text>
-      <text fontSize="12" fontWeight="700" letterSpacing="1" fill="currentColor" textAnchor="middle">
+      <text fontSize="10" fontWeight="700" letterSpacing="1.5" fill="currentColor" textAnchor="middle">
         <textPath xlinkHref={`#${bottom}`} startOffset="50%">
           {sayWords(t.sealBottom, lang)}
         </textPath>
@@ -184,7 +182,7 @@ function Seal({ data, lang, size = 148 }: { data: Data; lang: Lang; size?: numbe
       <text x="74" y="83" fontSize="28" fontWeight="800" fill="currentColor" textAnchor="middle">
         {dayOfMonth(data.day)}
       </text>
-      <text x="74" y="99" fontSize="14" fontWeight="700" fill="currentColor" textAnchor="middle">
+      <text x="74" y="99" fontSize="13" fontWeight="700" fill="currentColor" textAnchor="middle">
         {month}
       </text>
     </svg>
@@ -202,7 +200,7 @@ function Calendar({ data, lang }: { data: Data; lang: Lang }): ReactElement {
         {days.map((d) => (
           <li
             key={d.day}
-            className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-lg"
+            className="flex min-h-[52px] flex-col items-center justify-center gap-0.5 rounded-lg"
             data-filed={d.filed ? 'yes' : 'no'}
             data-report-day={d.isReportDay ? 'yes' : undefined}
           >
@@ -299,13 +297,9 @@ function Overlay(props: OverlayProps<'declaration_filed'>): ReactElement {
       </div>
       {data.declaration === 'safety' && data.recentDays && data.recentDays.length > 0 ? <Calendar data={data} lang={lang} /> : null}
       {streak ? (
-        <StatTile
-          label={translate(lang, 'rv2.decl.streak')}
-          value={<Num value={streak} />}
-          unit={translate(lang, 'rv2.decl.streakUnit')}
-          caption={data.nextDueDay ? translate(lang, 'rv2.decl.nextDue', { day: fmtDay(data.nextDueDay, lang) }) : undefined}
-          ariaLabel={`${translate(lang, 'rv2.decl.streak')}: ${streak} ${translate(lang, 'rv2.decl.streakUnit')}`}
-        />
+        <p className={`text-subheading text-text ${lineHeight(lang)}`}>
+          {sayWords(words(`लगातार ${streak} दिन`, `Lagaatar ${streak} din`, `${streak} days in a row`), lang)}
+        </p>
       ) : null}
       {data.declaration === 'washroom' ? <Photos {...props} /> : null}
       <div className="space-y-1">

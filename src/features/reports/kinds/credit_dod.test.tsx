@@ -1,16 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { useLangStore } from '@/store/lang';
-import { resetStores } from '@/test/utils';
 import type { CreditDodData } from '@dk/shared/types';
 
 import { creditData, reportOf } from './_tankerMoney.fixtures';
 import { isLocked, liveCredit, statusOf, view } from './credit_dod';
 
 function open(data: CreditDodData, lang: 'hi' | 'hl' | 'en' = 'en') {
-  // The kit's own words follow the app's language.
-  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={reportOf('credit_dod')} lang={lang} />);
 }
@@ -22,69 +18,25 @@ beforeEach(() => {
   vi.useFakeTimers();
   ON('2026-11-24T06:00:00.000Z');
 });
-afterEach(() => {
-  vi.useRealTimers();
-  resetStores();
-});
+afterEach(() => vi.useRealTimers());
 
 const overdue = creditData({
   verdict: 'overdue',
-  money: {
-    amount: 230000,
-    dueAmount: 124000,
-    date: '2026-11-18',
-    daysLeft: -6,
-    dateIsApprox: false,
-    daysIsMinimum: false,
-    deadlines: 2,
-  },
+  money: { amount: 230000, dueAmount: 124000, date: '2026-11-18', daysLeft: -6, dateIsApprox: false, daysIsMinimum: false, deadlines: 2 },
 });
 const lag = creditData({
   verdict: 'overdue_lag',
-  money: {
-    amount: 124000,
-    dueAmount: 124000,
-    date: '2026-11-23',
-    daysLeft: -1,
-    dateIsApprox: false,
-    daysIsMinimum: false,
-    deadlines: 1,
-  },
+  money: { amount: 124000, dueAmount: 124000, date: '2026-11-23', daysLeft: -1, dateIsApprox: false, daysIsMinimum: false, deadlines: 1 },
 });
 const advance = creditData({
   verdict: 'advance',
-  money: {
-    amount: 29670,
-    dueAmount: -29670,
-    date: null,
-    daysLeft: null,
-    dateIsApprox: false,
-    daysIsMinimum: false,
-    deadlines: null,
-  },
+  money: { amount: 29670, dueAmount: -29670, date: null, daysLeft: null, dateIsApprox: false, daysIsMinimum: false, deadlines: null },
 });
 const settled = creditData({
   verdict: 'settled',
-  money: {
-    amount: 0,
-    dueAmount: 0,
-    date: null,
-    daysLeft: null,
-    dateIsApprox: false,
-    daysIsMinimum: false,
-    deadlines: null,
-  },
+  money: { amount: 0, dueAmount: 0, date: null, daysLeft: null, dateIsApprox: false, daysIsMinimum: false, deadlines: null },
 });
-const locked = creditData({
-  review: { on: '2026-11-18', daysUntil: -6, lapsed: true },
-  limit: {
-    form: 'CASH & CARRY',
-    current: 6000000,
-    availed: 4725310.4,
-    available: 1274689.6,
-    usedPct: null,
-  },
-});
+const locked = creditData({ review: { on: '2026-11-18', daysUntil: -6, lapsed: true }, limit: { form: 'CASH & CARRY', current: 6000000, availed: 4725310.4, available: 1274689.6, usedPct: null } });
 
 describe('credit_dod: the hero', () => {
   it('a normal deposit says the date and the days left, measured from the report date', () => {
@@ -101,12 +53,7 @@ describe('credit_dod: the hero', () => {
 
   it('counts the days again from the date, so an older card never prints a stale count', () => {
     // Made on 20 Nov with 7 days to go; it is 24 Nov now, so 3 days are left.
-    open(
-      creditData({
-        asOf: '2026-11-20',
-        money: { ...creditData().money, daysLeft: 7, date: '2026-11-27' },
-      }),
-    );
+    open(creditData({ asOf: '2026-11-20', money: { ...creditData().money, daysLeft: 7, date: '2026-11-27' } }));
     expect(screen.getByText('3 days left')).toBeInTheDocument();
     expect(screen.queryByText('7 days left')).toBeNull();
   });
@@ -122,17 +69,11 @@ describe('credit_dod: the hero', () => {
     expect(hero.querySelector('[data-status="problem"]')).not.toBeNull();
     expect(within(hero).getByText('Overdue', { selector: 'span span' })).toBeInTheDocument();
     expect(within(hero).getByTestId('credit-amount')).toHaveTextContent('₹2,30,000');
-    expect(within(hero).getByTestId('credit-amount').className).toContain(
-      'text-status-problem-ink',
-    );
+    expect(within(hero).getByTestId('credit-amount').className).toContain('text-status-problem-ink');
     expect(within(hero).getByText('Deadline was 18 Nov')).toBeInTheDocument();
     expect(within(hero).getByText('6 days overdue')).toBeInTheDocument();
     expect(within(hero).getByText('Covers 2 missed deadlines')).toBeInTheDocument();
-    expect(
-      within(hero).getByText(
-        'Part of this: ₹1,24,000 is the oldest due, the rest is also overdue.',
-      ),
-    ).toBeInTheDocument();
+    expect(within(hero).getByText('Part of this: ₹1,24,000 is the oldest due, the rest is also overdue.')).toBeInTheDocument();
   });
 
   it('says "at least" when only a floor is known', () => {
@@ -145,9 +86,7 @@ describe('credit_dod: the hero', () => {
     open(lag);
     const hero = screen.getByTestId('credit-hero');
     expect(hero.querySelector('[data-status="attention"]')).not.toBeNull();
-    expect(within(hero).getByTestId('credit-amount').className).toContain(
-      'text-status-attention-ink',
-    );
+    expect(within(hero).getByTestId('credit-amount').className).toContain('text-status-attention-ink');
     expect(within(hero).getByText('Your payment may not be posted yet.')).toBeInTheDocument();
     expect(screen.queryByText(/missed deadlines/)).toBeNull();
   });
@@ -190,11 +129,7 @@ describe('credit_dod: the ring', () => {
   });
 
   it('draws no ring when nothing is used and the credit is not locked', () => {
-    open(
-      creditData({
-        limit: { ...creditData().limit, usedPct: null, availed: 0, available: 6000000 },
-      }),
-    );
+    open(creditData({ limit: { ...creditData().limit, usedPct: null, availed: 0, available: 6000000 } }));
     expect(screen.queryByTestId('limit-ring')).toBeNull();
     expect(screen.getByTestId('limit-figures')).toBeInTheDocument();
   });
@@ -204,9 +139,7 @@ describe('credit_dod: the ring', () => {
     expect(container.querySelectorAll('[data-testid="limit-ring"] svg > line').length).toBe(36);
     expect(screen.getByText('The limit is nearly full')).toBeInTheDocument();
     const plain = open(creditData({ limit: { ...creditData().limit, usedPct: 60 } }));
-    expect(plain.container.querySelectorAll('[data-testid="limit-ring"] svg > line')).toHaveLength(
-      0,
-    );
+    expect(plain.container.querySelectorAll('[data-testid="limit-ring"] svg > line')).toHaveLength(0);
   });
 
   it('locked: a hatched ring with a padlock, a lock band and the one action', () => {
@@ -220,9 +153,7 @@ describe('credit_dod: the ring', () => {
     expect(screen.getByText('This remaining amount cannot be used')).toBeInTheDocument();
     const band = screen.getByTestId('lock-band');
     expect(band).toHaveTextContent('Credit is locked');
-    expect(band).toHaveTextContent(
-      'Pay for each purchase before loading. Call your sales officer.',
-    );
+    expect(band).toHaveTextContent('Pay for each purchase before loading. Call your sales officer.');
     expect(band).toHaveTextContent('The review date, 18 Nov, passed 6 days ago.');
     expect(container.querySelector('[data-lit="true"]')).toHaveTextContent('CASH & CARRY');
     // A locked report is not read as fine.
@@ -241,20 +172,16 @@ describe('credit_dod: figures, form, purchases and review', () => {
     const more = screen.getByTestId('more-row');
     expect(more).not.toHaveAttribute('open');
     expect(within(more).getByTestId('exact-limit')).toHaveTextContent('₹60,00,000');
-    expect(within(more).getByTestId('exact-used')).toHaveTextContent('₹47,25,310');
-    expect(within(more).getByTestId('exact-left')).toHaveTextContent('₹12,74,690');
+    expect(within(more).getByTestId('exact-used')).toHaveTextContent('₹47,25,310.40');
+    expect(within(more).getByTestId('exact-left')).toHaveTextContent('₹12,74,689.60');
     expect(within(more).getByText('Figures are up to 24 Nov, 3:16 pm.')).toBeInTheDocument();
-    expect(
-      within(more).getByText('Later purchases and payments are not in it.'),
-    ).toBeInTheDocument();
+    expect(within(more).getByText('Later purchases and payments are not in it.')).toBeInTheDocument();
   });
 
   it('lights one form of limit with a tick and a thick border, all three always drawn', () => {
     open(creditData());
     const chips = within(screen.getByTestId('form-chips')).getAllByRole('listitem');
-    expect(
-      chips.map((c) => [c.textContent?.replace('✓', '').trim(), c.getAttribute('data-lit')]),
-    ).toEqual([
+    expect(chips.map((c) => [c.textContent?.replace('✓', '').trim(), c.getAttribute('data-lit')])).toEqual([
       ['DOD', 'true'],
       ['CREDIT', 'false'],
       ['CASH & CARRY', 'false'],
@@ -283,17 +210,10 @@ describe('credit_dod: figures, form, purchases and review', () => {
     expect(rows[0]).toHaveTextContent('Bought 21 Nov · deposit by 27 Nov');
   });
 
-  it('prints a far review date as months with the date in brackets, and says nothing when unknown', () => {
+  it('prints the review date with the year and its days, and says nothing when unknown', () => {
     const { unmount } = open(creditData());
-    expect(screen.getByTestId('review-line')).toHaveTextContent(
-      'Credit review in about 4 months (31 Mar 2027)',
-    );
+    expect(screen.getByTestId('review-line')).toHaveTextContent('Credit review on 31 Mar 2027 (127 days)');
     unmount();
-    const near = open(creditData({ review: { on: '2026-12-10', daysUntil: 16, lapsed: false } }));
-    expect(screen.getByTestId('review-line')).toHaveTextContent(
-      'Credit review on 10 Dec 2026 (16 days)',
-    );
-    near.unmount();
     open(creditData({ review: null }));
     expect(screen.queryByTestId('review-line')).toBeNull();
   });
@@ -302,9 +222,7 @@ describe('credit_dod: figures, form, purchases and review', () => {
 describe('credit_dod: back-dated and festival', () => {
   it('says first that it is an old position', () => {
     open(creditData({ backdated: true, asOf: '2026-11-20' }));
-    expect(screen.getByTestId('backdated-banner')).toHaveTextContent(
-      'Position as of 20 Nov, not today.',
-    );
+    expect(screen.getByTestId('backdated-banner')).toHaveTextContent('Position as of 20 Nov, not today.');
   });
 
   it('dresses the page with the festival greeting', () => {
@@ -321,40 +239,20 @@ describe('credit_dod: back-dated and festival', () => {
 
 describe('credit_dod: tile', () => {
   it('shows the amount with the date and days left, from the report', () => {
-    expect(view.tile(creditData(), 'en')).toEqual({
-      value: '₹1,24,000',
-      sub: 'by 27 Nov · 3 days left',
-      status: 'info',
-    });
+    expect(view.tile(creditData(), 'en')).toEqual({ value: '₹1,24,000', sub: 'by 27 Nov · 3 days left', status: 'info' });
   });
 
   it('overdue is a problem with its days', () => {
-    expect(view.tile(overdue, 'en')).toEqual({
-      value: '₹2,30,000',
-      sub: '6 days overdue',
-      status: 'problem',
-    });
+    expect(view.tile(overdue, 'en')).toEqual({ value: '₹2,30,000', sub: '6 days overdue', status: 'problem' });
   });
 
   it('inside the lag it is attention and says the payment may not be posted', () => {
-    expect(view.tile(lag, 'en')).toEqual({
-      value: '₹1,24,000',
-      sub: 'Payment may not be posted',
-      status: 'attention',
-    });
+    expect(view.tile(lag, 'en')).toEqual({ value: '₹1,24,000', sub: 'Payment may not be posted', status: 'attention' });
   });
 
   it('advance and settled are fine', () => {
-    expect(view.tile(advance, 'en')).toEqual({
-      value: '₹29,670',
-      sub: 'IndianOil holds it for you',
-      status: 'ok',
-    });
-    expect(view.tile(settled, 'en')).toEqual({
-      value: 'No dues',
-      sub: 'Limit left ₹12.75 L',
-      status: 'ok',
-    });
+    expect(view.tile(advance, 'en')).toEqual({ value: '₹29,670', sub: 'IndianOil holds it for you', status: 'ok' });
+    expect(view.tile(settled, 'en')).toEqual({ value: 'No dues', sub: 'Limit left ₹12.75 L', status: 'ok' });
   });
 
   it('adds the lock to the line and lifts a calm status to attention', () => {
@@ -364,11 +262,7 @@ describe('credit_dod: tile', () => {
   });
 
   it('a back-dated report is shown as old and calm', () => {
-    expect(view.tile(creditData({ backdated: true, asOf: '2026-11-20' }), 'en')).toEqual({
-      value: '₹1,24,000',
-      sub: 'As of 20 Nov',
-      status: 'info',
-    });
+    expect(view.tile(creditData({ backdated: true, asOf: '2026-11-20' }), 'en')).toEqual({ value: '₹1,24,000', sub: 'As of 20 Nov', status: 'info' });
   });
 
   it('today is attention', () => {
@@ -379,15 +273,8 @@ describe('credit_dod: tile', () => {
 
 describe('credit_dod: alert, headline and share', () => {
   it('overdue is a problem alert, and mentions a lock', () => {
-    expect(view.alert(overdue, 'en')).toEqual({
-      headline: '₹2,30,000 overdue',
-      line: 'Deposit it with IndianOil now.',
-      severity: 'problem',
-    });
-    expect(
-      view.alert({ ...overdue, review: { on: '2026-11-18', daysUntil: -6, lapsed: true } }, 'en')
-        ?.line,
-    ).toContain('Credit is also locked.');
+    expect(view.alert(overdue, 'en')).toEqual({ headline: '₹2,30,000 overdue', line: 'Deposit it with IndianOil now.', severity: 'problem' });
+    expect(view.alert({ ...overdue, review: { on: '2026-11-18', daysUntil: -6, lapsed: true } }, 'en')?.line).toContain('Credit is also locked.');
   });
 
   it('inside the lag it asks for a look, softly', () => {
@@ -421,9 +308,7 @@ describe('credit_dod: alert, headline and share', () => {
     expect(view.headline(lag, 'en')).toBe('₹1,24,000: deadline passed');
     expect(view.headline(advance, 'en')).toBe('IndianOil holds ₹29,670 for you');
     expect(view.headline(settled, 'en')).toBe('No dues');
-    expect(view.headline(creditData({ verdict: 'due_today' }), 'en')).toBe(
-      '₹1,24,000 to deposit today',
-    );
+    expect(view.headline(creditData({ verdict: 'due_today' }), 'en')).toBe('₹1,24,000 to deposit today');
   });
 
   it('shares a plain summary a bank or an officer can read', () => {
@@ -436,13 +321,11 @@ describe('credit_dod: alert, headline and share', () => {
         'Used: ₹47,25,310.40 (79%)',
         'Left: ₹12,74,689.60',
         'Form of limit: DOD',
-        'Credit review in about 4 months (31 Mar 2027)',
+        'Credit review on 31 Mar 2027 (127 days)',
         'From the IndianOil portal, via MDG.',
       ].join('\n'),
     );
-    expect(view.share(locked, 'en')).toContain(
-      'Credit is locked. Pay for each purchase before loading. Call your sales officer.',
-    );
+    expect(view.share(locked, 'en')).toContain('Credit is locked. Pay for each purchase before loading. Call your sales officer.');
   });
 
   it('draws a ring glyph', () => {
@@ -455,11 +338,7 @@ describe('credit_dod: alert, headline and share', () => {
 
 describe('credit_dod: days counted from the date, not frozen at the card', () => {
   // The 7 pm card of 24 Nov: the deposit is due tomorrow.
-  const evening = () =>
-    creditData({
-      verdict: 'due_soon',
-      money: { ...creditData().money, date: '2026-11-25', daysLeft: 1 },
-    });
+  const evening = () => creditData({ verdict: 'due_soon', money: { ...creditData().money, date: '2026-11-25', daysLeft: 1 } });
 
   it('the same card read on the morning of the last day says due today, in the hero, the tile, the headline and the share', () => {
     ON('2026-11-25T03:30:00.000Z'); // 9 am on 25 Nov in India
@@ -482,15 +361,8 @@ describe('credit_dod: days counted from the date, not frozen at the card', () =>
     const hero = screen.getByTestId('credit-hero');
     expect(hero).toHaveAttribute('data-verdict', 'overdue');
     expect(within(hero).getByText('2 days overdue')).toBeInTheDocument();
-    expect(view.tile(card, 'en')).toEqual({
-      value: '₹1,24,000',
-      sub: '2 days overdue',
-      status: 'problem',
-    });
-    expect(view.alert(card, 'en')).toMatchObject({
-      headline: '₹1,24,000 overdue',
-      severity: 'problem',
-    });
+    expect(view.tile(card, 'en')).toEqual({ value: '₹1,24,000', sub: '2 days overdue', status: 'problem' });
+    expect(view.alert(card, 'en')).toMatchObject({ headline: '₹1,24,000 overdue', severity: 'problem' });
   });
 
   it('keeps counting an overdue card forward and keeps its "at least"', () => {
@@ -515,50 +387,5 @@ describe('credit_dod: days counted from the date, not frozen at the card', () =>
     const card = creditData();
     expect(liveCredit(card).verdict).toBe('due');
     expect(liveCredit(card).money.daysLeft).toBe(3);
-  });
-});
-
-describe('credit_dod: the kit parts', () => {
-  it('puts the ring, the three figures and the form of limit in one card named "Credit limit"', () => {
-    open(creditData());
-    const card = screen.getByRole('region', { name: 'Credit limit' });
-    expect(within(card).getByTestId('limit-ring')).toBeInTheDocument();
-    expect(within(card).getByTestId('limit-figures')).toBeInTheDocument();
-    expect(within(card).getByTestId('form-chips')).toBeInTheDocument();
-  });
-
-  it('draws each figure as a labelled tile that says its label and its amount', () => {
-    open(creditData());
-    const figures = screen.getByTestId('limit-figures');
-    expect(within(figures).getByRole('group', { name: 'Limit: ₹60 L' })).toBeInTheDocument();
-    expect(within(figures).getByRole('group', { name: 'Used: ₹47.25 L' })).toBeInTheDocument();
-    expect(within(figures).getByRole('group', { name: 'Left: ₹12.75 L' })).toBeInTheDocument();
-  });
-
-  it('keeps the big numbers on the type scale, with no fixed pixel size', () => {
-    const { container } = open(creditData());
-    expect(screen.getByTestId('credit-amount').className).toContain('text-display');
-    // A square no wider than the screen: 11 rem, but never past the card at 200% text.
-    expect(screen.getByTestId('limit-ring').className).toContain('aspect-square');
-    expect(screen.getByTestId('limit-ring').className).toContain('max-w-full');
-    expect(container.innerHTML).not.toMatch(/text-\[\d|h-\[\d+px|w-\[\d+px|min-h-\[\d+px/);
-  });
-
-  it('lists open purchases in a card that counts them', () => {
-    open(
-      creditData({
-        lots: [
-          { boughtOn: '2026-11-21', amount: 80000, deadline: '2026-11-27' },
-          { boughtOn: '2026-11-22', amount: 44000, deadline: '2026-11-28' },
-        ],
-      }),
-    );
-    const card = screen.getByRole('region', { name: /Open purchases/ });
-    expect(within(card).getByRole('heading', { name: /Open purchases/ })).toHaveTextContent('2');
-  });
-
-  it('says "Credit limit" in Hindi', () => {
-    open(creditData(), 'hi');
-    expect(screen.getByRole('region', { name: 'क्रेडिट लिमिट' })).toBeInTheDocument();
   });
 });

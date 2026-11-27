@@ -1,12 +1,11 @@
 import { Ban, Check, CircleX, Octagon, Truck } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
-import { SectionCard, StatusPill } from '@/components/kit';
 import { cn } from '@/lib/cn';
-import { useLargeText } from '@/lib/useLargeText';
 import type { Lang } from '@/store/lang';
 import type { FuelOrderData, FuelOrderSnapStage } from '@dk/shared/types';
 
+import { StatusBadge } from '../StatusBadge';
 import type { KindAlert, KindTile, KindView, OverlayProps, ReportStatusKey, Words } from '../types';
 
 import {
@@ -17,7 +16,6 @@ import {
   kl,
   leadingFor,
   rupees,
-  rv,
   say,
   shareLines,
   clockWords,
@@ -68,21 +66,13 @@ const T = {
   nOrdersOne: { hi: '1 ऑर्डर', hl: '1 order', en: '1 order' },
   // Facts.
   tankerLabel: { hi: 'टैंकर नंबर', hl: 'Tanker number', en: 'Tanker number' },
-  tankerNone: {
-    hi: 'टैंकर अभी नहीं मिला',
-    hl: 'Tanker abhi nahi mila',
-    en: 'Tanker not assigned yet',
-  },
+  tankerNone: { hi: 'टैंकर अभी नहीं मिला', hl: 'Tanker abhi nahi mila', en: 'Tanker not assigned yet' },
   earlierTanker: { hi: 'पहले का टैंकर', hl: 'Pehle ka tanker', en: 'Earlier tanker' },
   deliveryDay: { hi: 'डिलीवरी का दिन', hl: 'Delivery ka din', en: 'Delivery day' },
   shipment: { hi: 'शिपमेंट', hl: 'Shipment', en: 'Shipment' },
   loadedAt: { hi: 'माल लदा', hl: 'Maal lada', en: 'Loaded' },
   orderNo: { hi: 'ऑर्डर नंबर', hl: 'Order number', en: 'Order number' },
-  sourceChat: {
-    hi: 'MDG ने आपके लिए लगाया',
-    hl: 'MDG ne aapke liye lagaya',
-    en: 'MDG placed this for you',
-  },
+  sourceChat: { hi: 'MDG ने आपके लिए लगाया', hl: 'MDG ne aapke liye lagaya', en: 'MDG placed this for you' },
   sourcePortal: { hi: 'आपने खुद लगाया', hl: 'Aapne khud lagaya', en: 'Placed by you' },
   source: { hi: 'किसने लगाया', hl: 'Kisne lagaya', en: 'Order source' },
   seenLate: {
@@ -260,24 +250,12 @@ const T = {
     hl: 'Aapki credit limit is order ke liye kaafi nahi thi.',
     en: 'Your credit limit was not enough for this order.',
   },
-  creditHead: {
-    hi: 'आपका हिसाब ({when})',
-    hl: 'Aapka hisaab ({when})',
-    en: 'Your credit position ({when})',
-  },
+  creditHead: { hi: 'आपका हिसाब ({when})', hl: 'Aapka hisaab ({when})', en: 'Your credit position ({when})' },
   creditLimit: { hi: 'बची हुई लिमिट {n}', hl: 'Bachi hui limit {n}', en: 'Limit left {n}' },
   creditDue: { hi: 'जमा करना है {n}', hl: 'Jama karna hai {n}', en: 'To deposit {n}' },
-  creditDueBy: {
-    hi: 'जमा करना है {n}, {day} तक',
-    hl: 'Jama karna hai {n}, {day} tak',
-    en: 'To deposit {n} by {day}',
-  },
+  creditDueBy: { hi: 'जमा करना है {n}, {day} तक', hl: 'Jama karna hai {n}, {day} tak', en: 'To deposit {n} by {day}' },
   creditOverdue: { hi: 'देर हो चुकी {n}', hl: 'Der ho chuki {n}', en: 'Overdue {n}' },
-  creditAdvance: {
-    hi: 'IndianOil के पास आपका एडवांस {n}',
-    hl: 'IndianOil ke paas aapka advance {n}',
-    en: 'IndianOil holds your advance {n}',
-  },
+  creditAdvance: { hi: 'IndianOil के पास आपका एडवांस {n}', hl: 'IndianOil ke paas aapka advance {n}', en: 'IndianOil holds your advance {n}' },
   usualSize: {
     hi: 'आपके टैंकर का आम साइज़ {kl} है।',
     hl: 'Aapke tanker ka aam size {kl} hai.',
@@ -313,11 +291,7 @@ const T = {
     hl: 'IndianOil ki site abhi khul nahi rahi. Hum phir koshish karenge.',
     en: "We cannot reach IndianOil's site right now. We will try again.",
   },
-  retryUntil: {
-    hi: '{when} तक कोशिश करते रहेंगे।',
-    hl: '{when} tak koshish karte rahenge.',
-    en: 'We will keep trying until {when}.',
-  },
+  retryUntil: { hi: '{when} तक कोशिश करते रहेंगे।', hl: '{when} tak koshish karte rahenge.', en: 'We will keep trying until {when}.' },
   breakPaused: {
     hi: 'फ्यूल ऑर्डर सेवा रुकी हुई है, इसलिए हम इस ऑर्डर को नहीं देख रहे।',
     hl: 'Fuel order service ruki hui hai, isliye hum is order ko nahi dekh rahe.',
@@ -344,53 +318,25 @@ const T = {
     hl: 'Wajah report mein dekhein.',
     en: 'See the reason in the report.',
   },
-  alertNotPlaced: {
-    hi: 'फ्यूल ऑर्डर नहीं लग पाया',
-    hl: 'Fuel order nahi lag paaya',
-    en: 'Fuel order was not placed',
-  },
+  alertNotPlaced: { hi: 'फ्यूल ऑर्डर नहीं लग पाया', hl: 'Fuel order nahi lag paaya', en: 'Fuel order was not placed' },
   alertUnclear: {
     hi: 'पक्का नहीं कि ऑर्डर लगा',
     hl: 'Pakka nahi ki order laga',
     en: 'Not sure the order went through',
   },
-  alertUnclearLine: {
-    hi: 'पोर्टल देख लें।',
-    hl: 'Portal dekh lein.',
-    en: 'Please check the portal.',
-  },
+  alertUnclearLine: { hi: 'पोर्टल देख लें।', hl: 'Portal dekh lein.', en: 'Please check the portal.' },
   alertChanged: { hi: 'टैंकर बदल गया', hl: 'Tanker badal gaya', en: 'Tanker changed' },
   alertChangedLine: { hi: 'नया टैंकर {tt}।', hl: 'Naya tanker {tt}.', en: 'New tanker {tt}.' },
-  alertNoTanker: {
-    hi: 'अभी तक टैंकर नहीं मिला',
-    hl: 'Abhi tak tanker nahi mila',
-    en: 'No tanker yet',
-  },
+  alertNoTanker: { hi: 'अभी तक टैंकर नहीं मिला', hl: 'Abhi tak tanker nahi mila', en: 'No tanker yet' },
   alertNoTankerLine: {
     hi: 'हम पोर्टल देख रहे हैं।',
     hl: 'Hum portal dekh rahe hain.',
     en: 'We are watching the portal.',
   },
-  alertNotRun: {
-    hi: 'IndianOil ने ऑर्डर चलाया नहीं',
-    hl: 'IndianOil ne order chalaya nahi',
-    en: 'IndianOil has not run the order',
-  },
-  alertLapsed: {
-    hi: 'ऑर्डर का समय निकल गया',
-    hl: 'Order ka samay nikal gaya',
-    en: 'The order ran out of time',
-  },
-  alertDuplicate: {
-    hi: 'ऑर्डर शायद दोबारा लगा है',
-    hl: 'Order shayad dobara laga hai',
-    en: 'This order may be a repeat',
-  },
-  alertStopped: {
-    hi: 'ऑर्डर पर नज़र नहीं रख पा रहे',
-    hl: 'Order par nazar nahi rakh paa rahe',
-    en: 'We cannot follow this order',
-  },
+  alertNotRun: { hi: 'IndianOil ने ऑर्डर चलाया नहीं', hl: 'IndianOil ne order chalaya nahi', en: 'IndianOil has not run the order' },
+  alertLapsed: { hi: 'ऑर्डर का समय निकल गया', hl: 'Order ka samay nikal gaya', en: 'The order ran out of time' },
+  alertDuplicate: { hi: 'ऑर्डर शायद दोबारा लगा है', hl: 'Order shayad dobara laga hai', en: 'This order may be a repeat' },
+  alertStopped: { hi: 'ऑर्डर पर नज़र नहीं रख पा रहे', hl: 'Order par nazar nahi rakh paa rahe', en: 'We cannot follow this order' },
   // Share.
   shareOrder: { hi: 'ऑर्डर {no}', hl: 'Order {no}', en: 'Order {no}' },
 } satisfies Record<string, Words>;
@@ -523,9 +469,7 @@ export function leadOf(data: FuelOrderData, lang: Lang): string {
     case 'tanker_assigned':
       if (!ttNo) return say(T.leadAssignedBare, lang);
       if (data.seenLate) return fill(T.leadAssignedLate, lang, { tt: ttNo });
-      return day
-        ? fill(T.leadAssigned, lang, { tt: ttNo, day })
-        : fill(T.leadAssignedNoDay, lang, { tt: ttNo });
+      return day ? fill(T.leadAssigned, lang, { tt: ttNo, day }) : fill(T.leadAssignedNoDay, lang, { tt: ttNo });
     case 'cancelled':
       switch (data.cancelState) {
         case 'cancelling':
@@ -554,9 +498,7 @@ export function leadOf(data: FuelOrderData, lang: Lang): string {
     case 'tanker_details_added':
       return ttNo ? fill(T.leadDetails, lang, { tt: ttNo }) : say(T.leadDetailsBare, lang);
     case 'possible_duplicate':
-      return data.duplicateOf
-        ? fill(T.leadDuplicate, lang, { other: data.duplicateOf })
-        : say(T.leadDuplicateBare, lang);
+      return data.duplicateOf ? fill(T.leadDuplicate, lang, { other: data.duplicateOf }) : say(T.leadDuplicateBare, lang);
     case 'delayed':
       return say(T.leadDelayed, lang);
     case 'check_result':
@@ -603,27 +545,16 @@ function StopMarker({
         data-marker="stopped"
         className={cn(
           'flex h-11 w-11 items-center justify-center rounded-full border-[3px] bg-surface',
-          refused
-            ? 'border-status-problem text-status-problem-ink'
-            : 'border-status-info text-status-info-ink',
+          refused ? 'border-status-problem text-status-problem-ink' : 'border-status-info text-status-info-ink',
         )}
       >
-        {refused ? (
-          <Octagon aria-hidden="true" className="h-6 w-6" strokeWidth={2.6} />
-        ) : stopped === 'closed' ? (
-          <Ban aria-hidden="true" className="h-6 w-6" />
-        ) : (
-          <CircleX aria-hidden="true" className="h-6 w-6" />
-        )}
+        {refused ? <Octagon aria-hidden="true" className="h-6 w-6" strokeWidth={2.6} /> : stopped === 'closed' ? <Ban aria-hidden="true" className="h-6 w-6" /> : <CircleX aria-hidden="true" className="h-6 w-6" />}
       </span>
     );
   }
   if (kind === 'done') {
     return (
-      <span
-        data-marker="done"
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-kind-tanker text-white"
-      >
+      <span data-marker="done" className="flex h-9 w-9 items-center justify-center rounded-full bg-kind-tanker text-white">
         <Check aria-hidden="true" className="h-5 w-5" strokeWidth={3.2} />
       </span>
     );
@@ -638,119 +569,41 @@ function StopMarker({
       </span>
     );
   }
-  return (
-    <span
-      data-marker="todo"
-      className="h-9 w-9 rounded-full border-[3px] border-dashed border-border-strong bg-surface"
-    />
-  );
+  return <span data-marker="todo" className="h-9 w-9 rounded-full border-[3px] border-dashed border-border-strong bg-surface" />;
 }
 
 /** The four-stop rail: an ordered list, each stop a tick, a truck or an empty ring, with its words below. */
-export function Rail({
-  state,
-  dates,
-  lang,
-}: {
-  state: RailState;
-  dates?: Array<string | null>;
-  lang: Lang;
-}): ReactElement {
+export function Rail({ state, dates, lang }: { state: RailState; dates?: Array<string | null>; lang: Lang }): ReactElement {
   const label = state.stopped ? say(T.railStopped, lang) : say(T.railLabel, lang);
-  // At large text four columns are too narrow for a word, so the four steps stand in a column instead.
-  const large = useLargeText();
   return (
-    <ol
-      data-testid="fuel-rail"
-      aria-label={label}
-      className={large ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-4'}
-    >
+    <ol data-testid="fuel-rail" aria-label={label} className="grid grid-cols-4">
       {STOPS.map((words, i) => {
         const stopHere = state.stopped !== null && i === 0;
-        const kind: 'done' | 'current' | 'todo' = state.stopped
-          ? 'todo'
-          : i < state.current
-            ? 'done'
-            : i === state.current
-              ? 'current'
-              : 'todo';
+        const kind: 'done' | 'current' | 'todo' = state.stopped ? 'todo' : i < state.current ? 'done' : i === state.current ? 'current' : 'todo';
         const leftDone = !state.stopped && i <= state.current;
         const rightDone = !state.stopped && i + 1 <= state.current;
         const stopWord = stopHere && state.stopped === 'closed' ? T.stopClosed : words;
-        const stepState = state.stopped
-          ? T.stepTodo
-          : kind === 'done'
-            ? T.stepDone
-            : kind === 'current'
-              ? T.stepCurrent
-              : T.stepTodo;
+        const stepState = state.stopped ? T.stepTodo : kind === 'done' ? T.stepDone : kind === 'current' ? T.stepCurrent : T.stepTodo;
         const date = kind === 'current' ? dates?.[i] : null;
         return (
-          <li
-            key={i}
-            data-stop={i}
-            data-state={stopHere ? 'stopped' : kind}
-            aria-current={kind === 'current' ? 'step' : undefined}
-            className={cn(
-              'relative flex min-w-0 px-0.5',
-              large ? 'flex-col items-start' : 'flex-col items-center',
-            )}
-          >
-            <span
-              className={cn(
-                'relative flex h-12 items-center justify-center',
-                large ? 'w-auto justify-start' : 'w-full',
-              )}
-            >
-              {i > 0 && !large ? (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute left-0 right-1/2 top-1/2 -translate-y-1/2',
-                    leftDone
-                      ? 'h-1 bg-kind-tanker'
-                      : 'h-0 border-t-4 border-dashed border-border-strong',
-                  )}
-                />
+          <li key={i} data-stop={i} data-state={stopHere ? 'stopped' : kind} aria-current={kind === 'current' ? 'step' : undefined} className="relative flex min-w-0 flex-col items-center px-0.5">
+            <span className="relative flex h-12 w-full items-center justify-center">
+              {i > 0 ? (
+                <span aria-hidden="true" className={cn('absolute left-0 right-1/2 top-1/2 -translate-y-1/2', leftDone ? 'h-1 bg-kind-tanker' : 'h-0 border-t-4 border-dashed border-border-strong')} />
               ) : null}
-              {i < 3 && !large ? (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute left-1/2 right-0 top-1/2 -translate-y-1/2',
-                    rightDone
-                      ? 'h-1 bg-kind-tanker'
-                      : 'h-0 border-t-4 border-dashed border-border-strong',
-                  )}
-                />
+              {i < 3 ? (
+                <span aria-hidden="true" className={cn('absolute left-1/2 right-0 top-1/2 -translate-y-1/2', rightDone ? 'h-1 bg-kind-tanker' : 'h-0 border-t-4 border-dashed border-border-strong')} />
               ) : null}
               <span className="relative z-10">
                 <StopMarker kind={kind} stopped={stopHere ? state.stopped : null} />
               </span>
             </span>
-            <span className={cn('flex min-w-0 flex-col', large ? 'items-start' : 'items-center')}>
-              <span
-                className={cn(
-                  large ? 'mt-1 text-left' : 'mt-1 text-center',
-                  'text-body font-semibold text-text',
-                  large ? '[overflow-wrap:anywhere]' : '[overflow-wrap:break-word]',
-                  leadingFor(lang),
-                  kind === 'todo' && !stopHere && 'text-text-muted',
-                )}
-              >
-                {say(stopWord, lang)}
-              </span>
-              {date ? (
-                <span
-                  className={cn('text-body text-text-muted', large ? 'text-left' : 'text-center')}
-                >
-                  {date}
-                </span>
-              ) : null}
+            <span className={cn('mt-1 text-center text-subheading text-text [overflow-wrap:anywhere]', leadingFor(lang), kind === 'todo' && !stopHere && 'text-text-muted')}>
+              {say(stopWord, lang)}
             </span>
+            {date ? <span className="text-center text-body text-text-muted">{date}</span> : null}
             <span className="sr-only">
-              {fill(T.stepOf, lang, { i: String(i + 1) })},{' '}
-              {say(stopHere ? T.stepTodo : stepState, lang)}
+              {fill(T.stepOf, lang, { i: String(i + 1) })}, {say(stopHere ? T.stepTodo : stepState, lang)}
             </span>
           </li>
         );
@@ -767,19 +620,13 @@ function MiniRail({ state }: { state: RailState }): ReactElement {
         const done = !state.stopped && i < state.current;
         const here = !state.stopped && i === state.current;
         return here ? (
-          <span
-            key={i}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-kind-tanker text-white"
-          >
+          <span key={i} className="flex h-6 w-6 items-center justify-center rounded-full bg-kind-tanker text-white">
             <Truck className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>
         ) : (
           <span
             key={i}
-            className={cn(
-              'h-3 w-3 rounded-full',
-              done ? 'bg-kind-tanker' : 'border-2 border-dashed border-border-strong bg-surface',
-            )}
+            className={cn('h-3 w-3 rounded-full', done ? 'bg-kind-tanker' : 'border-2 border-dashed border-border-strong bg-surface')}
           />
         );
       })}
@@ -797,23 +644,19 @@ function Compartments({ data, lang }: { data: FuelOrderData; lang: Lang }): Reac
           <li
             key={`${line.material}-${i}`}
             data-product={line.product ?? ''}
-            className="min-w-[7.5rem] rounded-lg border border-border bg-surface px-3 py-2"
+            className="min-w-[120px] rounded-lg border border-border bg-surface px-3 py-2"
             style={{ flexGrow: Math.max(1, Math.round(line.kl ?? 1)), flexBasis: 0 }}
           >
             <p className="text-subheading text-kind-tanker-ink">
               {line.product ? <FuelSwatch productKey={line.product} className="mr-2" /> : null}
               {line.product ? fuelName(line.product, lang) : line.material}
             </p>
-            <p className="text-title leading-tight text-text">
-              {line.kl === null ? say(T.klUnknown, lang) : kl(line.kl)}
-            </p>
+            <p className="text-title leading-tight text-text">{line.kl === null ? say(T.klUnknown, lang) : kl(line.kl)}</p>
           </li>
         ))}
       </ul>
       {data.lines.length > 1 && data.totalKl !== null ? (
-        <p className={cn('mt-1 text-subheading text-text-muted', leadingFor(lang))}>
-          {fill(T.total, lang, { kl: kl(data.totalKl) })}
-        </p>
+        <p className={cn('mt-1 text-subheading text-text-muted', leadingFor(lang))}>{fill(T.total, lang, { kl: kl(data.totalKl) })}</p>
       ) : null}
     </div>
   );
@@ -860,30 +703,17 @@ function ReasonBlock({ data, lang }: { data: FuelOrderData; lang: Lang }): React
     );
     if (credit) {
       const lines: string[] = [];
-      if (credit.availableLimit !== null)
-        lines.push(fill(T.creditLimit, lang, { n: rupees(credit.availableLimit) }));
-      if (credit.side === 'advance' && credit.advanceAmount)
-        lines.push(fill(T.creditAdvance, lang, { n: rupees(credit.advanceAmount) }));
+      if (credit.availableLimit !== null) lines.push(fill(T.creditLimit, lang, { n: rupees(credit.availableLimit) }));
+      if (credit.side === 'advance' && credit.advanceAmount) lines.push(fill(T.creditAdvance, lang, { n: rupees(credit.advanceAmount) }));
       else if (credit.dueAmount) {
         const by = dayWords(credit.dueDate, lang);
-        lines.push(
-          by
-            ? fill(T.creditDueBy, lang, { n: rupees(credit.dueAmount), day: by })
-            : fill(T.creditDue, lang, { n: rupees(credit.dueAmount) }),
-        );
+        lines.push(by ? fill(T.creditDueBy, lang, { n: rupees(credit.dueAmount), day: by }) : fill(T.creditDue, lang, { n: rupees(credit.dueAmount) }));
       }
-      if (credit.overdueAmount)
-        lines.push(fill(T.creditOverdue, lang, { n: rupees(credit.overdueAmount) }));
+      if (credit.overdueAmount) lines.push(fill(T.creditOverdue, lang, { n: rupees(credit.overdueAmount) }));
       if (lines.length > 0) {
         rows.push(
-          <div
-            key="credit"
-            data-testid="credit-position"
-            className="rounded-lg bg-surface-2 px-3 py-2"
-          >
-            <p className="text-subheading text-text-muted">
-              {fill(T.creditHead, lang, { when: dayWords(credit.capturedAt, lang) })}
-            </p>
+          <div key="credit" data-testid="credit-position" className="rounded-lg bg-surface-2 px-3 py-2">
+            <p className="text-subheading text-text-muted">{fill(T.creditHead, lang, { when: dayWords(credit.capturedAt, lang) })}</p>
             {lines.map((l) => (
               <p key={l} className={cn('text-body text-text', leadingFor(lang))}>
                 {l}
@@ -895,11 +725,7 @@ function ReasonBlock({ data, lang }: { data: FuelOrderData; lang: Lang }): React
     }
   } else if (data.reasonCode === 'min_tt_capacity' && data.suggestKl) {
     rows.push(
-      <p
-        key="size"
-        data-testid="usual-size"
-        className={cn('text-subheading text-text', leadingFor(lang))}
-      >
+      <p key="size" data-testid="usual-size" className={cn('text-subheading text-text', leadingFor(lang))}>
         {fill(T.usualSize, lang, { kl: kl(data.suggestKl) })}
       </p>,
     );
@@ -920,9 +746,7 @@ function ReasonBlock({ data, lang }: { data: FuelOrderData; lang: Lang }): React
     rows.push(
       <p key="delay" className={cn('text-body text-text', leadingFor(lang))}>
         {say(delayWords(data.delayWhy), lang)}
-        {data.retryUntil
-          ? ` ${fill(T.retryUntil, lang, { when: clockWords(data.retryUntil, lang) })}`
-          : ''}
+        {data.retryUntil ? ` ${fill(T.retryUntil, lang, { when: clockWords(data.retryUntil, lang) })}` : ''}
       </p>,
     );
   }
@@ -935,10 +759,7 @@ function ReasonBlock({ data, lang }: { data: FuelOrderData; lang: Lang }): React
   }
   if (rows.length === 0) return null;
   return (
-    <div
-      data-testid="reason-block"
-      className="space-y-2 rounded-xl border border-border bg-surface px-4 py-3"
-    >
+    <div data-testid="reason-block" className="space-y-2 rounded-xl border border-border bg-surface px-4 py-3">
       {rows}
     </div>
   );
@@ -953,25 +774,16 @@ function OrdersList({ data, lang }: { data: FuelOrderData; lang: Lang }): ReactE
         const state = railOf(o.stage, o.ttNo);
         const day = dayWords(o.deliveryDay, lang, { weekday: true });
         return (
-          <li
-            key={`${o.orderNo ?? 'x'}-${i}`}
-            className="rounded-xl border border-border bg-surface px-4 py-3"
-          >
+          <li key={`${o.orderNo ?? 'x'}-${i}`} className="rounded-xl border border-border bg-surface px-4 py-3">
             <p className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="select-all break-all font-mono text-subheading text-text">
-                {o.orderNo ?? '—'}
-              </span>
+              <span className="select-all break-all font-mono text-subheading text-text">{o.orderNo ?? '—'}</span>
               {day ? <span className="text-body text-text-muted">{day}</span> : null}
             </p>
             <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
               <MiniRail state={state} />
-              <span className="text-subheading text-text">
-                {say(stageWords(o.stage, o.ttNo), lang)}
-              </span>
+              <span className="text-subheading text-text">{say(stageWords(o.stage, o.ttNo), lang)}</span>
             </p>
-            {o.ttNo ? (
-              <p className="select-all break-all font-mono text-body text-text">{o.ttNo}</p>
-            ) : null}
+            {o.ttNo ? <p className="select-all break-all font-mono text-body text-text">{o.ttNo}</p> : null}
           </li>
         );
       })}
@@ -982,12 +794,7 @@ function OrdersList({ data, lang }: { data: FuelOrderData; lang: Lang }): ReactE
 /** The date printed under the lit stop: where the order is on the calendar. */
 function railDates(data: FuelOrderData, lang: Lang): Array<string | null> {
   const day = (raw: string | null | undefined): string | null => dayWords(raw, lang) || null;
-  return [
-    day(data.asOf),
-    day(data.shipmentAt),
-    day(data.loadAt ?? data.shipmentAt),
-    day(data.deliveryDay),
-  ];
+  return [day(data.asOf), day(data.shipmentAt), day(data.loadAt ?? data.shipmentAt), day(data.deliveryDay)];
 }
 
 export function Overlay({ data, lang }: OverlayProps<'fuel_order'>): ReactElement {
@@ -1002,18 +809,9 @@ export function Overlay({ data, lang }: OverlayProps<'fuel_order'>): ReactElemen
   const load = instantWords(data.loadAt, lang);
   const hasFacts = !isCheck && (day || ship || load || data.orderNo || data.source);
   return (
-    <div
-      data-kind-view="fuel_order"
-      data-event={data.event}
-      data-stage={data.stage}
-      className="space-y-3 p-4"
-    >
-      <div
-        role="status"
-        data-testid="event-banner"
-        className={cn('rounded-xl px-4 py-3', STATUS_BAR[look.status])}
-      >
-        <StatusPill status={look.status} word={say(look.word, lang)} />
+    <div data-kind-view="fuel_order" data-event={data.event} data-stage={data.stage} className="space-y-4 p-4">
+      <div role="status" data-testid="event-banner" className={cn('rounded-xl px-4 py-3', STATUS_BAR[look.status])}>
+        <StatusBadge status={look.status} lang={lang} word={say(look.word, lang)} />
         <Lead lang={lang} className="mt-2 !text-inherit">
           {leadOf(data, lang)}
         </Lead>
@@ -1021,44 +819,29 @@ export function Overlay({ data, lang }: OverlayProps<'fuel_order'>): ReactElemen
 
       {isCheck ? (
         <>
-          {(data.orders?.length ?? 0) > 0 ? (
-            <SectionCard title={rv(lang, 'rv3.order.listTitle')} count={data.orders?.length}>
-              <OrdersList data={data} lang={lang} />
-            </SectionCard>
-          ) : null}
+          <OrdersList data={data} lang={lang} />
           {data.nextCheckAt ? (
-            <p className={cn('text-body text-text-muted', leadingFor(lang))}>
-              {fill(T.nextCheck, lang, { when: instantWords(data.nextCheckAt, lang) })}
-            </p>
+            <p className={cn('text-body text-text-muted', leadingFor(lang))}>{fill(T.nextCheck, lang, { when: instantWords(data.nextCheckAt, lang) })}</p>
           ) : null}
         </>
       ) : (
-        <SectionCard title={rv(lang, 'rv3.order.title')}>
-          <div className="space-y-3" data-testid="order-card">
-            <div className="rounded-xl bg-kind-tanker-soft px-2 py-4">
-              <Rail state={state} dates={railDates(data, lang)} lang={lang} />
-            </div>
-            {showPlate ? (
-              <div className="space-y-1.5">
-                <NumberPlate
-                  text={ttNo}
-                  lang={lang}
-                  size="md"
-                  emptyWords={T.tankerNone}
-                  label={T.tankerLabel}
-                />
-                {data.event === 'tanker_changed' && data.prevTtNo ? (
-                  <p className={cn('text-body text-text-muted', leadingFor(lang))}>
-                    {say(T.earlierTanker, lang)}:{' '}
-                    <s className="select-all font-mono font-semibold">{data.prevTtNo}</s>
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-            <Compartments data={data} lang={lang} />
-          </div>
-        </SectionCard>
+        <div className="rounded-xl bg-kind-tanker-soft px-2 py-4">
+          <Rail state={state} dates={railDates(data, lang)} lang={lang} />
+        </div>
       )}
+
+      {showPlate ? (
+        <div className="space-y-1.5">
+          <NumberPlate text={ttNo} lang={lang} size="md" emptyWords={T.tankerNone} label={T.tankerLabel} />
+          {data.event === 'tanker_changed' && data.prevTtNo ? (
+            <p className={cn('text-body text-text-muted', leadingFor(lang))}>
+              {say(T.earlierTanker, lang)}: <s className="select-all font-mono font-semibold">{data.prevTtNo}</s>
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!isCheck ? <Compartments data={data} lang={lang} /> : null}
 
       <ReasonBlock data={data} lang={lang} />
 
@@ -1075,32 +858,22 @@ export function Overlay({ data, lang }: OverlayProps<'fuel_order'>): ReactElemen
       ) : null}
 
       {hasFacts ? (
-        <SectionCard title={rv(lang, 'rv3.order.details')}>
-          <dl data-testid="order-facts">
-            {day ? <FactRow label={say(T.deliveryDay, lang)}>{day}</FactRow> : null}
-            {ship ? <FactRow label={say(T.shipment, lang)}>{ship}</FactRow> : null}
-            {load ? <FactRow label={say(T.loadedAt, lang)}>{load}</FactRow> : null}
-            {data.orderNo ? (
-              <FactRow label={say(T.orderNo, lang)}>
-                <span className="select-all break-all font-mono">{data.orderNo}</span>
-              </FactRow>
-            ) : null}
-            <FactRow label={say(T.source, lang)}>
-              {say(data.source === 'chat' ? T.sourceChat : T.sourcePortal, lang)}
+        <dl data-testid="order-facts" className="rounded-xl border border-border bg-surface px-4 py-1">
+          {day ? <FactRow label={say(T.deliveryDay, lang)}>{day}</FactRow> : null}
+          {ship ? <FactRow label={say(T.shipment, lang)}>{ship}</FactRow> : null}
+          {load ? <FactRow label={say(T.loadedAt, lang)}>{load}</FactRow> : null}
+          {data.orderNo ? (
+            <FactRow label={say(T.orderNo, lang)}>
+              <span className="select-all break-all font-mono">{data.orderNo}</span>
             </FactRow>
-          </dl>
-        </SectionCard>
+          ) : null}
+          <FactRow label={say(T.source, lang)}>{say(data.source === 'chat' ? T.sourceChat : T.sourcePortal, lang)}</FactRow>
+        </dl>
       ) : null}
 
-      {data.seenLate ? (
-        <p className={cn('text-body text-text-muted', leadingFor(lang))}>{say(T.seenLate, lang)}</p>
-      ) : null}
+      {data.seenLate ? <p className={cn('text-body text-text-muted', leadingFor(lang))}>{say(T.seenLate, lang)}</p> : null}
 
-      {asOf && !isCheck ? (
-        <p className={cn('text-body text-text-muted', leadingFor(lang))}>
-          {fill(T.asOf, lang, { when: asOf })}
-        </p>
-      ) : null}
+      {asOf && !isCheck ? <p className={cn('text-body text-text-muted', leadingFor(lang))}>{fill(T.asOf, lang, { when: asOf })}</p> : null}
     </div>
   );
 }
@@ -1111,24 +884,12 @@ export function Glyph({ size = 28 }: { size?: number }): ReactElement {
   return (
     <svg width={width} height={size} viewBox="0 0 40 28" aria-hidden="true" focusable="false">
       <path d="M5 14 H15" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <path
-        d="M15 14 H35"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeDasharray="1 4.5"
-      />
+      <path d="M15 14 H35" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="1 4.5" />
       <circle cx="5" cy="14" r="3.2" fill="currentColor" />
       <circle cx="25" cy="14" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
       <circle cx="35" cy="14" r="2.8" fill="none" stroke="currentColor" strokeWidth="1.8" />
       <circle cx="15" cy="14" r="7.5" fill="currentColor" />
-      <path
-        d="M10.8 12.2 H15.6 V16.8 H10.8 Z M15.6 13.6 H18 L19.2 15 V16.8 H15.6"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-      />
+      <path d="M10.8 12.2 H15.6 V16.8 H10.8 Z M15.6 13.6 H18 L19.2 15 V16.8 H15.6" fill="none" stroke="#ffffff" strokeWidth="1.3" strokeLinejoin="round" />
       <circle cx="12.4" cy="17.4" r="1" fill="#ffffff" />
       <circle cx="17.2" cy="17.4" r="1" fill="#ffffff" />
     </svg>
@@ -1148,45 +909,19 @@ const NO_TILE_EVENTS: ReadonlySet<FuelOrderData['event']> = new Set([
 
 function tile(data: FuelOrderData, lang: Lang): KindTile | null {
   if (NO_TILE_EVENTS.has(data.event)) return null;
-  if (data.stage === 'refused' || data.stage === 'cancelled' || data.stage === 'never_sent')
-    return null;
+  if (data.stage === 'refused' || data.stage === 'cancelled' || data.stage === 'never_sent') return null;
   if (data.event === 'check_result') {
     const orders = data.orders ?? [];
     if (orders.length === 0) return null;
-    if (orders.length > 1)
-      return { value: fill(T.nOrders, lang, { n: String(orders.length) }), status: 'info' };
+    if (orders.length > 1) return { value: fill(T.nOrders, lang, { n: String(orders.length) }), status: 'info' };
     const only = orders[0]!;
-    const sub = [only.ttNo, dayWords(only.deliveryDay, lang, { weekday: true })]
-      .filter(Boolean)
-      .join(', ');
-    return {
-      value: say(stageWords(only.stage, only.ttNo), lang),
-      sub: sub || undefined,
-      status: only.stage === 'closed' ? 'ok' : 'waiting',
-    };
+    const sub = [only.ttNo, dayWords(only.deliveryDay, lang, { weekday: true })].filter(Boolean).join(', ');
+    return { value: say(stageWords(only.stage, only.ttNo), lang), sub: sub || undefined, status: only.stage === 'closed' ? 'ok' : 'waiting' };
   }
-  const subParts = [
-    tt(data),
-    fuelsText(data, lang),
-    dayWords(data.deliveryDay, lang, { weekday: true }),
-  ].filter(Boolean);
-  const stageStatus: ReportStatusKey =
-    data.stage === 'waiting' || data.stage === 'being_placed'
-      ? 'waiting'
-      : data.stage === 'closed'
-        ? 'ok'
-        : 'ok';
-  const status =
-    data.event === 'tanker_changed' || data.event === 'no_tanker_by_afternoon'
-      ? 'attention'
-      : data.event === 'delayed'
-        ? 'waiting'
-        : stageStatus;
-  return {
-    value: say(stageWords(data.stage, data.ttNo), lang),
-    sub: subParts.join(', ') || undefined,
-    status,
-  };
+  const subParts = [tt(data), fuelsText(data, lang), dayWords(data.deliveryDay, lang, { weekday: true })].filter(Boolean);
+  const stageStatus: ReportStatusKey = data.stage === 'waiting' || data.stage === 'being_placed' ? 'waiting' : data.stage === 'closed' ? 'ok' : 'ok';
+  const status = data.event === 'tanker_changed' || data.event === 'no_tanker_by_afternoon' ? 'attention' : data.event === 'delayed' ? 'waiting' : stageStatus;
+  return { value: say(stageWords(data.stage, data.ttNo), lang), sub: subParts.join(', ') || undefined, status };
 }
 
 function alert(data: FuelOrderData, lang: Lang): KindAlert | null {
@@ -1204,57 +939,28 @@ function alert(data: FuelOrderData, lang: Lang): KindAlert | null {
       }
       return {
         headline: say(T.alertRefused, lang),
-        line:
-          data.reasonCode === 'min_tt_capacity' && data.suggestKl
-            ? fill(T.usualSize, lang, { kl: kl(data.suggestKl) })
-            : say(T.alertSeeDetails, lang),
+        line: data.reasonCode === 'min_tt_capacity' && data.suggestKl ? fill(T.usualSize, lang, { kl: kl(data.suggestKl) }) : say(T.alertSeeDetails, lang),
         severity: 'problem',
       };
     }
     case 'not_placed':
-      return {
-        headline: say(T.alertNotPlaced, lang),
-        line: say(T.alertSeeDetails, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertNotPlaced, lang), line: say(T.alertSeeDetails, lang), severity: 'attention' };
     case 'unclear':
-      return {
-        headline: say(T.alertUnclear, lang),
-        line: say(T.alertUnclearLine, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertUnclear, lang), line: say(T.alertUnclearLine, lang), severity: 'attention' };
     case 'tanker_changed':
       return {
         headline: say(T.alertChanged, lang),
-        line: tt(data)
-          ? fill(T.alertChangedLine, lang, { tt: tt(data) })
-          : say(T.alertSeeDetails, lang),
+        line: tt(data) ? fill(T.alertChangedLine, lang, { tt: tt(data) }) : say(T.alertSeeDetails, lang),
         severity: 'attention',
       };
     case 'no_tanker_by_afternoon':
-      return {
-        headline: say(T.alertNoTanker, lang),
-        line: say(T.alertNoTankerLine, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertNoTanker, lang), line: say(T.alertNoTankerLine, lang), severity: 'attention' };
     case 'not_executed_reason':
-      return {
-        headline: say(T.alertNotRun, lang),
-        line: say(T.alertSeeDetails, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertNotRun, lang), line: say(T.alertSeeDetails, lang), severity: 'attention' };
     case 'lapsed_not_executed':
-      return {
-        headline: say(T.alertLapsed, lang),
-        line: say(T.alertSeeDetails, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertLapsed, lang), line: say(T.alertSeeDetails, lang), severity: 'attention' };
     case 'possible_duplicate':
-      return {
-        headline: say(T.alertDuplicate, lang),
-        line: say(T.alertSeeDetails, lang),
-        severity: 'attention',
-      };
+      return { headline: say(T.alertDuplicate, lang), line: say(T.alertSeeDetails, lang), severity: 'attention' };
     case 'tracking_stopped':
       return {
         headline: say(T.alertStopped, lang),
@@ -1270,15 +976,9 @@ function headline(data: FuelOrderData, lang: Lang): string {
   const word = say(eventLook(data).word, lang);
   if (data.event === 'check_result') {
     const n = data.orders?.length ?? 0;
-    return n > 0
-      ? `${word}: ${n === 1 ? say(T.nOrdersOne, lang) : fill(T.nOrders, lang, { n: String(n) })}`
-      : say(T.leadCheckNone, lang);
+    return n > 0 ? `${word}: ${n === 1 ? say(T.nOrdersOne, lang) : fill(T.nOrders, lang, { n: String(n) })}` : say(T.leadCheckNone, lang);
   }
-  const bits = [
-    tt(data),
-    fuelsText(data, lang),
-    dayWords(data.deliveryDay, lang, { weekday: true }),
-  ].filter(Boolean);
+  const bits = [tt(data), fuelsText(data, lang), dayWords(data.deliveryDay, lang, { weekday: true })].filter(Boolean);
   return bits.length > 0 ? `${word}: ${bits.join(', ')}` : word;
 }
 
@@ -1286,9 +986,7 @@ function share(data: FuelOrderData, lang: Lang): string {
   const ship = instantWords(data.shipmentAt, lang);
   const day = dayWords(data.deliveryDay, lang, { weekday: true });
   return shareLines([
-    data.orderNo
-      ? `${say(T.title, lang)}: ${fill(T.shareOrder, lang, { no: data.orderNo })}`
-      : say(T.title, lang),
+    data.orderNo ? `${say(T.title, lang)}: ${fill(T.shareOrder, lang, { no: data.orderNo })}` : say(T.title, lang),
     leadOf(data, lang),
     tt(data) && `${say(T.tankerLabel, lang)}: ${tt(data)}`,
     ...data.lines.map((l) => fuelLine(l, lang)),
@@ -1296,9 +994,7 @@ function share(data: FuelOrderData, lang: Lang): string {
     ship && `${say(T.shipment, lang)}: ${ship}`,
     data.portalStatus && `IndianOil ${say(T.statusLine, lang)}: ${data.portalStatus}`,
     data.portalReason,
-    data.reasonCode === 'shortage_of_funds' &&
-    data.shortByRs !== null &&
-    data.shortByRs !== undefined
+    data.reasonCode === 'shortage_of_funds' && data.shortByRs !== null && data.shortByRs !== undefined
       ? fill(T.shortBy, lang, { n: rupees(data.shortByRs) })
       : null,
     instantWords(data.asOf, lang) && fill(T.asOf, lang, { when: instantWords(data.asOf, lang) }),

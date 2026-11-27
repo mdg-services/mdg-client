@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as ApiModule from '@/lib/api';
 import { ApiError, api } from '@/lib/api';
 import { useLangStore } from '@/store/lang';
-import { enterNativeShell, leaveNativeShell, makeAutopay, makeAutopayStatus } from '@/test/payments';
+import { makeAutopay, makeAutopayStatus } from '@/test/payments';
 import { renderWithProviders, resetStores, signIn } from '@/test/utils';
 import type { DealerAutopayStatus } from '@dk/shared/types';
 
@@ -41,7 +41,6 @@ function renderPage(opts: { lang?: 'en' | 'hi'; role?: 'dealer-owner' | 'dealer-
     <Routes>
       <Route path="/settings/autopay" element={<AutopayPage />} />
       <Route path="/settings" element={<div>went:settings</div>} />
-      <Route path="/pump" element={<div>went:pump</div>} />
       <Route path="/chat" element={<div>went:chat</div>} />
       <Route path="/chat/:id" element={<div>went:thread</div>} />
     </Routes>,
@@ -64,10 +63,7 @@ beforeEach(() => {
   vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
 });
 
-afterEach(() => {
-  leaveNativeShell();
-  resetStores();
-});
+afterEach(() => resetStores());
 
 describe('AutopayPage — what it shows', () => {
   it('asks for this pump’s autopay, and shows a placeholder with "Loading…" while it comes', async () => {
@@ -77,7 +73,7 @@ describe('AutopayPage — what it shows', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith(GET_PATH));
     const status = screen.getByRole('status');
     expect(status).toHaveAttribute('aria-busy', 'true');
-    expect(status).toHaveAttribute('aria-label', 'Loading…');
+    expect(within(status).getByText('Loading…')).toBeInTheDocument();
     // The bar is there even now, with a way back, and there is nothing to press yet.
     expect(screen.getByText('Autopay')).toBeInTheDocument();
     expect(buttonNames()).toEqual(['Back']);
@@ -87,7 +83,7 @@ describe('AutopayPage — what it shows', () => {
     serve(makeAutopayStatus());
     renderPage();
 
-    expect(await screen.findByText('Rs 3,540')).toBeInTheDocument();
+    expect(await screen.findByText('₹3,540')).toBeInTheDocument();
     expect(screen.getByText('On')).toBeInTheDocument();
     expect(screen.getByText('Pump 15E')).toBeInTheDocument();
     expect(
@@ -114,8 +110,8 @@ describe('AutopayPage — what it shows', () => {
   it('follows the amount the server sends', async () => {
     serve(makeAutopayStatus({ amountPaise: 118000 }));
     renderPage();
-    expect(await screen.findByText('Rs 1,180')).toBeInTheDocument();
-    expect(screen.queryByText('Rs 3,540')).not.toBeInTheDocument();
+    expect(await screen.findByText('₹1,180')).toBeInTheDocument();
+    expect(screen.queryByText('₹3,540')).not.toBeInTheDocument();
   });
 
   it('waiting: nothing has been taken, and the button is Cancel setup', async () => {
@@ -136,7 +132,7 @@ describe('AutopayPage — what it shows', () => {
 
     expect(
       await screen.findByText(
-        'The last Rs 3,540 debit did not go through. Check the balance in your UPI account.',
+        'The last ₹3,540 debit did not go through. Check the balance in your UPI account.',
       ),
     ).toBeInTheDocument();
     expect(screen.getByText('Needs attention')).toBeInTheDocument();
@@ -153,7 +149,7 @@ describe('AutopayPage — what it shows', () => {
   it('on has no Ask in chat row on the screen', async () => {
     serve(makeAutopayStatus());
     renderPage();
-    await screen.findByText('Rs 3,540');
+    await screen.findByText('₹3,540');
     expect(screen.queryByText('Ask in chat')).not.toBeInTheDocument();
   });
 
@@ -167,7 +163,7 @@ describe('AutopayPage — what it shows', () => {
       screen.getByText('Dealer Kavach works till 24 Nov. Nothing will be taken automatically.'),
     ).toBeInTheDocument();
     expect(screen.queryByText('Stop autopay')).not.toBeInTheDocument();
-    expect(screen.queryByText('Rs 3,540')).not.toBeInTheDocument();
+    expect(screen.queryByText('₹3,540')).not.toBeInTheDocument();
     // One line with the chat, for stopping Dealer Kavach itself.
     await user.click(screen.getByRole('button', { name: 'Want to stop Dealer Kavach itself? Tell us in chat.' }));
     expect(await screen.findByText('went:chat')).toBeInTheDocument();
@@ -181,29 +177,13 @@ describe('AutopayPage — what it shows', () => {
     expect(screen.getByRole('button', { name: 'डीलर कवच ही बंद करना है? चैट में बताइए।' })).toBeInTheDocument();
   });
 
-  it('none, in the phone app: says who to ask, with no way to start one and no word on how', async () => {
-    enterNativeShell();
+  it('none: says autopay is not on for this pump, with no button and no way to start one', async () => {
     serve(makeAutopayStatus(null));
     renderPage();
 
     expect(await screen.findByText('Autopay is not on for this pump')).toBeInTheDocument();
-    // The next step is a person: who to ask. No button turns it on and nothing says how to start it.
-    expect(screen.getByText('If you have a question about your plan, ask MDG in the chat.')).toBeInTheDocument();
-    expect(buttonNames()).toEqual(['Back', 'Ask in chatNot here? Write to the MDG team.']);
+    expect(buttonNames()).toEqual(['Back']);
     expect(document.querySelectorAll('a')).toHaveLength(0);
-    expect((document.body.textContent ?? '').toLowerCase()).not.toMatch(/switched on|turn it on|start/);
-  });
-
-  it('none, in a browser: says how autopay is started and who to ask', async () => {
-    serve(makeAutopayStatus(null));
-    renderPage();
-
-    expect(await screen.findByText('Autopay is not on for this pump')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'Autopay is switched on when your bill is sent. To have it from your next bill, ask MDG in the chat.',
-      ),
-    ).toBeInTheDocument();
   });
 
   it('says it could not load, rather than "not on", and offers to try again', async () => {
@@ -217,7 +197,7 @@ describe('AutopayPage — what it shows', () => {
 
     serve(makeAutopayStatus());
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('Rs 3,540')).toBeInTheDocument();
+    expect(await screen.findByText('₹3,540')).toBeInTheDocument();
     expect(screen.queryByText("We couldn't load your autopay")).not.toBeInTheDocument();
   });
 
@@ -227,14 +207,13 @@ describe('AutopayPage — what it shows', () => {
     expect(await screen.findByText('आपका ऑटोपे लोड नहीं हुआ')).toBeInTheDocument();
   });
 
-  // The arrow goes to My pump now (the address's parent, spec 2.5), where Settings used to be.
-  it('goes back to My pump when the screen was opened cold', async () => {
+  it('goes back to Settings when the screen was opened cold', async () => {
     const user = userEvent.setup();
     serve(makeAutopayStatus());
     renderPage();
-    await screen.findByText('Rs 3,540');
+    await screen.findByText('₹3,540');
     await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(await screen.findByText('went:pump')).toBeInTheDocument();
+    expect(await screen.findByText('went:settings')).toBeInTheDocument();
   });
 });
 
@@ -277,7 +256,7 @@ describe('AutopayPage — a manager', () => {
     expect(await screen.findByText('Only the owner can change autopay')).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalled();
     expect(api.post).not.toHaveBeenCalled();
-    expect(screen.queryByText('Rs 3,540')).not.toBeInTheDocument();
+    expect(screen.queryByText('₹3,540')).not.toBeInTheDocument();
     expect(buttonNames()).toEqual(['Back']);
   });
 
@@ -345,7 +324,7 @@ describe('AutopayPage — the stop dialog', () => {
 
     const dialog = await openDialog(user);
     expect(
-      within(dialog).getByText('Rs 3,540 is being taken right now. Stopping will not undo it.'),
+      within(dialog).getByText('₹3,540 is being taken right now. Stopping will not undo it.'),
     ).toBeInTheDocument();
   });
 

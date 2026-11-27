@@ -1,16 +1,12 @@
-import { ArrowLeftRight } from 'lucide-react';
 import { useId, type ReactElement } from 'react';
+import { ArrowDown, ArrowLeftRight, ArrowUp, Minus } from 'lucide-react';
 
-import { Num, SectionCard, StatTile, type DeltaChipProps } from '@/components/kit';
-import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { DsrLedgerRow, DsrSalesBlock, DsrSalesData, DsrSnapReceiptSource } from '@dk/shared/types';
 
 import { sayWords, type KindTile, type KindView, type OverlayProps, type Words } from '../types';
-
 import {
   dayWords,
-  dayWithWeekday,
   indian,
   joinList,
   lastWeekday,
@@ -234,6 +230,35 @@ const SHEET = {
   },
 } satisfies Record<string, Words>;
 
+/** A figure box: the label, the figure, an optional small line. Part of one ruled strip, not a card. */
+function Glance({
+  label,
+  value,
+  note,
+  noteIcon,
+}: {
+  label: string;
+  value: string;
+  note?: string | null;
+  noteIcon?: ReactElement;
+}): ReactElement {
+  return (
+    <div className="min-w-0 bg-surface px-3.5 py-3">
+      <div className="text-meta font-medium leading-snug text-text-muted">{label}</div>
+      {/* The unit stays with its number ("10,430 L" never leaves the "L" on a line of its own). */}
+      <div className="mt-1 break-words text-title tabular-nums leading-tight text-text">
+        {value.replace(/ (?=\S+$)/, ' ')}
+      </div>
+      {note ? (
+        <div className="mt-1 flex items-start gap-1 text-meta leading-snug text-text-muted">
+          {noteIcon}
+          <span className="min-w-0">{note}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 interface LedgerProps {
   product: SalesProduct;
   lang: Lang;
@@ -287,7 +312,7 @@ function Ledger({ product, lang }: LedgerProps): ReactElement | null {
             <caption className="sr-only">{caption}</caption>
             <thead>
               <tr>
-                <th rowSpan={2} scope="col" className={`${th} sticky left-0 z-20 min-w-24 border-l-0 text-left`}>
+                <th rowSpan={2} scope="col" className={`${th} sticky left-0 z-20 min-w-[92px] border-l-0 text-left`}>
                   {t(SHEET.date, lang)}
                 </th>
                 {cols.perTank ? (
@@ -419,7 +444,7 @@ function LedgerRow({
     <tr className={row.open ? 'bg-surface-2' : 'bg-surface'} data-day={row.day} data-open={row.open ? 'true' : undefined}>
       <th
         scope="row"
-        className={`sticky left-0 z-10 min-w-24 bg-inherit px-3 py-2.5 text-left align-top font-semibold text-text ${rule}`}
+        className={`sticky left-0 z-10 min-w-[92px] bg-inherit px-3 py-2.5 text-left align-top font-semibold text-text ${rule}`}
       >
         <div className="whitespace-nowrap">{dayWords(row.day, lang)}</div>
         {row.open ? (
@@ -451,107 +476,38 @@ function LedgerRow({
   );
 }
 
-/** The 14 closed days of one fuel as bars, with the sentence a screen reader gets instead of the picture. */
-function trendOf(product: SalesProduct, lang: Lang): { bars: NonNullable<Parameters<typeof StatTile>[0]['bars']>; average: number } | null {
-  const days = product.sales.trend.filter((d) => Number.isFinite(d.soldL)).slice(-14);
-  if (days.length < 2) return null;
-  const average = days.reduce((n, d) => n + d.soldL, 0) / days.length;
-  const high = days.reduce((a, d) => (d.soldL > a.soldL ? d : a), days[0]!);
-  const low = days.reduce((a, d) => (d.soldL < a.soldL ? d : a), days[0]!);
-  const summary = translate(lang, 'rv2.sales.barsSummary', {
-    n: days.length,
-    fuel: fuelName(product.key, lang),
-    high: litres(high.soldL),
-    highDay: dayWords(high.day, lang),
-    low: litres(low.soldL),
-    lowDay: dayWords(low.day, lang),
-    avg: litres(average),
-  });
-  return {
-    average,
-    bars: {
-      data: days.map((d) => ({ label: dayWithWeekday(d.day, lang), value: d.soldL })),
-      average,
-      summary,
-    },
-  };
-}
-
-/** The change against the same weekday last week, as the kit's delta chip; null when there is nothing honest to compare. */
-function deltaOf(sales: DsrSalesBlock, lang: Lang): DeltaChipProps | null {
-  const c = weekCompare(sales);
-  if (!c) return null;
-  const against = lastWeekday(c.lastDay, lang);
-  if (c.pct === 0) return { dir: 'same', against };
-  return { dir: c.pct > 0 ? 'up' : 'down', n: Math.abs(c.pct), unit: '%', against };
-}
-
-/**
- * One fuel's block: the fuel's band, the day's sales as one big number with the change against last
- * week and the 14 days as bars, three smaller figures, then the dealer's own sheet in a card.
- */
+/** One fuel's block, as the card drew it: the fuel's band, the three figures, then the sheet. */
 function FuelSales({ product, lang }: { product: SalesProduct; lang: Lang }): ReactElement {
   const s = product.sales;
   const sold = isSold(s);
   const day = s.closedDay ? dayWords(s.closedDay, lang) : '';
-  const delta = sold ? deltaOf(s, lang) : null;
-  const trend = trendOf(product, lang);
-  const unit = translate(lang, 'kit.unit.litres');
-  const fuel = fuelName(product.key, lang);
+  const compare = compareWords(s, lang);
+  const cmp = weekCompare(s);
   const soldLabel = day ? (lang === 'hi' ? `${day} की बिक्री` : lang === 'hl' ? `${day} ki bikri` : `Sold ${day}`) : t(W.sold, lang);
   const recvLabel = day ? (lang === 'hi' ? `${day} को आया` : lang === 'hl' ? `${day} ko aaya` : `Received ${day}`) : t(W.received, lang);
-  const note = sold ? (delta ? undefined : t(W.noCompare, lang)) : t(W.notWorkedOut, lang);
-  const caption = [note, trend ? translate(lang, 'rv2.sales.avgCaption', { n: trend.bars.data.length, avg: litres(trend.average) }) : null]
-    .filter(Boolean)
-    .join(' · ');
-  const aria = (label: string, value: string): string => `${fuel}, ${label}: ${value}`;
-  const num = (n: number | null): { node: ReactElement | string; spoken: string } =>
-    n === null ? { node: '—', spoken: '—' } : { node: <Num value={Math.round(n)} />, spoken: litres(n) };
-  const soldVal = num(sold ? s.soldL : null);
-  const stockVal = num(s.stockNowL);
-  const recvVal = num(s.receiptL);
-  const monthVal = num(s.monthToDateL);
+  const note = sold ? (compare ?? t(W.noCompare, lang)) : t(W.notWorkedOut, lang);
+  const arrow = cmp ? (
+    cmp.pct > 0 ? (
+      <ArrowUp aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+    ) : cmp.pct < 0 ? (
+      <ArrowDown aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+    ) : (
+      <Minus aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
+    )
+  ) : undefined;
   return (
     <div className="space-y-3">
       <FuelBand fuelKey={product.key} tankNos={product.tankNos} lang={lang} />
-      <StatTile
-        label={soldLabel}
-        value={soldVal.node}
-        unit={sold ? unit : undefined}
-        delta={delta ?? undefined}
-        bars={sold && trend ? trend.bars : undefined}
-        caption={caption || undefined}
-        ariaLabel={aria(soldLabel, soldVal.spoken)}
-      />
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
-        <StatTile
-          label={t(W.stockMorning, lang)}
-          value={stockVal.node}
-          unit={s.stockNowL !== null ? unit : undefined}
-          ariaLabel={aria(t(W.stockMorning, lang), stockVal.spoken)}
-        />
-        <StatTile
+      <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border [&>*:last-child:nth-child(odd)]:col-span-2">
+        <Glance label={soldLabel} value={sold ? litres(s.soldL) : '—'} note={note} noteIcon={arrow} />
+        <Glance label={t(W.stockMorning, lang)} value={s.stockNowL !== null ? litres(s.stockNowL) : '—'} />
+        <Glance
           label={recvLabel}
-          value={recvVal.node}
-          unit={s.receiptL !== null ? unit : undefined}
-          caption={s.receiptL !== null ? (receiptSourceWords(s.receiptSource, lang) ?? undefined) : undefined}
-          ariaLabel={aria(recvLabel, recvVal.spoken)}
+          value={s.receiptL !== null ? litres(s.receiptL) : '—'}
+          note={s.receiptL !== null ? receiptSourceWords(s.receiptSource, lang) : null}
         />
-        {s.monthToDateL !== null ? (
-          <StatTile
-            label={translate(lang, 'rv2.sales.month')}
-            value={monthVal.node}
-            unit={unit}
-            caption={day ? translate(lang, 'rv2.sales.monthCaption', { day }) : undefined}
-            ariaLabel={aria(translate(lang, 'rv2.sales.month'), monthVal.spoken)}
-          />
-        ) : null}
       </div>
-      {s.rows.length > 0 ? (
-        <SectionCard title={translate(lang, 'rv2.sales.sheetTitle', { fuel })}>
-          <Ledger product={product} lang={lang} />
-        </SectionCard>
-      ) : null}
+      <Ledger product={product} lang={lang} />
     </div>
   );
 }
@@ -591,7 +547,7 @@ export function SalesSheet({
                 const el = document.getElementById(anchor(i));
                 if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }}
-              className="inline-flex min-h-12 items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-cta text-text"
+              className="inline-flex min-h-[48px] items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-cta text-text"
             >
               <span aria-hidden="true" className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: fuelColor(p.key) }} />
               {fuelName(p.key, lang)}

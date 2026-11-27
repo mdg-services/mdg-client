@@ -154,17 +154,17 @@ export function WelcomeBackCard({
   return (
     <Card className="mt-4">
       <CardContent role="status" aria-live="polite">
-        <div className="flex items-center gap-2 text-status-ok-ink">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-status-ok text-white">
+        <div className="flex items-center gap-2 text-success">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-success text-white">
             <Check width={16} strokeWidth={2.4} />
           </span>
-          <span className="text-cta">{t('register.welcomeBackBadge')}</span>
+          <span className="text-meta font-semibold">{t('register.welcomeBackBadge')}</span>
         </div>
         <p className="mt-4 text-heading text-text">{t('register.welcomeBackTitle')}</p>
 
         {passwordSet ? (
           <>
-            <p className="mt-2 text-body leading-relaxed text-text-muted">{t('register.welcomeBackSignIn')}</p>
+            <p className="mt-2 text-meta leading-relaxed text-text-muted">{t('register.welcomeBackSignIn')}</p>
             <Button size="lg" fullWidth className="mt-6" onClick={onSignIn}>
               {t('auth.signIn')}
             </Button>
@@ -172,18 +172,18 @@ export function WelcomeBackCard({
         ) : noWhatsApp ? (
           // No WhatsApp codes on the server: what the screen said before.
           <>
-            <p className="mt-2 text-body leading-relaxed text-text-muted">{t('register.existingBody')}</p>
+            <p className="mt-2 text-meta leading-relaxed text-text-muted">{t('register.existingBody')}</p>
             <Button size="lg" fullWidth className="mt-6" onClick={onSignIn}>
               {t('auth.signIn')}
             </Button>
           </>
         ) : (
           <form onSubmit={submit} noValidate className="mt-2 flex flex-col gap-3">
-            <p className="text-body leading-relaxed text-text-muted">
+            <p className="text-meta leading-relaxed text-text-muted">
               {sentAt ? t('register.welcomeBackBody', { mobile }) : t('register.welcomeBackSending')}
             </p>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor={codeId} className="text-subheading text-text">
+              <label htmlFor={codeId} className="text-meta font-medium text-text">
                 {t('auth.resetCode')}
               </label>
               <Input
@@ -204,14 +204,14 @@ export function WelcomeBackCard({
                 className="tracking-[0.3em]"
                 disabled={!sentAt}
               />
-              {codeShort ? <p className="text-body text-danger">{t('auth.resetCodeShort')}</p> : null}
+              {codeShort ? <p className="text-meta text-danger">{t('auth.resetCodeShort')}</p> : null}
             </div>
             {open.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-body text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t(resetErrorKey(open.error))}
               </p>
             ) : request.isError ? (
-              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-body text-danger">
+              <p role="alert" className="rounded-xl bg-danger-soft px-3 py-2 text-meta text-danger">
                 {t(resetErrorKey(request.error))}
               </p>
             ) : null}
@@ -257,7 +257,7 @@ function TextLink({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-11 rounded-md px-2 text-cta text-brand underline underline-offset-4 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
+      className="min-h-11 rounded-lg px-2 text-meta font-medium text-brand underline underline-offset-4 disabled:cursor-not-allowed disabled:text-text-subtle disabled:no-underline"
     >
       {children}
     </button>

@@ -1,18 +1,12 @@
 import { render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { useLangStore } from '@/store/lang';
-import { resetStores } from '@/test/utils';
 import type { LedgerWatchData } from '@dk/shared/types';
 
 import { ledgerData, reportOf } from './_tankerMoney.fixtures';
 import { view } from './ledger_watch';
 
-afterEach(() => resetStores());
-
 function open(data: LedgerWatchData, lang: 'hi' | 'hl' | 'en' = 'en') {
-  // The kit's own words follow the app's language.
-  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={reportOf('ledger_watch')} lang={lang} />);
 }
@@ -38,23 +32,15 @@ const alertData = ledgerData({
 describe('ledger_watch: the passbook', () => {
   it('leads with a count in plain words', () => {
     open(ledgerData());
-    expect(screen.getByTestId('report-lead')).toHaveTextContent(
-      '2 entries on your account that are not fuel and not your deposits.',
-    );
+    expect(screen.getByTestId('report-lead')).toHaveTextContent('2 entries on your account that are not fuel and not your deposits.');
     open(alertData);
-    expect(screen.getAllByTestId('report-lead')[1]).toHaveTextContent(
-      '1 entry on your account that is not fuel and not your deposit.',
-    );
+    expect(screen.getAllByTestId('report-lead')[1]).toHaveTextContent('1 entry on your account that is not fuel and not your deposit.');
   });
 
   it('is a real table with column and row headers', () => {
     open(ledgerData());
     const table = within(screen.getByTestId('passbook')).getByRole('table');
-    expect(
-      within(table)
-        .getAllByRole('columnheader')
-        .map((h) => h.textContent),
-    ).toEqual(['Date', 'What it was', 'Amount']);
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual(['Date', 'What it was', 'Amount']);
     const rows = within(table).getAllByTestId('ledger-row');
     expect(rows).toHaveLength(2);
     expect(within(rows[0]!).getByRole('rowheader')).toHaveTextContent('14 Nov');
@@ -83,9 +69,7 @@ describe('ledger_watch: the passbook', () => {
   it('draws binding holes and a dashed tear-off strip', () => {
     const { container } = open(ledgerData());
     expect(screen.getByTestId('tear-off').className).toContain('border-dashed');
-    expect(
-      container.querySelectorAll('[data-testid="passbook"] > div[aria-hidden="true"] span'),
-    ).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid="passbook"] > div[aria-hidden="true"] span')).toHaveLength(3);
   });
 
   it('shows both totals, charged and paid to you, with how many entries they cover', () => {
@@ -165,18 +149,14 @@ describe('ledger_watch: a dated window and a long list', () => {
 
   it('says when the list is cut and that the totals cover all', () => {
     open(window);
-    expect(screen.getByTestId('ledger-truncated')).toHaveTextContent(
-      'Showing the 2 newest of 47. Totals cover all 47.',
-    );
+    expect(screen.getByTestId('ledger-truncated')).toHaveTextContent('Showing the 2 newest of 47. Totals cover all 47.');
     expect(screen.getByText('Charged (all 47)')).toBeInTheDocument();
     expect(screen.getByText('Paid to you (all 47)')).toBeInTheDocument();
   });
 
   it('says the rolling totals are of the shown rows only', () => {
     open(ledgerData({ totalMovements: 37 }));
-    expect(screen.getByTestId('ledger-truncated')).toHaveTextContent(
-      'Showing the 2 newest of 37. The totals below are of these 2.',
-    );
+    expect(screen.getByTestId('ledger-truncated')).toHaveTextContent('Showing the 2 newest of 37. The totals below are of these 2.');
   });
 
   it('prints the year for a window in another year', () => {
@@ -193,29 +173,17 @@ describe('ledger_watch: tile, alert, headline and share', () => {
   it('is lifted to Today only when an entry is graded ALERT, and then as a look', () => {
     expect(view.alert(ledgerData(), 'en')).toBeNull();
     expect(view.alert(alertData, 'en')).toEqual({
-      headline: '1 more transaction on your account',
+      headline: '1 other entry on your account',
       line: '₹5,000 charged, ₹0 paid to you.',
       severity: 'attention',
     });
-    expect(view.alert({ ...alertData, totalMovements: 4 }, 'hl')?.headline).toBe(
-      'Aapke khate mein 4 aur len-den',
-    );
+    expect(view.alert({ ...alertData, totalMovements: 4 }, 'hl')?.headline).toBe('Aapke khate mein 4 dusri entry');
   });
 
   it('writes a one-line headline with both amounts', () => {
-    expect(view.headline(ledgerData(), 'en')).toBe(
-      '2 more transactions: ₹1,062 charged, ₹63,877 paid to you',
-    );
-    expect(view.headline(alertData, 'en')).toBe(
-      '1 more transaction: ₹5,000 charged, ₹0 paid to you',
-    );
-    expect(view.headline(ledgerData(), 'hi')).toBe('2 और लेन-देन: ₹1,062 कटा, ₹63,877 जमा हुआ');
-  });
-
-  it('rounds the one-line amounts to the whole rupee', () => {
-    expect(view.headline({ ...ledgerData(), charged: 1062.4, received: 63876.6 }, 'hi')).toBe(
-      '2 और लेन-देन: ₹1,062 कटा, ₹63,877 जमा हुआ',
-    );
+    expect(view.headline(ledgerData(), 'en')).toBe('2 other entries: ₹1,062 charged, ₹63,877 paid to you');
+    expect(view.headline(alertData, 'en')).toBe('1 other entry: ₹5,000 charged, ₹0 paid to you');
+    expect(view.headline(ledgerData(), 'hi')).toBe('2 दूसरी एंट्री: ₹1,062 आपसे लिया गया, ₹63,877 आपको मिला');
   });
 
   it('shares each entry with its direction in words, and the not-DOD line', () => {
@@ -232,45 +200,5 @@ describe('ledger_watch: tile, alert, headline and share', () => {
     const { container } = render(<G size={28} />);
     expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
     expect(view.kind).toBe('ledger_watch');
-  });
-});
-
-describe('ledger_watch: the kit parts', () => {
-  it('says how many entries need a look, as a row with a shape and a word, only when one is graded ALERT', () => {
-    open(alertData);
-    const row = screen.getByText('1 entry needs a look');
-    expect(row).toBeInTheDocument();
-    expect(screen.getByText('They are marked in the list below')).toBeInTheDocument();
-    expect(
-      row.closest('div.flex')!.parentElement!.querySelector('[data-status="attention"]'),
-    ).not.toBeNull();
-  });
-
-  it('counts several entries in the plural', () => {
-    const two = {
-      ...alertData,
-      totalMovements: 2,
-      movements: [alertData.movements[0]!, { ...alertData.movements[0]!, amount: 700 }],
-    };
-    open(two);
-    expect(screen.getByText('2 entries need a look')).toBeInTheDocument();
-  });
-
-  it('says nothing about a look when no entry is graded ALERT', () => {
-    open(ledgerData());
-    expect(screen.queryByText(/need a look|needs a look/)).toBeNull();
-  });
-
-  it('says it in Hindi and in Hinglish without Devanagari', () => {
-    const hi = open(alertData, 'hi');
-    expect(hi.container.textContent).toContain('1 एंट्री पर ध्यान दें');
-    hi.unmount();
-    const hl = open(alertData, 'hl');
-    expect(hl.container.textContent).toContain('1 entry par dhyaan dein');
-  });
-
-  it('uses no fixed pixel width or height anywhere in the passbook', () => {
-    const { container } = open(alertData);
-    expect(container.innerHTML).not.toMatch(/h-\[\d+px|w-\[\d+px|text-\[\d/);
   });
 });

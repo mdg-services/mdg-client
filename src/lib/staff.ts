@@ -8,7 +8,7 @@ import type {
   StaffWorkUnit,
 } from '@dk/shared/types';
 
-import { fmtInt } from './fmt';
+
 
 /**
  * Client-side helpers for the Staff Points feature: IST calendar dates for the
@@ -27,48 +27,6 @@ export function istMonthStart(d: Date = new Date()): string {
   return `${istDate(d).slice(0, 8)}01`;
 }
 
-const pad2 = (n: number): string => String(n).padStart(2, '0');
-
-/** Whole calendar days in a month; `month` is 1 to 12. */
-function daysInMonth(year: number, month: number): number {
-  return new Date(Date.UTC(year, month, 0)).getUTCDate();
-}
-
-/**
- * Last calendar month, whole, for a day `YYYY-MM-DD`: the 1st to the last day of the month before
- * `today`. The "Last month" switch on the Warriors page reads this window.
- */
-export function lastMonthBounds(today: string): { from: string; to: string } {
-  const y = Number(today.slice(0, 4));
-  const m = Number(today.slice(5, 7));
-  const py = m === 1 ? y - 1 : y;
-  const pm = m === 1 ? 12 : m - 1;
-  return { from: `${py}-${pad2(pm)}-01`, to: `${py}-${pad2(pm)}-${pad2(daysInMonth(py, pm))}` };
-}
-
-/**
- * The SAME DAYS of last month: if today is the 12th, the 1st to the 12th of last month (clamped to
- * the month's length on the 31st). A fair comparison for a month that is only part way through:
- * 12 days against the whole of last month would call every early-month total a fall.
- */
-export function sameDaysLastMonthBounds(today: string): { from: string; to: string } {
-  const last = lastMonthBounds(today);
-  const day = Number(today.slice(8, 10));
-  const lastDay = Number(last.to.slice(8, 10));
-  return { from: last.from, to: `${last.from.slice(0, 8)}${pad2(Math.min(day, lastDay))}` };
-}
-
-/** How many calendar days an inclusive window holds (0 when it is back to front). */
-export function daysInWindow(from: string, to: string): number {
-  const a = Date.UTC(
-    Number(from.slice(0, 4)),
-    Number(from.slice(5, 7)) - 1,
-    Number(from.slice(8, 10)),
-  );
-  const b = Date.UTC(Number(to.slice(0, 4)), Number(to.slice(5, 7)) - 1, Number(to.slice(8, 10)));
-  return Math.max(0, Math.round((b - a) / 86_400_000) + 1);
-}
-
 /** Round to 2 decimal places (points may be fractional, e.g. a 40 ÷ 3 split). */
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
@@ -77,12 +35,10 @@ export function round2(n: number): number {
 /** Points as a clean string: integers plain, fractions trimmed (13.30 → 13.3). */
 export function fmtPoints(n: number): string {
   if (Number.isInteger(n)) return String(n);
-  return n.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
-
-/** Points for a big figure: whole numbers with Indian grouping ("1,840"), fractions trimmed ("13.3"). */
-export function fmtPointsGrouped(n: number): string {
-  return Number.isInteger(n) ? fmtInt(n) : fmtPoints(n);
+  return n
+    .toFixed(2)
+    .replace(/0+$/, '')
+    .replace(/\.$/, '');
 }
 
 /**
@@ -107,7 +63,11 @@ export function isRupeeWork(work: Pick<PointWork, 'unit'>): boolean {
  * only for the live preview and the pending-panel totals. For a `rupee-1000`
  * work pass `quantity = amountRupees / 1000`.
  */
-export function perEmployeePoints(item: PointWork, count: number, quantity?: number): number {
+export function perEmployeePoints(
+  item: PointWork,
+  count: number,
+  quantity?: number,
+): number {
   switch (item.distribution) {
     case 'SPLIT':
       return round2(item.points / Math.max(1, count));
@@ -125,7 +85,11 @@ export function perEmployeePoints(item: PointWork, count: number, quantity?: num
  * — i.e. the ledger sum. For SPLIT this is base (each worker's share × count);
  * for EACH/PER_UNIT/FLAT it's each worker's points × count.
  */
-export function totalAwardPoints(item: PointWork, count: number, quantity?: number): number {
+export function totalAwardPoints(
+  item: PointWork,
+  count: number,
+  quantity?: number,
+): number {
   return round2(perEmployeePoints(item, count, quantity) * count);
 }
 
@@ -154,16 +118,28 @@ export function effectiveQuantity(sel: WorkSelection): number | undefined {
 }
 
 /** Points a single worker earns across several works — preview + panel totals. */
-export function perEmployeePointsForWorks(works: WorkSelection[], count: number): number {
+export function perEmployeePointsForWorks(
+  works: WorkSelection[],
+  count: number,
+): number {
   return round2(
-    works.reduce((sum, w) => sum + perEmployeePoints(w.item, count, effectiveQuantity(w)), 0),
+    works.reduce(
+      (sum, w) => sum + perEmployeePoints(w.item, count, effectiveQuantity(w)),
+      0,
+    ),
   );
 }
 
 /** Ledger sum across several works for the whole worker set — running total + confirm button. */
-export function totalAwardPointsForWorks(works: WorkSelection[], count: number): number {
+export function totalAwardPointsForWorks(
+  works: WorkSelection[],
+  count: number,
+): number {
   return round2(
-    works.reduce((sum, w) => sum + totalAwardPoints(w.item, count, effectiveQuantity(w)), 0),
+    works.reduce(
+      (sum, w) => sum + totalAwardPoints(w.item, count, effectiveQuantity(w)),
+      0,
+    ),
   );
 }
 
@@ -253,7 +229,9 @@ export function buildDraftLines(
     }
 
     const isRupee = isRupeeWork(w);
-    const effQty = isRupee ? (e.amountRupees ?? 0) / 1000 : (e.quantity ?? 1);
+    const effQty = isRupee
+      ? (e.amountRupees ?? 0) / 1000
+      : e.quantity ?? 1;
     let splitAmong: number | undefined;
     let points: number;
     switch (w.distribution) {

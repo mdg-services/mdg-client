@@ -121,7 +121,7 @@ describe('supply status: the conditions', () => {
     expect(screen.getByTestId('supply-go-electrical_audit')).toHaveTextContent('Ask MDG to file it');
     expect(screen.getByTestId('supply-go-mock_drill')).toHaveTextContent('Open the mock drill work');
     expect(screen.queryByTestId('supply-go-du_tank_comm')).toBeNull();
-    for (const b of screen.getAllByRole('button')) expect(b.className).toContain('min-h-12');
+    for (const b of screen.getAllByRole('button')) expect(b.className).toContain('min-h-[48px]');
   });
 
   it('says when the list is from the last good check, and when it is only partly read', () => {

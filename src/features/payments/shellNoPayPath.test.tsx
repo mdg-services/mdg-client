@@ -76,17 +76,12 @@ const INVOICED = makePaidPayment({
   invoice: makeInvoice(),
   creditNotes: [makeCreditNote()],
 });
-/**
- * A bill's name as the page now writes it, from its month in the reader's language (the server's
- * "Dealer Kavach — Nov 2026" is English; a Hindi reader gets "नवंबर").
- */
-const NOV = { en: 'Dealer Kavach, November 2026', hi: 'Dealer Kavach, नवंबर 2026' } as const;
 // What each route shows that proves its page has drawn.
 const MARKER = {
-  '/payments': NOV,
-  '/payments/p1': NOV,
-  '/payments/p2': { en: 'MDG-2026-00007', hi: 'MDG-2026-00007' },
-  '/payments/p3': { en: 'MDG-2026-00008', hi: 'MDG-2026-00008' },
+  '/payments': 'Dealer Kavach — Nov 2026',
+  '/payments/p1': 'Dealer Kavach — Nov 2026',
+  '/payments/p2': 'MDG-2026-00007',
+  '/payments/p3': 'MDG-2026-00008',
 } as const;
 const DOWNLOAD_LINK = { url: 'https://s3.test/gst/invoice?sig=abc', filename: 'MDG-26-27-00001.pdf' };
 
@@ -227,18 +222,9 @@ describe.each([
       serve([DUE, PAID, INVOICED]);
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-      const { container } = await openRoute(route, MARKER[route][lang], lang);
+      const { container } = await openRoute(route, MARKER[route], lang);
 
-      // With no autopay the list still has the Autopay row ("Not on at this pump"): its one link, to
-      // the screen that explains it, and nothing else.
-      expectNoPayPath(
-        container,
-        lang,
-        [...downloads],
-        false,
-        [...receipts],
-        route === '/payments' ? ['/settings/autopay'] : [],
-      );
+      expectNoPayPath(container, lang, [...downloads], false, [...receipts]);
       expect(open).not.toHaveBeenCalled();
     },
   );
@@ -252,23 +238,22 @@ describe('the payments list, rendered as the Android app does', () => {
       enterNativeShell();
       serve([DUE, PAID, INVOICED]);
 
-      await openRoute('/payments', MARKER['/payments'][lang], lang);
+      await openRoute('/payments', MARKER['/payments'], lang);
 
-      // The due row is not in any link; both paid rows are, and so is the Autopay row ("Not on").
+      // The due row is not in any link; both paid rows are.
       const links = screen.getAllByRole('link');
       expect(links.map((a) => a.getAttribute('href')).sort()).toEqual([
         '/payments/p2',
         '/payments/p3',
-        '/settings/autopay',
       ]);
-      expect(links.some((a) => a.textContent?.includes(NOV[lang]))).toBe(false);
+      expect(links.some((a) => a.textContent?.includes(DUE.title))).toBe(false);
       // The due row is still on the page, as text.
-      expect(screen.getByText(NOV[lang])).toBeInTheDocument();
+      expect(screen.getByText(DUE.title)).toBeInTheDocument();
 
       // Pressing a paid row reaches its receipt — the reason the link is there.
       const receipt = links.find((a) => a.getAttribute('href') === '/payments/p2') as HTMLElement;
       await user.click(receipt);
-      await screen.findByText(MARKER['/payments/p2'][lang]);
+      await screen.findByText(MARKER['/payments/p2']);
       expect(screen.queryAllByRole('link')).toHaveLength(0);
       expect(api.post).not.toHaveBeenCalled();
     },
@@ -297,7 +282,7 @@ describe('the payments list with autopay, rendered as the Android app does', () 
       serve([DUE, PAID, INVOICED], makeAutopayStatus({ state }));
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
 
-      const { container } = await openRoute('/payments', MARKER['/payments'][lang], lang);
+      const { container } = await openRoute('/payments', MARKER['/payments'], lang);
       // The card has drawn: a link to the screen that can stop it.
       const card = await screen.findByRole('link', {
         name: new RegExp(`^${translate(lang, 'autopay.title')}`),
@@ -314,7 +299,7 @@ describe('the payments list with autopay, rendered as the Android app does', () 
       );
       expect(open).not.toHaveBeenCalled();
       // The due bill is still plain text, not a link, and nothing is a Pay button.
-      expect(screen.getByText(NOV[lang])).toBeInTheDocument();
+      expect(screen.getByText(DUE.title)).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Pay|चुकाएँ/ })).not.toBeInTheDocument();
 
       // The card leads to the Autopay screen, and only there.
@@ -330,7 +315,7 @@ describe('the payments list with autopay, rendered as the Android app does', () 
       enterNativeShell();
       serve([makePayment({ autopayOn: '2036-10-28' }), PAID], makeAutopayStatus());
 
-      const { container } = await openRoute('/payments', NOV[lang], lang);
+      const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026', lang);
       await screen.findByText(translate(lang, 'payments.autopayWillTake', { date: formatDayMonth(lang, '2036-10-28') }));
 
       expectNoPayPath(container, lang, [], false, ['/payments/p2'], ['/settings/autopay']);
@@ -345,7 +330,7 @@ describe('the payments list with autopay, rendered as the Android app does', () 
       enterNativeShell();
       serve([DUE, PAID], new Error('boom'));
 
-      const { container } = await openRoute('/payments', NOV[lang], lang);
+      const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026', lang);
       await screen.findByText(translate(lang, 'autopay.sub.unknown'));
 
       expectNoPayPath(container, lang, [], false, ['/payments/p2'], ['/settings/autopay']);
@@ -478,7 +463,7 @@ describe('a GST document downloaded inside the Android app', () => {
       const open = vi.spyOn(window, 'open').mockReturnValue(null);
       const numbers = ['MDG/26-27/00001', 'MDGCN/26-27/0001'];
 
-      const { container } = await openRoute('/payments/p3', MARKER['/payments/p3'][lang], lang);
+      const { container } = await openRoute('/payments/p3', MARKER['/payments/p3'], lang);
       await user.click(
         screen.getByRole('button', { name: allowedButtons(lang, numbers)[1] as string }),
       );
@@ -498,8 +483,8 @@ describe('the same pages in a browser (the control)', () => {
   it('do offer a Pay button, a link on to the payment, and load Razorpay’s script', async () => {
     serve([DUE, PAID]);
 
-    const { container } = await openRoute('/payments', NOV.en);
-    await screen.findByRole('button', { name: 'Pay now, ₹4,999' });
+    const { container } = await openRoute('/payments', 'Dealer Kavach — Nov 2026');
+    await screen.findByRole('button', { name: 'Pay ₹4,999' });
 
     expect(container.querySelector('a[href="/payments/p1"]')).not.toBeNull();
     expect(document.querySelector(`script[src="${CHECKOUT_SCRIPT_URL}"]`)).not.toBeNull();
@@ -508,35 +493,21 @@ describe('the same pages in a browser (the control)', () => {
   it('have the Pay button on the payment’s own page', async () => {
     serve([DUE, PAID]);
 
-    await openRoute('/payments/p1', NOV.en);
+    await openRoute('/payments/p1', 'Dealer Kavach — Nov 2026');
 
-    expect(await screen.findByRole('button', { name: 'Pay now, ₹4,999' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Pay ₹4,999' })).toBeInTheDocument();
   });
 });
 
 describe('the routes', () => {
-  it('sit inside the signed-in layout: a signed-out visit with a language chosen goes to sign-in', async () => {
+  it('sit inside the signed-in layout: a signed-out visit goes to the login screen', async () => {
     serve([DUE]);
-    // Not signed in, but the reader has already picked a language on this phone (spec 4.9).
-    useLangStore.setState({ lang: 'en', explicit: true });
+    // Not signed in.
     renderWithProviders(<App />, { route: '/payments' });
     // The login page is a lazy chunk; wait for it rather than for the payments one.
     await waitFor(() => expect(document.body.textContent ?? '').toMatch(/Sign in|साइन इन/), {
       timeout: 4000,
     });
-    expect(screen.queryByTestId('language-sample')).not.toBeInTheDocument();
-    expect(api.get).not.toHaveBeenCalled();
-  });
-
-  it('and with NO language chosen yet, a signed-out visit shows the first-open choice (Hindi by default), never a way to pay', async () => {
-    serve([DUE]);
-    // A phone nobody has used: resetStores leaves no explicit language.
-    expect(useLangStore.getState().explicit).toBe(false);
-    renderWithProviders(<App />, { route: '/payments' });
-    await screen.findByRole('button', { name: /मेरा पेट्रोल पंप चल रहा है/ }, { timeout: 4000 });
-    // Not the payments page, and no way to pay: just the question.
-    expect(screen.queryByRole('button', { name: /Pay|चुकाएँ/ })).not.toBeInTheDocument();
-    expect(document.querySelector('a[href^="/payments"]')).toBeNull();
     expect(api.get).not.toHaveBeenCalled();
   });
 });

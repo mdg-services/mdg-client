@@ -40,11 +40,11 @@ describe('the visual kinds, in every language', () => {
       const { container } = renderOverlay(c.view as never, c.data as never, 'en');
       for (const b of Array.from(container.querySelectorAll('button'))) {
         // the video poster is a whole 16:9 picture, far above 48 px
-        expect(b.className, `${c.name} button`).toMatch(/min-h-12|min-h-\[48px\]|aspect-video/);
+        expect(b.className, `${c.name} button`).toMatch(/min-h-\[48px\]|aspect-video/);
       }
       // a link inside the running text stays text; the 48 px button under the letter repeats it
       for (const a of Array.from(container.querySelectorAll('a')).filter((x) => !x.closest('[data-testid="announcement-body"]'))) {
-        expect(a.className, `${c.name} link`).toMatch(/min-h-12|min-h-\[48px\]/);
+        expect(a.className, `${c.name} link`).toContain('min-h-[48px]');
       }
       for (const svg of Array.from(container.querySelectorAll('svg'))) {
         // a drawing either is decorative or carries its own name; none is left to be read as "image"

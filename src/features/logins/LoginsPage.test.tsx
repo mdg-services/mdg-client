@@ -1,4 +1,4 @@
-import { act, cleanup, screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -75,14 +75,13 @@ afterEach(() => {
   resetStores();
 });
 
-function renderPage(opts: { lang?: 'en' | 'hi' | 'hl'; role?: 'dealer-owner' | 'dealer-staff' } = {}) {
-  signIn({ id: 'u1', role: opts.role ?? 'dealer-owner', dealerId: 'd1' });
+function renderPage(opts: { lang?: 'en' | 'hi' | 'hl' } = {}) {
+  signIn({ id: 'u1', role: 'dealer-owner', dealerId: 'd1' });
   useLangStore.setState({ lang: opts.lang ?? 'en', explicit: true });
   return renderWithProviders(
     <Routes>
       <Route path="/settings/logins" element={<LoginsPage />} />
       <Route path="/settings" element={<div>went:settings</div>} />
-      <Route path="/pump" element={<div>went:pump</div>} />
     </Routes>,
     { route: '/settings/logins' },
   );
@@ -98,7 +97,7 @@ describe('IDs & passwords page — what it shows', () => {
     expect(sdms.getByTestId('id-value')).toHaveTextContent('sdms-user');
     expect(sdms.getByTestId('password-value')).toHaveTextContent('••••••••');
     expect(document.body.textContent).not.toContain('Now#Pass-1');
-    expect(sdms.getByText(/Last changed on .*2026.* · by you/)).toBeInTheDocument();
+    expect(sdms.getByText(/Saved .*2026.* · by you/)).toBeInTheDocument();
     // Nothing was asked for a password just by opening the page.
     expect(api.post).not.toHaveBeenCalled();
   });
@@ -123,7 +122,7 @@ describe('IDs & passwords page — what it shows', () => {
     const sdms = await card('sdms');
     expect(sdms.getByText('Mil gaya')).toBeInTheDocument();
     expect(sdms.getByText('Badlein')).toBeInTheDocument();
-    expect(sdms.getByText(/Aakhri badlaav: .*2026/)).toBeInTheDocument();
+    expect(sdms.getByText(/Save kiya: .*2026/)).toBeInTheDocument();
   });
 
   it('says so when the list could not be loaded, and tries again on request', async () => {
@@ -370,71 +369,5 @@ describe('the history of a login', () => {
     renderPage();
     const sdms = await card('sdms');
     expect(sdms.queryByRole('button', { name: /History/ })).not.toBeInTheDocument();
-  });
-});
-
-describe('the health line at the top (spec 4.5)', () => {
-  const health = (container: HTMLElement) => container.querySelector('[data-status]');
-
-  it('says "N of N working" with a tick when every login that is needed is saved', async () => {
-    current = { rows: [sdmsSaved(), irasMissing({ status: 'saved', username: 'i', savedAt: '2026-11-17T10:00:00.000Z', savedBy: 'you' })] };
-    const { container } = renderPage();
-    expect(await screen.findByText('2 of 2 working')).toBeInTheDocument();
-    expect(health(container)?.getAttribute('data-status')).toBe('ok');
-  });
-
-  it('names the login the portal turned away, as a problem with a shape and a word', async () => {
-    current = { rows: [sdmsSaved(), irasMissing({ status: 'refused', username: 'i', refusedAt: '2026-11-18T10:00:00.000Z' })] };
-    const { container } = renderPage();
-    expect(await screen.findByText('IRAS password was refused')).toBeInTheDocument();
-    expect(health(container)?.getAttribute('data-status')).toBe('problem');
-    expect(within(health(container) as HTMLElement).getByText('Problem')).toBeInTheDocument();
-  });
-
-  it('says a needed login is not added yet, as a thing to look at', async () => {
-    const { container } = renderPage();
-    expect(await screen.findByText('IRAS password is missing')).toBeInTheDocument();
-    expect(health(container)?.getAttribute('data-status')).toBe('attention');
-  });
-
-  it('does not count a login no service needs against the owner', async () => {
-    current = { rows: [sdmsSaved(), irasMissing({ needed: false })] };
-    renderPage();
-    expect(await screen.findByText('1 of 1 working')).toBeInTheDocument();
-  });
-
-  it('says it in Hindi and in Hinglish', async () => {
-    current = { rows: [sdmsSaved(), irasMissing({ status: 'refused', username: 'i' })] };
-    renderPage({ lang: 'hi' });
-    expect(await screen.findByText('IRAS का पासवर्ड नहीं चला')).toBeInTheDocument();
-    cleanup();
-    renderPage({ lang: 'hl' });
-    expect(await screen.findByText('IRAS ka password nahi chala')).toBeInTheDocument();
-  });
-});
-
-// The page is the owner's. A manager who types the address goes to My pump, and the page asks the
-// server for nothing: no list, and above all no password.
-describe('a manager', () => {
-  it('is sent to My pump without the page asking the server for anything', async () => {
-    renderPage({ role: 'dealer-staff' });
-    expect(await screen.findByText('went:pump')).toBeInTheDocument();
-    expect(api.get).not.toHaveBeenCalled();
-    expect(api.post).not.toHaveBeenCalled();
-  });
-});
-
-describe('the form is labelled', () => {
-  it('ties the ID and password boxes to their labels, so a screen reader names them', async () => {
-    renderPage();
-    const iras = await card('iras');
-    expect(iras.getByLabelText(/ID/)).toBeInTheDocument();
-    expect(iras.getByLabelText(/Password/)).toBeInTheDocument();
-  });
-
-  it('keeps every button and name at the sizes of the rules: no cut-off names, no fixed pixel heights', async () => {
-    const { container } = renderPage();
-    await card('sdms');
-    expect(container.innerHTML).not.toMatch(/\btruncate\b|line-clamp|text-\[|h-\[\d+px\]|min-h-\[/);
   });
 });

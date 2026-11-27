@@ -1,12 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { useLangStore } from '@/store/lang';
-import { resetStores } from '@/test/utils';
 import type { MockDrillData } from '@dk/shared/types';
 
 import { reportOf, signedPhoto } from './_paperwork.fixtures';
-import { progressSteps, stepsOnTime, usedResponse, view } from './mock_drill';
+import { progressSteps, usedResponse, view } from './mock_drill';
 
 const filed: MockDrillData = {
   kind: 'mock_drill',
@@ -36,11 +34,7 @@ const filed: MockDrillData = {
   portalState: 'pending_approval',
 };
 
-afterEach(() => resetStores());
-
 function open(data: MockDrillData, lang: 'hi' | 'hl' | 'en' = 'en') {
-  // The kit's own words follow the app's language.
-  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(
     <Overlay data={data} report={reportOf('mock_drill', [signedPhoto('k/p1.jpg', 'https://signed/1')])} lang={lang} />,
@@ -104,9 +98,7 @@ describe('mock_drill', () => {
 
   it('shows who was there, the level, and the two photos with a calm box for an unsigned one', () => {
     open(filed);
-    const people = screen.getByRole('group', { name: 'People present: 12' });
-    expect(within(people).getByText('12')).toBeInTheDocument();
-    expect(within(people).getByText('Head count short 0')).toBeInTheDocument();
+    expect(screen.getByText('People present 12. Head count short 0.')).toBeInTheDocument();
     expect(screen.getByText('Level 1 drill')).toBeInTheDocument();
     expect(screen.getByAltText('Photo 1')).toHaveAttribute('src', 'https://signed/1');
     expect(screen.getByText('Photo is not shown here')).toBeInTheDocument();
@@ -174,44 +166,5 @@ describe('mock_drill', () => {
     const Glyph = view.Glyph;
     const { container } = render(<Glyph />);
     expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 40 28');
-  });
-});
-
-describe('mock_drill: the figures at a glance', () => {
-  it('counts the steps that started within the expected time, leaving out a step the drill did not run', () => {
-    expect(stepsOnTime(usedResponse(filed))).toEqual({ onTime: 2, total: 2 });
-    const slow = { ...filed, response: [{ step: 0, expectedSec: 60, actualSec: 90 }, { step: 3, expectedSec: 90, actualSec: 80 }] };
-    expect(stepsOnTime(usedResponse(slow))).toEqual({ onTime: 1, total: 2 });
-    expect(stepsOnTime([])).toBeNull();
-  });
-
-  it('shows the drill day, the people there and the steps on time as three tiles', () => {
-    open({ ...filed, response: [{ step: 0, expectedSec: 60, actualSec: 90 }, { step: 3, expectedSec: 90, actualSec: 80 }] });
-    expect(screen.getByRole('group', { name: 'Drill day: 22 Nov' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'People present: 12' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Steps started on time: 1 of 2' })).toBeInTheDocument();
-  });
-
-  it('leaves out the tiles it has no figure for', () => {
-    open({ ...filed, drillDay: undefined, filedAt: undefined, receivedAt: undefined, personsPresent: undefined, headCountShort: undefined, response: [] });
-    expect(screen.queryByRole('group', { name: /Drill day/ })).toBeNull();
-    expect(screen.queryByRole('group', { name: /People present/ })).toBeNull();
-    expect(screen.queryByRole('group', { name: /on time/ })).toBeNull();
-  });
-
-  it('puts the response bars and the progress list in cards with their own headings', () => {
-    open(filed);
-    expect(screen.getByRole('heading', { name: 'How fast each step started' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Where it stands' })).toBeInTheDocument();
-  });
-
-  it('says it in Hindi and Hinglish', () => {
-    const hi = open(filed, 'hi');
-    expect(hi.container.textContent).toContain('मौजूद लोग');
-    expect(hi.container.textContent).toContain('2 में से 2');
-    hi.unmount();
-    const hl = open(filed, 'hl');
-    expect(hl.container.textContent).toContain('Maujood log');
-    expect(hl.container.textContent).not.toMatch(/[\u0900-\u097F]/);
   });
 });

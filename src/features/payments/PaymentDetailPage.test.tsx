@@ -10,7 +10,6 @@ import {
   enterNativeShell,
   leaveNativeShell,
   makeCheckout,
-  makeInvoice,
   makePaidPayment,
   makePayment,
 } from '@/test/payments';
@@ -74,8 +73,7 @@ describe('PaymentDetailPage — the receipt', () => {
     expect(within(receipt).getByText(footer)).toBeInTheDocument();
     // Paid: nothing left to do.
     expect(screen.queryByRole('button', { name: /Pay/ })).not.toBeInTheDocument();
-    // Paid on 5 Oct against a due day of 5 Nov: the pill says so.
-    expect(screen.getByText('Paid on time')).toBeInTheDocument();
+    expect(screen.getByText('Paid')).toBeInTheDocument();
   });
 
   it('reads in Hindi', async () => {
@@ -132,11 +130,11 @@ describe('PaymentDetailPage — a payment that is due', () => {
   it('shows the amount, what it is for, the note, the date and a Pay button', async () => {
     renderDetail(makePayment({ note: 'November plan\nIncludes setup' }));
 
-    expect(await screen.findByText('Dealer Kavach, November 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
     expect(screen.getByText('₹4,999')).toBeInTheDocument();
     expect(screen.getByText(/November plan/)).toBeInTheDocument();
     expect(screen.getByText('Due by 5 Nov 2026')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pay now, ₹4,999' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pay ₹4,999' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Receipt' })).not.toBeInTheDocument();
   });
 
@@ -156,7 +154,7 @@ describe('PaymentDetailPage — a payment that is due', () => {
       await screen.findByText('Your last try did not go through: the payment was cancelled'),
     ).toBeInTheDocument();
     expect(screen.queryByText(/processing cancelled by user/)).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Pay now, ₹4,999' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pay ₹4,999' })).toBeInTheDocument();
   });
 
   it('says it in Hindi, with no English from Razorpay inside it', async () => {
@@ -196,7 +194,7 @@ describe('PaymentDetailPage — a payment that is due', () => {
     }) as typeof api.post);
     renderDetail(makePayment());
 
-    await user.click(await screen.findByRole('button', { name: 'Pay now, ₹4,999' }));
+    await user.click(await screen.findByRole('button', { name: 'Pay ₹4,999' }));
 
     await waitFor(() => expect(openCheckout).toHaveBeenCalledWith(makeCheckout()));
     expect(api.post).toHaveBeenCalledWith('/v1/payments/me/p1/checkout');
@@ -268,7 +266,7 @@ describe('PaymentDetailPage — a due payment that autopay will take', () => {
   it('says it in Hindi', async () => {
     renderDetail(makePayment({ autopayOn: '2036-10-28' }), 'hi');
 
-    expect(await screen.findByText(/^ऑटोपे 28 अक्तूबर को काटेगा$/)).toBeInTheDocument();
+    expect(await screen.findByText(/^ऑटोपे 28 अक्टू.* को काटेगा$/)).toBeInTheDocument();
     expect(screen.queryByText(/तक देना है/)).not.toBeInTheDocument();
   });
 
@@ -320,7 +318,7 @@ describe('PaymentDetailPage — inside the Android app', () => {
       }),
     );
 
-    expect(await screen.findByText('Dealer Kavach, November 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
     expect(screen.getByText('₹4,999')).toBeInTheDocument();
     expect(screen.getByText('Due by 5 Nov 2026')).toBeInTheDocument();
     expect(screen.getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
@@ -382,60 +380,14 @@ describe('PaymentDetailPage — when it cannot be shown', () => {
 
     vi.mocked(api.get).mockResolvedValue(makePayment());
     await user.click(screen.getByRole('button', { name: 'Try again' }));
-    expect(await screen.findByText('Dealer Kavach, November 2026')).toBeInTheDocument();
+    expect(await screen.findByText('Dealer Kavach — Nov 2026')).toBeInTheDocument();
   });
 
   it('keeps the bar and its way back while loading', async () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => undefined));
     renderDetail(null);
 
-    expect(screen.getByText('Bill')).toBeInTheDocument();
+    expect(screen.getByText('Payment')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
-  });
-});
-
-describe('PaymentDetailPage — what the bill is made of', () => {
-  it('names the month it covers and splits the amount from its GST, on a bill not yet paid', async () => {
-    renderDetail(makePayment({ title: 'Dealer Kavach, November', amountPaise: 118000, dueDate: '2026-11-30' }));
-
-    const card = within(await screen.findByRole('region', { name: 'This bill' }));
-    expect(card.getByText('Month it covers')).toBeInTheDocument();
-    expect(card.getByText('November 2026')).toBeInTheDocument();
-    expect(card.getByText('₹1,000')).toBeInTheDocument();
-    expect(card.getByText('GST 18%')).toBeInTheDocument();
-    expect(card.getByText('₹180')).toBeInTheDocument();
-    // No receipt yet, so the page says where it will be rather than ending in a bare card.
-    expect(
-      screen.getByText('The receipt and the GST invoice appear here once the bill is paid.'),
-    ).toBeInTheDocument();
-  });
-
-  it('names the bill in Hindi, with the month in Hindi', async () => {
-    renderDetail(makePayment({ title: 'Dealer Kavach, November', dueDate: '2026-11-30' }), 'hi');
-    expect(await screen.findByText('Dealer Kavach, नवंबर 2026')).toBeInTheDocument();
-    expect(screen.queryByText(/November/)).not.toBeInTheDocument();
-  });
-
-  it('leaves the month out when the bill is not a monthly one, and keeps the split', async () => {
-    renderDetail(makePayment({ title: 'Setup fee', purpose: 'setup' }));
-    const card = within(await screen.findByRole('region', { name: 'This bill' }));
-    expect(card.queryByText('Month it covers')).not.toBeInTheDocument();
-    expect(card.getByText('Amount before GST')).toBeInTheDocument();
-  });
-
-  it('has no make-up card and no "appears here" line for a cancelled bill', async () => {
-    renderDetail(makePayment({ status: 'cancelled' }));
-    await screen.findByText('Cancelled');
-    expect(screen.queryByRole('region', { name: 'This bill' })).not.toBeInTheDocument();
-    expect(screen.queryByText(/appear here once the bill is paid/)).not.toBeInTheDocument();
-  });
-
-  it('after payment shows the receipt and the make-up from the invoice', async () => {
-    renderDetail(makePaidPayment({ invoice: makeInvoice(), title: 'Dealer Kavach, October', dueDate: '2026-10-30' }));
-    expect(await screen.findByRole('heading', { name: 'Receipt' })).toBeInTheDocument();
-    const card = within(screen.getByRole('region', { name: 'This bill' }));
-    expect(card.getByText('₹4,236.44')).toBeInTheDocument();
-    expect(card.getByText('October 2026')).toBeInTheDocument();
-    expect(screen.queryByText(/appear here once the bill is paid/)).not.toBeInTheDocument();
   });
 });

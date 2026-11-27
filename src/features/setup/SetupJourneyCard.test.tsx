@@ -77,19 +77,4 @@ describe('the setup as one card (ADR 0059)', () => {
     expect(row.getAttribute('data-state')).toBe('working');
     expect(row.textContent?.length).toBeGreaterThan(4);
   });
-  it('puts what a step holds and what MDG is doing now at 14px, not 12px (the floor for real information)', () => {
-    const view = makeSetupView({
-      stage: 'setup',
-      waitingOn: 'mdg',
-      strip: makeStrip(['done', 'done', 'done', 'done', 'current']),
-      billing: { name: 'Sai Petroleums', address: 'NH 24', stateCode: '06', gstin: null },
-    });
-    renderWithProviders(<SetupJourneyCard view={view} />);
-    const card = screen.getByTestId('setup-journey-card');
-    // 12px is for counts and tiny marks only: here the number inside a step's round mark.
-    for (const el of Array.from(card.querySelectorAll('.text-micro'))) expect(el.className).toContain('rounded-full');
-    expect(card.outerHTML).not.toMatch(/text-\[/);
-    const label = within(screen.getByTestId('setup-row-billing')).getByText('बिल का पता');
-    expect(label.className).toContain('text-meta');
-  });
 });

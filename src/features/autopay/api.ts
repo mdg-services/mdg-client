@@ -49,34 +49,24 @@ export function useAutopayStatus() {
  * autopay once the server has answered with one, or `failed` when the answer
  * did not come — the request errored, or is paused because the phone is offline.
  *
- * Both pages draw a row when there is an `autopay` or the read `failed`; the Bill and plan page
- * also draws one when the answer `loaded` with none ("Not on at this pump"). A
+ * Both pages draw a row only when there is an `autopay` or the read `failed`. A
  * `failed` read still draws it, leading to the Autopay screen, which has its own
  * Try again: a row that quietly vanished when the link was slow left the owner
  * with no way to find the stop button. While the request is still loading
- * nothing is drawn, so the videos and the bills never wait on it. For a manager
- * nothing is drawn either (`loaded` stays false: no request is made for one).
+ * nothing is drawn, so the videos and the bills never wait on it. For a manager,
+ * and for an owner with no autopay, nothing is drawn either.
  *
  * Called by the PAGE, after its own content's query, rather than by the row: a
  * child's request goes out before its parent's, and on a slow link the bills and
  * the videos are what the page is for.
  */
-export function useOwnerAutopay(): {
-  autopay: DealerAutopay | null;
-  failed: boolean;
-  /** The server has answered (with an autopay or with none). False while loading, offline and for a manager. */
-  loaded: boolean;
-} {
+export function useOwnerAutopay(): { autopay: DealerAutopay | null; failed: boolean } {
   const query = useAutopayStatus();
   // `isLoading` alone is false for an error and for a request paused offline.
   const failed =
     !query.data &&
     (query.isError || (query.status === 'pending' && query.fetchStatus === 'paused'));
-  return {
-    autopay: query.data?.autopay ?? null,
-    failed, // An answer of a shape this code does not know (no `autopay` key at all) is not "there is none".
-    loaded: !!query.data && query.data.autopay !== undefined,
-  };
+  return { autopay: query.data?.autopay ?? null, failed };
 }
 
 /** 404 `NO_AUTOPAY`: there is nothing to stop — it is already gone. */

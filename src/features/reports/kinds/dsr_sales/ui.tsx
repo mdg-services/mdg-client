@@ -4,20 +4,19 @@ import type { Lang } from '@/store/lang';
 
 import { StatusShape } from '../../StatusBadge';
 import type { ReportStatusKey } from '../../types';
-
 import { fuelColor, fuelLetters, fuelName, tanksWords } from './fmt';
 
 /**
- * Small pieces the four stock-and-sales overlays share. Plain Tailwind on the light tokens, 16 px
- * minimum text, 48 px minimum targets, every size in rem.
+ * Small pieces the four stock-and-sales overlays share. Plain Tailwind, tokens only (so dark
+ * mode follows), 16 px minimum text, 48 px minimum targets.
  */
 
-/** The overlay's lead sentence: heading size, before any number. */
+/** The overlay's lead sentence: 20 px bold, Devanagari-safe line height, before any number. */
 export function Lead({ children }: { children: ReactNode }): ReactElement {
   return <p className="text-heading text-text">{children}</p>;
 }
 
-/** A small swatch in the fuel's workbook colour, always beside the fuel's letters. */
+/** A 10 px swatch in the fuel's workbook colour, always beside the fuel's letters. */
 export function FuelSwatch({ fuelKey }: { fuelKey: string }): ReactElement {
   return (
     <span
@@ -92,7 +91,7 @@ export function Callout({
 export function More({ label, children }: { label: string; children: ReactNode }): ReactElement {
   return (
     <details className="rounded-lg border border-border bg-surface">
-      <summary className="flex min-h-12 cursor-pointer items-center px-3.5 text-body font-medium leading-relaxed text-text">
+      <summary className="flex min-h-[48px] cursor-pointer items-center px-3.5 text-body font-medium leading-relaxed text-text">
         {label}
       </summary>
       <div className="space-y-2 border-t border-border px-3 py-3 text-body leading-relaxed text-text-muted">{children}</div>

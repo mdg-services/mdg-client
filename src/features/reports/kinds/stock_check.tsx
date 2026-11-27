@@ -1,10 +1,10 @@
 import { RefreshCw } from 'lucide-react';
 import { useId, type ReactElement } from 'react';
 
-import { InsightRow, SectionCard, StatusPill } from '@/components/kit';
 import type { Lang } from '@/store/lang';
 import type { StockCheckData, StockTankReading } from '@dk/shared/types';
 
+import { StatusBadge } from '../StatusBadge';
 import {
   sayWords,
   type KindAlert,
@@ -15,8 +15,6 @@ import {
   type ReportActionContext,
   type Words,
 } from '../types';
-
-import { Callout, FuelBand, Lead, More, rv } from './_supplyKit';
 import {
   dayAndTime,
   dayWords,
@@ -29,6 +27,7 @@ import {
   litres,
   timeWords,
 } from './dsr_sales/fmt';
+import { Callout, FuelBand, Lead, More } from './dsr_sales/ui';
 
 /**
  * Tank stock, ADR 0056 §2: one upright cylinder per tank, filled to its level, with a dark
@@ -180,7 +179,7 @@ function tankAria(f: Fuel, tank: StockTankReading, lang: Lang): string {
 const CYL = { w: 96, h: 150, x0: 8, x1: 88, topCy: 14, botCy: 130, rx: 40, ry: 9 } as const;
 
 /** One cylinder. Shapes only; the numbers are printed in HTML under it. */
-function Cylinder({ fuelKey, tank, uid }: { fuelKey: string; tank: StockTankReading; uid: string }): ReactElement {
+function Cylinder({ fuelKey, tank, uid, lang }: { fuelKey: string; tank: StockTankReading; uid: string; lang: Lang }): ReactElement {
   const dead = hasNoReading(tank);
   const fill = fillOf(tank);
   const span = CYL.botCy - CYL.topCy;
@@ -197,7 +196,7 @@ function Cylinder({ fuelKey, tank, uid }: { fuelKey: string; tank: StockTankRead
   const clip = `${uid}c`;
   const hatch = `${uid}h`;
   return (
-    <svg viewBox={`0 0 ${CYL.w} ${CYL.h}`} aria-hidden="true" focusable="false" className="mx-auto block h-auto w-24">
+    <svg width={CYL.w} height={CYL.h} viewBox={`0 0 ${CYL.w} ${CYL.h}`} aria-hidden="true" focusable="false" className="mx-auto block">
       <defs>
         <clipPath id={clip}>
           <path d={bodyPath} />
@@ -222,8 +221,21 @@ function Cylinder({ fuelKey, tank, uid }: { fuelKey: string; tank: StockTankRead
         </g>
       ) : null}
       {lowY !== null && !dead ? (
-        // The dashed line is the low line; its name is the legend under the cylinders (SVG text shrinks with the picture).
-        <line data-testid="low-line" x1={CYL.x0} y1={lowY} x2={CYL.x1} y2={lowY} style={{ stroke: 'var(--color-text)' }} strokeWidth="2" strokeDasharray="5 4" />
+        <g>
+          <line x1={CYL.x0} y1={lowY} x2={CYL.x1} y2={lowY} style={{ stroke: 'var(--color-text)' }} strokeWidth="2" strokeDasharray="5 4" />
+          <text
+            x={CYL.x1 - 4}
+            y={lowY - 4}
+            fontSize="10"
+            fontWeight="800"
+            textAnchor="end"
+            paintOrder="stroke"
+            strokeWidth="3"
+            style={{ fill: 'var(--color-text)', stroke: 'var(--color-surface)' }}
+          >
+            {t(W.low, lang)}
+          </text>
+        </g>
       ) : null}
       {/* the outline: solid normally, dashed when the gauge is silent */}
       <path d={bodyPath} fill="none" style={{ stroke: ink }} strokeWidth="3" strokeDasharray={dead ? '7 6' : undefined} strokeLinejoin="round" />
@@ -258,26 +270,26 @@ function TankCard({
   return (
     <li className="min-w-0 text-center" data-tank={tank.tankNo} data-state={dead ? 'no-reading' : noSize ? 'no-size' : 'ok'}>
       <div role="img" aria-label={tankAria(fuel, tank, lang)}>
-        <Cylinder fuelKey={fuel.fuelKey} tank={tank} uid={uid} />
+        <Cylinder fuelKey={fuel.fuelKey} tank={tank} uid={uid} lang={lang} />
       </div>
       <div className="mt-1 text-title tabular-nums leading-tight text-text">
         {dead ? <span className="text-body">{t(W.noReading, lang)}</span> : litres(tank.litres as number)}
       </div>
       <div className="mt-1">
-        <span className="inline-flex min-h-7 items-center rounded-full border border-border-strong bg-surface px-2.5 text-cta text-text">
+        <span className="inline-flex min-h-[28px] items-center rounded-full border border-border-strong bg-surface px-2.5 text-cta text-text">
           {tankLabel(tank.tankNo, lang)}
         </span>
       </div>
       {dead ? <p className="mt-1 text-body leading-snug text-text-muted">{t(W.noGauge, lang)}</p> : null}
       {low ? (
         <div className="mt-1 flex justify-center">
-          <StatusPill status="attention" word={t(W.lowWord, lang)} />
+          <StatusBadge status="attention" lang={lang} word={t(W.lowWord, lang)} />
         </div>
       ) : null}
       {!dead && tank.waterL !== null ? (
         <p className="mt-1 flex items-center justify-center gap-1 text-body leading-snug text-text-muted">
           {tank.waterL > 0 ? (
-            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false" className="h-4 w-4 shrink-0">
+            <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false" className="shrink-0">
               <polygon points="10,2 18.5,17 1.5,17" style={{ fill: 'var(--status-attention)' }} />
               <path d="M10 7.5v4.2" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
               <circle cx="10" cy="14.4" r="1" fill="#fff" />
@@ -318,60 +330,41 @@ function coverSentence(c: { fuelKey: string; daysLeft: number; runOutOn: string 
 function Overlay({ data, lang }: OverlayProps<'stock_check'>): ReactElement {
   const uid = useId().replace(/:/g, '');
   const cover = coverFuels(data);
-  const old = readingIsOld(data);
-  const anyLowLine = data.fuels.some((f) => f.tanks.some((tk) => !hasNoReading(tk) && tk.lowLineL && tk.lowLineL > 0 && tk.capacityL && tk.capacityL > 0));
   return (
-    <div className="space-y-3 p-4" data-kind="stock_check">
-      <SectionCard title={rv(lang, 'rv3.stock.title')}>
-        <div className="space-y-2">
-          <Lead lang={lang}>{leadLine(data, lang)}</Lead>
-          <p className="text-body leading-relaxed text-text-muted">
-            {t(W.reading, lang)}: {readingStamp(data, lang)}
-          </p>
-          {old ? (
-            <div>
-              <StatusPill status="attention" word={rv(lang, 'rv3.stock.oldWord')} />
-            </div>
-          ) : null}
-        </div>
-      </SectionCard>
+    <div className="space-y-5 p-4" data-kind="stock_check">
+      <div className="space-y-1">
+        <Lead>{leadLine(data, lang)}</Lead>
+        <p className="text-body leading-relaxed text-text-muted">
+          {t(W.reading, lang)}: {readingStamp(data, lang)}
+        </p>
+      </div>
       {data.stale ? (
         <Callout status="attention" testId="stale-band">
           <p className="font-semibold">{t(W.stale, lang)}</p>
         </Callout>
       ) : null}
       {data.fuels.map((f, fi) => (
-        <section
-          key={f.fuelKey}
-          className="space-y-3 rounded-xl border border-border bg-surface p-4 shadow-sm"
-          data-fuel={f.fuelKey}
-          aria-label={fuelName(f.fuelKey, lang)}
-        >
+        <section key={f.fuelKey} className="space-y-3" data-fuel={f.fuelKey}>
           <FuelBand
             fuelKey={f.fuelKey}
             lang={lang}
-            trailing={<span className="basis-full break-words text-subheading tabular-nums text-text sm:basis-auto">{totalWords(f, lang)}</span>}
+            trailing={<span className="basis-full text-subheading tabular-nums text-text sm:basis-auto">{totalWords(f, lang)}</span>}
           />
-          <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(6rem,1fr))] gap-x-3 gap-y-5 p-0">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-x-3 gap-y-5">
             {f.tanks.map((tk) => (
               <TankCard key={tk.tankNo} fuel={f} tank={tk} readingAt={data.readingAt} lang={lang} uid={`${uid}${fi}x${tk.tankNo}`} />
             ))}
           </ul>
         </section>
       ))}
-      {anyLowLine ? (
-        <p data-testid="low-legend" className="text-meta text-text-muted">
-          {rv(lang, 'rv3.stock.lowLegend')}
-        </p>
-      ) : null}
       {cover.length > 0 && data.cover ? (
-        <SectionCard title={rv(lang, 'rv3.stock.coverTitle')}>
-          <div className="divide-y divide-border" data-testid="cover">
-            {cover.map((c) => (
-              <InsightRow key={c.fuelKey} text={coverSentence(c, data.cover!.planDay, lang)} />
-            ))}
-          </div>
-        </SectionCard>
+        <div className="space-y-2 rounded-md border border-border bg-surface p-3" data-testid="cover">
+          {cover.map((c) => (
+            <p key={c.fuelKey} className="text-body leading-relaxed text-text">
+              {coverSentence(c, data.cover!.planDay, lang)}
+            </p>
+          ))}
+        </div>
       ) : null}
       <More label={t(W.moreLabel, lang)}>
         <p>{t(W.moreBody, lang)}</p>

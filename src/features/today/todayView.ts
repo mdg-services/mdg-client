@@ -1,3 +1,7 @@
+import type { KindTile } from '@/features/reports/types';
+import type { TFunction } from '@/lib/i18n';
+import { localeOf } from '@/lib/i18n';
+import type { Lang } from '@/store/lang';
 import { OWNER_ONLY_REPORT_KINDS, reportDataOf } from '@dk/shared';
 import type {
   DsrSalesData,
@@ -9,11 +13,14 @@ import type {
 } from '@dk/shared/types';
 
 /**
- * The small decisions behind the Today page, kept apart from the drawing so they can be tested without
- * a screen (ADR 0055 section 2, ADR 0056 section 3). What the page SAYS (the verdict, Needs you, the
- * four numbers, the two cards' rows) is decided by the glance model (`features/glance`); this file
- * holds the rules under it that need no report kind's drawing code: who may read a snapshot, the
- * business day of a report, what a task's button does, which work an open task already covers.
+ * The small decisions behind the Today page, kept apart from the drawing so they
+ * can be tested without a screen (ADR 0055 §2, ADR 0056 §3).
+ *
+ * The page is built from the feed in four lists: what the dealer must do (`tasks`),
+ * what needs a look (`alerts`, read from each report's own view), the numbers of the
+ * day (`tiles`, in a fixed order) and what MDG finished (`done`). A report with no
+ * snapshot (sent before snapshots existed) has no view to ask: it stays reachable as an
+ * "earlier report" and the overlay opens its old picture.
  */
 
 // ── what a report's snapshot says ───────────────────────────────────────────
@@ -38,7 +45,22 @@ export function dayOf(report: TodayReport, data?: ReportData): string {
   return fromData ?? report.day ?? report.sentAt.slice(0, 10);
 }
 
-// ── Needs you ───────────────────────────────────────────────────────────────
+// ── Your work ───────────────────────────────────────────────────────────────
+
+/** How many cards of each list show before "N more". */
+export const WORK_LIMIT = 3;
+export const ALERT_LIMIT = 3;
+export const DONE_LIMIT = 3;
+export const EARLIER_LIMIT = 4;
+
+/**
+ * The tasks the page lists. While the pump is still being set up the setup block above
+ * already carries that step with its own button, so the feed's `setup` task is not
+ * repeated as a card ("each item exists once").
+ */
+export function workTasks(feed: TodayFeed, setupShown: boolean): TodayTask[] {
+  return feed.tasks.filter((x) => !(setupShown && x.kind === 'setup'));
+}
 
 /** True for the task whose button picks a photo here, without leaving the page. */
 export function isPhotoTask(task: TodayTask): task is TodayTask & { action: { type: 'photo'; askRef: string; acceptsFile: boolean } } {
@@ -96,6 +118,39 @@ export const ALERT_PER_REPORT_KINDS: ReadonlySet<ReportKind> = new Set<ReportKin
   'fuel_order',
 ]);
 
+/** The tiles, in the one order the dealer's thumb learns: never reshuffled by status. */
+export type TileSlotId = 'sales' | 'stock' | 'variation' | 'dues' | 'water' | 'tanker';
+
+export interface TileSlotSpec {
+  id: TileSlotId;
+  /** The kinds whose newest report can fill the slot (the newest of them wins). */
+  kinds: readonly ReportKind[];
+  /** Spans both columns. */
+  wide?: boolean;
+  /** The owner's alone. */
+  ownerOnly?: boolean;
+}
+
+export const TILE_SLOTS: readonly TileSlotSpec[] = [
+  { id: 'sales', kinds: ['dsr_sales'], wide: true },
+  { id: 'stock', kinds: ['stock_check'] },
+  { id: 'variation', kinds: ['dsr_variation'] },
+  { id: 'dues', kinds: ['credit_dod'], ownerOnly: true },
+  { id: 'water', kinds: ['water_ingress'] },
+  { id: 'tanker', kinds: ['load_plan', 'fuel_order'] },
+];
+
+export interface TileItem {
+  slot: TileSlotSpec;
+  /** The report the tile opens. */
+  report: TodayReport;
+  /** The kind of the snapshot the tile is read from (the slot's, except a tanker slot). */
+  kind: ReportKind;
+  tile: KindTile;
+  /** The business day the figures are about (YYYY-MM-DD): a tile may hold a report from days ago. */
+  day: string;
+}
+
 /**
  * One message can carry both DSR sheets and is tagged as the variation (the feed then does
  * not list a separate sales row for that day). The sales tile reads the sales sheet out of
@@ -123,14 +178,23 @@ export function salesSheetOf(data: ReportData | undefined): DsrSalesData | undef
   };
 }
 
+/** The slots a still-being-set-up pump shows as dashed ghosts. */
+export function ghostSlots(isOwner: boolean): TileSlotSpec[] {
+  return TILE_SLOTS.filter((s) => ['sales', 'stock', 'dues', 'water'].includes(s.id) && (isOwner || !s.ownerOnly));
+}
+
 /**
- * The newest reports that are not already a row elsewhere on Today ("New reports" under Done for you):
- * newest first, and never an owner's own report to a manager. `shown` holds the ids of the reports a
- * Needs-you row already opens.
+ * Reports with no snapshot that are not already a card above: an older message the
+ * dealer can still open (the overlay shows its picture), newest first.
  */
-export function newReportsFor(feed: TodayFeed, isOwner: boolean, shown: ReadonlySet<string>): TodayReport[] {
+export function earlierReports(feed: TodayFeed, isOwner: boolean, shown: ReadonlySet<string>): TodayReport[] {
   return newestFirst(
-    feed.reports.filter((r) => !shown.has(r.messageId) && (isOwner || !OWNER_ONLY_REPORT_KINDS.has(r.kind))),
+    feed.reports.filter(
+      (r) =>
+        !shown.has(r.messageId) &&
+        !usableData(r, isOwner) &&
+        (isOwner || !OWNER_ONLY_REPORT_KINDS.has(r.kind)),
+    ),
   );
 }
 
@@ -138,6 +202,19 @@ export function newReportsFor(feed: TodayFeed, isOwner: boolean, shown: Readonly
 export function doneReports(feed: TodayFeed): TodayReport[] {
   return newestFirst(feed.done);
 }
+
+/** True when there is nothing at all to draw: the clean empty state. */
+export function feedIsEmpty(feed: TodayFeed): boolean {
+  return feed.tasks.length + feed.reports.length + feed.done.length === 0;
+}
+
+/**
+ * The page's grey text sits straight on the wallpaper (#f3f2f0), where the chat's grey (#667781)
+ * reads at 4.15:1, short of the 4.5:1 the page promises. Inside Today the grey is this darker one
+ * (5.4:1 on the wallpaper, more on white); the chat keeps its own.
+ */
+export const TODAY_META_CLASS = '[--wa-meta:#546570]';
+export const TODAY_WALLPAPER = '#f3f2f0';
 
 // ── Greeting ────────────────────────────────────────────────────────────────
 
@@ -164,3 +241,63 @@ export function greetingName(name: string | null | undefined): string | null {
 
 const HONORIFIC =
   /^(dr|mr|mrs|ms|miss|shri|shree|sri|smt|shrimati|er|ca|prof|sh|late|श्री|श्रीमती|डॉ|डा|स्व)\.?$/i;
+
+// ── Days ────────────────────────────────────────────────────────────────────
+
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** The Indian calendar day (YYYY-MM-DD) of an instant. */
+export function istDay(iso: string): string | null {
+  const ms = Date.parse(iso);
+  if (Number.isNaN(ms)) return null;
+  return new Date(ms + IST_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+function dayNumber(day: string): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!m) return null;
+  return Math.round(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / 86_400_000);
+}
+
+/**
+ * The date a report wears: "आज" / "कल" / "22 नवंबर" in the reader's language. It is
+ * the business day the card is about (`day`), else the day it was sent — a DSR sent
+ * at 12:20 am for yesterday says yesterday, not today.
+ */
+export function reportDayLabel(
+  report: Pick<TodayReport, 'day' | 'sentAt'>,
+  today: string,
+  lang: Lang,
+  t: TFunction,
+): string {
+  const day = report.day && dayNumber(report.day) !== null ? report.day : istDay(report.sentAt);
+  const n = day ? dayNumber(day) : null;
+  const now = dayNumber(today);
+  if (day === null || n === null) return '';
+  if (now !== null) {
+    if (n === now) return t('today.dayToday');
+    if (n === now - 1) return t('today.dayYesterday');
+  }
+  return new Date(n * 86_400_000).toLocaleDateString(localeOf(lang), {
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'UTC',
+  });
+}
+
+/** "Tuesday, 24 November": the date line under the greeting. */
+export function todayHeading(today: string | undefined, lang: Lang, now: Date = new Date()): string {
+  const n = today ? dayNumber(today) : null;
+  const date = n === null ? now : new Date(n * 86_400_000);
+  return date.toLocaleDateString(localeOf(lang), {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    ...(n === null ? {} : { timeZone: 'UTC' }),
+  });
+}
+
+/** The path of the overlay for a report: the one door every opener uses (ADR 0056 §4). */
+export function reportPath(r: Pick<TodayReport, 'conversationId' | 'messageId'>): string {
+  return `/report/${encodeURIComponent(r.conversationId)}/${encodeURIComponent(r.messageId)}`;
+}

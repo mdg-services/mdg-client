@@ -1,26 +1,13 @@
-import { Check, EyeOff, Octagon, Phone, UserCheck } from 'lucide-react';
+import { Check, Clock, EyeOff, Octagon, Phone, UserCheck } from 'lucide-react';
 import type { ReactElement } from 'react';
 
-import { SectionCard, StatTile, StatusPill } from '@/components/kit';
 import { cn } from '@/lib/cn';
-import { useLargeText } from '@/lib/useLargeText';
 import type { Lang } from '@/store/lang';
 import type { TtAckData, TtAckRow } from '@dk/shared/types';
 
 import type { KindAlert, KindView, OverlayProps, Words } from '../types';
 
-import {
-  dayWords,
-  fill,
-  fuelName,
-  instantWords,
-  leadingFor,
-  litres,
-  rv,
-  rvn,
-  say,
-  shareLines,
-} from './_fmtTankerMoney';
+import { dayWords, fill, fuelName, instantWords, leadingFor, litres, say, shareLines } from './_fmtTankerMoney';
 import { FuelSwatch, IconNote, Lead } from './_partsTankerMoney';
 
 /**
@@ -37,11 +24,7 @@ import { FuelSwatch, IconNote, Lead } from './_partsTankerMoney';
 const T = {
   title: { hi: 'टैंकर रसीद', hl: 'Tanker receipt', en: 'Tanker receipt' },
   tanker: { hi: 'टैंकर', hl: 'Tanker', en: 'Tanker' },
-  tankerNoNumber: {
-    hi: 'टैंकर नंबर दर्ज नहीं',
-    hl: 'Tanker number darj nahi',
-    en: 'Tanker number not recorded',
-  },
+  tankerNoNumber: { hi: 'टैंकर नंबर दर्ज नहीं', hl: 'Tanker number darj nahi', en: 'Tanker number not recorded' },
   leadOk: {
     hi: 'हमने IndianOil पोर्टल पर यह टैंकर आपके लिए "प्राप्त" दर्ज कर दिया है।',
     hl: 'Humne IndianOil portal par yeh tanker aapke liye "received" bhar diya hai.',
@@ -201,95 +184,35 @@ function vehicleOf(data: TtAckData): string {
 }
 
 function RowOutcome({ row, lang }: { row: TtAckRow; lang: Lang }): ReactElement {
-  if (row.short === 'none') return <StatusPill status="ok" word={say(T.noShort, lang)} />;
+  if (row.short === 'none') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-subheading" style={{ color: '#166534' }}>
+        <Check aria-hidden="true" className="h-5 w-5 shrink-0" />
+        {say(T.noShort, lang)}
+      </span>
+    );
+  }
   if (row.short === 'short') {
     const n = rowShortLitres(row);
     return (
-      <StatusPill
-        status="problem"
-        word={n && n > 0 ? fill(T.short, lang, { n: litres(n) }) : say(T.shortBare, lang)}
-      />
+      <span className="inline-flex items-center gap-1.5 text-subheading" style={{ color: '#b91c1c' }}>
+        <Octagon aria-hidden="true" className="h-5 w-5 shrink-0" />
+        {n && n > 0 ? fill(T.short, lang, { n: litres(n) }) : say(T.shortBare, lang)}
+      </span>
     );
   }
-  return <StatusPill status="waiting" word={say(T.seePortal, lang)} />;
-}
-
-/** The claim figure of the portal's card, summed over the short invoices; null when no row printed one. */
-export function claimLitres(summary: TtAckSummary): number | null {
-  let seen = false;
-  let sum = 0;
-  for (const row of summary.shortRows) {
-    const fromRow = typeof row.claimShortL === 'number' ? row.claimShortL : null;
-    const fromProducts = row.products.reduce((a, p) => a + (p.claimShortL || 0), 0);
-    const n = fromRow ?? (row.products.length > 0 ? fromProducts : null);
-    if (n !== null) {
-      seen = true;
-      sum += n;
-    }
-  }
-  return seen ? sum : null;
-}
-
-/** The outcome as the first thing on the screen: a word with its shape, and the litres in two tiles. */
-function Summary({ summary, lang }: { summary: TtAckSummary; lang: Lang }): ReactElement {
-  const status =
-    summary.outcome === 'short' ? 'problem' : summary.outcome === 'unknown' ? 'waiting' : 'ok';
-  const word =
-    summary.outcome === 'short'
-      ? rv(lang, 'rv3.ack.outcomeShort')
-      : summary.outcome === 'unknown'
-        ? rv(lang, 'rv3.ack.outcomeUnknown')
-        : rv(lang, 'rv3.ack.outcomeOk');
-  const claim = claimLitres(summary);
   return (
-    <SectionCard title={rv(lang, 'rv3.ack.receiptTitle')}>
-      <div className="flex flex-col gap-3" data-testid="ack-summary">
-        <div>
-          <StatusPill status={status} word={word} />
-        </div>
-        {summary.outcome === 'short' ? (
-          <>
-            <p className="text-body text-text">
-              {rvn(lang, 'rv3.ack.shortInvoices', summary.shortRows.length, {
-                n: summary.shortRows.length,
-              })}
-            </p>
-            {summary.totalShortL > 0 || claim !== null ? (
-              <div className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2">
-                {summary.totalShortL > 0 ? (
-                  <StatTile
-                    label={rv(lang, 'rv3.ack.short')}
-                    value={litres(summary.totalShortL)}
-                    status="problem"
-                    ariaLabel={`${rv(lang, 'rv3.ack.short')}: ${litres(summary.totalShortL)}`}
-                  />
-                ) : null}
-                {claim !== null ? (
-                  <StatTile
-                    label={rv(lang, 'rv3.ack.claimed')}
-                    value={litres(claim)}
-                    ariaLabel={`${rv(lang, 'rv3.ack.claimed')}: ${litres(claim)}`}
-                  />
-                ) : null}
-              </div>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-    </SectionCard>
+    <span className="inline-flex items-center gap-1.5 text-subheading" style={{ color: '#1d4ed8' }}>
+      <Clock aria-hidden="true" className="h-5 w-5 shrink-0" />
+      {say(T.seePortal, lang)}
+    </span>
   );
 }
 
 function InvoiceRow({ row, lang }: { row: TtAckRow; lang: Lang }): ReactElement {
-  const shortProducts =
-    row.short === 'short' ? row.products.filter((p) => p.totalShortL > 0 || p.claimShortL > 0) : [];
+  const shortProducts = row.short === 'short' ? row.products.filter((p) => p.totalShortL > 0 || p.claimShortL > 0) : [];
   return (
-    <li
-      data-testid="slip-row"
-      data-short={row.short}
-      className="border-t border-dashed py-3"
-      style={{ borderColor: '#a8a29e' }}
-    >
+    <li data-testid="slip-row" data-short={row.short} className="border-t border-dashed py-3" style={{ borderColor: '#a8a29e' }}>
       <p className="flex flex-wrap items-baseline gap-x-2 text-body" style={{ color: '#18181b' }}>
         <span style={{ color: '#57534e' }}>{say(T.invoice, lang)}</span>
         <span className="select-all break-all font-mono font-semibold">{row.invoiceNo}</span>
@@ -310,13 +233,8 @@ function InvoiceRow({ row, lang }: { row: TtAckRow; lang: Lang }): ReactElement 
           {shortProducts.map((p, i) => (
             <li key={`${p.code}-${i}`} className={leadingFor(lang)}>
               {fuelName(p.code, lang) || p.code}
-              {fuelName(p.code, lang) && fuelName(p.code, lang) !== p.code
-                ? ` (${p.code})`
-                : ''}:{' '}
-              {fill(T.perFuel, lang, {
-                total: litres(p.totalShortL),
-                claim: litres(p.claimShortL),
-              })}
+              {fuelName(p.code, lang) && fuelName(p.code, lang) !== p.code ? ` (${p.code})` : ''}:{' '}
+              {fill(T.perFuel, lang, { total: litres(p.totalShortL), claim: litres(p.claimShortL) })}
             </li>
           ))}
         </ul>
@@ -338,30 +256,10 @@ const STAMP_SHORT = '#b91c1c';
 /** The zig-zag bottom edge of the slip: 24 teeth that stretch to the slip's width. */
 function TornEdge(): ReactElement {
   const teeth = 24;
-  const points = [
-    '0,0',
-    ...Array.from(
-      { length: teeth },
-      (_, i) => `${((i + 0.5) * 100) / teeth},8 ${((i + 1) * 100) / teeth},0`,
-    ),
-    '100,0',
-  ].join(' ');
+  const points = ['0,0', ...Array.from({ length: teeth }, (_, i) => `${((i + 0.5) * 100) / teeth},8 ${((i + 1) * 100) / teeth},0`), '100,0'].join(' ');
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      className="block w-full"
-      height="10"
-      viewBox="0 0 100 8"
-      preserveAspectRatio="none"
-    >
-      <polygon
-        points={points}
-        fill={SLIP_PAPER}
-        stroke={SLIP_EDGE}
-        strokeWidth="1"
-        vectorEffect="non-scaling-stroke"
-      />
+    <svg aria-hidden="true" focusable="false" className="block w-full" height="10" viewBox="0 0 100 8" preserveAspectRatio="none">
+      <polygon points={points} fill={SLIP_PAPER} stroke={SLIP_EDGE} strokeWidth="1" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }
@@ -381,19 +279,12 @@ function Stamp({ summary, lang }: { summary: TtAckSummary; lang: Lang }): ReactE
       data-testid="slip-stamp"
       data-stamp={isShort ? 'short' : 'received'}
       role="img"
-      aria-label={
-        isShort && summary.totalShortL > 0
-          ? `${sentence}: ${litres(summary.totalShortL)}`
-          : sentence
-      }
-      className="ml-auto flex w-fit max-w-full -rotate-6 flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-lg border-[3px] px-3 py-2"
+      aria-label={isShort && summary.totalShortL > 0 ? `${sentence}: ${litres(summary.totalShortL)}` : sentence}
+      className="ml-auto flex w-fit max-w-full -rotate-6 items-center gap-2 rounded-lg border-[3px] px-3 py-2"
       style={{ borderColor: color, color, backgroundColor: 'rgba(255,255,255,0.9)' }}
     >
       <Icon aria-hidden="true" className="h-6 w-6 shrink-0" strokeWidth={3} />
-      <span
-        aria-hidden="true"
-        className="min-w-0 max-w-full text-center text-body font-black uppercase leading-tight tracking-wider [overflow-wrap:anywhere]"
-      >
+      <span aria-hidden="true" className="break-words text-body font-black uppercase leading-tight tracking-wider">
         {text}
       </span>
     </div>
@@ -401,8 +292,6 @@ function Stamp({ summary, lang }: { summary: TtAckSummary; lang: Lang }): ReactE
 }
 
 export function Overlay({ data, lang }: OverlayProps<'tt_ack'>): ReactElement {
-  // At large text the slip gives up its side margins: its words and the "No shortage" tag need the width.
-  const large = useLargeText();
   const summary = summarise(data);
   const v = vehicleOf(data);
   const lead =
@@ -415,26 +304,17 @@ export function Overlay({ data, lang }: OverlayProps<'tt_ack'>): ReactElement {
         : say(T.leadOk, lang);
   const entered = instantWords(data.ackedAt, lang);
   return (
-    <div data-kind-view="tt_ack" data-outcome={summary.outcome} className="space-y-3 p-4">
-      <Summary summary={summary} lang={lang} />
+    <div data-kind-view="tt_ack" data-outcome={summary.outcome} className="space-y-4 p-4">
       <Lead lang={lang}>{lead}</Lead>
 
-      <div
-        className={cn(
-          'overflow-hidden rounded-xl bg-kind-tanker-soft pb-5 pt-4',
-          large ? 'px-0' : 'px-3',
-        )}
-      >
-        <div className="mx-auto w-full max-w-xs">
+      <div className="overflow-hidden rounded-xl bg-kind-tanker-soft px-3 pb-5 pt-4">
+        <div className="mx-auto w-full max-w-[320px]">
           <div
             data-testid="slip"
-            className={cn('border-x border-t pb-4 pt-3', large ? 'px-2' : 'px-4')}
+            className="border-x border-t px-4 pb-4 pt-3"
             style={{ backgroundColor: SLIP_PAPER, borderColor: SLIP_EDGE, color: '#18181b' }}
           >
-            <p
-              className="border-b-2 border-dashed pb-2 text-body"
-              style={{ borderColor: SLIP_EDGE }}
-            >
+            <p className="border-b-2 border-dashed pb-2 text-body" style={{ borderColor: SLIP_EDGE }}>
               <span style={{ color: '#57534e' }}>{say(T.tanker, lang)} </span>
               {v ? (
                 <span className="select-all break-all font-mono text-subheading">{v}</span>
@@ -473,21 +353,12 @@ export function Overlay({ data, lang }: OverlayProps<'tt_ack'>): ReactElement {
           className="flex items-start gap-3 rounded-xl border bg-surface px-4 py-3"
           style={{ borderColor: STAMP_SHORT }}
         >
-          <Octagon
-            aria-hidden="true"
-            className="mt-0.5 h-6 w-6 shrink-0"
-            style={{ color: STAMP_SHORT }}
-          />
-          <p className={cn('text-subheading text-text', leadingFor(lang))}>
-            {say(T.officerBox, lang)}
-          </p>
+          <Octagon aria-hidden="true" className="mt-0.5 h-6 w-6 shrink-0" style={{ color: STAMP_SHORT }} />
+          <p className={cn('text-subheading text-text', leadingFor(lang))}>{say(T.officerBox, lang)}</p>
         </div>
       ) : null}
 
-      <ul
-        data-testid="honest-notes"
-        className="space-y-3 rounded-xl border border-border bg-surface px-4 py-3"
-      >
+      <ul data-testid="honest-notes" className="space-y-3 rounded-xl border border-border bg-surface px-4 py-3">
         <IconNote lang={lang} icon={<UserCheck className="h-5 w-5" />}>
           {say(T.note1, lang)}
         </IconNote>
@@ -514,20 +385,8 @@ export function Glyph({ size = 28 }: { size?: number }): ReactElement {
         strokeWidth="2"
         strokeLinejoin="round"
       />
-      <path
-        d="M12.5 8 H27.5 M12.5 12 H24"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14 17.5 L17 20.2 L23 14"
-        fill="none"
-        stroke={STAMP_OK}
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M12.5 8 H27.5 M12.5 12 H24" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M14 17.5 L17 20.2 L23 14" fill="none" stroke={STAMP_OK} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -536,21 +395,14 @@ function alert(data: TtAckData, lang: Lang): KindAlert | null {
   const s = summarise(data);
   if (s.outcome === 'short') {
     return {
-      headline:
-        s.totalShortL > 0
-          ? fill(T.alertShortHead, lang, { n: litres(s.totalShortL) })
-          : say(T.alertShortHeadBare, lang),
+      headline: s.totalShortL > 0 ? fill(T.alertShortHead, lang, { n: litres(s.totalShortL) }) : say(T.alertShortHeadBare, lang),
       line: say(T.alertShortLine, lang),
       severity: 'problem',
     };
   }
   // The tag says "needs a look" while no figure could be read: the dealer is told to check the portal.
   if (s.outcome === 'unknown' && data.anyShort) {
-    return {
-      headline: say(T.alertUnknownHead, lang),
-      line: say(T.alertUnknownLine, lang),
-      severity: 'attention',
-    };
+    return { headline: say(T.alertUnknownHead, lang), line: say(T.alertUnknownLine, lang), severity: 'attention' };
   }
   return null;
 }
@@ -559,9 +411,7 @@ function headline(data: TtAckData, lang: Lang): string {
   const s = summarise(data);
   const v = vehicleOf(data) || say(T.tankerNoNumber, lang);
   if (s.outcome === 'short') {
-    return s.totalShortL > 0
-      ? fill(T.headShort, lang, { v, n: litres(s.totalShortL) })
-      : `${say(T.title, lang)}: ${say(T.shortBare, lang)}`;
+    return s.totalShortL > 0 ? fill(T.headShort, lang, { v, n: litres(s.totalShortL) }) : `${say(T.title, lang)}: ${say(T.shortBare, lang)}`;
   }
   return fill(s.outcome === 'unknown' ? T.headUnknown : T.headOk, lang, { v });
 }
@@ -586,10 +436,7 @@ function share(data: TtAckData, lang: Lang): string {
           (p) =>
             `${fuelName(p.code, lang) || p.code} (${p.code}): ${fill(T.perFuel, lang, { total: litres(p.totalShortL), claim: litres(p.claimShortL) })}`,
         );
-      return [
-        head + (n && n > 0 ? fill(T.short, lang, { n: litres(n) }) : say(T.shortBare, lang)),
-        ...per,
-      ];
+      return [head + (n && n > 0 ? fill(T.short, lang, { n: litres(n) }) : say(T.shortBare, lang)), ...per];
     }),
     say(T.shareHonest, lang),
   ]);

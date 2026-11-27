@@ -20,7 +20,6 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { OWNER_ONLY_REPORT_KINDS } from '@dk/shared';
 import type { ReportKind } from '@dk/shared/types';
 
 import type { Words } from './types';
@@ -51,11 +50,8 @@ export type KindFamily =
   | 'kavach'
   | 'news';
 
-/**
- * The groups of the Reports pill's filter chips (spec 4.2). `mdg` (MDG's own notes) has no chip of its
- * own: it shows under All and under Needs a look.
- */
-export type KindGroup = 'sales_stock' | 'money' | 'papers' | 'tanker' | 'supply' | 'mdg';
+/** The groups of the Reports tab's filter chips. */
+export type KindGroup = 'sales_stock' | 'tanker' | 'money' | 'water_supply' | 'papers' | 'mdg';
 
 export interface FamilyColors {
   /** The header band and icon circle; white text on it. */
@@ -182,21 +178,21 @@ export const KIND_STYLE: Record<ReportKind, KindStyle> = {
   water_ingress: style(
     'water',
     Droplets,
-    'supply',
+    'water_supply',
     { hi: 'टंकी में पानी जाँच', hl: 'Tanki mein paani jaanch', en: 'Water checks' },
     { hi: 'टंकी में पानी जाँच देखें', hl: 'Tanki mein paani jaanch dekhein', en: 'See water checks' },
   ),
   ro_supply: style(
     'supply',
     Construction,
-    'supply',
+    'water_supply',
     { hi: 'सप्लाई स्टेटस', hl: 'Supply status', en: 'Supply status' },
     { hi: 'सप्लाई स्टेटस देखें', hl: 'Supply status dekhein', en: 'See supply status' },
   ),
   du_otp: style(
     'supply',
     LockKeyholeOpen,
-    'supply',
+    'water_supply',
     { hi: 'DU OTP', hl: 'DU OTP', en: 'DU OTP' },
     { hi: 'DU OTP देखें', hl: 'DU OTP dekhein', en: 'See DU OTP' },
   ),
@@ -242,55 +238,39 @@ export function kindStyle(kind: ReportKind): KindStyle {
   return KIND_STYLE[kind];
 }
 
-export interface KindGroupSpec {
-  group: KindGroup;
-  names: Words;
-  kinds: readonly ReportKind[];
-  /** Drawn as a filter chip. MDG's own notes are not. */
-  chip: boolean;
-  /** Every kind in it is the owner's alone: a manager is given no chip (never an empty one). */
-  ownerOnly: boolean;
-}
-
-function group(group: KindGroup, names: Words, kinds: readonly ReportKind[], chip = true): KindGroupSpec {
-  return { group, names, kinds, chip, ownerOnly: kinds.every((k) => OWNER_ONLY_REPORT_KINDS.has(k)) };
-}
-
-/**
- * The filter chips of the Reports pill, in the spec's order (4.2): Sales and stock, Money (owner only),
- * Papers and filings, Tanker, then water and supply. Needs a look and All are not groups: they come
- * before these on the screen. `ownerOnly` is worked out from `OWNER_ONLY_REPORT_KINDS`, so a kind added
- * to that list takes its chip away from a manager without a second edit here.
- */
-export const KIND_GROUPS: ReadonlyArray<KindGroupSpec> = [
-  group(
-    'sales_stock',
-    { hi: 'बिक्री और स्टॉक', hl: 'Bikri aur stock', en: 'Sales & stock' },
-    ['dsr_sales', 'dsr_variation', 'stock_check'],
-  ),
-  group('money', { hi: 'पैसा', hl: 'Paisa', en: 'Money' }, ['credit_dod', 'ledger_watch', 'calibration_claim']),
-  group(
-    'papers',
-    { hi: 'कागज़ और फाइलिंग', hl: 'Kagaz aur filing', en: 'Papers & filings' },
-    ['declaration_filed', 'mock_drill', 'electrical_audit', 'paper_expiry'],
-  ),
-  group(
-    'tanker',
-    { hi: 'टैंकर', hl: 'Tanker', en: 'Tanker' },
-    ['load_plan', 'fuel_order', 'tanker_density', 'tt_ack'],
-  ),
-  group(
-    'supply',
-    { hi: 'पानी और सप्लाई', hl: 'Paani aur supply', en: 'Water & supply' },
-    ['water_ingress', 'ro_supply', 'du_otp'],
-  ),
-  group('mdg', { hi: 'MDG', hl: 'MDG', en: 'MDG' }, ['announcement'], false),
+/** The filter chips of the Reports tab, in order: each with its name and its kinds. */
+export const KIND_GROUPS: ReadonlyArray<{ group: KindGroup; names: Words; kinds: readonly ReportKind[] }> = [
+  {
+    group: 'sales_stock',
+    names: { hi: 'बिक्री और स्टॉक', hl: 'Bikri aur stock', en: 'Sales & stock' },
+    kinds: ['dsr_sales', 'dsr_variation', 'stock_check'],
+  },
+  {
+    group: 'tanker',
+    names: { hi: 'टैंकर', hl: 'Tanker', en: 'Tanker' },
+    kinds: ['load_plan', 'fuel_order', 'tanker_density', 'tt_ack'],
+  },
+  {
+    group: 'money',
+    names: { hi: 'पैसा', hl: 'Paisa', en: 'Money' },
+    kinds: ['credit_dod', 'ledger_watch', 'calibration_claim'],
+  },
+  {
+    group: 'water_supply',
+    names: { hi: 'पानी और सप्लाई', hl: 'Paani aur supply', en: 'Water & supply' },
+    kinds: ['water_ingress', 'ro_supply', 'du_otp'],
+  },
+  {
+    group: 'papers',
+    names: { hi: 'कागज़ और फाइलिंग', hl: 'Kagaz aur filing', en: 'Papers & filings' },
+    kinds: ['declaration_filed', 'mock_drill', 'electrical_audit', 'paper_expiry'],
+  },
+  {
+    group: 'mdg',
+    names: { hi: 'MDG', hl: 'MDG', en: 'MDG' },
+    kinds: ['announcement'],
+  },
 ];
-
-/** The chips this reader is given, in order: a manager never gets one made only of owner-only kinds. */
-export function chipGroups(isOwner: boolean): KindGroupSpec[] {
-  return KIND_GROUPS.filter((g) => g.chip && (isOwner || !g.ownerOnly));
-}
 
 /** The "All" chip's name. */
 export const ALL_GROUP_NAME: Words = { hi: 'सभी', hl: 'Sab', en: 'All' };

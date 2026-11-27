@@ -116,20 +116,6 @@ describe('PictureFallback', () => {
     await waitFor(() => expect(freshUrl).toHaveBeenCalled());
   });
 
-  it('wears the new look: 12 px cards, 8 px buttons, the plain tokens, tap targets of 44 px or more', async () => {
-    const { container } = draw([img(1), pdf]);
-    expect(screen.getByTestId('picture-tile').className).toMatch(/rounded-xl/);
-    expect(screen.getByRole('button', { name: 'Open the file' }).className).toMatch(/rounded-xl.*min-h-14|min-h-14.*rounded-xl/);
-    // No chat-bubble tokens, no fixed pixel size.
-    expect(container.innerHTML).not.toMatch(/wa-|-\[\d+px\]/);
-    fireEvent.error(screen.getByAltText('card-1.png'));
-    await waitFor(() => expect(screen.getByAltText('card-1.png')).toHaveAttribute('src', 'https://files.test/fresh.png'));
-    fireEvent.error(screen.getByAltText('card-1.png'));
-    const failed = await screen.findByTestId('picture-failed');
-    expect(failed.className).toMatch(/rounded-xl/);
-    expect(screen.getByRole('button', { name: 'Try again' }).className).toMatch(/rounded-md.*min-h-12|min-h-12.*rounded-md/);
-  });
-
   it('says it all in Hindi too', () => {
     useLangStore.setState({ lang: 'hi', explicit: true });
     draw([img(1)]);

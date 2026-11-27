@@ -1,24 +1,11 @@
 import { useId, type ReactElement } from 'react';
 
-import { Num, SectionCard, StatTile } from '@/components/kit';
-import { cn } from '@/lib/cn';
-import { translate } from '@/lib/i18n';
-import { useLargeText } from '@/lib/useLargeText';
 import type { Lang } from '@/store/lang';
-import { CONSEQUENCE, GUIDELINE_REF } from '@dk/shared';
 import type { DsrVariationBlock, DsrVariationData } from '@dk/shared/types';
+import { CONSEQUENCE, GUIDELINE_REF } from '@dk/shared';
 
 import { StatusBadge } from '../StatusBadge';
-import {
-  sayWords,
-  type KindAlert,
-  type KindTile,
-  type KindView,
-  type OverlayProps,
-  type ReportStatusKey,
-  type Words,
-} from '../types';
-
+import { sayWords, type KindAlert, type KindTile, type KindView, type OverlayProps, type ReportStatusKey, type Words } from '../types';
 import { SalesSheet, salesShareLines, type SalesProduct } from './dsr_sales';
 import {
   dayWords,
@@ -30,9 +17,8 @@ import {
   pct,
   signed,
   signedLitres,
-  tanksWords,
 } from './dsr_sales/fmt';
-import { Callout, FuelSwatch, Lead, More } from './dsr_sales/ui';
+import { Callout, FuelBand, Lead, More } from './dsr_sales/ui';
 
 /**
  * Stock variation, ADR 0056 §2: the zero-centred balance bar with an arrow pointer. A green
@@ -88,19 +74,11 @@ const W = {
   moreLabel: { hi: 'और देखें', hl: 'Aur dekhein', en: 'More details' },
   how: { hi: 'हमने यह कैसे निकाला', hl: 'Humne yeh kaise nikala', en: 'How we worked this out' },
   howMeter: { hi: 'मीटर से बिक्री', hl: 'Meter se bikri', en: 'Meter sales' },
-  howAfterTesting: {
-    hi: 'टेस्टिंग घटाकर बिक्री',
-    hl: 'Testing ghatakar bikri',
-    en: 'Sales after testing',
-  },
+  howAfterTesting: { hi: 'टेस्टिंग घटाकर बिक्री', hl: 'Testing ghatakar bikri', en: 'Sales after testing' },
   howTotalStock: { hi: 'कुल स्टॉक (बही)', hl: 'Kul stock (bahi)', en: 'Total stock (book)' },
   howDipStock: { hi: 'डिप से स्टॉक', hl: 'Dip se stock', en: 'Stock by dip' },
   howDipSales: { hi: 'डिप से बिक्री', hl: 'Dip se bikri', en: 'Sales by dip' },
-  revised: {
-    hi: 'यह सुधारी हुई कॉपी है।',
-    hl: 'Yeh sudhari hui copy hai.',
-    en: 'This is a corrected copy.',
-  },
+  revised: { hi: 'यह सुधारी हुई कॉपी है।', hl: 'Yeh sudhari hui copy hai.', en: 'This is a corrected copy.' },
   salesHeading: { hi: 'रोज़ की बिक्री शीट', hl: 'Roz ki bikri sheet', en: 'Daily sales sheet' },
   guidelineLabel: {
     hi: `MDG दिशा-निर्देश ${GUIDELINE_REF}`,
@@ -136,12 +114,8 @@ function t(w: Words, lang: Lang): string {
 type VarProduct = DsrVariationData['products'][number];
 
 /** The fuels that carry a variation figure (a fuel with none is not drawn). */
-function withVariation(
-  data: DsrVariationData,
-): Array<VarProduct & { variation: DsrVariationBlock }> {
-  return data.products.filter(
-    (p): p is VarProduct & { variation: DsrVariationBlock } => !!p.variation,
-  );
+function withVariation(data: DsrVariationData): Array<VarProduct & { variation: DsrVariationBlock }> {
+  return data.products.filter((p): p is VarProduct & { variation: DsrVariationBlock } => !!p.variation);
 }
 
 /** The tone the card follows: the snapshot's own word, never re-derived from the sign. */
@@ -182,17 +156,9 @@ function summarySentence(data: DsrVariationData, lang: Lang): string {
   if (out.length === 0) {
     if (all.length === 1) {
       const f = fuelName(all[0]!.key, lang);
-      return lang === 'hi'
-        ? `${f} सीमा के अंदर है।`
-        : lang === 'hl'
-          ? `${f} seema ke andar hai.`
-          : `${f} is within the limit.`;
+      return lang === 'hi' ? `${f} सीमा के अंदर है।` : lang === 'hl' ? `${f} seema ke andar hai.` : `${f} is within the limit.`;
     }
-    return lang === 'hi'
-      ? 'सभी ईंधन सीमा के अंदर हैं।'
-      : lang === 'hl'
-        ? 'Sabhi fuel seema ke andar hain.'
-        : 'All fuels are within the limit.';
+    return lang === 'hi' ? 'सभी ईंधन सीमा के अंदर हैं।' : lang === 'hl' ? 'Sabhi fuel seema ke andar hain.' : 'All fuels are within the limit.';
   }
   const parts = out.map((p) => {
     const f = fuelName(p.key, lang);
@@ -202,17 +168,8 @@ function summarySentence(data: DsrVariationData, lang: Lang): string {
     return `${f} is ${over ? 'over' : 'short'}.`;
   });
   if (fine.length > 0) {
-    const names = joinList(
-      fine.map((p) => fuelName(p.key, lang)),
-      lang,
-    );
-    parts.push(
-      lang === 'hi'
-        ? `${names} ठीक ${fine.length > 1 ? 'हैं' : 'है'}।`
-        : lang === 'hl'
-          ? `${names} theek ${fine.length > 1 ? 'hain' : 'hai'}.`
-          : `${names} ${fine.length > 1 ? 'are' : 'is'} fine.`,
-    );
+    const names = joinList(fine.map((p) => fuelName(p.key, lang)), lang);
+    parts.push(lang === 'hi' ? `${names} ठीक ${fine.length > 1 ? 'हैं' : 'है'}।` : lang === 'hl' ? `${names} theek ${fine.length > 1 ? 'hain' : 'hai'}.` : `${names} ${fine.length > 1 ? 'are' : 'is'} fine.`);
   }
   return parts.join(' ');
 }
@@ -250,36 +207,6 @@ export function positionWords(v: DsrVariationBlock, lang: Lang): string {
 }
 
 /**
- * One plain line under the scale that says what the scale means: how far this fuel is allowed to
- * drift on the side it is on, and how far it has drifted. "सीमा 420 L तक कम चल सकता है; आपका 520 L कम है".
- * At exactly zero there is no side, so it gives the whole allowed range instead.
- */
-export function scaleNote(v: DsrVariationBlock, lang: Lang): string {
-  const n = indian(Math.abs(Math.round(v.variationL)));
-  const low = indian(Math.abs(Math.round(v.lowEdgeL)));
-  const high = indian(Math.round(v.highEdgeL));
-  if (Math.round(v.variationL) === 0) {
-    return lang === 'hi'
-      ? `सीमा: ${low} L कम से ${high} L ज़्यादा तक चल सकता है; आपका स्टॉक ठीक शून्य पर है।`
-      : lang === 'hl'
-        ? `Seema: ${low} L kam se ${high} L zyada tak chal sakta hai; aapka stock theek zero par hai.`
-        : `Allowed: from ${low} L short to ${high} L over; your stock is exactly at zero.`;
-  }
-  if (v.variationL < 0) {
-    return lang === 'hi'
-      ? `सीमा ${low} L तक कम चल सकता है; आपका ${n} L कम है।`
-      : lang === 'hl'
-        ? `Seema ${low} L tak kam chal sakta hai; aapka ${n} L kam hai.`
-        : `Up to ${low} L short is allowed; yours is ${n} L short.`;
-  }
-  return lang === 'hi'
-    ? `सीमा ${high} L तक ज़्यादा चल सकता है; आपका ${n} L ज़्यादा है।`
-    : lang === 'hl'
-      ? `Seema ${high} L tak zyada chal sakta hai; aapka ${n} L zyada hai.`
-      : `Up to ${high} L over is allowed; yours is ${n} L over.`;
-}
-
-/**
  * A stock beyond the limit is a problem whichever way it goes: a shortage is as red as an excess
  * (amber is for "pending", never for how serious something is). The two are told apart by the
  * word (Short / Over), the arrow's direction and the sentence under it, never by colour alone.
@@ -291,15 +218,7 @@ function statusOf(tone: Tone): ReportStatusKey {
 // ── drawing ─────────────────────────────────────────────────────────────────
 
 /** The balance bar. Real numbers are in the text under it; the drawing adds the shape. */
-function BalanceBar({
-  v,
-  label,
-  lang,
-}: {
-  v: DsrVariationBlock;
-  label: string;
-  lang: Lang;
-}): ReactElement {
+function BalanceBar({ v, label, lang }: { v: DsrVariationBlock; label: string; lang: Lang }): ReactElement {
   const uid = useId().replace(/:/g, '');
   const Wd = 328;
   const padX = 22;
@@ -319,151 +238,86 @@ function BalanceBar({
   edgeLabels.push({ at: zoneL, text: signed(v.lowEdgeL) });
   if (Math.abs(zoneR - zoneL) >= 28) edgeLabels.push({ at: zoneR, text: signed(v.highEdgeL) });
   const title = `${label}. ${positionWords(v, lang)}`;
+  const numberText = `${signed(v.variationL)} L`;
+  const numberY = tone === 'low' ? 12 : barY - 8;
   const triBase = barY + barH;
-  // The marker's own number sits in a row of its own ABOVE the drawing, in real text, so it can
-  // never touch the pointer at any text size.
-  const markerPct = clamp((px / Wd) * 100, 14, 86);
   return (
-    <div>
-      <div className="relative mb-2 min-h-8" data-testid="bar-marker-row">
-        <span
-          className="absolute top-0 whitespace-nowrap text-subheading font-bold tabular-nums text-text"
-          style={{ left: `${markerPct}%`, transform: 'translateX(-50%)' }}
-          data-testid="bar-marker"
+    <svg viewBox={`0 0 ${Wd} 100`} className="block h-auto w-full" role="img" aria-label={title}>
+      <title>{title}</title>
+      <defs>
+        <pattern id={`${uid}h`} width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="8" height="8" style={{ fill: 'var(--color-surface-2)' }} />
+          <line x1="0" y1="0" x2="0" y2="8" style={{ stroke: 'var(--color-border-strong)' }} strokeWidth="2" />
+        </pattern>
+      </defs>
+      {/* the bar; the hatching beyond the zone says "outside the limit" without any colour */}
+      <rect x={padX} y={barY} width={Wd - 2 * padX} height={barH} rx="4" fill={`url(#${uid}h)`} style={{ stroke: 'var(--color-border-strong)' }} strokeWidth="2" />
+      {/* the permitted zone: shortage edge to excess edge */}
+      <rect
+        x={Math.min(zoneL, zoneR)}
+        y={barY}
+        width={Math.max(Math.abs(zoneR - zoneL), 2)}
+        height={barH}
+        style={{ fill: 'var(--status-ok-soft)', stroke: 'var(--status-ok)' }}
+        strokeWidth="2.5"
+      />
+      {/* edge ticks and zero tick */}
+      <line x1={zoneL} y1={barY} x2={zoneL} y2={triBase + 8} style={{ stroke: 'var(--status-ok)' }} strokeWidth="2.5" />
+      <line x1={zoneR} y1={barY} x2={zoneR} y2={triBase + 8} style={{ stroke: 'var(--status-ok)' }} strokeWidth="2.5" />
+      <line x1={zeroX} y1={barY - 4} x2={zeroX} y2={triBase + 4} style={{ stroke: 'var(--color-text)' }} strokeWidth="2.5" />
+      {edgeLabels.map((e, i) => (
+        <text
+          key={i}
+          x={clamp(e.at, 18, Wd - 18)}
+          y="94"
+          fontSize="13"
+          fontWeight="700"
+          textAnchor="middle"
+          style={{ fill: 'var(--color-text)' }}
         >
-          {`${signed(v.variationL)} L`}
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${Wd} 100`} className="block h-auto w-full" role="img" aria-label={title}>
-        <title>{title}</title>
-        <defs>
-          <pattern
-            id={`${uid}h`}
-            width="8"
-            height="8"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <rect width="8" height="8" style={{ fill: 'var(--color-surface-2)' }} />
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="8"
-              style={{ stroke: 'var(--color-border-strong)' }}
-              strokeWidth="2"
-            />
-          </pattern>
-        </defs>
-        {/* the bar; the hatching beyond the zone says "outside the limit" without any colour */}
-        <rect
-          x={padX}
-          y={barY}
-          width={Wd - 2 * padX}
-          height={barH}
-          rx="4"
-          fill={`url(#${uid}h)`}
-          style={{ stroke: 'var(--color-border-strong)' }}
+          {e.text}
+        </text>
+      ))}
+      {zeroLabelOk ? (
+        <text x={zeroX} y="94" fontSize="13" fontWeight="700" textAnchor="middle" style={{ fill: 'var(--color-text)' }}>
+          0
+        </text>
+      ) : null}
+      {/* the pointer */}
+      {tone === 'low' ? (
+        // Short: a triangle above the bar pointing down.
+        <polygon
+          points={`${px - 13},${barY - 24} ${px + 13},${barY - 24} ${px},${barY - 2}`}
+          style={{ fill: 'var(--status-problem)', stroke: 'var(--color-surface)' }}
           strokeWidth="2"
+          strokeLinejoin="round"
         />
-        {/* the permitted zone: shortage edge to excess edge */}
-        <rect
-          x={Math.min(zoneL, zoneR)}
-          y={barY}
-          width={Math.max(Math.abs(zoneR - zoneL), 2)}
-          height={barH}
-          style={{ fill: 'var(--status-ok-soft)', stroke: 'var(--status-ok)' }}
-          strokeWidth="2.5"
+      ) : tone === 'high' ? (
+        // Over: a triangle below the bar pointing up.
+        <polygon
+          points={`${px},${triBase + 2} ${px - 13},${triBase + 24} ${px + 13},${triBase + 24}`}
+          style={{ fill: 'var(--status-problem)', stroke: 'var(--color-surface)' }}
+          strokeWidth="2"
+          strokeLinejoin="round"
         />
-        {/* edge ticks and zero tick */}
-        <line
-          x1={zoneL}
-          y1={barY}
-          x2={zoneL}
-          y2={triBase + 8}
-          style={{ stroke: 'var(--status-ok)' }}
-          strokeWidth="2.5"
-        />
-        <line
-          x1={zoneR}
-          y1={barY}
-          x2={zoneR}
-          y2={triBase + 8}
-          style={{ stroke: 'var(--status-ok)' }}
-          strokeWidth="2.5"
-        />
-        <line
-          x1={zeroX}
-          y1={barY - 4}
-          x2={zeroX}
-          y2={triBase + 4}
-          style={{ stroke: 'var(--color-text)' }}
-          strokeWidth="2.5"
-        />
-        {edgeLabels.map((e, i) => (
-          <text
-            key={i}
-            x={clamp(e.at, 18, Wd - 18)}
-            y="94"
-            fontSize="16"
-            fontWeight="700"
-            textAnchor="middle"
-            style={{ fill: 'var(--color-text)' }}
-          >
-            {e.text}
-          </text>
-        ))}
-        {zeroLabelOk ? (
-          <text
-            x={zeroX}
-            y="94"
-            fontSize="16"
-            fontWeight="700"
-            textAnchor="middle"
-            style={{ fill: 'var(--color-text)' }}
-          >
-            0
-          </text>
-        ) : null}
-        {/* the pointer */}
-        {tone === 'low' ? (
-          // Short: a triangle above the bar pointing down.
-          <polygon
-            points={`${px - 13},${barY - 24} ${px + 13},${barY - 24} ${px},${barY - 2}`}
-            style={{ fill: 'var(--status-problem)', stroke: 'var(--color-surface)' }}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        ) : tone === 'high' ? (
-          // Over: a triangle below the bar pointing up.
-          <polygon
-            points={`${px},${triBase + 2} ${px - 13},${triBase + 24} ${px + 13},${triBase + 24}`}
-            style={{ fill: 'var(--status-problem)', stroke: 'var(--color-surface)' }}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
-        ) : (
-          // Within: a round marker with a tick, on the bar.
-          <g>
-            <circle
-              cx={px}
-              cy={barY + barH / 2}
-              r="10"
-              style={{ fill: 'var(--status-ok)', stroke: 'var(--color-surface)' }}
-              strokeWidth="2"
-            />
-            <path
-              d={`M${px - 5} ${barY + barH / 2}l3.6 3.6L${px + 5.5} ${barY + barH / 2 - 4}`}
-              fill="none"
-              stroke="#fff"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </g>
-        )}
-      </svg>
-    </div>
+      ) : (
+        // Within: a round marker with a tick, on the bar.
+        <g>
+          <circle cx={px} cy={barY + barH / 2} r="10" style={{ fill: 'var(--status-ok)', stroke: 'var(--color-surface)' }} strokeWidth="2" />
+          <path d={`M${px - 5} ${barY + barH / 2}l3.6 3.6L${px + 5.5} ${barY + barH / 2 - 4}`} fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+      )}
+      <text
+        x={clamp(px, 34, Wd - 34)}
+        y={numberY}
+        fontSize="15"
+        fontWeight="800"
+        textAnchor="middle"
+        style={{ fill: 'var(--color-text)' }}
+      >
+        {numberText}
+      </text>
+    </svg>
   );
 }
 
@@ -514,19 +368,6 @@ function WhatToDo({ v, lang }: { v: DsrVariationBlock; lang: Lang }): ReactEleme
   );
 }
 
-/**
- * How much room a fuel has left on the side it is drifting to, from the snapshot's own edges: a stock
- * 100 L short with 420 L allowed has 320 L left. Null when the fuel is already beyond the limit (the
- * "beyond" figure says that) or has no band to measure against.
- */
-export function roomLeft(v: DsrVariationBlock): { roomL: number; allowedL: number } | null {
-  const short = v.variationL < 0;
-  const allowedL = short ? Math.abs(v.lowEdgeL) : v.highEdgeL;
-  if (!(allowedL > 0)) return null;
-  const roomL = allowedL - Math.abs(v.variationL);
-  return roomL < 0 ? null : { roomL, allowedL };
-}
-
 function FuelVariation({
   product,
   lang,
@@ -539,108 +380,55 @@ function FuelVariation({
   const v = product.variation;
   const tone = toneOf(v);
   const name = fuelName(product.key, lang);
-  const letters = fuelLetters(product.key);
-  const word =
-    tone === 'low' ? t(W.short, lang) : tone === 'high' ? t(W.over, lang) : t(W.within, lang);
-  const consequence =
-    tone === 'low'
-      ? t(W.consequenceShort, lang)
-      : tone === 'high'
-        ? t(W.consequenceOver, lang)
-        : null;
+  const word = tone === 'low' ? t(W.short, lang) : tone === 'high' ? t(W.over, lang) : t(W.within, lang);
+  const consequence = tone === 'low' ? t(W.consequenceShort, lang) : tone === 'high' ? t(W.consequenceOver, lang) : null;
   const numberColor = tone === 'ok' ? 'text-text' : 'text-status-problem-ink';
-  const tanks = tanksWords(product.tankNos, lang);
-  const room = roomLeft(v);
   const row = 'border-t border-border';
-  // At large text the word and its number no longer fit side by side (the longest word of the row's name
-  // plus "-520 L" was wider than the card), so each row stacks: the name, then its number under it.
-  const large = useLargeText();
-  const th = cn(
-    'py-2 text-left align-top text-subheading leading-relaxed text-text-muted',
-    large ? 'block pb-0' : 'pr-3',
-  );
-  const td = cn(
-    'py-2 align-top text-subheading tabular-nums leading-relaxed text-text',
-    large ? 'block pt-0 text-left font-semibold' : 'whitespace-nowrap text-right',
-  );
-  const title = name.toUpperCase() === letters ? name : `${name} (${letters})`;
-  const unit = translate(lang, 'kit.unit.litres');
+  const th = 'py-2 pr-3 text-left align-top text-subheading leading-relaxed text-text-muted';
+  const td = 'whitespace-nowrap py-2 text-right align-top text-subheading tabular-nums leading-relaxed text-text';
   return (
-    <SectionCard title={title}>
-      <article className="space-y-3" data-fuel={product.key} data-tone={tone}>
-        <div className="flex flex-wrap items-center gap-2 text-body text-text-muted">
-          <FuelSwatch fuelKey={product.key} />
-          {tanks ? <span>{tanks}</span> : null}
-        </div>
-        {revisionLine ? (
-          <p className="text-body leading-relaxed text-text-muted">{revisionLine}</p>
-        ) : null}
-        <div className="rounded-md bg-kind-dsr-soft p-2">
-          <BalanceBar v={v} label={`${name} (${letters})`} lang={lang} />
-        </div>
-        <p className="text-body leading-relaxed text-text" data-testid="scale-note">
-          {scaleNote(v, lang)}
-        </p>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className={`text-display tabular-nums ${numberColor}`} data-testid="big-number">
-            {signed(v.variationL)} L
-          </span>
-          <StatusBadge status={statusOf(tone)} lang={lang} word={word} />
-        </div>
-        {consequence ? (
-          <p className="text-subheading leading-relaxed text-text">{consequence}</p>
-        ) : null}
-        {room ? (
-          <StatTile
-            label={translate(lang, 'rv2.var.room')}
-            value={<Num value={Math.round(room.roomL)} />}
-            unit={unit}
-            caption={translate(lang, 'rv2.var.roomOf', { allowed: litres(room.allowedL) })}
-            ariaLabel={`${name}: ${translate(lang, 'rv2.var.room')} ${litres(room.roomL)}`}
-          />
-        ) : null}
-        <table
-          className={cn('w-full border-collapse', large && 'block')}
-          {...(large ? { role: 'table' } : {})}
-        >
-          <tbody className={cn(large && 'block')} {...(large ? { role: 'rowgroup' } : {})}>
-            <tr className={cn(large && 'block')} {...(large ? { role: 'row' } : {})}>
-              <th scope="row" className={th} {...(large ? { role: 'rowheader' } : {})}>
-                {t(W.rowVariation, lang)}
-              </th>
-              <td className={td} {...(large ? { role: 'cell' } : {})}>
-                {signedLitres(v.variationL)}
-              </td>
-            </tr>
-            <tr className={cn(row, large && 'block')} {...(large ? { role: 'row' } : {})}>
-              <th scope="row" className={th} {...(large ? { role: 'rowheader' } : {})}>
-                {t(W.rowPermissible, lang)}
-                <PermissibleParts v={v} lang={lang} />
-              </th>
-              <td className={td} {...(large ? { role: 'cell' } : {})}>
-                {litres(v.permissibleL)}
-              </td>
-            </tr>
-            <tr className={cn(row, large && 'block')} {...(large ? { role: 'row' } : {})}>
-              <th scope="row" className={th} {...(large ? { role: 'rowheader' } : {})}>
-                {t(W.rowBeyond, lang)}
-              </th>
-              <td className={td} {...(large ? { role: 'cell' } : {})}>
-                {v.offL === 0 ? '0 L' : signedLitres(v.offL)}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <WhatToDo v={v} lang={lang} />
-        {tone !== 'ok' ? (
-          <More label={`${t(W.guidelineLabel, lang)}`}>
-            <p>{t(CONSEQUENCE_WORDS[tone], lang)}</p>
-          </More>
-        ) : null}
-        <SinceLines v={v} lang={lang} />
-        <HowLines v={v} lang={lang} />
-      </article>
-    </SectionCard>
+    <article className="space-y-3 rounded-lg border border-border bg-surface p-3" data-fuel={product.key} data-tone={tone}>
+      <FuelBand fuelKey={product.key} tankNos={product.tankNos} lang={lang} />
+      {revisionLine ? <p className="text-body leading-relaxed text-text-muted">{revisionLine}</p> : null}
+      <div className="rounded-md bg-kind-dsr-soft p-2">
+        <BalanceBar v={v} label={`${name} (${fuelLetters(product.key)})`} lang={lang} />
+      </div>
+      <p className="text-body leading-relaxed text-text-muted">{positionWords(v, lang)}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className={`text-[40px] font-semibold tabular-nums leading-tight ${numberColor}`} data-testid="big-number">
+          {signed(v.variationL)} L
+        </span>
+        <StatusBadge status={statusOf(tone)} lang={lang} word={word} />
+      </div>
+      {consequence ? <p className="text-subheading leading-relaxed text-text">{consequence}</p> : null}
+      <table className="w-full border-collapse">
+        <tbody>
+          <tr>
+            <th scope="row" className={th}>{t(W.rowVariation, lang)}</th>
+            <td className={td}>{signedLitres(v.variationL)}</td>
+          </tr>
+          <tr className={row}>
+            <th scope="row" className={th}>
+              {t(W.rowPermissible, lang)}
+              <PermissibleParts v={v} lang={lang} />
+            </th>
+            <td className={td}>{litres(v.permissibleL)}</td>
+          </tr>
+          <tr className={row}>
+            <th scope="row" className={th}>{t(W.rowBeyond, lang)}</th>
+            <td className={td}>{v.offL === 0 ? '0 L' : signedLitres(v.offL)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <WhatToDo v={v} lang={lang} />
+      {tone !== 'ok' ? (
+        <More label={`${t(W.guidelineLabel, lang)}`}>
+          <p>{t(CONSEQUENCE_WORDS[tone], lang)}</p>
+        </More>
+      ) : null}
+      <SinceLines v={v} lang={lang} />
+      <HowLines v={v} lang={lang} />
+    </article>
   );
 }
 
@@ -711,11 +499,7 @@ function revisionLineFor(data: DsrVariationData, key: string, lang: Lang): strin
   const f = fuelName(key, lang);
   const from = signedLitres(c.fromL);
   const to = signedLitres(c.toL);
-  return lang === 'hi'
-    ? `${f} पहले ${from} था, अब ${to} है।`
-    : lang === 'hl'
-      ? `${f} pehle ${from} tha, ab ${to} hai.`
-      : `${f} was ${from}, now ${to}.`;
+  return lang === 'hi' ? `${f} पहले ${from} था, अब ${to} है।` : lang === 'hl' ? `${f} pehle ${from} tha, ab ${to} hai.` : `${f} was ${from}, now ${to}.`;
 }
 
 function salesProductsOf(data: DsrVariationData): SalesProduct[] {
@@ -738,9 +522,7 @@ function Overlay({ data, lang }: OverlayProps<'dsr_variation'>): ReactElement {
     <div className="space-y-5 p-4" data-kind="dsr_variation">
       <Lead>{summarySentence(data, lang)}</Lead>
       {revisedWithoutLines ? (
-        <p className="rounded-md border border-border bg-surface-2 p-3 text-body leading-relaxed text-text">
-          {t(W.revised, lang)}
-        </p>
+        <p className="rounded-md border border-border bg-surface-2 p-3 text-body leading-relaxed text-text">{t(W.revised, lang)}</p>
       ) : null}
       {data.beforeInspection ? (
         <Callout status="info" testId="before-inspection">
@@ -748,17 +530,13 @@ function Overlay({ data, lang }: OverlayProps<'dsr_variation'>): ReactElement {
         </Callout>
       ) : null}
       {shown.map((p) => (
-        <FuelVariation
-          key={p.key}
-          product={p}
-          lang={lang}
-          revisionLine={revisionLineFor(data, p.key, lang)}
-        />
+        <FuelVariation key={p.key} product={p} lang={lang} revisionLine={revisionLineFor(data, p.key, lang)} />
       ))}
       {sales.length > 0 ? (
-        <SectionCard title={t(W.salesHeading, lang)}>
+        <section className="space-y-4 border-t border-border pt-5" aria-label={t(W.salesHeading, lang)}>
+          <h2 className="text-heading leading-relaxed text-text">{t(W.salesHeading, lang)}</h2>
           <SalesSheet products={sales} lang={lang} />
-        </SectionCard>
+        </section>
       ) : null}
     </div>
   );
@@ -769,31 +547,9 @@ function Glyph({ size = 28 }: { size?: number }): ReactElement {
   const width = Math.round((size * 40) / 28);
   return (
     <svg width={width} height={size} viewBox="0 0 40 28" aria-hidden="true" focusable="false">
-      <rect
-        x="3"
-        y="14"
-        width="34"
-        height="9"
-        rx="2"
-        style={{ fill: 'var(--color-surface-2)', stroke: 'var(--kind-dsr-ink)' }}
-        strokeWidth="2"
-      />
-      <rect
-        x="12"
-        y="14"
-        width="16"
-        height="9"
-        style={{ fill: 'var(--status-ok-soft)', stroke: 'var(--status-ok)' }}
-        strokeWidth="2"
-      />
-      <line
-        x1="20"
-        y1="11"
-        x2="20"
-        y2="26"
-        style={{ stroke: 'var(--kind-dsr-ink)' }}
-        strokeWidth="2"
-      />
+      <rect x="3" y="14" width="34" height="9" rx="2" style={{ fill: 'var(--color-surface-2)', stroke: 'var(--kind-dsr-ink)' }} strokeWidth="2" />
+      <rect x="12" y="14" width="16" height="9" style={{ fill: 'var(--status-ok-soft)', stroke: 'var(--status-ok)' }} strokeWidth="2" />
+      <line x1="20" y1="11" x2="20" y2="26" style={{ stroke: 'var(--kind-dsr-ink)' }} strokeWidth="2" />
       <polygon points="3,3 13,3 8,12" style={{ fill: 'var(--kind-dsr-ink)' }} />
     </svg>
   );
@@ -821,17 +577,7 @@ function tile(data: DsrVariationData, lang: Lang): KindTile | null {
   const tone = toneOf(worst.variation);
   const more = out.length - 1;
   const word = tone === 'high' ? t(W.over, lang) : t(W.short, lang);
-  const sub = [
-    word,
-    allowedRange(worst.variation, lang),
-    more > 0
-      ? lang === 'hi'
-        ? `+${more} और`
-        : lang === 'hl'
-          ? `+${more} aur`
-          : `+${more} more`
-      : null,
-  ]
+  const sub = [word, allowedRange(worst.variation, lang), more > 0 ? (lang === 'hi' ? `+${more} और` : lang === 'hl' ? `+${more} aur` : `+${more} more`) : null]
     .filter(Boolean)
     .join(' · ');
   return {
@@ -891,12 +637,7 @@ function alert(data: DsrVariationData, lang: Lang): KindAlert | null {
           : 'Your stock is below the permitted limit. You may be asked to explain.';
   }
   if (out.length > 1) {
-    line +=
-      lang === 'hi'
-        ? ` ${out.length - 1} और ईंधन भी देखें।`
-        : lang === 'hl'
-          ? ` ${out.length - 1} aur fuel bhi dekhein.`
-          : ` ${out.length - 1} more fuel also needs a look.`;
+    line += lang === 'hi' ? ` ${out.length - 1} और ईंधन भी देखें।` : lang === 'hl' ? ` ${out.length - 1} aur fuel bhi dekhein.` : ` ${out.length - 1} more fuel also needs a look.`;
   }
   // Both ways beyond the limit are problems; an excess ranks above a shortage among them.
   return { headline, line, severity: 'problem', weight: over ? 1 : 0 };
@@ -904,42 +645,25 @@ function alert(data: DsrVariationData, lang: Lang): KindAlert | null {
 
 function headline(data: DsrVariationData, lang: Lang): string {
   if (data.beforeInspection) {
-    return lang === 'hi'
-      ? 'इंस्पेक्शन से पहले: गिनती नहीं'
-      : lang === 'hl'
-        ? 'Inspection se pehle: ginti nahi'
-        : 'Before the first inspection: not counted';
+    return lang === 'hi' ? 'इंस्पेक्शन से पहले: गिनती नहीं' : lang === 'hl' ? 'Inspection se pehle: ginti nahi' : 'Before the first inspection: not counted';
   }
   const all = withVariation(data);
-  if (all.length === 0)
-    return t({ hi: 'स्टॉक फ़र्क', hl: 'Stock farak', en: 'Stock variation' }, lang);
+  if (all.length === 0) return t({ hi: 'स्टॉक फ़र्क', hl: 'Stock farak', en: 'Stock variation' }, lang);
   const out = outOf(data);
   if (out.length === 0) {
     if (all.length === 1) {
       const f = fuelName(all[0]!.key, lang);
-      return lang === 'hi'
-        ? `${f} सीमा के अंदर`
-        : lang === 'hl'
-          ? `${f} seema ke andar`
-          : `${f} within the limit`;
+      return lang === 'hi' ? `${f} सीमा के अंदर` : lang === 'hl' ? `${f} seema ke andar` : `${f} within the limit`;
     }
-    return lang === 'hi'
-      ? 'सभी ईंधन सीमा के अंदर'
-      : lang === 'hl'
-        ? 'Sabhi fuel seema ke andar'
-        : 'All fuels within the limit';
+    return lang === 'hi' ? 'सभी ईंधन सीमा के अंदर' : lang === 'hl' ? 'Sabhi fuel seema ke andar' : 'All fuels within the limit';
   }
   return out
-    .map(
-      (p) =>
-        `${fuelName(p.key, lang)} ${signed(p.variation.variationL)} L (${toneOf(p.variation) === 'high' ? t(W.over, lang) : t(W.short, lang)})`,
-    )
+    .map((p) => `${fuelName(p.key, lang)} ${signed(p.variation.variationL)} L (${toneOf(p.variation) === 'high' ? t(W.over, lang) : t(W.short, lang)})`)
     .join(', ');
 }
 
 function share(data: DsrVariationData, lang: Lang): string {
-  const title =
-    lang === 'hi' ? 'स्टॉक फ़र्क' : lang === 'hl' ? 'Stock farak (variation)' : 'Stock variation';
+  const title = lang === 'hi' ? 'स्टॉक फ़र्क' : lang === 'hl' ? 'Stock farak (variation)' : 'Stock variation';
   const lines = [`${title} · ${data.outletCode} · ${dayWords(data.businessDate, lang)}`];
   if (data.beforeInspection) {
     lines.push(t(W.beforeInspection, lang));
@@ -966,9 +690,7 @@ function share(data: DsrVariationData, lang: Lang): string {
               : lang === 'hl'
                 ? `zyada, seema se ${beyond} L bahar`
                 : `over, ${beyond} L beyond the limit`;
-      lines.push(
-        `${fuelName(p.key, lang)} (${fuelLetters(p.key)}): ${signed(v.variationL)} L · ${allowedRange(v, lang)} · ${verdict}`,
-      );
+      lines.push(`${fuelName(p.key, lang)} (${fuelLetters(p.key)}): ${signed(v.variationL)} L · ${allowedRange(v, lang)} · ${verdict}`);
     }
   }
   const sales = salesProductsOf(data);

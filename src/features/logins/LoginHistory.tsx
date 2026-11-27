@@ -35,7 +35,7 @@ export function LoginHistory({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-body font-medium text-text">{t(entryTitleKey(e))}</span>
                 {e.id === nowId ? (
-                  <span className="rounded-md bg-brand-soft px-2 py-0.5 text-meta font-medium text-brand">
+                  <span className="rounded-full bg-brand-soft px-2 py-0.5 text-meta font-medium text-brand">
                     {t('logins.h.now')}
                   </span>
                 ) : null}

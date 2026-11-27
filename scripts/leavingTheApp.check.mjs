@@ -54,10 +54,6 @@ const ALLOWED = {
     why: 'a web link the MDG team typed into an announcement opens in the browser, as the same link does in chat (ADR 0056)',
   },
   'src/pages/LoginPage.tsx': { count: 1, why: 'the helpline number is a tel: link — it opens the dialler' },
-  'src/features/staff/CallButton.tsx': {
-    count: 1,
-    why: "the Call button on a warrior is a tel: link, like the helpline on the sign-in page: it opens the phone's dialler, not a web page. The address is always `tel:` plus the number cleaned to digits and a leading + (dialable), and nothing is drawn when no digit is left; CallButton.test.tsx pins that. A reviewed exception (Nov 2026)",
-  },
   'src/features/chat/Complaints/VendorMailCard.tsx': {
     count: 1,
     why: 'the vendor e-mail the owner asked the dealer be able to send in one tap: Gmail compose (through openWebPage) / the mail app (mailto:) (owner, 22 Nov 2026)',

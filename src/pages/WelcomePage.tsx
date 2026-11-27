@@ -20,8 +20,12 @@ import { useLang, useT } from '@/lib/i18n';
  * link's `?r=` share code) goes along to whichever form is chosen.
  */
 export function WelcomePage() {
+  const t = useT();
+  const lang = useLang();
+  const navigate = useNavigate();
   const { search } = useLocation();
   const [params] = useSearchParams();
+  const [languageOpen, setLanguageOpen] = React.useState(false);
 
   // The query string without `for`, carried on to the form.
   const carried = React.useMemo(() => {
@@ -34,17 +38,6 @@ export function WelcomePage() {
   // New Pump Guide's sign-up switched off: there is only one road.
   if (!plannerSignUpEnabled()) return <Navigate to={`/register${carried}`} replace />;
   if (params.get('for') === 'new-pump') return <Navigate to={`/register/new-pump${carried}`} replace />;
-
-  // This is the first screen of a phone nobody has used, so it speaks Hindi by default and carries
-  // its own language button at the top (ADR 0058): no separate language question before it.
-  return <WelcomeScreen carried={carried} />;
-}
-
-function WelcomeScreen({ carried }: { carried: string }) {
-  const t = useT();
-  const lang = useLang();
-  const navigate = useNavigate();
-  const [languageOpen, setLanguageOpen] = React.useState(false);
 
   return (
     <div className="min-h-full bg-bg px-4 pb-12 pt-4">
@@ -105,7 +98,7 @@ function ChoiceCard({ icon, label, onClick }: { icon: React.ReactNode; label: st
     <button
       type="button"
       onClick={onClick}
-      className="flex min-h-24 w-full items-center gap-4 rounded-2xl border border-border-strong bg-surface px-4 py-4 text-left shadow-sm transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      className="flex min-h-[88px] w-full items-center gap-4 rounded-2xl border border-border-strong bg-surface px-4 py-4 text-left shadow-sm transition-colors active:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
     >
       <span aria-hidden className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand-soft text-brand">
         {icon}

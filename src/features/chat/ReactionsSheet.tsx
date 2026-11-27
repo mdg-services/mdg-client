@@ -3,9 +3,8 @@ import * as React from 'react';
 
 import { useT } from '@/lib/i18n';
 import { useBackToClose } from '@/lib/useBackToClose';
-import type { Conversation, Message } from '@dk/shared/types';
-
 import { dealerSideIdsOf } from './replyContext';
+import type { Conversation, Message } from '@dk/shared/types';
 
 /**
  * Who-reacted detail, opened by tapping a message's reaction chips. The

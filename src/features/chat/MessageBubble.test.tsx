@@ -489,7 +489,7 @@ describe('MessageBubble — a message MDG shared (system: true)', () => {
 
 describe('MessageBubble — the bubble itself', () => {
   it('is white on the left for theirs and green on the right for mine', () => {
-    const theirs = renderBubble(makeMessage({ senderId: 'x', senderRole: 'admin' }), false);
+    const theirs = renderBubble(makeMessage({ senderId: 'x' }), false);
     expect(theirs.container.querySelector('.bg-wa-in')).toBeTruthy();
     expect(theirs.container.firstElementChild!.className).toContain('justify-start');
     theirs.unmount();
@@ -499,12 +499,12 @@ describe('MessageBubble — the bubble itself', () => {
   });
 
   it('draws the tail on the first bubble of a run only: top-left for theirs, top-right for mine', () => {
-    const first = render(<MessageBubble message={makeMessage({ senderRole: 'admin' })} mine={false} first />);
+    const first = render(<MessageBubble message={makeMessage()} mine={false} first />);
     expect(first.container.querySelector('[data-tail]')).toBeTruthy();
     expect(first.container.querySelector('.bg-wa-in')!.className).toContain('rounded-tl-none');
     first.unmount();
 
-    const inside = render(<MessageBubble message={makeMessage({ senderRole: 'admin' })} mine={false} first={false} />);
+    const inside = render(<MessageBubble message={makeMessage()} mine={false} first={false} />);
     expect(inside.container.querySelector('[data-tail]')).toBeNull();
     expect(inside.container.querySelector('.bg-wa-in')!.className).not.toContain('rounded-tl-none');
     inside.unmount();
@@ -522,7 +522,7 @@ describe('MessageBubble — the bubble itself', () => {
   });
 
   it('carries its time inside the bubble, at the bottom-right', () => {
-    const { container } = renderBubble(makeMessage({ senderId: 'x', senderRole: 'admin' }), false);
+    const { container } = renderBubble(makeMessage({ senderId: 'x' }), false);
     const time = screen.getByText(/^12:0\d/);
     const bubble = container.querySelector('.bg-wa-in')!;
     expect(bubble.contains(time)).toBe(true);
@@ -548,7 +548,7 @@ describe('MessageBubble — the bubble itself', () => {
     const timeBox = screen.getByText(/^12:0\d/).parentElement!;
     expect(timeBox.querySelector('.lucide-check')).toBeTruthy();
     mine.unmount();
-    const theirs = renderBubble(makeMessage({ senderId: 'x', senderRole: 'admin' }), false);
+    const theirs = renderBubble(makeMessage({ senderId: 'x' }), false);
     expect(theirs.container.querySelector('.lucide-check, .lucide-clock')).toBeFalsy();
   });
 
@@ -605,7 +605,6 @@ describe('MessageBubble — the bubble itself', () => {
     const { container } = render(
       <MessageBubble
         message={makeMessage({
-          senderRole: 'admin',
           body: 'the reply',
           replyTo: { messageId: 'o', senderId: 'u7', senderName: 'Priya', body: 'original text' },
         })}
@@ -643,7 +642,7 @@ describe('MessageBubble — pictures', () => {
   it('puts the caption in the same bubble as the picture', () => {
     const { container } = render(
       <MessageBubble
-        message={makeMessage({ senderId: 'x', senderRole: 'admin', body: 'Look at this', attachments: [pic('a')] })}
+        message={makeMessage({ senderId: 'x', body: 'Look at this', attachments: [pic('a')] })}
         mine={false}
       />,
     );
@@ -794,7 +793,6 @@ describe('MessageBubble — pictures', () => {
     it('with a caption the album and the caption are one bubble', () => {
       const m = album(3);
       m.body = 'three photos';
-      m.senderRole = 'admin';
       const { container } = render(<MessageBubble message={m} mine={false} />);
       expect(container.querySelectorAll('.bg-wa-in')).toHaveLength(1);
       expect(

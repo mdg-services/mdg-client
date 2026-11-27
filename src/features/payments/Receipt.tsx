@@ -41,7 +41,7 @@ export function Receipt({ payment }: { payment: DealerPayment }) {
 
   return (
     <Card role="region" aria-labelledby="payment-receipt-title">
-      <CardContent>
+      <CardContent className="p-5">
         <h2 id="payment-receipt-title" className="text-heading text-text">
           {t('payments.receipt.title')}
         </h2>

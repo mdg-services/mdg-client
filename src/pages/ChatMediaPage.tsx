@@ -1,26 +1,16 @@
-import { Link as LinkIcon } from 'lucide-react';
+import { FileText, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
-import {
-  EmptyCalm,
-  ErrorCard,
-  ListRow,
-  PageHeader,
-  PillGroup,
-  SectionCard,
-  SkeletonBlock,
-} from '@/components/kit';
-import { Button, Spinner } from '@/components/ui';
+import { AppBar } from '@/components/AppBar';
+import { EmptyState, Spinner } from '@/components/ui';
 import { AttachmentPdfViewer, isPdfAttachment } from '@/features/chat/AttachmentPdfViewer';
 import { FileTypeBadge } from '@/features/chat/FileTypeBadge';
-import { monthHeading, monthKey, shortDate, viewerWhen } from '@/features/chat/mediaFormat';
+import { monthHeading, monthKey, shortDate } from '@/features/chat/mediaFormat';
 import { MediaViewer, type MediaViewerItem } from '@/features/chat/MediaViewer';
 import { dealerSideIdsOf, senderDisplayName } from '@/features/chat/replyContext';
-import { useOpenReport } from '@/features/reports/reportNav';
-import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { useMyConversations } from '@/hooks/api/useMyConversations';
-import { useTodayFeed } from '@/hooks/api/useTodayFeed';
+import { useConversationMedia } from '@/hooks/api/useConversationMedia';
 import { afterOverlayCloses } from '@/lib/afterOverlayCloses';
 import { cn } from '@/lib/cn';
 import {
@@ -30,6 +20,7 @@ import {
 import { useLang, useT, type MessageKey, type TFunction } from '@/lib/i18n';
 import { formatBytes } from '@/lib/uploadAttachment';
 import { useFreshImageSrc } from '@/lib/useFreshImageSrc';
+import { useGoBack } from '@/lib/useGoBack';
 import { useAuthStore } from '@/store/auth';
 import type { Lang } from '@/store/lang';
 import type {
@@ -38,15 +29,11 @@ import type {
   ConversationMediaTab,
 } from '@dk/shared/types';
 
-/** Photos, papers, links: the page's three views. The ids are the server's tab names. */
 const TABS: { tab: ConversationMediaTab; labelKey: MessageKey }[] = [
-  { tab: 'media', labelKey: 'chatl.media.photos' },
-  { tab: 'docs', labelKey: 'chatl.media.papers' },
-  { tab: 'links', labelKey: 'chatl.media.links' },
+  { tab: 'media', labelKey: 'chat.tabMedia' },
+  { tab: 'docs', labelKey: 'chat.tabDocs' },
+  { tab: 'links', labelKey: 'chat.tabLinks' },
 ];
-
-/** How many reports the lead card shows. */
-const LATEST_REPORTS = 3;
 
 const EMPTY_KEYS: Record<ConversationMediaTab, MessageKey> = {
   media: 'chat.noMedia',
@@ -199,6 +186,7 @@ export function ChatMediaPage() {
   const lang = useLang();
   const navigate = useNavigate();
   const { id: conversationId } = useParams<{ id: string }>();
+  const goBack = useGoBack(`/chat/${conversationId ?? ''}`);
   const userId = useAuthStore((s) => s.user?.id);
   // Anyone outside the dealer's side of the thread is MDG, never named.
   const conversationsQuery = useMyConversations();
@@ -244,19 +232,6 @@ export function ChatMediaPage() {
     [pictures, conversationId, userId, t, dealerSideIds],
   );
 
-  // The newest reports MDG sent in THIS chat, from the feed the tab bar and Today already hold (no extra
-  // request). A feed that has not answered gives none, and the card then points at Reports.
-  const feed = useTodayFeed();
-  const openReport = useOpenReport();
-  const latestReports = React.useMemo(() => {
-    const seen = new Set<string>();
-    return [...(feed.data?.reports ?? []), ...(feed.data?.done ?? [])]
-      .filter((r) => r.conversationId === conversationId)
-      .sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime())
-      .filter((r) => (seen.has(r.messageId) ? false : (seen.add(r.messageId), true)))
-      .slice(0, LATEST_REPORTS);
-  }, [feed.data?.reports, feed.data?.done, conversationId]);
-
   // `fetchNextPage` keeps one identity for the life of the query; the query
   // object itself does not, and the viewer's "ask for older" effect reads this.
   const { fetchNextPage } = query;
@@ -269,20 +244,28 @@ export function ChatMediaPage() {
   const footer = query.isFetchNextPageError ? (
     // A page that failed to arrive must not take the pages that did with it.
     <div className="flex justify-center py-4">
-      <Button variant="secondary" onClick={fetchNext}>
+      <button
+        type="button"
+        onClick={fetchNext}
+        className="rounded-full border border-wa-divider bg-wa-chip px-4 py-2 text-meta text-wa-meta active:bg-wa-row-active"
+      >
         {t('media.loadMoreFailed')}
-      </Button>
+      </button>
     </div>
   ) : query.isFetchingNextPage ? (
-    <div className="flex justify-center py-4 text-text-muted">
+    <div className="flex justify-center py-4 text-wa-meta">
       <Spinner size={18} />
     </div>
   ) : query.hasNextPage ? (
     <div ref={sentinelRef} className="flex justify-center py-3">
       {observing ? null : (
-        <Button variant="secondary" onClick={fetchNext}>
+        <button
+          type="button"
+          onClick={fetchNext}
+          className="rounded-full border border-wa-divider bg-wa-chip px-3 py-1 text-meta text-wa-meta active:bg-wa-row-active"
+        >
           {t('chat.loadMore')}
-        </Button>
+        </button>
       )}
     </div>
   ) : null;
@@ -306,35 +289,75 @@ export function ChatMediaPage() {
   let content: React.ReactNode;
   if (query.isLoading) {
     content = (
-      <div className="py-4">
-        <SkeletonBlock lines={4} />
+      <div className="flex flex-1 items-center justify-center py-20 text-wa-meta">
+        <Spinner size={20} />
       </div>
     );
   } else if (query.isError && items.length === 0) {
-    // NOT the empty state. A failed request and an empty gallery look identical from
-    // `items.length === 0`, and telling a dealer whose every report is in here that there are no
-    // photos is a confident wrong answer (the same shape as the "No chats yet" bug). Say what
-    // happened, and offer the retry.
-    content = <ErrorCard text={t('chatl.media.failed')} onRetry={() => void query.refetch()} />;
-  } else if (items.length === 0 || (tab === 'links' && linkRows(items).length === 0)) {
-    content = <EmptyCalm text={t(EMPTY_KEYS[tab])} />;
+    // NOT the empty state. A failed request and an empty gallery look identical
+    // from `items.length === 0`, and telling a dealer whose every report is in
+    // here that there are no photos is a confident wrong answer — the same
+    // shape as the "No chats yet" bug. Say what happened, and offer the retry.
+    content = (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <EmptyState
+          icon={<ImageIcon width={28} strokeWidth={1.5} />}
+          title={t('chat.mediaLoadFailed')}
+          description={t('common.helpDesc')}
+          cta={
+            <button
+              type="button"
+              onClick={() => void query.refetch()}
+              className="rounded-full bg-wa-accent px-5 py-2 text-cta text-text-inverse active:opacity-90"
+            >
+              {t('common.retry')}
+            </button>
+          }
+        />
+      </div>
+    );
+  } else if (
+    items.length === 0 ||
+    (tab === 'links' && linkRows(items).length === 0)
+  ) {
+    content = (
+      <div className="flex flex-1 items-center justify-center px-4">
+        <EmptyState
+          icon={
+            tab === 'media' ? (
+              <ImageIcon width={28} strokeWidth={1.5} />
+            ) : tab === 'docs' ? (
+              <FileText width={28} strokeWidth={1.5} />
+            ) : (
+              <LinkIcon width={28} strokeWidth={1.5} />
+            )
+          }
+          title={t(EMPTY_KEYS[tab])}
+        />
+      </div>
+    );
   } else if (tab === 'media') {
     content = (
       <>
         <div aria-label={t('media.gallery')} role="group">
           {months.map((month, m) => (
             <section key={month.key}>
-              <h2 className={cn('pb-2 text-meta font-semibold text-text-muted', m === 0 ? 'pt-1' : 'pt-4')}>
+              <h2
+                className={cn(
+                  'px-4 pb-2 text-meta font-medium text-wa-meta',
+                  m === 0 ? 'pt-3' : 'pt-5',
+                )}
+              >
                 {month.label}
               </h2>
-              <div className="grid grid-cols-3 gap-1">
+              <div className="grid grid-cols-3 gap-0.5 px-0.5">
                 {month.items.map((item) => (
                   <button
                     key={itemKey(item)}
                     type="button"
                     aria-label={item.attachment.filename}
                     onClick={() => setViewerKey(itemKey(item))}
-                    className="block aspect-square overflow-hidden rounded-md bg-surface-2"
+                    className="block aspect-square overflow-hidden bg-wa-row-active"
                   >
                     <GalleryThumb
                       attachment={item.attachment}
@@ -355,20 +378,13 @@ export function ChatMediaPage() {
   } else if (tab === 'docs') {
     content = (
       <>
-        <ul className="divide-y divide-border">
+        <ul>
           {items.map((item) =>
             item.attachment ? (
               <li key={itemKey(item)}>
-                <ListRow
-                  leading={
-                    <FileTypeBadge
-                      filename={item.attachment.filename}
-                      contentType={item.attachment.contentType}
-                    />
-                  }
-                  title={item.attachment.filename}
-                  subtitle={`${formatBytes(item.attachment.size)} · ${shortDate(item.createdAt, lang)}`}
-                  onPress={() => {
+                <button
+                  type="button"
+                  onClick={() => {
                     const attachment = item.attachment!;
                     // A PDF is read here; anything else is saved.
                     if (isPdfAttachment(attachment)) {
@@ -380,7 +396,22 @@ export function ChatMediaPage() {
                       });
                     }
                   }}
-                />
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-wa-row-active"
+                >
+                  <FileTypeBadge
+                    filename={item.attachment.filename}
+                    contentType={item.attachment.contentType}
+                  />
+                  <span className="min-w-0 flex-1 border-b border-wa-divider pb-3 pt-0.5">
+                    <span className="block truncate text-body text-wa-bubble-text">
+                      {item.attachment.filename}
+                    </span>
+                    <span className="block text-meta text-wa-meta">
+                      {formatBytes(item.attachment.size)} ·{' '}
+                      {shortDate(item.createdAt, lang)}
+                    </span>
+                  </span>
+                </button>
               </li>
             ) : null,
           )}
@@ -391,25 +422,28 @@ export function ChatMediaPage() {
   } else {
     content = (
       <>
-        <ul className="divide-y divide-border">
+        <ul>
           {linkRows(items).map((row) => (
             <li key={row.key}>
-              {/* A web link someone typed in the chat: it opens in the phone's browser, as the same
-                  link does in the thread (the one allowed exit of this page, see
-                  scripts/leavingTheApp.check.mjs). */}
               <a
                 href={row.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex min-h-14 w-full items-center gap-3 py-2 active:bg-surface-2"
+                className="flex w-full items-center gap-3 px-4 py-3 active:bg-wa-row-active"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-text">
-                  <LinkIcon aria-hidden className="h-5 w-5" strokeWidth={1.75} />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-wa-row-active text-wa-bar-icon">
+                  <LinkIcon width={18} strokeWidth={1.75} />
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="break-words text-body font-medium text-text">{domainOf(row.url)}</span>
-                  <span className="break-all text-meta text-text-muted underline">{row.url}</span>
-                  <span className="break-words text-meta text-text-muted">{shortDate(row.createdAt, lang)}</span>
+                <span className="min-w-0 flex-1 border-b border-wa-divider pb-3 pt-0.5">
+                  <span className="block truncate text-body font-medium text-wa-bubble-text">
+                    {domainOf(row.url)}
+                  </span>
+                  <span className="block truncate text-meta text-wa-accent-strong">
+                    {row.url}
+                  </span>
+                  <span className="block text-meta text-wa-meta">
+                    {shortDate(row.createdAt, lang)}
+                  </span>
                 </span>
               </a>
             </li>
@@ -421,44 +455,36 @@ export function ChatMediaPage() {
   }
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-bg">
-      <PageHeader variant="sub" title={t('chatl.media.title')} back={{ to: `/chat/${conversationId ?? ''}`, label: t('chatl.place.chat') }} />
+    <div className="flex min-h-full flex-1 flex-col bg-surface">
+      <AppBar title={t('media.title')} onBack={goBack} />
 
-      <div className="flex flex-1 flex-col gap-3 px-4 py-3">
-        {/* The page leads with the reports MDG sent in this chat (or the way to all of them): a dealer
-            digging through a chat is mostly looking for a report. */}
-        <SectionCard
-          title={t('chatl.media.reports')}
-          seeAll={{ label: t('kit.seeAll'), onPress: () => navigate('/reports') }}
-          variant="list"
-        >
-          {latestReports.length > 0 ? (
-            latestReports.map((r) => (
-              <ListRow
-                key={r.messageId}
-                title={r.headline}
-                subtitle={viewerWhen(r.sentAt, lang, t)}
-                onPress={() => openReport({ conversationId: r.conversationId, messageId: r.messageId, report: r })}
-              />
-            ))
-          ) : (
-            <>
-              <p className="break-words py-2 text-body text-text-muted">{t('chatl.media.reportsNone')}</p>
-              <ListRow title={t('chatl.media.reportsOpen')} onPress={() => navigate('/reports')} />
-            </>
-          )}
-        </SectionCard>
+      {/* WhatsApp's tabs: words on a white bar, the chosen one underlined in the
+          accent colour. */}
+      <div
+        role="tablist"
+        className="flex shrink-0 border-b border-wa-divider bg-wa-bar"
+      >
+        {TABS.map(({ tab: value, labelKey }) => (
+          <button
+            key={value}
+            type="button"
+            role="tab"
+            aria-selected={tab === value}
+            onClick={() => setTab(value)}
+            className={cn(
+              'flex-1 border-b-[3px] py-3 text-meta font-medium transition-colors',
+              tab === value
+                ? 'border-wa-accent-strong text-wa-accent-strong'
+                : 'border-transparent text-wa-meta active:bg-wa-row-active',
+            )}
+          >
+            {t(labelKey)}
+          </button>
+        ))}
+      </div>
 
-        <PillGroup<ConversationMediaTab>
-          label={t('chatl.media.show')}
-          value={tab}
-          onChange={setTab}
-          options={TABS.map(({ tab: value, labelKey }) => ({ id: value, label: t(labelKey) }))}
-        />
-
-        <div role="group" aria-label={t('chatl.media.show')} className="flex flex-1 flex-col pb-4">
-          {content}
-        </div>
+      <div role="tabpanel" className="flex flex-1 flex-col pb-4">
+        {content}
       </div>
 
       {viewerKey && tab === 'media' ? (

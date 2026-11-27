@@ -69,19 +69,6 @@ describe('i18n — every key in both languages', () => {
   });
 });
 
-describe('i18n — the per-area files are part of the catalog', () => {
-  it('reads an area key through t() in all three languages', () => {
-    expect(translate('en', 'kit.retry')).toBe('Try again');
-    expect(translate('hi', 'kit.retry')).toBe('फिर कोशिश करें');
-    expect(translate('hl', 'kit.retry')).toBe('Phir koshish karein');
-  });
-
-  it('still reads an old key after the catalog became baseMessages plus the areas', () => {
-    expect(translate('en', 'common.retry')).toBe('Try again');
-    expect(translate('hl', 'common.retry')).toBe(hl['common.retry']);
-  });
-});
-
 describe('Hinglish (i18n.hl.ts)', () => {
   const holes = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
 

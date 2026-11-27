@@ -1,20 +1,30 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
-
 import { describe, expect, it } from 'vitest';
 
+import { translate } from '@/lib/i18n';
+import type { Lang } from '@/store/lang';
 import type { ReportData, TodayFeed, TodayReport, TodayTask } from '@dk/shared/types';
 
 import {
   doneReports,
+  earlierReports,
+  feedIsEmpty,
+  ghostSlots,
   greetingName,
   isPhotoTask,
-  newReportsFor,
+  istDay,
+  reportDayLabel,
+  reportPath,
   salesSheetOf,
+  TODAY_META_CLASS,
+  TODAY_WALLPAPER,
   taskActionLabel,
-  taskCoversReport,
+  todayHeading,
   usableData,
+  workTasks,
 } from './todayView';
+
+const tFor = (lang: Lang) => (key: Parameters<typeof translate>[1], vars?: Parameters<typeof translate>[2]) =>
+  translate(lang, key, vars);
 
 /** A snapshot with only the envelope: the page never reads past it, the kind's own view does. */
 const snap = (kind: string, extra: Record<string, unknown> = {}): ReportData =>
@@ -73,6 +83,18 @@ describe('usableData', () => {
     const credit = report({ kind: 'credit_dod', data: snap('credit_dod') });
     expect(usableData(credit, true)).toBeDefined();
     expect(usableData(credit, false)).toBeUndefined();
+  });
+});
+
+describe('workTasks', () => {
+  it('lists every task for a live pump', () => {
+    const f = feed({ tasks: [task(), task({ id: 't2', kind: 'setup' })] });
+    expect(workTasks(f, false).map((x) => x.id)).toEqual(['t1', 't2']);
+  });
+
+  it('leaves out the setup task while the setup block above already carries it', () => {
+    const f = feed({ tasks: [task(), task({ id: 't2', kind: 'setup' })] });
+    expect(workTasks(f, true).map((x) => x.id)).toEqual(['t1']);
   });
 });
 
@@ -137,23 +159,22 @@ describe('salesSheetOf', () => {
   });
 });
 
-describe('newReportsFor / doneReports', () => {
-  it('lists the newest reports first, and none a Needs-you row already opens', () => {
+describe('earlierReports / doneReports', () => {
+  it('lists only reports with no snapshot, newest first, and none already shown as a card', () => {
     const f = feed({
       reports: [
         report({ messageId: 'old', sentAt: '2026-11-22T06:00:00.000Z' }),
         report({ messageId: 'new', sentAt: '2026-11-24T06:00:00.000Z' }),
-        report({ messageId: 'withData', kind: 'stock_check', data: snap('stock_check'), sentAt: '2026-11-23T08:00:00.000Z' }),
+        report({ messageId: 'withData', kind: 'stock_check', data: snap('stock_check') }),
         report({ messageId: 'shown', sentAt: '2026-11-23T06:00:00.000Z' }),
       ],
     });
-    expect(newReportsFor(f, true, new Set(['shown'])).map((r) => r.messageId)).toEqual(['new', 'withData', 'old']);
+    expect(earlierReports(f, true, new Set(['shown'])).map((r) => r.messageId)).toEqual(['new', 'old']);
   });
 
   it("never lists an owner's own report to a manager", () => {
     const f = feed({ reports: [report({ messageId: 'c', kind: 'credit_dod' }), report({ messageId: 'd' })] });
-    expect(newReportsFor(f, false, new Set()).map((r) => r.messageId)).toEqual(['d']);
-    expect(newReportsFor(f, true, new Set()).map((r) => r.messageId).sort()).toEqual(['c', 'd']);
+    expect(earlierReports(f, false, new Set()).map((r) => r.messageId)).toEqual(['d']);
   });
 
   it('lists receipts newest first', () => {
@@ -167,16 +188,23 @@ describe('newReportsFor / doneReports', () => {
   });
 });
 
-describe('taskCoversReport', () => {
-  it('says an open box already asks for what the DU OTP, declarations and mock drill alerts would', () => {
-    expect(taskCoversReport([task({ kind: 'du_otp' })], 'du_otp')).toBe(true);
-    expect(taskCoversReport([task({ kind: 'declarations' })], 'declaration_filed')).toBe(true);
-    expect(taskCoversReport([task({ kind: 'mock_drill' })], 'mock_drill')).toBe(true);
+describe('feedIsEmpty / reportPath', () => {
+  it('is empty only when every list is', () => {
+    expect(feedIsEmpty(feed())).toBe(true);
+    expect(feedIsEmpty(feed({ done: [report()] }))).toBe(false);
+    expect(feedIsEmpty(feed({ tasks: [task()] }))).toBe(false);
   });
 
-  it('leaves every other kind alone, whatever tasks are open', () => {
-    expect(taskCoversReport([task({ kind: 'du_otp' })], 'dsr_variation')).toBe(false);
-    expect(taskCoversReport([], 'du_otp')).toBe(false);
+  it('builds the one door every opener uses, escaping what needs it', () => {
+    expect(reportPath({ conversationId: 'c1', messageId: 'm1' })).toBe('/report/c1/m1');
+    expect(reportPath({ conversationId: 'conv 9', messageId: 'm/1' })).toBe('/report/conv%209/m%2F1');
+  });
+});
+
+describe('ghostSlots', () => {
+  it('shows an owner four dashed stand-ins and a manager three (no dues)', () => {
+    expect(ghostSlots(true).map((s) => s.id)).toEqual(['sales', 'stock', 'dues', 'water']);
+    expect(ghostSlots(false).map((s) => s.id)).toEqual(['sales', 'stock', 'water']);
   });
 });
 
@@ -208,10 +236,54 @@ describe('greetingName', () => {
   });
 });
 
-describe('the grey words on the Today page', () => {
-  // The tokens are read from the stylesheet, so a change to a grey cannot slip under the bar.
-  const css = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
-  const token = (name: string) => new RegExp(`--color-${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css)![1]!;
+describe('reportDayLabel', () => {
+  const today = '2026-11-24';
+
+  it.each([
+    ['hi', 'आज', 'कल'],
+    ['hl', 'Aaj', 'Kal'],
+    ['en', 'Today', 'Yesterday'],
+  ] as const)('says today and yesterday in %s', (lang, nowWord, ydayWord) => {
+    const t = tFor(lang);
+    expect(reportDayLabel(report({ day: '2026-11-24' }), today, lang, t)).toBe(nowWord);
+    expect(reportDayLabel(report({ day: '2026-11-23' }), today, lang, t)).toBe(ydayWord);
+  });
+
+  it('prints an older day as its date, in the reader\'s language', () => {
+    expect(reportDayLabel(report({ day: '2026-11-22' }), today, 'en', tFor('en'))).toBe('22 November');
+    expect(reportDayLabel(report({ day: '2026-11-22' }), today, 'hi', tFor('hi'))).toMatch(/22/);
+    expect(reportDayLabel(report({ day: '2026-11-22' }), today, 'hi', tFor('hi'))).toMatch(/नवंबर|नवम्बर/);
+  });
+
+  it("reads the card's own business day, not the day it was sent", () => {
+    // Sent at 12:20 am IST on the 24th (18:50 UTC on the 23rd), about the 23rd.
+    const r = report({ day: '2026-11-23', sentAt: '2026-11-23T18:50:00.000Z' });
+    expect(reportDayLabel(r, today, 'en', tFor('en'))).toBe('Yesterday');
+  });
+
+  it('falls back to the Indian day it was sent when it carries no day', () => {
+    // 19:00 UTC on the 23rd is 00:30 IST on the 24th.
+    const r = report({ day: undefined, sentAt: '2026-11-23T19:00:00.000Z' });
+    expect(istDay(r.sentAt)).toBe('2026-11-24');
+    expect(reportDayLabel(r, today, 'en', tFor('en'))).toBe('Today');
+  });
+
+  it('says nothing for a date it cannot read', () => {
+    expect(reportDayLabel(report({ day: undefined, sentAt: 'nope' }), today, 'en', tFor('en'))).toBe('');
+  });
+});
+
+describe('todayHeading', () => {
+  it('names the weekday and the date of the business day', () => {
+    expect(todayHeading('2026-11-24', 'en')).toMatch(/^Tuesday,? 24 November$/);
+  });
+
+  it('uses the clock when the feed has not arrived', () => {
+    expect(todayHeading(undefined, 'en', new Date(2026, 10, 24, 12))).toMatch(/24/);
+  });
+});
+
+describe('the grey text on the Today wallpaper', () => {
   const luminance = (hex: string) => {
     const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
     const lin = c.map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
@@ -222,8 +294,12 @@ describe('the grey words on the Today page', () => {
     return (hi! + 0.05) / (lo! + 0.05);
   };
 
-  it.each(['text-muted', 'text-subtle'])('reads at 4.5:1 or better: %s on the page and on a card (the date line, the as-of words, the small print)', (name) => {
-    expect(ratio(token(name), token('bg'))).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(token(name), token('surface'))).toBeGreaterThanOrEqual(4.5);
+  it('reads at 4.5:1 or better on the wallpaper (the date line, "Earlier reports", the ghost caption)', () => {
+    const ink = /#[0-9a-f]{6}/i.exec(TODAY_META_CLASS)![0];
+    expect(ratio(ink, TODAY_WALLPAPER)).toBeGreaterThanOrEqual(4.5);
+    // And on white, where the tiles and rows sit.
+    expect(ratio(ink, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+    // The chat's own grey is what it replaces: it is short of the bar here.
+    expect(ratio('#667781', TODAY_WALLPAPER)).toBeLessThan(4.5);
   });
 });

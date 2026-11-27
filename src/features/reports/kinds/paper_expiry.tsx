@@ -1,7 +1,5 @@
 import type { ReactElement } from 'react';
 
-import { Num, SectionCard, StatTile } from '@/components/kit';
-import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import type { PaperExpiryData } from '@dk/shared/types';
 
@@ -157,7 +155,8 @@ function Leaf({ item, lang, big = false }: { item: Item; lang: Lang; big?: boole
     <li
       data-status={status}
       data-lapsed={lapsed ? 'yes' : 'no'}
-      className={`relative flex flex-col ${big ? 'min-h-36 w-full max-w-60' : 'min-h-28 w-36'}`}
+      className={`relative flex flex-col ${big ? 'w-full max-w-[240px]' : 'w-[148px]'}`}
+      style={{ minHeight: big ? 150 : 112 }}
     >
       <LeafShape torn={lapsed} />
       <span className="sr-only">{spoken}</span>
@@ -177,7 +176,7 @@ function Leaf({ item, lang, big = false }: { item: Item; lang: Lang; big?: boole
             <span className={`text-subheading text-text ${lineHeight(lang)}`}>{sayWords(t.lastDay, lang)}</span>
           ) : (
             <>
-              <span className="text-display leading-none text-text">{n}</span>
+              <span className={`${big ? 'text-5xl' : 'text-4xl'} font-semibold leading-none text-text`}>{n}</span>
               <span className={`text-body text-text ${lineHeight(lang)}`}>{caption}</span>
             </>
           )}
@@ -208,30 +207,6 @@ function VehicleBlock({ group, lang }: { group: { vehicleReg: string | null; ite
         ))}
       </ul>
     </section>
-  );
-}
-
-/** The paper that runs out first, as one big number: the answer an owner wants before the leaves. */
-function Soonest({ data, lang }: { data: Data; lang: Lang }): ReactElement | null {
-  const soonest = data.items.reduce<Item | null>((best, i) => (best === null || i.daysLeft < best.daysLeft ? i : best), null);
-  if (!soonest) return null;
-  const lapsed = soonest.daysLeft < 0;
-  const n = Math.abs(soonest.daysLeft);
-  const unit = lapsed
-    ? sayWords(n === 1 ? t.dayAgo : t.daysAgo, lang)
-    : soonest.daysLeft === 0
-      ? sayWords(t.lastDay, lang)
-      : sayWords(n === 1 ? t.dayLeft : t.daysLeft, lang);
-  const label = translate(lang, 'rv2.papers.soonest');
-  return (
-    <StatTile
-      label={label}
-      value={soonest.daysLeft === 0 ? sayWords(t.lastDay, lang) : <Num value={n} />}
-      unit={soonest.daysLeft === 0 ? undefined : unit}
-      status={leafStatus(soonest.daysLeft)}
-      caption={[soonest.vehicleReg, docName(soonest, lang)].filter(Boolean).join(' · ')}
-      ariaLabel={`${label}: ${itemSentence(soonest, lang)}`}
-    />
   );
 }
 
@@ -272,16 +247,11 @@ function Overlay({ data: sent, lang }: OverlayProps<'paper_expiry'>): ReactEleme
       {data.allLapsed && data.items.length > 1 ? (
         <Line lang={lang}>{sayWords(words('इस सूची के सभी कागज़ खत्म हो चुके हैं।', 'Is list ke sabhi kagaz khatam ho chuke hain.', 'Every paper on this list has run out.'), lang)}</Line>
       ) : null}
-      <Soonest data={data} lang={lang} />
-      {groups.length > 0 ? (
-        <SectionCard title={translate(lang, 'rv2.papers.listTitle')} count={data.items.length + Math.max(0, data.moreCount)}>
-          <div className="space-y-4">
-            {groups.map((g) => (
-              <VehicleBlock key={g.vehicleReg ?? 'outlet'} group={g} lang={lang} />
-            ))}
-          </div>
-        </SectionCard>
-      ) : null}
+      <div className="space-y-4">
+        {groups.map((g) => (
+          <VehicleBlock key={g.vehicleReg ?? 'outlet'} group={g} lang={lang} />
+        ))}
+      </div>
       {more > 0 ? (
         <Line lang={lang} className="font-semibold">
           {sayWords(words(`और ${more} कागज़`, `Aur ${more} kagaz`, `and ${more} more ${more === 1 ? 'paper' : 'papers'}`), lang)}

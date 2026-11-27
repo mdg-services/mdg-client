@@ -28,7 +28,6 @@ function renderAt(path: '/staff', page: React.ReactElement) {
   return renderWithProviders(
     <Routes>
       <Route path={path} element={page} />
-      <Route path="/pump" element={<div>pump-page</div>} />
       <Route path="/settings" element={<div>settings-page</div>} />
       <Route path="/chat" element={<div>chat-list</div>} />
     </Routes>,
@@ -41,9 +40,9 @@ beforeEach(() => {
 });
 afterEach(() => resetStores());
 
-// Where ← lands when the page was opened cold: Warriors and points hangs off My pump now (spec 2.5).
+// Where ← lands when the page was opened cold: one only Settings leads to goes there.
 describe.each([
-  ['Warriors & points', '/staff' as const, <StaffPage key="s" />, "We couldn't load this just now", 'pump-page'],
+  ['Warriors & points', '/staff' as const, <StaffPage key="s" />, "We couldn't load this just now", 'settings-page'],
 ])('%s — its own top bar', (title, path, page, failedTitle, home) => {
   it('is headed by the bar while it loads', () => {
     vi.mocked(api.get).mockImplementation(() => new Promise(() => undefined));

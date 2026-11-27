@@ -142,7 +142,7 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
       {card.summary.length > 0 || card.warnings.length > 0 ? (
         <div className="border-t border-wa-divider px-3.5 py-2" aria-live="polite" data-testid="flow-summary">
           {card.summary.map((s, i) => (
-            <p key={i} className={i === 0 ? 'break-words text-meta font-semibold' : 'break-words text-meta text-wa-meta'}>
+            <p key={i} className={i === 0 ? 'break-words text-meta font-semibold' : 'break-words text-micro text-wa-meta'}>
               {sayIn(s, lang)}
             </p>
           ))}
@@ -153,7 +153,7 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
       ) : null}
 
       {error && error.row === null ? (
-        <p role="alert" className="border-t border-wa-divider px-3.5 py-1.5 text-meta text-status-problem-ink">
+        <p role="alert" className="border-t border-wa-divider px-3.5 py-1.5 text-micro text-status-problem-ink">
           {error.text}
         </p>
       ) : null}
@@ -176,7 +176,7 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
           ))}
         </FootButtons>
       ) : !card.canAnswer && (card.status === 'asking' || card.status === 'ready') ? (
-        <p className="border-t border-wa-divider px-3.5 py-2 text-meta text-wa-meta">{t('flow.readOnly')}</p>
+        <p className="border-t border-wa-divider px-3.5 py-2 text-micro text-wa-meta">{t('flow.readOnly')}</p>
       ) : null}
 
       {showVideo || quietOnly ? (
@@ -188,7 +188,7 @@ export function FlowCardBody({ card, onSay }: { card: FlowCardView; onSay?: (tex
               data-testid={`flow-action-${card.actions[0]!.id}`}
               disabled={busy}
               onClick={() => press(card.actions[0]!)}
-              className="min-h-11 shrink-0 rounded-md px-2 text-meta font-semibold text-wa-meta active:bg-wa-row-active disabled:opacity-50"
+              className="min-h-9 shrink-0 rounded-md px-2 text-micro font-semibold text-wa-meta active:bg-wa-row-active disabled:opacity-50"
             >
               {sayIn(card.actions[0]!.label, lang)}
             </button>
@@ -256,19 +256,19 @@ function QuestionRow({
         <div className="min-w-0 flex-1 basis-[11rem]">
           {row.state === 'done' && row.answer ? (
             <>
-              <p className="text-meta text-wa-meta">{sayIn(row.label, lang)}</p>
+              <p className="text-micro text-wa-meta">{sayIn(row.label, lang)}</p>
               <p className="break-words text-meta font-semibold">{sayIn(row.answer, lang)}</p>
             </>
           ) : (
             <p className={row.state === 'later' ? 'text-meta text-wa-meta' : 'break-words text-meta font-semibold'}>{sayIn(row.label, lang)}</p>
           )}
-          {row.note ? <p className="break-words text-meta text-wa-meta">{sayIn(row.note, lang)}</p> : null}
+          {row.note ? <p className="break-words text-micro text-wa-meta">{sayIn(row.note, lang)}</p> : null}
         </div>
         {folded && row.canChange && canAnswer ? (
           <button
             type="button"
             onClick={() => setChanging(true)}
-            className="min-h-11 shrink-0 rounded-md px-1.5 text-meta font-semibold text-wa-accent-strong underline underline-offset-4 active:bg-wa-row-active"
+            className="-my-1.5 min-h-8 shrink-0 rounded-md px-1.5 text-micro font-semibold text-wa-accent-strong underline underline-offset-4 active:bg-wa-row-active"
           >
             {t('flow.change')}
           </button>
@@ -288,7 +288,7 @@ function QuestionRow({
       ) : null}
 
       {error ? (
-        <p role="alert" className="mt-1 text-meta text-status-problem-ink">
+        <p role="alert" className="mt-1 text-micro text-status-problem-ink">
           {error}
         </p>
       ) : null}
@@ -363,7 +363,7 @@ function PartRow({
         <FuelSwatch fuelKey={row.key} />
         <span className="min-w-0 break-words leading-tight">
           {name}
-          {typed?.unit ? <span className="block text-meta font-normal text-wa-meta">{typed.unit}</span> : null}
+          {typed?.unit ? <span className="block text-[0.6875rem] font-normal text-wa-meta">{typed.unit}</span> : null}
         </span>
       </p>
       <div role="group" aria-label={typed?.unit ? `${name} (${typed.unit})` : name} className="flex flex-wrap items-center gap-1.5">

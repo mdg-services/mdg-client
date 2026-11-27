@@ -1,15 +1,12 @@
 import { AlertCircle, CheckCircle2, ChevronRight, Lock, MessageCircle, Repeat } from 'lucide-react';
 import * as React from 'react';
 
-import { Num, SkeletonBlock } from '@/components/kit';
 import { SubPage } from '@/components/SubPage';
 import { Button, Card, CardContent } from '@/components/ui';
 import { useOpenMyChat } from '@/features/chat/useOpenMyChat';
-import { money } from '@/features/payments/paymentView';
-import { canPayHere } from '@/features/payments/policy';
 import { StateBlock } from '@/features/payments/StateBlock';
 import { useLang, useT } from '@/lib/i18n';
-import { dealerCodeLabel } from '@dk/shared';
+import { dealerCodeLabel, formatPaise } from '@dk/shared';
 import type { DealerAutopay } from '@dk/shared/types';
 
 import { useAutopayStatus, useIsOwner } from './api';
@@ -25,12 +22,14 @@ import {
 } from './autopayView';
 import { StopAutopayDialog } from './StopAutopayDialog';
 
-/** Grey lines the shape of the card, while the answer comes down the wire. */
+/** One grey block the shape of the card, while the answer comes down the wire. */
 function CardSkeleton() {
+  const t = useT();
   return (
-    <Card className="p-4">
-      <SkeletonBlock lines={5} />
-    </Card>
+    <div role="status" aria-busy="true">
+      <span className="sr-only">{t('common.loading')}</span>
+      <div className="h-44 animate-pulse rounded-2xl bg-surface-2" aria-hidden />
+    </div>
   );
 }
 
@@ -42,7 +41,7 @@ function ChatRow({ title, description }: { title: string; description?: string }
       <button
         type="button"
         onClick={openChat}
-        className="flex min-h-16 w-full items-center gap-4 rounded-xl p-4 text-left active:bg-surface-2"
+        className="flex min-h-[64px] w-full items-center gap-4 rounded-2xl p-4 text-left active:bg-surface-2"
       >
         <MessageCircle
           width={24}
@@ -101,9 +100,11 @@ function AutopayDetail({ autopay }: { autopay: DealerAutopay }) {
   return (
     <>
       <Card>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-col gap-3 p-5">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-            <Num className="text-display text-text">{money(lang, autopay.amountPaise)}</Num>
+            <p className="text-4xl font-bold tabular-nums text-text">
+              {formatPaise(autopay.amountPaise)}
+            </p>
             <AutopayChip state={autopay.state} />
           </div>
           <p className="text-body font-medium text-text-muted">
@@ -168,14 +169,7 @@ export function AutopayPage() {
     body = autopay ? (
       <AutopayDetail autopay={autopay} />
     ) : (
-      <>
-        <StateBlock
-          icon={<Repeat width={28} strokeWidth={1.5} />}
-          title={t('autopay.noneTitle')}
-          description={t(canPayHere() ? 'bill.autopay.noneHow' : 'bill.autopay.noneAsk')}
-        />
-        <ChatRow title={t('help.askInChat')} description={t('help.askInChatDesc')} />
-      </>
+      <StateBlock icon={<Repeat width={28} strokeWidth={1.5} />} title={t('autopay.noneTitle')} />
     );
   } else if (failed) {
     body = (
@@ -194,7 +188,7 @@ export function AutopayPage() {
   }
 
   return (
-    <SubPage title={t('autopay.title')} className="gap-3 pb-10">
+    <SubPage title={t('autopay.title')} className="gap-4 pb-10">
       {body}
     </SubPage>
   );

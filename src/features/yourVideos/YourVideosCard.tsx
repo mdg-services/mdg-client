@@ -6,6 +6,7 @@ import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
 import { durationLabel } from '@/features/help/helpView';
 import { Block, CardBox, CardPending, Note } from '@/features/setup/CardParts';
 import { ApiError } from '@/lib/api';
+import { cn } from '@/lib/cn';
 import { useLang, useT } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { sayIn, type YourVideoRow } from '@dk/shared/types';
@@ -108,7 +109,7 @@ function Group({
 function Thumb({ posterUrl, watched }: { posterUrl: string | null | undefined; watched: boolean }) {
   const [broken, setBroken] = React.useState(false);
   return (
-    <span className="relative h-[4.5rem] w-10 shrink-0">
+    <span className="relative h-[72px] w-[40px] shrink-0">
       <span className="absolute inset-0 overflow-hidden rounded-md bg-neutral-soft">
         {posterUrl && !broken ? (
           <img
@@ -160,12 +161,12 @@ function VideoRowButton({
         data-testid={`your-video-${row.id}`}
         data-watched={row.watched ? 'true' : 'false'}
         aria-label={t(row.watched ? 'yourVideos.playWatched' : 'yourVideos.play', { title })}
-        className="flex min-h-11 w-full items-center gap-3 rounded-md px-2.5 py-2 text-left active:opacity-80"
+        className="flex min-h-[44px] w-full items-center gap-3 rounded-md px-2.5 py-2 text-left active:opacity-80"
       >
         <Thumb posterUrl={row.posterUrl} watched={row.watched} />
         <span className="min-w-0 flex-1">
           <span className="flex items-start gap-2">
-            <span className="min-w-0 break-words text-body font-medium leading-snug text-wa-bubble-text">{title}</span>
+            <span className="line-clamp-2 text-meta font-medium leading-snug text-wa-bubble-text">{title}</span>
             {length ? (
               <span className="ml-auto shrink-0 pt-px text-meta tabular-nums text-wa-meta">{length}</span>
             ) : null}
@@ -176,7 +177,7 @@ function VideoRowButton({
             </span>
           ) : null}
           {row.examples.slice(0, MAX_EXAMPLES_SHOWN).map((example, i) => (
-            <span key={i} className="mt-0.5 block break-words text-meta leading-snug text-wa-meta">
+            <span key={i} className="mt-0.5 block truncate text-meta leading-snug text-wa-meta">
               “{sayIn(example, lang)}”
             </span>
           ))}

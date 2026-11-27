@@ -5,21 +5,6 @@ import { DEALER_LANGUAGES, baseLangOf } from '@dk/shared/types';
 
 import { hl } from './i18n.hl';
 import { plannerMessages } from './i18n.planner';
-import { billMessages } from './messages/bill';
-import { chatMessages } from './messages/chat';
-import { firstrunMessages } from './messages/firstrun';
-import { glanceMessages } from './messages/glance';
-import { kavachMessages } from './messages/kavach';
-import { kitMessages } from './messages/kit';
-import { pumpMessages } from './messages/pump';
-import { reportsMessages } from './messages/reports';
-import { reportViews1Messages } from './messages/reportViews1';
-import { reportViews2Messages } from './messages/reportViews2';
-import { reportViews3Messages } from './messages/reportViews3';
-import { servicesMessages } from './messages/services';
-import { shellMessages } from './messages/shell';
-import { staffMessages } from './messages/staff';
-import { todayMessages } from './messages/today';
 
 /**
  * Tiny, framework-free i18n for the dealer app (ADR 0008).
@@ -43,7 +28,7 @@ export interface LangMessage {
   hi: string;
 }
 
-export const baseMessages = {
+export const messages = {
   /* ── common ─────────────────────────────────────────────────────────── */
   'common.loading': { en: 'Loading…', hi: 'लोड हो रहा है…' },
   'common.done': { en: 'Done', hi: 'हो गया' },
@@ -67,12 +52,18 @@ export const baseMessages = {
   },
 
   /* ── app ────────────────────────────────────────────────────────────── */
+  'app.brand': { en: 'Dealer Kavach', hi: 'डीलर कवच' },
   'app.stillLoading': {
     en: 'Still loading — the connection is slow.',
     hi: 'अभी लोड हो रहा है — नेटवर्क धीमा है।',
   },
 
   /* ── auth / login ───────────────────────────────────────────────────── */
+  'auth.welcome': { en: 'Welcome back', hi: 'फिर से स्वागत है' },
+  'auth.subtitle': {
+    en: 'Sign in to chat with the MDG team.',
+    hi: 'MDG टीम से बात करने के लिए साइन इन करें।',
+  },
   'auth.email': { en: 'Email', hi: 'ईमेल' },
   // One box for both: a dealer's mobile number is the name most of them sign in
   // with, an email still works.
@@ -785,6 +776,28 @@ export const baseMessages = {
   'profile.language': { en: 'Language', hi: 'भाषा' },
 
   /* ── services ───────────────────────────────────────────────────────── */
+  'services.title': { en: 'Your services', hi: 'आपकी सेवाएं' },
+  'services.active': { en: 'Active', hi: 'चालू' },
+  'services.paused': { en: 'Paused', hi: 'बंद' },
+  'services.errorTitle': {
+    en: "We couldn't show your services just now",
+    hi: 'अभी आपकी सेवाएं नहीं दिखा पाए',
+  },
+  'services.emptyTitle': { en: 'No services yet', hi: 'अभी कोई सेवा नहीं' },
+  'services.emptyDesc': {
+    en: "Your account manager will set these up for you. We'll show them here once they're active.",
+    hi: 'आपका अकाउंट मैनेजर इन्हें सेट करेगा। चालू होने पर ये यहां दिखेंगी।',
+  },
+  'services.last': { en: 'Last: {date}', hi: 'पिछली: {date}' },
+  'services.next': { en: 'Next: {date}', hi: 'अगली: {date}' },
+  'services.runsDaily': { en: 'Runs daily', hi: 'रोज़ चलती है' },
+  'services.runsWeekly': { en: 'Runs weekly', hi: 'हर हफ्ते चलती है' },
+  'services.runsMonthly': { en: 'Runs monthly', hi: 'हर महीने चलती है' },
+  'services.runsYearly': { en: 'Runs yearly', hi: 'हर साल चलती है' },
+  'services.runsOnDemand': {
+    en: 'Runs when needed',
+    hi: 'ज़रूरत पड़ने पर चलती है',
+  },
 
   /* ── staff & points ─────────────────────────────────────────────────── */
   'profile.staffPoints': { en: 'Warriors & points', hi: 'योद्धा और पॉइंट' },
@@ -855,6 +868,7 @@ export const baseMessages = {
     hi: 'योद्धा नहीं जुड़ पाया। कृपया फिर कोशिश करें, या चैट में हमें लिखें।',
   },
 
+  'staff.give.title': { en: 'Give points', hi: 'पॉइंट दें' },
   'staff.give.step1': { en: 'Who did the work?', hi: 'काम किसने किया?' },
   'staff.give.step2': { en: 'What did they do?', hi: 'उन्होंने क्या किया?' },
   'staff.give.step3': { en: 'Confirm', hi: 'पक्का करें' },
@@ -873,6 +887,8 @@ export const baseMessages = {
     en: 'Who did it together?',
     hi: 'यह किसने-किसने किया?',
   },
+  'staff.give.total': { en: 'Total {points}', hi: 'कुल {points}' },
+  'staff.give.confirm': { en: 'Give points', hi: 'पॉइंट दें' },
   'staff.give.continue': { en: 'Continue', hi: 'आगे बढ़ें' },
   'staff.give.selectedSummary': {
     en: '{count} selected · {points} points',
@@ -942,16 +958,22 @@ export const baseMessages = {
     en: 'Added to submission',
     hi: 'सूची में जुड़ गया',
   },
+  'staff.pendingSubmission': {
+    en: 'Pending submission',
+    hi: 'जमा करना बाकी',
+  },
   'staff.pendingHint': {
     en: 'Review the work, then submit with a hardcopy photo.',
     hi: 'काम जाँच लें, फिर हार्डकॉपी फोटो के साथ जमा करें।',
   },
   'staff.pendingTotal': { en: 'Total {points} points', hi: 'कुल {points} पॉइंट' },
+  'staff.removeLine': { en: 'Remove', hi: 'हटाएं' },
   'staff.clearDraft': { en: 'Clear all', hi: 'सब हटाएं' },
   'staff.clearDraftConfirm': {
     en: 'Clear the whole pending submission?',
     hi: 'पूरी बाकी सूची हटा दें?',
   },
+  'staff.draftCleared': { en: 'Submission cleared', hi: 'सूची हटा दी गई' },
 
   'staff.savingDraft': { en: 'Saving…', hi: 'सेव हो रहा है…' },
   'staff.draftSaved': { en: 'Saved', hi: 'सेव हो गया' },
@@ -965,6 +987,7 @@ export const baseMessages = {
   },
 
   /* ── final submit + hardcopy photo ──────────────────────────────────── */
+  'staff.finalSubmit': { en: 'Final submit', hi: 'फ़ाइनल जमा करें' },
   'staff.finalizeTitle': { en: 'Submit points', hi: 'पॉइंट जमा करें' },
   'staff.hardcopyPhoto': { en: 'Hardcopy photo', hi: 'हार्डकॉपी फोटो' },
   'staff.hardcopyHint': {
@@ -1013,6 +1036,7 @@ export const baseMessages = {
 
   /* ── editable roster ─────────────────────────────────────────────────── */
   'staff.editWorker': { en: 'Edit warrior', hi: 'योद्धा बदलें' },
+  'staff.renameWorker': { en: 'Edit warrior', hi: 'योद्धा बदलें' },
   'staff.workerName': { en: 'Name', hi: 'नाम' },
   'staff.workerDesignation': { en: 'Work / role', hi: 'काम / पद' },
   'staff.workerPhone': { en: 'Phone', hi: 'फ़ोन' },
@@ -1031,6 +1055,13 @@ export const baseMessages = {
   'staff.reactivated': { en: 'Warrior brought back', hi: 'योद्धा वापस आ गया' },
 
   /* ── past submissions ────────────────────────────────────────────────── */
+  'staff.pastSubmissions': { en: 'Past submissions', hi: 'पिछली जमा' },
+  'staff.pastEmpty': { en: 'No submissions yet', hi: 'अभी कोई जमा नहीं' },
+  'staff.viewHardcopy': { en: 'View hardcopy', hi: 'हार्डकॉपी देखें' },
+  'staff.batchSummary': {
+    en: '{points} points · {workers} warriors',
+    hi: '{points} पॉइंट · {workers} योद्धा',
+  },
 
   /* ── wa:frame — chat list, app bars, settings ────────────────────────── */
 
@@ -1055,6 +1086,106 @@ export const baseMessages = {
   'tabs.reports': { en: 'Reports', hi: 'रिपोर्ट' },
   'tabs.kavach': { en: 'Kavach', hi: 'कवच' },
   'settings.messageUs': { en: 'Message us', hi: 'हमें लिखें' },
+  'kavach.title': { en: 'Kavach', hi: 'कवच' },
+  'kavach.page': { en: 'Your Kavach', hi: 'आपका कवच' },
+  'kavach.ring': { en: '{pct} percent done', hi: '{pct} प्रतिशत हो गया' },
+  'kavach.sentence.todo': { en: '{n} to do today', hi: 'आज {n} काम बाकी हैं' },
+  'kavach.sentence.late': { en: '{n} to do today — {late} late', hi: 'आज {n} काम बाकी हैं — {late} देर से' },
+  'kavach.sentence.waiting': { en: 'Nothing to do now. {n} with MDG for checking.', hi: 'अभी कोई काम बाकी नहीं। {n} MDG की जाँच में हैं।' },
+  'kavach.sentence.allDone': { en: 'All done for today', hi: 'आज का सारा काम हो गया' },
+  'kavach.sentence.week': { en: "Today's work is done. {n} more due this week.", hi: 'आज का काम हो गया। इस हफ़्ते {n} काम और हैं।' },
+  'kavach.sentence.none': { en: 'Your Kavach is getting ready', hi: 'आपका कवच तैयार हो रहा है' },
+  'kavach.count.done': { en: 'Done', hi: 'हो गया' },
+  'kavach.count.sent': { en: 'With MDG', hi: 'MDG के पास' },
+  'kavach.count.todo': { en: 'To do', hi: 'करना है' },
+  'kavach.sec.now': { en: 'Do today', hi: 'आज करें' },
+  'kavach.sec.week': { en: 'This week', hi: 'इस हफ़्ते' },
+  'kavach.sec.ownerDoes': { en: 'The owner sends these', hi: 'ये मालिक भेजेंगे' },
+  'kavach.sec.managerDoes': { en: 'The manager sends these', hi: 'ये मैनेजर भेजेंगे' },
+  'kavach.sec.data': { en: 'MDG checks these from your reports', hi: 'ये MDG आपकी रिपोर्ट से जाँचता है' },
+  'kavach.sec.waiting': { en: 'With MDG', hi: 'MDG के पास' },
+  'kavach.sec.done': { en: 'Done', hi: 'हो गया' },
+  'kavach.sec.upcoming': { en: 'Coming up', hi: 'आगे आने वाले' },
+  'kavach.sec.events': { en: 'When it happens', hi: 'जब हो तब' },
+  'kavach.sec.eventsHint': { en: 'Send a photo when it happens.', hi: 'जब यह हो, तब फ़ोटो भेजें।' },
+  'kavach.sec.waitingHint': { en: 'MDG is checking these.', hi: 'MDG इन्हें जाँच रहा है।' },
+  'kavach.sec.nowClear': { en: 'Nothing to do right now.', hi: 'अभी कोई काम बाकी नहीं।' },
+  'kavach.show': { en: 'Show {n}', hi: '{n} दिखाएँ' },
+  'kavach.hide': { en: 'Hide', hi: 'छिपाएँ' },
+  'kavach.tag.todo': { en: 'To do', hi: 'करना है' },
+  'kavach.tag.late': { en: 'Late', hi: 'देर से' },
+  'kavach.tag.sentBack': { en: 'Send again', hi: 'फिर भेजें' },
+  'kavach.tag.sent': { en: 'With MDG', hi: 'MDG के पास' },
+  'kavach.tag.done': { en: 'Done', hi: 'हो गया' },
+  'kavach.tag.upcoming': { en: 'Coming up', hi: 'जल्द आएगा' },
+  'kavach.tag.missed': { en: 'Missed', hi: 'छूट गया' },
+  'kavach.tag.excused': { en: 'Not needed', hi: 'ज़रूरी नहीं' },
+  'kavach.line.dueTime': { en: 'By {time}', hi: '{time} तक' },
+  'kavach.line.dueDate': { en: 'By {date}', hi: '{date} तक' },
+  'kavach.line.lateTime': { en: 'Late. Was due {time}', hi: 'देर हो गई। समय {time} था' },
+  'kavach.line.lateDate': { en: 'Late. Was due {date}', hi: 'देर हो गई। {date} तक करना था' },
+  'kavach.line.lateNoTime': { en: 'Late', hi: 'देर हो गई' },
+  'kavach.line.sentBack': { en: 'Please send again: {reason}', hi: 'फिर से भेजें: {reason}' },
+  'kavach.line.sentBackPlain': { en: 'Please send it again', hi: 'कृपया फिर से भेजें' },
+  'kavach.line.valid': { en: 'Valid till {date}', hi: '{date} तक मान्य' },
+  'kavach.line.doneToday': { en: 'Done today', hi: 'आज हो गया' },
+  'kavach.line.sentAt': { en: 'Sent {time}', hi: '{time} पर भेजा' },
+  'kavach.line.sentOn': { en: 'Sent {date}', hi: '{date} को भेजा' },
+  'kavach.line.opens': { en: 'Opens {date}', hi: '{date} को खुलेगा' },
+  'kavach.line.ownerSends': { en: 'Owner sends this', hi: 'मालिक भेजेंगे' },
+  'kavach.line.managerSends': { en: 'Manager sends this', hi: 'मैनेजर भेजेंगे' },
+  'kavach.line.data': { en: 'MDG checks this from your reports', hi: 'MDG आपकी रिपोर्ट से इसे जाँचता है' },
+  'kavach.line.event': { en: 'Send a photo when it happens', hi: 'जब यह हो, तब फ़ोटो भेजें' },
+  'kavach.reason.not_clear': { en: 'The photo is not clear', hi: 'फ़ोटो साफ़ नहीं है' },
+  'kavach.reason.wrong_page': { en: 'Wrong page', hi: 'गलत पन्ना है' },
+  'kavach.reason.numbers_differ': { en: 'The numbers do not match', hi: 'आँकड़े मेल नहीं खाते' },
+  'kavach.reason.not_updated': { en: 'Not updated today', hi: 'आज अपडेट नहीं हुआ' },
+  'kavach.act.photo': { en: 'Take photo', hi: 'फ़ोटो लें' },
+  'kavach.act.sheet': { en: 'Open sheet', hi: 'शीट खोलें' },
+  'kavach.act.sendPhoto': { en: 'Send photo', hi: 'फ़ोटो भेजें' },
+  'kavach.act.again': { en: 'Send again', hi: 'फिर भेजें' },
+  'kavach.act.choose': { en: 'Choose photo or PDF', hi: 'फ़ोटो या PDF चुनें' },
+  'kavach.act.details': { en: 'Details', hi: 'जानकारी' },
+  'kavach.act.labelled': { en: '{action}: {title}', hi: '{title}: {action}' },
+  'kavach.photo.sending': { en: 'Sending…', hi: 'भेज रहे हैं…' },
+  'kavach.photo.sent': { en: 'Sent. MDG will check.', hi: 'भेज दिया। MDG जाँचेगा।' },
+  'kavach.photo.failed': { en: 'It did not go.', hi: 'नहीं गया।' },
+  'kavach.photo.wrongType': { en: 'Please send a photo.', hi: 'कृपया फोटो भेजें।' },
+  'kavach.line.noteFrom': { en: 'MDG wrote: {note}', hi: 'MDG ने लिखा: {note}' },
+  'kavach.photo.retry': { en: 'Try again', hi: 'फिर कोशिश करें' },
+  'kavach.sheet.opening': { en: 'Opening the sheet…', hi: 'शीट खुल रही है…' },
+  'kavach.sheet.failed': { en: 'The sheet could not open. Try again.', hi: 'शीट नहीं खुली। फिर कोशिश करें।' },
+  'kavach.sheet.title': { en: '{title}', hi: '{title}' },
+  'kavach.detail.what': { en: 'What to do', hi: 'क्या करना है' },
+  'kavach.detail.sent': { en: 'The photo you sent', hi: 'आपकी भेजी हुई फ़ोटो' },
+  'kavach.detail.last': { en: 'Last accepted photo', hi: 'पिछली मानी गई फ़ोटो' },
+  'kavach.detail.history': { en: 'What happened', hi: 'अब तक क्या हुआ' },
+  'kavach.detail.noHistory': { en: 'Nothing yet.', hi: 'अभी कुछ नहीं।' },
+  'kavach.detail.loading': { en: 'Loading…', hi: 'खुल रहा है…' },
+  'kavach.detail.failed': { en: 'This could not load. Try again.', hi: 'यह खुल नहीं सका। फिर कोशिश करें।' },
+  'kavach.detail.close': { en: 'Close', hi: 'बंद करें' },
+  'kavach.photoAlt': { en: 'Photo', hi: 'फ़ोटो' },
+  'kavach.hist.opened': { en: 'Opened', hi: 'शुरू हुआ' },
+  'kavach.hist.sent': { en: 'Sent by you', hi: 'आपने भेजा' },
+  'kavach.hist.approved': { en: 'Accepted by MDG', hi: 'MDG ने मान लिया' },
+  'kavach.hist.sent_back': { en: 'Sent back', hi: 'वापस भेजा गया' },
+  'kavach.hist.told_owner': { en: 'MDG told the owner', hi: 'MDG ने मालिक को बताया' },
+  'kavach.hist.excused': { en: 'Not needed this time', hi: 'इस बार ज़रूरी नहीं' },
+  'kavach.hist.marked_done': { en: 'Marked done', hi: 'पूरा माना गया' },
+  'kavach.hist.marked_not_done': { en: 'Marked not done', hi: 'पूरा नहीं माना गया' },
+  'kavach.hist.data': { en: 'Checked from your reports', hi: 'आपकी रिपोर्ट से जाँचा गया' },
+  'kavach.hist.missed': { en: 'Day ended, not done', hi: 'दिन खत्म, काम नहीं हुआ' },
+  'kavach.off.title': { en: 'Kavach is not started for your pump yet', hi: 'आपके पंप के लिए कवच अभी शुरू नहीं हुआ है' },
+  'kavach.off.desc': { en: 'MDG will start it and let you know.', hi: 'MDG इसे शुरू करके आपको बताएगा।' },
+  'kavach.off.back': { en: 'Go to Today', hi: 'आज के पेज पर जाएँ' },
+  'kavach.error.title': { en: 'Kavach could not load', hi: 'कवच नहीं खुल सका' },
+  'kavach.error.desc': { en: 'Check your network and try again.', hi: 'नेटवर्क जाँचकर फिर कोशिश करें।' },
+  'kavach.offline': { en: 'No network. This may be old.', hi: 'नेटवर्क नहीं है। यह पुराना हो सकता है।' },
+  'kavach.loading': { en: 'Loading Kavach', hi: 'कवच खुल रहा है' },
+  'kavach.allDone': { en: 'All done for today', hi: 'आज का सारा काम हो गया' },
+  'kavach.today.sub': { en: '{n} to do today', hi: 'आज {n} काम बाकी' },
+  'kavach.today.subClear': { en: 'Done for today', hi: 'आज का काम हो गया' },
+  'kavach.today.open': { en: 'Open Kavach', hi: 'कवच खोलें' },
   'report.close': { en: 'Close', hi: 'बंद करें' },
   'report.closeLabel': { en: 'Close this report', hi: 'यह रिपोर्ट बंद करें' },
   'report.genericName': { en: 'Report', hi: 'रिपोर्ट' },
@@ -1233,11 +1364,20 @@ export const baseMessages = {
     en: 'Do not swipe Dealer Kavach away from your recent apps — that stops its notifications on this phone.',
     hi: 'हाल के ऐप्स (recent apps) से Dealer Kavach को हटाइए (swipe) मत — इस फ़ोन पर उससे नोटिफ़िकेशन रुक जाते हैं।',
   },
+  'settings.batteryGuide': { en: 'Messages not arriving?', hi: 'मैसेज नहीं आ रहे?' },
+  'settings.batteryGuideDesc': {
+    en: 'Stop your phone from hiding notifications',
+    hi: 'फ़ोन को नोटिफ़िकेशन छिपाने से रोकें',
+  },
 
   // Settings and what hangs off it.
   'settings.title': { en: 'Settings', hi: 'सेटिंग' },
   'settings.profileTitle': { en: 'Profile', hi: 'प्रोफ़ाइल' },
   'settings.account': { en: 'Account', hi: 'खाता' },
+  'settings.accountDesc': {
+    en: 'Change your password, or delete your account',
+    hi: 'पासवर्ड बदलें या अपना खाता हटाएँ',
+  },
   // ── Settings → Account → Delete my account (Apple's rule for apps people sign up from) ──
   'account.delete': { en: 'Delete my account', hi: 'मेरा खाता हटाएँ' },
   'account.deleteDesc': {
@@ -1274,6 +1414,13 @@ export const baseMessages = {
   'settings.team': { en: 'Your team', hi: 'आपकी टीम' },
   'settings.teamDesc': { en: 'Add your manager or a partner', hi: 'मैनेजर या पार्टनर जोड़ें' },
   // Notifications: what the phone has been told, on one line. Only inside the app.
+  'settings.notifications': { en: 'Notifications', hi: 'नोटिफ़िकेशन' },
+  'settings.notificationsOn': { en: 'On', hi: 'चालू' },
+  'settings.notificationsOff': {
+    en: 'Off — tap to turn on in Settings',
+    hi: 'बंद — सेटिंग में चालू करने के लिए दबाइए',
+  },
+  'settings.notificationsAsk': { en: 'Not turned on yet', hi: 'अभी चालू नहीं हैं' },
   // The two pages on the website. They open in the phone's browser; Apple wants
   // the privacy policy reachable from inside the app, before sign-in too.
   'legal.privacyPolicy': { en: 'Privacy policy', hi: 'प्राइवेसी पॉलिसी' },
@@ -2570,6 +2717,7 @@ export const baseMessages = {
   /* ── Your videos (आपके वीडियो) ────────────────────────────────────────── */
   // The list MDG puts in the chat: a video for each service and the sentences to type to it.
   // The videos' own titles and the sentences come from the server with each read.
+  'yourVideos.title': { en: 'Your videos', hi: 'आपके वीडियो' },
   'yourVideos.mine': { en: 'Your services', hi: 'आपकी सेवाएं' },
   'yourVideos.more': { en: 'Also available', hi: 'और भी उपलब्ध' },
   'yourVideos.progress': { en: '{done} of {total} watched', hi: '{total} में से {done} देखे' },
@@ -3029,6 +3177,10 @@ export const baseMessages = {
   },
   /* ── Settings → IDs & passwords (the owner's logins page) ─────────────── */
   'logins.title': { en: 'IDs & passwords', hi: 'आईडी और पासवर्ड' },
+  'logins.rowDesc': {
+    en: 'Your portal logins, and what they were before',
+    hi: 'आपके पोर्टल के लॉगिन और उनका पुराना रिकॉर्ड',
+  },
   'logins.intro': {
     en: 'These are the logins MDG uses on the portals for you. Only you can see this page.',
     hi: 'इन लॉगिन से MDG आपके लिए पोर्टल चलाती है। यह पेज सिर्फ़ आप देख सकते हैं।',
@@ -3053,6 +3205,7 @@ export const baseMessages = {
   'logins.copyFailed': { en: "Couldn't copy", hi: 'कॉपी नहीं हो सका' },
   'logins.showFailed': { en: "Couldn't show it. Try again.", hi: 'दिखा नहीं सके। फिर कोशिश करें।' },
   'logins.opening': { en: 'Opening…', hi: 'खुल रहा है…' },
+  'logins.savedLine': { en: 'Saved {when}', hi: 'सेव किया: {when}' },
   'logins.by.you': { en: 'by you', hi: 'आपने' },
   'logins.by.mdg': { en: 'by MDG team', hi: 'MDG टीम ने' },
   'logins.by.owner': { en: 'by {name}', hi: '{name} ने' },
@@ -3150,31 +3303,6 @@ export const baseMessages = {
 
   /* ── New Pump Guide (ADR 0058): its own file, see i18n.planner.ts ───── */
   ...plannerMessages,
-} satisfies Record<string, LangMessage>;
-
-/**
- * The whole catalog: the old single literal above (`baseMessages`) plus one file per area under
- * `messages/` (spec section 8). A builder edits only the area file that group owns. A key written
- * twice would be silently overwritten by the later spread, so `i18n.areas.test.ts` fails on it.
- * The type is still the union of every key, so `t('today.verdict.fine')` type-checks.
- */
-export const messages = {
-  ...baseMessages,
-  ...kitMessages,
-  ...shellMessages,
-  ...glanceMessages,
-  ...todayMessages,
-  ...servicesMessages,
-  ...reportsMessages,
-  ...reportViews1Messages,
-  ...reportViews2Messages,
-  ...reportViews3Messages,
-  ...kavachMessages,
-  ...pumpMessages,
-  ...staffMessages,
-  ...billMessages,
-  ...chatMessages,
-  ...firstrunMessages,
 } satisfies Record<string, LangMessage>;
 
 /** Every catalog key. Passing anything else to `t()` is a compile error. */

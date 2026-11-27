@@ -12,7 +12,7 @@ vi.mock('@/lib/api', async (importOriginal) => {
   return { ...real, api: { ...real.api, patch: vi.fn() } };
 });
 
-const { ChooseLanguageScreen, FirstLanguageScreen, mustChooseLanguage } = await import('./ChooseLanguageScreen');
+const { ChooseLanguageScreen, mustChooseLanguage } = await import('./ChooseLanguageScreen');
 
 beforeEach(() => {
   resetStores();
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('the first-open language picker', () => {
-  it('offers every language in its own script, with the app\'s language picked so the button is live', () => {
+  it('offers every language in its own script, and nothing is picked yet', () => {
     signIn({ role: 'dealer-owner', langChosenAt: null });
     renderWithProviders(<ChooseLanguageScreen />);
     const options = screen.getAllByRole('radio');
@@ -33,26 +33,9 @@ describe('the first-open language picker', () => {
       'Hinglish',
       'English',
     ]);
-    // Hindi is the app's language on a fresh phone: picked, said in a word, and the button works.
-    expect(options.map((o) => o.getAttribute('aria-checked'))).toEqual(['true', 'false', 'false']);
-    expect(options[0]).toHaveTextContent('चुना हुआ');
-    expect(options[1]).not.toHaveTextContent('Chuna hua');
-    expect(screen.getByTestId('language-sample')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'आगे बढ़ें' })).toBeEnabled();
-  });
-
-  it('starts on the language the account already speaks', () => {
-    signIn({ role: 'dealer-owner', langChosenAt: null });
-    useLangStore.setState({ lang: 'hl' });
-    renderWithProviders(<ChooseLanguageScreen />);
-    expect(screen.getByRole('radio', { name: 'Hinglish' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('button', { name: 'Aage badhein' })).toBeEnabled();
-  });
-
-  it('draws the outline of an unchosen row dark enough to see outdoors', () => {
-    renderWithProviders(<FirstLanguageScreen />);
-    const empty = screen.getByRole('radio', { name: 'English' }).querySelector('span[aria-hidden]');
-    expect(empty?.className).toContain('border-text-muted');
+    expect(options.every((o) => o.getAttribute('aria-checked') === 'false')).toBe(true);
+    expect(screen.queryByTestId('language-sample')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Continue/ })).toBeDisabled();
   });
 
   it('shows a sample in the picked language, with the button in it too', () => {
@@ -120,35 +103,5 @@ describe('who is asked', () => {
     expect(mustChooseLanguage({ role: 'admin', langChosenAt: null })).toBe(false);
     expect(mustChooseLanguage({ role: 'dealer-owner' })).toBe(false);
     expect(mustChooseLanguage(null)).toBe(false);
-  });
-});
-
-describe('the language question before anybody has signed in (spec 4.9)', () => {
-  it('is the same picker, with a title in Hindi and English, and Hindi picked from the start', () => {
-    renderWithProviders(<FirstLanguageScreen />);
-    expect(screen.getByRole('heading', { name: 'अपनी भाषा चुनें' })).toBeInTheDocument();
-    expect(screen.getAllByRole('radio').map((o) => o.getAttribute('aria-label'))).toEqual([
-      'हिंदी',
-      'Hinglish',
-      'English',
-    ]);
-    expect(screen.getByRole('radio', { name: 'हिंदी' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('button', { name: 'आगे बढ़ें' })).toBeEnabled();
-  });
-
-  it('keeps the choice on this phone and asks the server nothing (nobody is signed in)', () => {
-    renderWithProviders(<FirstLanguageScreen />);
-    fireEvent.click(screen.getByRole('radio', { name: 'English' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
-    expect(useLangStore.getState()).toMatchObject({ lang: 'en', explicit: true });
-    expect(api.patch).not.toHaveBeenCalled();
-  });
-
-  it('every row is a tap target of at least 44px and its names wrap', () => {
-    renderWithProviders(<FirstLanguageScreen />);
-    for (const radio of screen.getAllByRole('radio')) {
-      expect(radio.className).toMatch(/min-h-1[0-9]/);
-      expect(radio.className).not.toMatch(/truncate|line-clamp/);
-    }
   });
 });

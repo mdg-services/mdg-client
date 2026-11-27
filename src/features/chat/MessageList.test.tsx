@@ -546,24 +546,6 @@ describe('MessageList — the unread band', () => {
     );
     expect(screen.getByRole('button', { name: 'chat.newMessages:{"n":3}' })).toBeInTheDocument();
   });
-
-  it('draws the round button 44px across (rem, so it grows with the reader\'s text), its count never in a fixed-pixel box', () => {
-    stubLayout();
-    Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this.hasAttribute('data-unread-band') ? 100 : 0;
-      },
-    });
-    renderList(
-      <MessageList currentUserId="me" messages={thread()} unread={{ firstId: 'u1', count: 3 }} />,
-    );
-    const button = screen.getByRole('button', { name: 'chat.newMessages:{"n":3}' });
-    expect(button.className).toMatch(/\bh-11\b/);
-    expect(button.className).toMatch(/\bw-11\b/);
-    expect(button.className).not.toMatch(/\bh-10\b|\bw-10\b/);
-    expect(button.innerHTML).not.toMatch(/\[\d+px\]/);
-  });
 });
 
 describe('MessageList — older history', () => {

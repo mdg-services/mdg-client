@@ -125,7 +125,7 @@ function BannerBar({
           type="button"
           onClick={press}
           disabled={send.isPending || waiting}
-          className="min-h-11 shrink-0 rounded-full border border-current px-3 text-meta font-medium disabled:opacity-50"
+          className="min-h-7 shrink-0 rounded-full border border-current px-2.5 text-meta font-medium disabled:opacity-50"
         >
           {send.isPending ? t('billBanner.sending') : waiting ? t('billBanner.sentJustNow') : t('billBanner.sendAgain')}
         </button>
@@ -135,7 +135,7 @@ function BannerBar({
           type="button"
           onClick={onClose}
           aria-label={t('billBanner.hide')}
-          className="-mr-2 grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full active:bg-black/5"
+          className="-mr-2 grid h-8 w-8 shrink-0 place-items-center rounded-full active:bg-black/5"
         >
           <X width={16} strokeWidth={2} aria-hidden />
         </button>

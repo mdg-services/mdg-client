@@ -89,7 +89,7 @@ export function PasswordValue({
             type="button"
             onClick={() => void copy()}
             aria-label={t('logins.copyPasswordFor', { name })}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted active:bg-surface-2"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-text-muted active:bg-surface-2"
           >
             <Copy width={18} strokeWidth={1.75} aria-hidden />
           </button>
@@ -100,7 +100,7 @@ export function PasswordValue({
           disabled={busy}
           aria-label={isShown ? t('logins.hideFor', { name }) : t('logins.showFor', { name })}
           aria-pressed={isShown}
-          className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 text-cta text-brand active:bg-surface-2 disabled:opacity-60"
+          className="flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full px-2.5 text-meta font-medium text-brand active:bg-surface-2 disabled:opacity-60"
         >
           {busy ? (
             <Spinner size={16} />
@@ -113,7 +113,7 @@ export function PasswordValue({
         </button>
       </div>
       {failed ? (
-        <p role="alert" className="mt-1 break-words text-body text-danger">
+        <p role="alert" className="mt-1 text-meta text-danger">
           {t('logins.showFailed')}
         </p>
       ) : null}

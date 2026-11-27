@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 
+
 import { Button, Input } from '@/components/ui';
 import { useAddEmployee } from '@/hooks/api/useEmployees';
 import { useT } from '@/lib/i18n';
@@ -66,12 +67,11 @@ export function AddEmployeeForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="flex flex-col gap-2 rounded-xl border border-border bg-surface-2 p-3"
+      className="flex flex-col gap-2 rounded-2xl border border-border bg-surface-2 p-3"
       noValidate
     >
       <Input
         placeholder={t('staff.form.namePlaceholder')}
-        aria-label={t('staff.workerName')}
         autoFocus
         autoCapitalize="words"
         autoComplete="off"
@@ -80,7 +80,7 @@ export function AddEmployeeForm({
         {...register('name')}
       />
       {errors.name ? (
-        <p className="text-body text-danger">
+        <p className="text-meta text-danger">
           {errors.name.message || t('staff.form.nameRequired')}
         </p>
       ) : null}
@@ -88,13 +88,11 @@ export function AddEmployeeForm({
       <Input
         type="tel"
         inputMode="tel"
-        aria-label={t('staff.workerPhone')}
         placeholder={t('staff.form.phonePlaceholder')}
         {...register('phone')}
       />
 
       <Input
-        aria-label={t('staff.workerDesignation')}
         placeholder={t('staff.form.designationPlaceholder')}
         autoCapitalize="words"
         spellCheck={false}

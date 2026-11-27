@@ -48,19 +48,6 @@ export function firstScreen(): '/login' | '/register' | '/welcome' {
 }
 
 /**
- * Has anybody signed in or registered on this phone? The same mark `firstScreen` reads. A phone
- * that has is past the first-open language question (its owner answered it, or the account did),
- * so Sign in does not ask again; with storage switched off nothing can be remembered, so it is false.
- */
-export function hasAccountHere(): boolean {
-  try {
-    return localStorage.getItem(SIGNED_IN_BEFORE_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Is this the address the website's funnel link opens in the app (ADR 0059 §5)?
  * `/welcome?for=new-pump&from=<page>`, or the same query on `/`. Someone signed out
  * goes straight to the Kavach Shuruaat form whatever this phone remembers (they came

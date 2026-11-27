@@ -22,47 +22,18 @@ import { useLocation, useNavigate } from 'react-router-dom';
  * 0 — and the next ← then walked off the app or did nothing. An overlay's own
  * entry carries no `idx`; only then does the key decide.
  *
- * Every screen a push can open cold has a PARENT (`fallbackParentOf`): a service page falls back
- * to Services, My pump's pages to My pump, a bill to Bill and plan. A page may still name its own
- * fallback; when it names none, the parent table decides, so a new screen needs no thought here.
+ * Pages a notification can open cold fall back to the chat list — the app's
+ * home, where the phone's own Back would also land.
  */
-export function useGoBack(fallback?: string): () => void {
+export function useGoBack(fallback: string): () => void {
   const navigate = useNavigate();
   const location = useLocation();
   const keyedEntry = location.key !== 'default';
-  const target = fallback ?? fallbackParentOf(location.pathname);
   return React.useCallback(() => {
     const state = window.history.state as { idx?: unknown } | null;
     const hasEarlierEntry =
       typeof state?.idx === 'number' ? state.idx > 0 : keyedEntry;
     if (hasEarlierEntry) navigate(-1);
-    else navigate(target, { replace: true });
-  }, [keyedEntry, navigate, target]);
-}
-
-/**
- * Where ← goes from an address when the app was opened straight onto it (spec 2.5, 4.5):
- * the screen above it in the app, written as a table so a test can pin every row.
- *
- *   /services/:id, /services  -> /services, /          (a service page, then the Services door)
- *   /pump/papers, /pump       -> /pump, /              (Papers and licences, then My pump)
- *   /settings, /settings/*    -> /pump                 (was /settings: Settings hangs off My pump)
- *   /staff/:id, /staff        -> /staff, /pump
- *   /payments/:id, /payments  -> /payments, /pump
- *   /chat/:id/info|media      -> /chat/:id, then /chat
- *
- * Anything else goes to Today (`/`), where the phone's own Back would also land.
- */
-export function fallbackParentOf(pathname: string): string {
-  const path = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname;
-  const chat = /^\/chat\/([^/]+)\/(?:info|media)$/.exec(path);
-  if (chat) return `/chat/${chat[1]}`;
-  if (/^\/chat\/[^/]+$/.test(path)) return '/chat';
-  if (/^\/services\/[^/]+$/.test(path)) return '/services';
-  if (/^\/pump\/papers$/.test(path)) return '/pump';
-  if (/^\/staff\/[^/]+$/.test(path)) return '/staff';
-  if (/^\/payments\/[^/]+$/.test(path)) return '/payments';
-  if (path === '/staff' || path === '/payments') return '/pump';
-  if (path === '/settings' || path === '/profile' || path.startsWith('/settings/')) return '/pump';
-  return '/';
+    else navigate(fallback, { replace: true });
+  }, [keyedEntry, navigate, fallback]);
 }

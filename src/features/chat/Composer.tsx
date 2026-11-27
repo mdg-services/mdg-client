@@ -42,7 +42,6 @@ import {
   resolveFileType,
   type OutgoingAttachment,
 } from '@/lib/uploadAttachment';
-import { useLargeText } from '@/lib/useLargeText';
 import {
   useVoiceRecorder,
   type StartFailure,
@@ -360,7 +359,7 @@ function LiveWaveform({
       {Array.from({ length: bars }).map((_, i) => (
         <span
           key={i}
-          className="h-full w-[0.1875rem] origin-center rounded-full bg-current"
+          className="h-full w-[3px] origin-center rounded-full bg-current"
           style={{ transform: 'scaleY(0.1)' }}
         />
       ))}
@@ -402,7 +401,6 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
   // Photos in the full-screen preview; empty = the preview is closed.
   const [preview, setPreview] = React.useState<StagedFile[]>([]);
   const [attachOpen, setAttachOpen] = React.useState(false);
-  const largeText = useLargeText();
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
@@ -1879,10 +1877,8 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
         // attachment strip above. Hindi labels run long and a cheap phone is
         // 360px wide, so wrapping would push the input a whole row down the
         // screen every time the box was empty; a chip half in view is the
-        // affordance that says there is more to the right. A chip is at least
-        // 44px tall and never wider than 85% of the strip: a long Hindi label
-        // wraps inside its own chip, and the next chip always peeks in at large text.
-        <div className="flex items-start gap-2 overflow-x-auto overscroll-contain px-2 pt-2 scrollbar-thin">
+        // affordance that says there is more to the right.
+        <div className="flex gap-2 overflow-x-auto overscroll-contain px-2 pt-2 scrollbar-thin">
           {chips.map((label) => (
             <button
               key={label}
@@ -1893,7 +1889,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
               // beside the box has already turned into Send by the time the
               // keyboard would have finished animating in.
               onClick={() => setText(label)}
-              className="min-h-11 max-w-[85%] shrink-0 whitespace-normal break-words rounded-full border border-wa-divider bg-wa-chip px-4 py-2 text-left text-meta text-wa-bubble-text shadow-sm active:bg-wa-row-active"
+              className="shrink-0 rounded-full border border-wa-divider bg-wa-chip px-3.5 py-1.5 text-meta text-wa-bubble-text shadow-sm active:bg-wa-row-active"
             >
               {label}
             </button>
@@ -1984,12 +1980,12 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
               did not know the mic was on. */}
           <p className="mb-1 flex items-center gap-1.5 px-2 text-meta text-wa-meta" aria-live="polite">
             {micOpen ? <RecordingDot /> : null}
-            <span className="min-w-0 break-words">
+            <span className="truncate">
               {micOpen ? t('chat.recordingLocked') : t('chat.micStarting')}
             </span>
           </p>
         <div className="flex items-end gap-1.5">
-          <div className="flex min-h-12 min-w-0 flex-1 items-center gap-2 rounded-3xl bg-wa-chip pl-1 pr-4 shadow-sm">
+          <div className="flex min-h-[48px] min-w-0 flex-1 items-center gap-2 rounded-3xl bg-wa-chip pl-1 pr-4 shadow-sm">
             <button
               type="button"
               aria-label={t('chat.cancelRecording')}
@@ -2039,14 +2035,14 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 className="m-1.5 mb-0 flex items-center gap-2 rounded-2xl border-l-4 border-wa-accent-strong bg-wa-row-active py-1.5 pl-3 pr-1"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="break-words text-meta font-medium text-wa-accent-strong">
+                  <p className="truncate text-meta font-medium text-wa-accent-strong">
                     {replyingTo.senderLabel}
                   </p>
                   <p className="flex items-center gap-1 text-meta text-wa-meta">
                     {ReplyIcon ? (
                       <ReplyIcon width={13} strokeWidth={1.75} className="shrink-0" />
                     ) : null}
-                    <span className="min-w-0 break-words">{replyingTo.text}</span>
+                    <span className="truncate">{replyingTo.text}</span>
                   </p>
                 </div>
                 <button
@@ -2060,7 +2056,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
               </div>
             ) : null}
 
-            <div className={cn('flex items-end', largeText && 'flex-wrap justify-end')}>
+            <div className="flex items-end">
               <textarea
                 ref={textareaRef}
                 value={text}
@@ -2074,9 +2070,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 rows={1}
                 placeholder={t('composer.message')}
                 className={cn(
-                  'min-h-12 max-h-36 min-w-0 flex-1 resize-none bg-transparent py-3 pl-4 pr-1',
-                  // Large text: the box takes the pill's whole width; the two small buttons wait on the next row.
-                  largeText && 'basis-full',
+                  'min-h-[48px] max-h-[140px] min-w-0 flex-1 resize-none bg-transparent py-3 pl-4 pr-1',
                   'text-body leading-snug text-wa-bubble-text placeholder:text-wa-meta',
                   'focus:outline-none',
                 )}
@@ -2089,7 +2083,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                   forgetPendingAnswer();
                   setAttachOpen(true);
                 }}
-                className="flex min-h-12 min-w-11 shrink-0 items-center justify-center text-wa-bar-icon active:opacity-60 disabled:opacity-40"
+                className="flex h-12 w-11 shrink-0 items-center justify-center text-wa-bar-icon active:opacity-60 disabled:opacity-40"
                 disabled={disabled}
               >
                 <Paperclip width={22} strokeWidth={1.75} />
@@ -2104,7 +2098,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                     forgetPendingAnswer();
                     cameraRef.current?.click();
                   }}
-                  className="flex min-h-12 min-w-11 shrink-0 items-center justify-center pr-1 text-wa-bar-icon active:opacity-60 disabled:opacity-40"
+                  className="flex h-12 w-11 shrink-0 items-center justify-center pr-1 text-wa-bar-icon active:opacity-60 disabled:opacity-40"
                   disabled={disabled}
                 >
                   <Camera width={22} strokeWidth={1.75} />
@@ -2206,7 +2200,7 @@ export const Composer = React.forwardRef<ComposerHandle, ComposerProps>(function
                 )}
               >
                 <ChevronLeft width={16} strokeWidth={2} className="shrink-0" />
-                <span className="min-w-0 break-words text-meta">
+                <span className="truncate text-meta">
                   {cancelArmed ? t('chat.releaseToCancel') : t('chat.slideToCancel')}
                 </span>
               </div>

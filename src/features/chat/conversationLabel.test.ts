@@ -102,9 +102,9 @@ describe('hasUnread', () => {
   });
 
   it('shows no badge when both the array is empty AND unreadByDealer is false', () => {
-    expect(hasUnread(conv({ unreadDealerUserIds: [], unreadByDealer: false }), 'owner')).toBe(
-      false,
-    );
+    expect(
+      hasUnread(conv({ unreadDealerUserIds: [], unreadByDealer: false }), 'owner'),
+    ).toBe(false);
   });
 });
 
@@ -226,13 +226,6 @@ describe('formatListTime', () => {
     const hindi = formatListTime(at(2026, 9, 12), 'hi', t, now);
     expect(hindi).not.toBe('Monday');
     expect(hindi).toMatch(/[\u0900-\u097F]/);
-  });
-
-  it('prints today as a spoken clock in Hindi and Hinglish, never am/pm', () => {
-    // 09:05 on the India clock is 03:35 UTC.
-    const iso = '2026-10-14T03:35:00.000Z';
-    expect(formatListTime(iso, 'hi', t, now)).toBe('सुबह 9:05');
-    expect(formatListTime(iso, 'hl', t, now)).toBe('subah 9:05');
   });
 
   it('says nothing for a missing or broken time', () => {

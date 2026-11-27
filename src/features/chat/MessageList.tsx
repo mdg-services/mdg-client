@@ -16,7 +16,6 @@ import { useLang, useT } from '@/lib/i18n';
 import { QUICK_REACTIONS, type Attachment, type Message, type OutletSetupView } from '@dk/shared/types';
 
 import { askViewOf } from './askView';
-import { chatLook } from './chatLook';
 import { MediaViewer } from './MediaViewer';
 import { MessageBubble, type AskAnswerHow } from './MessageBubble';
 import {
@@ -616,7 +615,7 @@ export function MessageList({
             data-day-chip=""
             className="flex justify-center px-3 pb-1 pt-3"
           >
-            <span className={chatLook.dayChip}>
+            <span className="rounded-lg bg-wa-chip px-3 py-1 text-meta leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
               {label}
             </span>
           </div>,
@@ -925,7 +924,7 @@ export function MessageList({
               floatVisible ? 'opacity-100' : 'opacity-0',
             )}
           >
-            <span className={chatLook.dayChip}>
+            <span className="rounded-lg bg-wa-chip px-3 py-1 text-meta leading-tight text-wa-chip-text shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
               {floatLabel}
             </span>
           </div>
@@ -939,11 +938,11 @@ export function MessageList({
                 : t('chat.scrollToBottom')
             }
             onClick={scrollToBottom}
-            className="absolute bottom-3 right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-wa-chip text-wa-bar-icon shadow-md active:bg-wa-row-active animate-in"
+            className="absolute bottom-3 right-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-wa-chip text-wa-bar-icon shadow-md active:bg-wa-row-active animate-in"
           >
             <ChevronDown width={22} strokeWidth={2} />
             {newWhileAway > 0 ? (
-              <span className="absolute -right-0.5 -top-2 min-h-5 min-w-5 rounded-full bg-wa-badge px-1 text-center text-meta font-semibold leading-5 text-text-inverse">
+              <span className="absolute -right-0.5 -top-2 min-w-[20px] rounded-full bg-wa-badge px-1 text-center text-meta font-semibold leading-[20px] text-text-inverse">
                 {newWhileAway > 99 ? '99+' : newWhileAway}
               </span>
             ) : null}
@@ -954,7 +953,7 @@ export function MessageList({
   }
 
   return (
-    <div className={`relative flex min-h-0 flex-1 flex-col ${chatLook.wallpaper}`}>
+    <div className="relative flex min-h-0 flex-1 flex-col bg-wa-wallpaper">
       <Doodles />
       {body}
       {openPicture && viewerItems.length > 0 ? (

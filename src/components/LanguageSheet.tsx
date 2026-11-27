@@ -2,7 +2,6 @@ import { QueryClientContext } from '@tanstack/react-query';
 import * as React from 'react';
 
 import { LanguageOptions, LanguageSample } from '@/components/LanguageChoice';
-import { Button } from '@/components/ui';
 import { invalidateTodayFeed } from '@/hooks/api/useTodayFeed';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -81,18 +80,22 @@ export function LanguageSheet({ onClose }: { onClose: () => void }) {
         aria-modal="true"
         aria-label={t('profile.language')}
         tabIndex={-1}
-        className="relative mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl border border-border bg-surface px-4 pb-4 shadow-lg outline-none safe-bottom animate-in"
+        className="relative mx-auto flex max-h-[90dvh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-wa-bar px-5 pb-4 shadow-lg outline-none safe-bottom animate-in"
       >
-        <p className="pb-3 pt-5 text-heading text-text">
+        <p className="pb-3 pt-5 text-subheading text-wa-bar-text">
           {t('profile.language')}
         </p>
         <LanguageOptions value={lang} onPick={choose} label={t('profile.language')} />
         <div className="mt-4">
           <LanguageSample lang={lang} />
         </div>
-        <Button size="lg" fullWidth onClick={onClose} className="mt-4">
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-4 flex h-11 w-full items-center justify-center rounded-lg bg-wa-accent px-3 text-cta text-white active:opacity-90"
+        >
           {t('common.done')}
-        </Button>
+        </button>
       </div>
     </div>
   );

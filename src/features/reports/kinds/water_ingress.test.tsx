@@ -2,7 +2,7 @@ import { cleanup, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { DEVANAGARI, renderOverlay, water, waterSlots } from './_supplyTestKit';
-import { keepTogether, view, slotRange } from './water_ingress';
+import { view, slotRange } from './water_ingress';
 
 afterEach(cleanup);
 
@@ -98,7 +98,7 @@ describe('water checks: the day strip', () => {
     const more = screen.getByTestId('water-more');
     const toggle = within(more).getByRole('button');
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(toggle.className).toContain('min-h-12');
+    expect(toggle.className).toContain('min-h-[48px]');
     expect(within(more).getByText('0-2', { exact: true }).closest('[hidden]')).not.toBeNull();
   });
 
@@ -113,29 +113,15 @@ describe('water checks: the day strip', () => {
     expect(screen.getByTestId('report-lead').textContent).not.toMatch(DEVANAGARI);
   });
 
-  it('shows each window once, as a block, with its range kept on one line and one missed word', () => {
-    const { container } = renderOverlay(view, water(), 'hi');
-    expect(container.querySelector('[data-testid="water-segments"]')).toBeNull();
-    const blocks = screen.getAllByTestId('water-slot');
-    expect(blocks).toHaveLength(12);
-    const missed = blocks[3]!;
-    expect(missed).toHaveTextContent('छूट गई');
-    expect(missed.textContent).not.toContain('छूटी');
-    const range = Array.from(missed.querySelectorAll('span')).find((e) => /–/.test(e.textContent ?? ''))!;
-    // no plain space and no break point inside the range, so it cannot split across lines
-    expect(range.textContent).toBe('सुबह\u00a06\u2060–\u20608');
-    expect(keepTogether('10 am–12 pm')).toBe('10\u00a0am\u2060–\u206012\u00a0pm');
-  });
-
   it('draws the blocks in a grid that drops to fewer columns as text grows', () => {
     renderOverlay(view, water());
     const grid = screen.getByRole('list', { name: 'Check windows' });
-    expect(grid.className).toContain('minmax(7rem,1fr)');
+    expect(grid.className).toContain('minmax(4.5rem,1fr)');
   });
 });
 
 describe('water checks: a window written in hours', () => {
-  it('shortens to fit a three-across block', () => {
+  it('shortens to fit a 72 px block', () => {
     expect(slotRange(0, 120, 'en')).toBe('12–2 am');
     expect(slotRange(120, 240, 'hl')).toBe('2–4 am');
     expect(slotRange(600, 720, 'en')).toBe('10 am–12 pm');
@@ -155,8 +141,6 @@ describe('water checks: tile, alert, headline, share', () => {
       sub: 'so far',
       status: 'waiting',
     });
-    // A missed window is "needs a look" even while the day runs: the tag, the list and Today say so too.
-    expect(view.tile(water({ dayState: 'running', recordedSlots: 5, missedSlots: 1, openSlots: 6 }), 'en')?.status).toBe('attention');
     expect(view.tile(water({ totalSlots: 0, slots: [] }), 'en')).toBeNull();
   });
 

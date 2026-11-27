@@ -1,23 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { UserPlus } from 'lucide-react';
 import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
-import { ErrorCard } from '@/components/kit/ErrorCard';
-import { PillGroup } from '@/components/kit/PillGroup';
-import { SkeletonBlock } from '@/components/kit/SkeletonBlock';
-import { Avatar, Button, Card, CardContent, Input, useToast } from '@/components/ui';
-import { teamKey, useTeamUsers } from '@/features/pump/usePumpData';
+import {
+  Avatar,
+  Button,
+  Card,
+  CardContent,
+  Input,
+  Spinner,
+  useToast,
+} from '@/components/ui';
 import { toMobile } from '@/features/register/enroll';
 import { ApiError, api } from '@/lib/api';
-import { fmtDay } from '@/lib/fmt';
-import { useLang, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import { useAuthStore } from '@/store/auth';
 import type { User } from '@dk/shared/types';
 
-import { MemberStatus, RoleBadge } from './RoleBadge';
+import { RoleBadge, StatusDot } from './RoleBadge';
 
 type InviteValues = { name: string; mobile: string; email: string; password: string };
 /** Who the invite is for: a manager (a pump may have several), or a partner who is another owner. */
@@ -27,18 +30,29 @@ type InviteRole = 'dealer-staff' | 'dealer-owner';
 export function TeamSection() {
   const toast = useToast();
   const t = useT();
-  const lang = useLang();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const dealerId = user?.dealerId;
   const [inviteOpen, setInviteOpen] = React.useState(false);
   const [inviteRole, setInviteRole] = React.useState<InviteRole>('dealer-staff');
   const partner = inviteRole === 'dealer-owner';
-  const ids = React.useId();
+  const [forbidden, setForbidden] = React.useState(false);
 
-  // One list for this card and for My pump's team line. A 403 or 404 is "not yours to see": `null`.
-  const teamQuery = useTeamUsers(true);
-  const forbidden = teamQuery.data === null;
+  const teamQuery = useQuery<User[]>({
+    queryKey: ['dealer-users', dealerId],
+    enabled: !!dealerId,
+    queryFn: async () => {
+      try {
+        return await api.get<User[]>(`/v1/dealers/${dealerId}/users`);
+      } catch (err) {
+        if (err instanceof ApiError && (err.status === 403 || err.status === 404)) {
+          setForbidden(true);
+          return [];
+        }
+        throw err;
+      }
+    },
+  });
 
   const toggle = useMutation({
     mutationFn: (target: User) =>
@@ -46,7 +60,7 @@ export function TeamSection() {
         status: target.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE',
       }),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: teamKey(dealerId) });
+      void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
       toast.success(t('common.done'));
     },
     onError: () => {
@@ -92,7 +106,7 @@ export function TeamSection() {
       toast.success(t(partner ? 'profile.partnerAdded' : 'profile.teammateAdded'));
       reset();
       setInviteOpen(false);
-      void qc.invalidateQueries({ queryKey: teamKey(dealerId) });
+      void qc.invalidateQueries({ queryKey: ['dealer-users', dealerId] });
     },
     onError: (err) => {
       // The refusals an owner can act on get their own words; anything else
@@ -113,22 +127,15 @@ export function TeamSection() {
 
   if (forbidden) return null;
 
-  const fieldError = (id: string, message: string | undefined) =>
-    message ? (
-      <p id={`${id}-note`} role="alert" className="break-words text-body text-danger">
-        {message}
-      </p>
-    ) : null;
-
   return (
     <Card>
       <CardContent>
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <h2 className="min-w-0 break-words text-heading text-text">{t('profile.team')}</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-subheading text-text">{t('profile.team')}</p>
           <Button
+            size="sm"
             variant="secondary"
-            leftIcon={<UserPlus aria-hidden className="h-5 w-5" strokeWidth={1.75} />}
-            aria-expanded={inviteOpen}
+            leftIcon={<UserPlus width={14} strokeWidth={1.75} />}
             onClick={() => setInviteOpen((v) => !v)}
           >
             {t('profile.invite')}
@@ -138,148 +145,160 @@ export function TeamSection() {
         {inviteOpen ? (
           <form
             onSubmit={handleSubmit((v) => invite.mutate(v))}
-            className="mb-4 flex flex-col gap-3 rounded-xl border border-border bg-surface-2 p-3"
+            className="mb-4 flex flex-col gap-2 rounded-xl border border-border bg-surface-2 p-3"
             noValidate
           >
-            <PillGroup
-              label={t('profile.invite')}
-              value={inviteRole}
-              onChange={setInviteRole}
-              options={[
-                { id: 'dealer-staff', label: t('profile.inviteManager') },
-                { id: 'dealer-owner', label: t('profile.invitePartner') },
-              ]}
+            <div role="radiogroup" className="grid grid-cols-2 gap-1 rounded-lg bg-surface p-1">
+              {(['dealer-staff', 'dealer-owner'] as const).map((role) => (
+                <button
+                  key={role}
+                  type="button"
+                  role="radio"
+                  aria-checked={inviteRole === role}
+                  onClick={() => setInviteRole(role)}
+                  className={
+                    inviteRole === role
+                      ? 'rounded-md bg-brand px-2 py-1.5 text-meta font-semibold text-white'
+                      : 'rounded-md px-2 py-1.5 text-meta font-medium text-text-muted active:bg-surface-2'
+                  }
+                >
+                  {t(role === 'dealer-owner' ? 'profile.invitePartner' : 'profile.inviteManager')}
+                </button>
+              ))}
+            </div>
+            <Input
+              placeholder={t('profile.fullName')}
+              autoCapitalize="words"
+              autoComplete="off"
+              spellCheck={false}
+              invalid={!!errors.name}
+              {...register('name')}
             />
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-name`} className="text-subheading text-text">
-                {t('profile.fullName')}
-              </label>
-              <Input
-                id={`${ids}-name`}
-                autoCapitalize="words"
-                autoComplete="off"
-                spellCheck={false}
-                invalid={!!errors.name}
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? `${ids}-name-note` : undefined}
-                {...register('name')}
-              />
-              {fieldError(`${ids}-name`, errors.name?.message)}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-mobile`} className="text-subheading text-text">
-                {t(partner ? 'profile.partnerMobile' : 'profile.managerMobile')}
-              </label>
-              <Input
-                id={`${ids}-mobile`}
-                type="tel"
-                inputMode="numeric"
-                autoComplete="off"
-                invalid={!!errors.mobile}
-                aria-invalid={!!errors.mobile}
-                aria-describedby={errors.mobile ? `${ids}-mobile-note` : undefined}
-                {...register('mobile')}
-              />
-              {fieldError(`${ids}-mobile`, errors.mobile?.message)}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-email`} className="text-subheading text-text">
-                {t('profile.emailOptional')}
-              </label>
-              <Input
-                id={`${ids}-email`}
-                type="email"
-                inputMode="email"
-                autoCapitalize="none"
-                autoCorrect="off"
-                autoComplete="off"
-                spellCheck={false}
-                invalid={!!errors.email}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? `${ids}-email-note` : undefined}
-                {...register('email')}
-              />
-              {fieldError(`${ids}-email`, errors.email?.message)}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label htmlFor={`${ids}-password`} className="text-subheading text-text">
-                {t('profile.tempPassword')}
-              </label>
-              <Input
-                id={`${ids}-password`}
-                type="password"
-                // Teammate's temp password: signal a NEW credential so the OS
-                // manager doesn't autofill the owner's own login here.
-                autoComplete="new-password"
-                invalid={!!errors.password}
-                aria-invalid={!!errors.password}
-                aria-describedby={`${ids}-password-note`}
-                {...register('password')}
-              />
-              {errors.password ? (
-                fieldError(`${ids}-password`, errors.password.message)
-              ) : (
-                <p id={`${ids}-password-note`} className="break-words text-meta text-text-muted">
-                  {t(partner ? 'profile.partnerNote' : 'profile.tempPasswordNote')}
-                </p>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" loading={invite.isPending} className="min-w-0 flex-1">
+            {errors.name ? (
+              <p className="text-meta text-danger">{errors.name.message}</p>
+            ) : null}
+            <Input
+              type="tel"
+              placeholder={t(partner ? 'profile.partnerMobile' : 'profile.managerMobile')}
+              inputMode="numeric"
+              autoComplete="off"
+              invalid={!!errors.mobile}
+              {...register('mobile')}
+            />
+            {errors.mobile ? (
+              <p className="text-meta text-danger">{errors.mobile.message}</p>
+            ) : null}
+            <Input
+              type="email"
+              placeholder={t('profile.emailOptional')}
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="off"
+              spellCheck={false}
+              invalid={!!errors.email}
+              {...register('email')}
+            />
+            {errors.email ? (
+              <p className="text-meta text-danger">{errors.email.message}</p>
+            ) : null}
+            <Input
+              type="password"
+              placeholder={t('profile.tempPassword')}
+              // Teammate's temp password — signal a NEW credential so the OS
+              // manager doesn't autofill the owner's own login here.
+              autoComplete="new-password"
+              invalid={!!errors.password}
+              {...register('password')}
+            />
+            {errors.password ? (
+              <p className="text-meta text-danger">{errors.password.message}</p>
+            ) : (
+              <p className="text-meta text-text-subtle">
+                {t(partner ? 'profile.partnerNote' : 'profile.tempPasswordNote')}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <Button
+                type="submit"
+                size="sm"
+                loading={invite.isPending}
+                fullWidth
+              >
                 {t('profile.sendInvite')}
               </Button>
-              <Button type="button" variant="secondary" onClick={() => setInviteOpen(false)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => setInviteOpen(false)}
+              >
                 {t('common.cancel')}
               </Button>
             </div>
           </form>
         ) : null}
 
-        {teamQuery.isPending && teamQuery.fetchStatus !== 'paused' ? (
-          <SkeletonBlock lines={3} />
-        ) : teamQuery.isError || !teamQuery.data ? (
+        {teamQuery.isLoading ? (
+          <div className="flex justify-center py-6">
+            <Spinner size={16} />
+          </div>
+        ) : teamQuery.isError ? (
           // NOT "No teammates yet". That is a confident statement about the
-          // dealer's own staff, and a wrong one when the request simply failed:
+          // dealer's own staff, and a wrong one when the request simply failed —
           // the obvious next move is to invite the manager again, which then
           // fails on a duplicate email.
-          <ErrorCard text={t('common.loadFailed')} onRetry={() => void teamQuery.refetch()} />
-        ) : teamQuery.data.length === 0 ? (
-          <p className="break-words py-4 text-center text-body text-text-muted">{t('profile.noTeammates')}</p>
+          <div className="flex flex-col items-center gap-2 py-4">
+            <p className="text-center text-meta text-text-subtle">
+              {t('common.loadFailed')}
+            </p>
+            <button
+              type="button"
+              onClick={() => void teamQuery.refetch()}
+              className="rounded-full border border-border px-3 py-1 text-meta text-text-muted active:bg-surface-2"
+            >
+              {t('common.retry')}
+            </button>
+          </div>
+        ) : !teamQuery.data || teamQuery.data.length === 0 ? (
+          <p className="py-4 text-center text-meta text-text-subtle">
+            {t('profile.noTeammates')}
+          </p>
         ) : (
           <ul className="flex flex-col divide-y divide-border">
             {teamQuery.data.map((member) => (
-              <li key={member.id} className="flex flex-col gap-2 py-3">
-                <div className="flex items-start gap-3">
-                  <Avatar name={member.name} size={44} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <p className="break-words text-body font-medium text-text">{member.name}</p>
-                    <p className="break-words text-meta text-text-muted">{member.email || member.phone}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <RoleBadge role={member.role} />
-                      <MemberStatus user={member} self={member.id === user?.id} />
-                    </div>
-                    {member.lastLoginAt ? (
-                      <p className="break-words text-meta text-text-muted">
-                        {t('pump.team.lastOpened', { day: fmtDay(member.lastLoginAt, lang) })}
-                      </p>
-                    ) : null}
+              <li
+                key={member.id}
+                className="flex items-center gap-3 py-2.5"
+              >
+                <Avatar name={member.name} size={36} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-meta font-medium text-text">
+                      {member.name}
+                    </p>
+                    <StatusDot status={member.status} />
                   </div>
+                  <p className="truncate text-meta text-text-muted">
+                    {member.email || member.phone}
+                  </p>
                 </div>
-                {/* Only the MANAGER can be paused from here: a co-owner is
-                    MDG's to change, and the server refuses it. */}
-                {member.id !== user?.id && member.role === 'dealer-staff' ? (
-                  <Button
-                    variant="secondary"
-                    onClick={() => toggle.mutate(member)}
-                    disabled={toggle.isPending}
-                    aria-label={t(member.status === 'ACTIVE' ? 'pump.team.suspendName' : 'pump.team.activateName', {
-                      name: member.name,
-                    })}
-                    className="self-start"
-                  >
-                    {member.status === 'ACTIVE' ? t('profile.suspend') : t('profile.activate')}
-                  </Button>
-                ) : null}
+                <div className="flex flex-col items-end gap-1">
+                  <RoleBadge role={member.role} />
+                  {/* Only the MANAGER can be paused from here: a co-owner is
+                      MDG's to change, and the server refuses it. */}
+                  {member.id !== user?.id && member.role === 'dealer-staff' ? (
+                    <button
+                      type="button"
+                      onClick={() => toggle.mutate(member)}
+                      className="text-meta font-medium text-text-muted underline-offset-2 hover:underline"
+                    >
+                      {member.status === 'ACTIVE'
+                        ? t('profile.suspend')
+                        : t('profile.activate')}
+                    </button>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ul>

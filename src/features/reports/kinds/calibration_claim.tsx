@@ -1,6 +1,5 @@
 import type { ReactElement } from 'react';
 
-import { SectionCard } from '@/components/kit';
 import type { Lang } from '@/store/lang';
 import type { CalibrationClaimData } from '@dk/shared/types';
 
@@ -68,7 +67,7 @@ function spokenAmount(n: number, lang: Lang): string {
 /** The torn-off left edge: semicircle notches top and bottom and a dotted perforation between. */
 function Perforation(): ReactElement {
   return (
-    <svg width="22" height="100%" viewBox="0 0 22 120" preserveAspectRatio="none" aria-hidden="true" focusable="false" className="shrink-0 text-kind-claim-ink" style={{ minHeight: '7.5rem' }}>
+    <svg width="22" height="100%" viewBox="0 0 22 120" preserveAspectRatio="none" aria-hidden="true" focusable="false" className="shrink-0 text-kind-claim-ink" style={{ minHeight: 120 }}>
       <line x1="11" y1="14" x2="11" y2="106" stroke="currentColor" strokeWidth="3" strokeDasharray="1 8" strokeLinecap="round" />
     </svg>
   );
@@ -83,15 +82,15 @@ function Stub({ data, lang }: { data: Data; lang: Lang }): ReactElement {
       </div>
       <Perforation />
       <div className="min-w-0 flex-1 py-3 pr-3">
-        <p className="m-0 break-words text-display text-kind-claim-ink" aria-hidden="true">
+        <p className="m-0 text-[40px] font-semibold leading-none text-kind-claim-ink" aria-hidden="true">
           {fmtRs(data.totalAmount, lang)}
         </p>
         <p className="sr-only">{spokenAmount(data.totalAmount, lang)}</p>
         <p className={`mt-2 text-body text-text ${lineHeight(lang)}`}>{nozzleLine(data, lang)}</p>
       </div>
       {/* notches cut into the left edge of the paper, like a torn stub */}
-      <span aria-hidden="true" className="absolute -top-2 left-[4.2rem] h-4 w-4 rounded-full bg-surface" />
-      <span aria-hidden="true" className="absolute -bottom-2 left-[4.2rem] h-4 w-4 rounded-full bg-surface" />
+      <span aria-hidden="true" className="absolute -top-2 left-[67px] h-4 w-4 rounded-full bg-surface" />
+      <span aria-hidden="true" className="absolute -bottom-2 left-[67px] h-4 w-4 rounded-full bg-surface" />
     </div>
   );
 }
@@ -156,13 +155,14 @@ function Overlay({ data, lang }: OverlayProps<'calibration_claim'>): ReactElemen
       <Lead lang={lang}>{lead(data, lang)}</Lead>
       <Stub data={data} lang={lang} />
       {units.length > 0 ? (
-        <SectionCard title={sayWords(t.dispensers, lang)} count={units.length}>
+        <section aria-label={sayWords(t.dispensers, lang)} className="space-y-2">
+          <h3 className={`text-subheading text-kind-claim-ink ${lineHeight(lang)}`}>{sayWords(t.dispensers, lang)}</h3>
           <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 sm:grid-cols-2">
             {units.map((u) => (
               <UnitCard key={u.serial} unit={u} lang={lang} />
             ))}
           </ul>
-        </SectionCard>
+        </section>
       ) : null}
       {data.reference ? (
         <Line lang={lang}>

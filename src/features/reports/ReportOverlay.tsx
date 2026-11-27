@@ -7,7 +7,6 @@ import {
   FileQuestion,
   Lock,
   MessageCircle,
-  MoreHorizontal,
   Repeat2,
   PencilLine,
   RefreshCw,
@@ -18,12 +17,11 @@ import {
 } from 'lucide-react';
 import * as React from 'react';
 
-import { Button, useToast } from '@/components/ui';
+import { useToast } from '@/components/ui';
 import { reloadInto, useOutlets, useSwitchOutlet } from '@/features/outlets/useOutlets';
 import { cn } from '@/lib/cn';
 import { useAttachmentDownload } from '@/lib/downloadAttachment';
 import { useLang, useT, type MessageKey } from '@/lib/i18n';
-import { useLargeText } from '@/lib/useLargeText';
 import { useAuthStore } from '@/store/auth';
 import { dealerCodeLabel, reportDataForViewer, reportDataOf } from '@dk/shared';
 import type { ReportData, ReportDetail, ReportKind, TodayReport } from '@dk/shared/types';
@@ -45,7 +43,7 @@ import {
   type ReportEmptyState,
 } from './reportView';
 import { shareReportText } from './shareReport';
-import { reportVerdict, StatusBadge } from './StatusBadge';
+import { StatusBadge } from './StatusBadge';
 import { sayWords, type OverlayProps, type ReportAction, type ReportStatusKey } from './types';
 import { reportLoadProblem, useReport, type ReportLoadProblem } from './useReport';
 
@@ -55,16 +53,13 @@ import { reportLoadProblem, useReport, type ReportLoadProblem } from './useRepor
  * The SHELL is the same for every kind, so the app feels like one thing and a dealer who taps
  * blindly lands in a place they know:
  *
- *   pinned top      Close (with the word) and the family colour rule along the top edge
+ *   pinned top      Close (with the word), the family colour band, the report's icon and name,
+ *                   the day it is about, the "as of" time, and how it stands (shape + word)
  *   one banner      at most one strip, in this order: removed, newer exists, corrected,
  *                   partly worked out, offline
- *   body            first the report's icon and name with how it stands (shape + word) right
- *                   beside the name, the day it is about and the "as of" time; then the kind's
- *                   own view (`getKindView(kind).Overlay`), or for a message from before
- *                   snapshots the picture, drawn inline (`PictureFallback`)
- *   pinned bottom   at most two buttons (ADR 0060): the one main thing to do, and "More"
- *                   (the rest: the kind's second button, Share, See in chat). With only one
- *                   thing left over it is drawn as the second button itself, not hidden.
+ *   body            the kind's own view (`getKindView(kind).Overlay`), or for a message from
+ *                   before snapshots the picture, drawn inline (`PictureFallback`)
+ *   pinned bottom   Share, and See in chat
  *
  * It reads `GET /v1/me/reports/:messageId` and never the Today feed, so a report Today no
  * longer lists still opens. A row the caller already holds (`placeholder`) is drawn at once.
@@ -104,7 +99,7 @@ const FOCUSABLE =
 /**
  * A dialog's focus rules, without owning a history entry (the route does that): focus moves in
  * on open and back to the opener on close, Escape closes, Tab stays inside. Escape is left to the
- * picture viewer and the "More" list while those are open on top.
+ * picture viewer while that is open on top.
  */
 function useOverlayFocus(onClose: () => void): React.RefObject<HTMLDivElement> {
   const panelRef = React.useRef<HTMLDivElement>(null);
@@ -116,8 +111,7 @@ function useOverlayFocus(onClose: () => void): React.RefObject<HTMLDivElement> {
     panel?.focus();
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        // The picture viewer and the "More" list own Escape while they are open on top.
-        if (panel?.querySelector('[data-no-swipe], [data-more-sheet]')) return;
+        if (panel?.querySelector('[data-no-swipe]')) return;
         e.preventDefault();
         closeRef.current();
         return;
@@ -181,17 +175,17 @@ function Banner({ banner, onOpenNewer }: { banner: OverlayBanner; onOpenNewer: (
       role="status"
       data-testid="report-banner"
       data-banner={banner.kind}
-      className={cn('shrink-0 border-b border-border', look.tone)}
+      className={cn('shrink-0 border-b border-wa-divider', look.tone)}
     >
       <div className="mx-auto flex w-full max-w-md flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 md:max-w-2xl lg:max-w-3xl">
-        <look.Icon strokeWidth={2} className="h-[1.375rem] w-[1.375rem] shrink-0" aria-hidden />
+        <look.Icon width={22} strokeWidth={2} className="shrink-0" aria-hidden />
         <p className="min-w-0 flex-1 basis-48 text-body font-medium leading-normal">{t(look.key)}</p>
         {banner.kind === 'newer' ? (
           <button
             type="button"
             data-testid="report-see-newer"
             onClick={() => onOpenNewer(banner.target)}
-            className="min-h-11 shrink-0 rounded-md px-2 text-cta font-semibold underline underline-offset-4"
+            className="min-h-11 shrink-0 rounded-md px-2 text-cta underline underline-offset-4"
           >
             {t('report.banner.seeNewer')}
           </button>
@@ -245,7 +239,7 @@ function OtherPumpNotice({
       disabled={!choice || switchOutlet.isPending}
       onClick={() => choice && switchOutlet.mutate(choice.userId)}
       className={cn(
-        'inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-cta disabled:opacity-60',
+        'inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-[10px] px-4 text-cta disabled:opacity-60',
         block ? 'bg-brand text-text-inverse' : 'border border-current bg-transparent',
       )}
     >
@@ -268,16 +262,16 @@ function OtherPumpNotice({
         data-state="block"
         className="flex flex-col items-center gap-3 px-6 py-14 text-center"
       >
-        <Repeat2 width={40} strokeWidth={1.5} className="text-text-muted" aria-hidden />
+        <Repeat2 width={40} strokeWidth={1.5} className="text-wa-meta" aria-hidden />
         <h2 className="text-heading text-text">{t('report.otherPump.title')}</h2>
-        <p className="max-w-sm text-body leading-relaxed text-text-muted">{text}</p>
+        <p className="max-w-sm text-body leading-relaxed text-wa-meta">{text}</p>
         <div className="mt-2 flex w-full max-w-xs flex-col gap-2">
           {button}
           {failed}
           <button
             type="button"
             onClick={onClose}
-            className="min-h-12 rounded-md px-4 text-cta text-text underline underline-offset-4 active:bg-surface-2"
+            className="min-h-12 rounded-xl px-4 text-cta text-wa-accent-strong"
           >
             {t('report.close')}
           </button>
@@ -290,7 +284,7 @@ function OtherPumpNotice({
       role="status"
       data-testid="report-other-pump"
       data-state="strip"
-      className="shrink-0 border-b border-border bg-status-waiting-soft text-status-waiting-ink"
+      className="shrink-0 border-b border-wa-divider bg-status-waiting-soft text-status-waiting-ink"
     >
       <div className="mx-auto flex w-full max-w-md flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 md:max-w-2xl lg:max-w-3xl">
         <Repeat2 width={22} strokeWidth={2} className="shrink-0" aria-hidden />
@@ -334,16 +328,16 @@ function EmptyState({
       data-state={state}
       className="flex flex-col items-center gap-3 px-6 py-14 text-center"
     >
-      <look.Icon width={40} strokeWidth={1.5} className="text-text-muted" aria-hidden />
+      <look.Icon width={40} strokeWidth={1.5} className="text-wa-meta" aria-hidden />
       <h2 className="text-heading text-text">{t(look.title)}</h2>
-      <p className="max-w-sm text-body leading-relaxed text-text-muted">{t(look.desc)}</p>
+      <p className="max-w-sm text-body leading-relaxed text-wa-meta">{t(look.desc)}</p>
       <div className="mt-2 flex w-full max-w-xs flex-col gap-2">
         {retryable ? (
           <button
             type="button"
             onClick={onRetry}
             disabled={retrying}
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md bg-brand px-4 text-cta text-text-inverse disabled:opacity-60"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] bg-brand px-4 text-cta text-text-inverse disabled:opacity-60"
           >
             <RefreshCw width={18} strokeWidth={2} aria-hidden />
             {t('report.retry')}
@@ -353,7 +347,7 @@ function EmptyState({
           type="button"
           data-testid="report-go-today"
           onClick={onGoToday}
-          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-border bg-surface px-4 text-cta text-text shadow-sm active:bg-surface-2"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-[10px] border border-border-strong bg-surface px-4 text-cta text-text active:bg-surface-2"
         >
           <CalendarCheck width={18} strokeWidth={2} aria-hidden />
           {t('report.todayPage')}
@@ -361,7 +355,7 @@ function EmptyState({
         <button
           type="button"
           onClick={onClose}
-          className="min-h-12 rounded-md px-4 text-cta text-text underline underline-offset-4 active:bg-surface-2"
+          className="min-h-12 rounded-xl px-4 text-cta text-wa-accent-strong"
         >
           {t('report.close')}
         </button>
@@ -393,9 +387,9 @@ function WordsOnly({ headline }: { headline: string | undefined }) {
   return (
     <div data-testid="report-words-only" className="flex flex-col gap-3 p-4">
       {headline ? (
-        <p className="whitespace-pre-line text-body font-medium leading-relaxed text-text">{headline}</p>
+        <p className="whitespace-pre-line text-body font-medium leading-relaxed text-wa-bubble-text">{headline}</p>
       ) : null}
-      <p className="text-body leading-relaxed text-text-muted">{t('report.fallback.words')}</p>
+      <p className="text-body leading-relaxed text-wa-meta">{t('report.fallback.words')}</p>
     </div>
   );
 }
@@ -406,29 +400,6 @@ function viewerRoleOf(role: string | undefined): 'owner' | 'manager' {
 }
 
 // ── the overlay ──────────────────────────────────────────────────────────────
-
-/**
- * The box every kind's view sits in. Whatever a view draws can never be wider than the phone: its
- * flex and grid children may shrink (`min-w-0`), long words break, pictures and drawings are held
- * to the box. A wide table must scroll inside its own card (the kind view's job): the box clips
- * sideways, so the page itself never pans.
- */
-const KIND_VIEW_FIT =
-  'w-full min-w-0 max-w-full p-4 pb-6 [overflow-wrap:break-word] ' +
-  '[&_img]:max-w-full [&_svg]:max-w-full [&_canvas]:max-w-full [&_video]:max-w-full';
-
-/** One thing the footer can do: a button in the footer or a row of its "More" list. */
-interface FooterItem {
-  id: string;
-  testId: string;
-  label: string;
-  icon?: LucideIcon | undefined;
-  /** Drawn greyed out and does nothing (a locked or used-up kind button). */
-  off?: boolean;
-  /** Working on it: tapping again does nothing. */
-  busy?: boolean;
-  run: () => void;
-}
 
 export function ReportOverlay({
   conversationId,
@@ -510,9 +481,10 @@ export function ReportOverlay({
     if (detail.live.newerMessageId) {
       status = 'info';
       statusWord = t('report.older');
+    } else if (alert) {
+      status = alert.severity;
     } else {
-      // The same order as the Services rows and the Reports list (an aged alarm is information).
-      status = reportVerdict(detail, alert);
+      status = detail.status;
     }
   }
 
@@ -599,7 +571,7 @@ export function ReportOverlay({
       const Overlay = view.Overlay as React.ComponentType<OverlayProps<ReportKind>>;
       return (
         <KindBoundary fallback={<WordsOnly headline={detail.headline} />}>
-          <div data-testid="report-kind-view" className={KIND_VIEW_FIT}>
+          <div className="p-4 pb-6">
             <Overlay data={data as never} report={detail} lang={lang} />
           </div>
         </KindBoundary>
@@ -607,7 +579,7 @@ export function ReportOverlay({
     }
     if (detail.attachments.some((a) => a.kind !== 'audio')) {
       return (
-        <div className={KIND_VIEW_FIT}>
+        <div className="p-4 pb-6">
           <PictureFallback
             attachments={detail.attachments}
             conversationId={detail.conversationId}
@@ -627,87 +599,6 @@ export function ReportOverlay({
   const family = style ? familyVar(style.family) : 'var(--kind-supply)';
   const lockNote = actions.find((a) => a.disabled)?.disabled?.note;
   const when = [pumpCode ? t('report.pump', { code: dealerCodeLabel(pumpCode) }) : '', day, asOf].filter(Boolean);
-  const showStatus = !!detail && !emptyState && (status !== 'info' || !!statusWord);
-  const largeText = useLargeText();
-
-  // The footer's things to do, most useful first: the kind's own buttons, then Share, then the way
-  // out (the chat, or Today's page for a report the team removed). The first is the main button;
-  // the rest sit behind "More" (a single one is drawn as the second button).
-  const items: FooterItem[] = [];
-  if (showActions) {
-    for (const a of actions) {
-      items.push({
-        id: `action-${a.id}`,
-        testId: `report-action-${a.id}`,
-        label: sayWords(a.label, lang),
-        icon: a.icon,
-        off: !!a.disabled || spent.has(a.id),
-        run: () => void runAction(a),
-      });
-    }
-    if (canShare) {
-      items.push({
-        id: 'share',
-        testId: 'report-share',
-        label: sharePicture ? t('report.sharePicture') : t('report.share'),
-        icon: Share2,
-        busy: sharing,
-        run: () => void onShare(),
-      });
-    }
-    items.push(
-      removed
-        ? { id: 'today', testId: 'report-go-today', label: t('report.todayPage'), icon: CalendarCheck, run: onGoToday }
-        : { id: 'chat', testId: 'report-see-in-chat', label: t('report.seeInChat'), icon: MessageCircle, run: () => onSeeInChat(target) },
-    );
-  }
-  const [mainItem, ...restItems] = items;
-  const [moreOpen, setMoreOpen] = React.useState(false);
-  const moreButtonRef = React.useRef<HTMLButtonElement>(null);
-  const firstMoreRef = React.useRef<HTMLButtonElement>(null);
-  const closeMore = React.useCallback(() => {
-    setMoreOpen(false);
-    moreButtonRef.current?.focus();
-  }, []);
-  // The list is closed by Escape (the overlay's own Escape stands aside while it is open) and
-  // takes focus in; the report stays where it was, behind a scrim.
-  React.useEffect(() => {
-    if (!moreOpen) return;
-    firstMoreRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      e.preventDefault();
-      closeMore();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [moreOpen, closeMore]);
-  // If what was behind "More" disappears (the report was removed while it was open), close it.
-  React.useEffect(() => {
-    if (restItems.length < 2 && moreOpen) setMoreOpen(false);
-  }, [restItems.length, moreOpen]);
-
-  const buttonSize = largeText ? 'tap' : 'lg';
-  const footerButton = (item: FooterItem, variant: 'primary' | 'secondary') => {
-    const Icon = item.icon;
-    return (
-      <Button
-        key={item.id}
-        variant={variant}
-        size={buttonSize}
-        data-testid={item.testId}
-        aria-disabled={item.off || running !== null || item.busy ? true : undefined}
-        onClick={() => {
-          if (item.busy) return;
-          item.run();
-        }}
-        className={cn('min-w-36 flex-1 text-center [&>span]:min-w-0 [&>span]:break-words', item.off && 'opacity-50')}
-        leftIcon={Icon ? <Icon strokeWidth={2} className="h-5 w-5 shrink-0" aria-hidden /> : undefined}
-      >
-        {item.label}
-      </Button>
-    );
-  };
 
   return (
     <ReportActionsProvider value={actionCtx}>
@@ -719,23 +610,31 @@ export function ReportOverlay({
         tabIndex={-1}
         data-testid="report-overlay"
         data-kind={kind}
-        className="fixed inset-0 z-40 flex w-full min-w-0 max-w-full flex-col overflow-x-hidden bg-bg outline-none"
+        className="fixed inset-0 z-40 flex flex-col bg-bg outline-none"
       >
         {/* The family is a 3 px rule along the top edge: the report is recognised, the screen stays calm. */}
         <header className="shrink-0 border-b border-border bg-surface text-text" style={{ boxShadow: `inset 0 3px 0 ${family}` }}>
           <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl">
-            {/* Only the Close row stays pinned (the title and its status scroll with the report, so large text never squeezes the body to nothing); the row clears the notch and the status bar. */}
-            <div data-testid="report-header-row" className="safe-top flex min-w-0 items-center pb-1 pr-3">
+            {/* Only the Close row and the badge stay pinned (the title scrolls with the report, so large text never squeezes the body to nothing); the row clears the notch and the status bar. */}
+            <div
+              data-testid="report-header-row"
+              className="safe-top flex flex-wrap items-center justify-between gap-x-2 gap-y-1 pb-1 pr-3"
+            >
               <button
                 type="button"
                 data-testid="report-close"
                 onClick={onClose}
                 aria-label={t('report.closeLabel')}
-                className="flex min-h-12 min-w-12 max-w-full items-center gap-1.5 rounded-md pl-3 pr-4 text-body font-medium text-text active:bg-surface-2"
+                className="flex min-h-14 min-w-14 items-center gap-1.5 pl-3 pr-4 text-body font-medium text-text active:bg-surface-2"
               >
-                <X strokeWidth={2.25} className="h-6 w-6 shrink-0" aria-hidden />
+                <X width={24} strokeWidth={2.25} aria-hidden />
                 {t('report.close')}
               </button>
+              {detail && !emptyState && (status !== 'info' || statusWord) ? (
+                <span data-testid="report-status">
+                  <StatusBadge status={status} lang={lang} {...(statusWord ? { word: statusWord } : {})} />
+                </span>
+              ) : null}
             </div>
           </div>
         </header>
@@ -745,36 +644,24 @@ export function ReportOverlay({
         ) : null}
         {banner ? <Banner banner={banner} onOpenNewer={onOpenNewer} /> : null}
 
-        <div data-testid="report-body" className="min-h-0 w-full min-w-0 max-w-full flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+        <div data-testid="report-body" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div data-testid="report-title-band" className="border-b border-border bg-surface text-text">
-            <div className="mx-auto w-full min-w-0 max-w-md md:max-w-2xl lg:max-w-3xl">
-              {/* At large text the icon sits above the name, so the text gets the whole width and the left and right margins match. */}
-              <div
-                data-testid="report-title-row"
-                className={cn('flex min-w-0 gap-3.5 px-4 pb-4 pt-3', largeText ? 'flex-col items-start' : 'items-start')}
-              >
+            <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl">
+              <div className="flex items-start gap-3.5 px-4 pb-4 pt-3">
                 {style ? (
                   <span
-                    className="grid h-11 w-11 shrink-0 place-items-center rounded-lg"
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-[10px]"
                     style={{ backgroundColor: familyVar(style.family, 'soft'), color: familyVar(style.family, 'ink') }}
                   >
-                    <style.Icon strokeWidth={1.75} className="h-[1.375rem] w-[1.375rem]" aria-hidden />
+                    <style.Icon width={22} strokeWidth={1.75} aria-hidden />
                   </span>
                 ) : null}
-                <div className="min-w-0 max-w-full flex-1">
-                  {/* How it stands sits right beside the name; at large text it wraps under it. */}
-                  <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-                    <h1 id={titleId} className="min-w-0 max-w-full break-words text-title">
-                      {name}
-                    </h1>
-                    {showStatus ? (
-                      <span data-testid="report-status" className="min-w-0 max-w-full">
-                        <StatusBadge status={status} lang={lang} {...(statusWord ? { word: statusWord } : {})} />
-                      </span>
-                    ) : null}
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <h1 id={titleId} className="break-words text-title">
+                    {name}
+                  </h1>
                   {when.length > 0 ? (
-                    <p data-testid="report-when" className="mt-1 break-words text-body leading-normal text-text-muted">
+                    <p data-testid="report-when" className="mt-0.5 break-words text-body leading-normal text-text-muted">
                       {when.join(' · ')}
                     </p>
                   ) : null}
@@ -782,90 +669,85 @@ export function ReportOverlay({
               </div>
             </div>
           </div>
-          <div className="mx-auto w-full min-w-0 max-w-md md:max-w-2xl lg:max-w-3xl">{body}</div>
+          <div className="mx-auto w-full max-w-md md:max-w-2xl lg:max-w-3xl">{body}</div>
         </div>
 
-        {showActions && mainItem ? (
+        {showActions ? (
           <footer
             data-testid="report-footer"
-            className="safe-bottom max-h-[40vh] shrink-0 overflow-y-auto border-t border-border bg-surface"
+            className="safe-bottom max-h-[30vh] shrink-0 overflow-y-auto border-t border-border bg-surface"
           >
             <div className="mx-auto flex w-full max-w-md flex-col gap-2 p-3 md:max-w-2xl lg:max-w-3xl">
+              {actions.length > 0 ? (
+                <div className="flex flex-wrap gap-2" data-testid="report-actions">
+                  {actions.map((a) => {
+                    const off = !!a.disabled || spent.has(a.id);
+                    const Icon = a.icon;
+                    return (
+                      <button
+                        key={a.id}
+                        type="button"
+                        data-testid={`report-action-${a.id}`}
+                        aria-disabled={off || running !== null ? true : undefined}
+                        onClick={() => void runAction(a)}
+                        className={cn(
+                          'inline-flex min-h-12 min-w-36 flex-1 items-center justify-center gap-2 rounded-[10px] bg-brand px-3 text-center text-cta text-text-inverse transition-colors duration-150 active:bg-brand-hover',
+                          off && 'opacity-50',
+                        )}
+                      >
+                        {Icon ? <Icon width={20} strokeWidth={2} className="shrink-0" aria-hidden /> : null}
+                        <span className="min-w-0 break-words">{sayWords(a.label, lang)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               {lockNote ? (
-                <p role="status" data-testid="report-action-note" className="text-body leading-normal text-text-muted">
+                <p role="status" data-testid="report-action-note" className="text-body leading-normal text-wa-meta">
                   {lockNote}
                 </p>
               ) : null}
-              <div className="flex flex-wrap gap-2" data-testid="report-actions">
-                {footerButton(mainItem, 'primary')}
-                {restItems.length === 1 && restItems[0] ? footerButton(restItems[0], 'secondary') : null}
-                {restItems.length > 1 ? (
-                  <Button
-                    ref={moreButtonRef}
-                    variant="secondary"
-                    size={buttonSize}
-                    data-testid="report-more"
-                    aria-haspopup="true"
-                    aria-expanded={moreOpen}
-                    aria-label={t('rv1.more.label', { items: restItems.map((i) => i.label).join(', ') })}
-                    onClick={() => setMoreOpen((open) => !open)}
-                    className="min-w-36 flex-1 text-center [&>span]:min-w-0 [&>span]:break-words"
-                    leftIcon={<MoreHorizontal strokeWidth={2} className="h-5 w-5 shrink-0" aria-hidden />}
+              <div className="flex flex-wrap gap-2">
+                {canShare ? (
+                  <button
+                    type="button"
+                    data-testid="report-share"
+                    onClick={() => void onShare()}
+                    disabled={sharing}
+                    className="inline-flex min-h-12 min-w-36 flex-1 items-center justify-center gap-2 rounded-[10px] border border-border-strong bg-surface px-3 text-cta text-text transition-colors duration-150 active:bg-surface-2 disabled:opacity-60"
                   >
-                    {t('rv1.more')}
-                  </Button>
+                    <Share2 width={20} strokeWidth={2} className="shrink-0" aria-hidden />
+                    {sharePicture ? t('report.sharePicture') : t('report.share')}
+                  </button>
                 ) : null}
+                {removed ? (
+                  <button
+                    type="button"
+                    data-testid="report-go-today"
+                    onClick={onGoToday}
+                    className="inline-flex min-h-12 min-w-36 flex-1 items-center justify-center gap-2 rounded-[10px] bg-brand px-3 text-cta text-text-inverse active:bg-brand-hover"
+                  >
+                    {t('report.todayPage')}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    data-testid="report-see-in-chat"
+                    onClick={() => onSeeInChat(target)}
+                    className={cn(
+                      'inline-flex min-h-12 min-w-36 flex-1 items-center justify-center gap-2 rounded-[10px] px-3 text-cta transition-colors duration-150',
+                      actions.length > 0
+                        ? 'border border-border-strong bg-surface text-text active:bg-surface-2'
+                        : 'bg-brand text-text-inverse active:bg-brand-hover',
+                    )}
+                  >
+                    <MessageCircle width={20} strokeWidth={2} className="shrink-0" aria-hidden />
+                    {t('report.seeInChat')}
+                  </button>
+                )}
               </div>
             </div>
           </footer>
-        ) : null}
-
-        {moreOpen && restItems.length > 1 ? (
-          <div data-more-sheet className="absolute inset-0 z-10 flex flex-col justify-end">
-            <div aria-hidden className="absolute inset-0 bg-black/40" data-testid="report-more-scrim" onClick={closeMore} />
-            <div
-              role="group"
-              aria-label={t('rv1.more.sheet')}
-              data-testid="report-more-sheet"
-              className="safe-bottom relative mx-auto flex max-h-[80vh] w-full max-w-md flex-col gap-1 overflow-y-auto rounded-t-xl border border-b-0 border-border bg-surface p-3 shadow-lg md:max-w-2xl lg:max-w-3xl"
-            >
-              {restItems.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    key={item.id}
-                    ref={index === 0 ? firstMoreRef : undefined}
-                    variant="ghost"
-                    size={buttonSize}
-                    data-testid={item.testId}
-                    aria-disabled={item.off || running !== null || item.busy ? true : undefined}
-                    onClick={() => {
-                      if (item.busy) return;
-                      closeMore();
-                      item.run();
-                    }}
-                    className={cn(
-                      'w-full justify-start text-left [&>span]:min-w-0 [&>span]:break-words',
-                      item.off && 'opacity-50',
-                    )}
-                    leftIcon={Icon ? <Icon strokeWidth={2} className="h-[1.375rem] w-[1.375rem] shrink-0" aria-hidden /> : undefined}
-                  >
-                    {item.label}
-                  </Button>
-                );
-              })}
-              <Button
-                variant="secondary"
-                size={buttonSize}
-                data-testid="report-more-close"
-                onClick={closeMore}
-                className="mt-1 w-full"
-                aria-label={t('rv1.more.close')}
-              >
-                {t('kit.close')}
-              </Button>
-            </div>
-          </div>
         ) : null}
       </div>
     </ReportActionsProvider>

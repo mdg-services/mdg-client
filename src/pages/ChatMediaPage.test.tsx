@@ -3,7 +3,6 @@ import * as React from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type * as ApiModule from '@/lib/api';
 import { useLangStore } from '@/store/lang';
 import { renderWithProviders, signIn } from '@/test/utils';
 import type { ConversationMediaItem } from '@dk/shared/types';
@@ -15,13 +14,7 @@ import { ChatMediaPage } from './ChatMediaPage';
 afterEach(() => cleanup());
 
 const api = vi.hoisted(() => ({ get: vi.fn() }));
-// Everything else in the module (the socket reads `getApiBaseUrl`) stays real; only `api` is ours.
-vi.mock('@/lib/api', async (orig) => ({ ...(await orig<typeof ApiModule>()), api }));
-
-// The lead card reads the Today feed. A stand-in, so it does not take one of the gallery pages that
-// `api.get` is queued with.
-const feed = vi.hoisted(() => ({ data: undefined as unknown }));
-vi.mock('@/hooks/api/useTodayFeed', () => ({ useTodayFeed: () => ({ data: feed.data }) }));
+vi.mock('@/lib/api', () => ({ api }));
 
 // The thread's own list (who is on the dealer's side): a stand-in, so it does not
 // take one of the gallery pages that `api.get` is queued with.
@@ -141,36 +134,27 @@ describe('ChatMediaPage', () => {
     expect(img).toHaveAttribute('loading', 'lazy');
   });
 
-  it('is headed "Photos, papers and links" (not "Media, links and docs"), with a back arrow and a three-way switch', async () => {
+  it('is a white bar with ← and "Media, links and docs", and three underlined tabs', async () => {
     mockByTab();
     renderPage();
     await screen.findByAltText('pic0.jpg');
-    expect(screen.getByRole('heading', { level: 1, name: 'Photos, papers and links' })).toBeInTheDocument();
-    expect(screen.queryByText(/Media, links and docs/)).toBeNull();
-    expect(screen.getByRole('button', { name: 'Back to chat' })).toBeInTheDocument();
+    expect(screen.getByText('Media, links and docs')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
 
-    const switcher = screen.getByRole('radiogroup', { name: 'Show' });
-    const choices = within(switcher).getAllByRole('radio');
-    expect(choices.map((c) => c.textContent)).toEqual(['Photos', 'Papers', 'Links']);
-    expect(screen.getByRole('radio', { name: 'Photos' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Papers' })).toHaveAttribute('aria-checked', 'false');
-    // Each choice is at least 44px tall.
-    expect(screen.getByRole('radio', { name: 'Links' }).className).toContain('min-h-11');
-  });
-
-  it('draws no truncate, line-clamp or fixed pixel box', async () => {
-    mockByTab();
-    const { container } = renderPage();
-    await screen.findByAltText('pic0.jpg');
-    expect(container.innerHTML).not.toMatch(/truncate|line-clamp/);
-    expect(container.innerHTML).not.toMatch(/\b(min-)?[hw]-\[\d+px\]/);
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Media', 'Docs', 'Links']);
+    expect(screen.getByRole('tab', { name: 'Media' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Docs' })).toHaveAttribute('aria-selected', 'false');
+    // The chosen one carries the accent underline.
+    expect(screen.getByRole('tab', { name: 'Media' })).toHaveClass('border-wa-accent-strong');
+    expect(screen.getByRole('tab', { name: 'Docs' })).toHaveClass('border-transparent');
   });
 
   it('← goes back to the chat when the page was opened cold', async () => {
     mockByTab();
     renderPage();
     await screen.findByAltText('pic0.jpg');
-    fireEvent.click(screen.getByRole('button', { name: 'Back to chat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
     expect(await screen.findByTestId('chat-stub')).toHaveTextContent('chat /chat/c1');
   });
 
@@ -179,7 +163,7 @@ describe('ChatMediaPage', () => {
     renderPage();
     await screen.findByAltText('pic0.jpg');
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Papers' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Docs' }));
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith(
         '/v1/conversations/c1/media',
@@ -188,7 +172,7 @@ describe('ChatMediaPage', () => {
     );
     expect(await screen.findByText('report.pdf')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Links' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Links' }));
     await waitFor(() =>
       expect(api.get).toHaveBeenCalledWith(
         '/v1/conversations/c1/media',
@@ -210,7 +194,7 @@ describe('ChatMediaPage', () => {
   it('a FAILED load is a retry, never "No photos yet"', async () => {
     api.get.mockRejectedValue(new Error('offline'));
     renderPage();
-    expect(await screen.findByRole('alert')).toHaveTextContent(/We could not load this/);
+    expect(await screen.findByText("Couldn't load the photos")).toBeInTheDocument();
     expect(screen.queryByText('No photos yet')).toBeNull();
 
     api.get.mockResolvedValue([mediaItem]);
@@ -237,13 +221,11 @@ describe('ChatMediaPage — month shelves', () => {
     renderPage();
     await screen.findByAltText('pic1.jpg');
 
-    // The month shelves are the headings inside the gallery (the page's own cards have headings too).
-    const gallery = within(screen.getByRole('group', { name: 'Photos in this chat' }));
-    const headings = gallery.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
     expect(headings).toEqual(['This month', 'March 2024', 'December 2023']);
 
     // Each picture sits under its own month.
-    const [thisMonth, march, december] = gallery
+    const [thisMonth, march, december] = screen
       .getAllByRole('heading', { level: 2 })
       .map((h) => h.parentElement!);
     expect(within(thisMonth!).getAllByRole('img')).toHaveLength(2);
@@ -256,9 +238,8 @@ describe('ChatMediaPage — month shelves', () => {
     api.get.mockResolvedValue([picture(1, { createdAt: new Date(2024, 2, 9, 10).toISOString() })]);
     renderPage();
     await screen.findByAltText('pic1.jpg');
-    const shelf = within(screen.getByRole('group', { name: 'इस चैट की फोटो' })).getByRole('heading', { level: 2 });
-    expect(shelf.textContent).toMatch(/2024/);
-    expect(shelf.textContent).not.toMatch(/March/);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).toMatch(/2024/);
+    expect(screen.getByRole('heading', { level: 2 }).textContent).not.toMatch(/March/);
   });
 });
 
@@ -288,7 +269,7 @@ describe('ChatMediaPage — docs', () => {
       doc('notes.txt', 'text/plain'),
     ]);
     renderPage();
-    fireEvent.click(await screen.findByRole('radio', { name: 'Papers' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Docs' }));
     await screen.findByText('rates.pdf');
 
     const badge = (label: string) => screen.getByText(label);
@@ -303,7 +284,7 @@ describe('ChatMediaPage — docs', () => {
   it('tapping a PDF opens it in the app, through a link signed now', async () => {
     mockByTab();
     renderPage();
-    fireEvent.click(await screen.findByRole('radio', { name: 'Papers' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Docs' }));
     const row = (await screen.findByText('report.pdf')).closest('button')!;
     api.get.mockResolvedValue({ url: 'https://s3.test/view' });
     pdf.bytes.mockResolvedValue(new ArrayBuffer(8));
@@ -341,7 +322,7 @@ describe('ChatMediaPage — docs', () => {
       return Promise.resolve([]);
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('radio', { name: 'Papers' }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Docs' }));
     const row = (await screen.findByText('sales.xlsx')).closest('button')!;
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     fireEvent.click(row);
@@ -626,89 +607,5 @@ describe('ChatMediaPage — the viewer', () => {
     renderPage();
     await screen.findByAltText('pic8.jpg');
     expect(screen.queryByAltText('pic7.jpg')).toBeNull();
-  });
-});
-
-describe('ChatMediaPage — it leads with the latest reports', () => {
-  beforeEach(() => {
-    useLangStore.setState({ lang: 'en', explicit: false });
-    api.get.mockReset();
-    feed.data = undefined;
-  });
-  afterEach(() => {
-    feed.data = undefined;
-  });
-
-  const report = (id: string, conversationId: string, sentAt: string, headline: string) => ({
-    id,
-    kind: 'dsr_sales',
-    status: 'ok',
-    sentAt,
-    headline,
-    attachments: [],
-    conversationId,
-    messageId: `msg-${id}`,
-  });
-
-  function renderWithReportRoute() {
-    function ReportStub() {
-      const location = useLocation();
-      return <div data-testid="report-stub">{location.pathname}</div>;
-    }
-    return renderWithProviders(
-      <Routes>
-        <Route path="/chat/:id/media" element={<ChatMediaPage />} />
-        <Route path="/report/:conversationId/:messageId" element={<ReportStub />} />
-        <Route path="/reports" element={<div>REPORTS PAGE</div>} />
-      </Routes>,
-      { route: '/chat/c1/media' },
-    );
-  }
-
-  it('lists the newest reports of THIS chat (three at most) and opens one', async () => {
-    mockByTab();
-    feed.data = {
-      tasks: [],
-      reports: [
-        report('a', 'c1', new Date(2026, 9, 10, 9).toISOString(), 'Sales for 9 October'),
-        report('b', 'c1', new Date(2026, 9, 12, 9).toISOString(), 'Sales for 11 October'),
-        report('c', 'other', new Date(2026, 9, 13, 9).toISOString(), 'Not this chat'),
-        report('d', 'c1', new Date(2026, 9, 11, 9).toISOString(), 'Sales for 10 October'),
-        report('e', 'c1', new Date(2026, 9, 9, 9).toISOString(), 'Sales for 8 October'),
-      ],
-      done: [],
-    };
-    renderWithReportRoute();
-    await screen.findByAltText('pic0.jpg');
-    const card = within(screen.getByRole('region', { name: 'Latest reports' }));
-    const rows = card.getAllByRole('button').filter((b) => /Sales for/.test(b.textContent ?? ''));
-    expect(rows.map((r) => (r.textContent ?? '').match(/Sales for \d+ October/)![0])).toEqual([
-      'Sales for 11 October',
-      'Sales for 10 October',
-      'Sales for 9 October',
-    ]);
-    expect(card.queryByText(/Not this chat/)).toBeNull();
-
-    fireEvent.click(rows[0]!);
-    expect(await screen.findByTestId('report-stub')).toHaveTextContent('/report/c1/msg-b');
-  });
-
-  it('points at Reports when the feed has no report for this chat (or has not answered)', async () => {
-    mockByTab();
-    feed.data = undefined;
-    renderWithReportRoute();
-    await screen.findByAltText('pic0.jpg');
-    const card = within(screen.getByRole('region', { name: 'Latest reports' }));
-    expect(card.getByText(/Reports keeps the last 30 days/)).toBeInTheDocument();
-    fireEvent.click(card.getByRole('button', { name: 'Open Reports' }));
-    expect(await screen.findByText('REPORTS PAGE')).toBeInTheDocument();
-  });
-
-  it('has a "See all" that opens Reports', async () => {
-    mockByTab();
-    renderWithReportRoute();
-    await screen.findByAltText('pic0.jpg');
-    fireEvent.click(within(screen.getByRole('region', { name: 'Latest reports' })).getByRole('button', { name: 'See all' }));
-    expect(await screen.findByText('REPORTS PAGE')).toBeInTheDocument();
   });
 });

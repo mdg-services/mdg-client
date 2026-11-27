@@ -1,5 +1,3 @@
-import { translate, type MessageKey, type TVars } from '@/lib/i18n';
-import { tnIn, type PluralBase } from '@/lib/messages/_plural';
 import type { Lang } from '@/store/lang';
 
 import { sayWords, type Words } from '../types';
@@ -15,19 +13,6 @@ import { sayWords, type Words } from '../types';
  */
 
 export const say = sayWords;
-
-/**
- * A sentence of the redesign, from the area file `lib/messages/reportViews3.ts` (keys `rv3.`), in the
- * view's own `lang` (the overlay is handed the language, so a test can render any of the three).
- */
-export function rv(lang: Lang, key: MessageKey, vars?: TVars): string {
-  return translate(lang, key, vars);
-}
-
-/** The counted sentence of the redesign: `<base>.one` for 1, `<base>.many` for the rest. */
-export function rvn(lang: Lang, base: PluralBase, n: number, vars?: TVars): string {
-  return tnIn(lang, base, n, vars);
-}
 
 /** A sentence with `{name}` holes filled from `vars` (a hole with no value becomes empty). */
 export function fill(w: Words, lang: Lang, vars: Record<string, string>): string {

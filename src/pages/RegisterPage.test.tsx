@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { firstScreen } from '@/features/auth/firstScreen';
 import { TERMS_EN, TERMS_HI } from '@/features/register/terms';
-import { HELPLINE } from '@/lib/helpline';
 import { useAuthStore } from '@/store/auth';
 import { useLangStore } from '@/store/lang';
 import { makeUser, renderWithProviders, resetStores } from '@/test/utils';
@@ -42,37 +41,15 @@ function jsonResponse(status: number, body: unknown) {
 
 const PASSWORD = 'Sai-pump-2026';
 
-type User = ReturnType<typeof userEvent.setup>;
-
-/** The step line's words: "1 of 3: you" and so on. */
-const stepLine = () => screen.getByTestId('register-step');
-
-async function fillStep1(user: User) {
+async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Your name'), '  Ramesh Kumar ');
   await user.type(screen.getByLabelText('Your mobile'), '98765 43210');
+  await user.type(screen.getByLabelText('Choose a password'), PASSWORD);
+  await user.type(screen.getByLabelText('Password again'), PASSWORD);
   await user.type(screen.getByLabelText(/Your email/), 'ramesh@example.com');
-  await user.click(screen.getByRole('button', { name: 'Next' }));
-}
-
-/** Step 1's boxes only, with no tap on Next. */
-async function fillStep1Fields(user: User) {
-  await user.type(screen.getByLabelText('Your name'), 'Ramesh Kumar');
-  await user.type(screen.getByLabelText('Your mobile'), '9876543210');
-}
-
-async function fillStep2(user: User) {
   await user.click(screen.getByLabelText('Type B'));
   await user.type(screen.getByLabelText(/Pump name/), 'Sai Petroleums');
   await user.type(screen.getByLabelText('SAP code'), '41001234');
-  await user.click(screen.getByRole('button', { name: 'Next' }));
-}
-
-/** All three steps: leaves the form on step 3 with the password in and the terms NOT yet ticked. */
-async function fillValidForm(user: User) {
-  await fillStep1(user);
-  await fillStep2(user);
-  await user.type(screen.getByLabelText('Choose a password'), PASSWORD);
-  await user.type(screen.getByLabelText('Password again'), PASSWORD);
 }
 
 describe('RegisterPage', () => {
@@ -107,7 +84,7 @@ describe('RegisterPage', () => {
     renderAt('/register');
     await user.type(screen.getByLabelText('Your name'), 'Ramesh');
 
-    await user.click(screen.getByRole('button', { name: /^Language: / }));
+    await user.click(screen.getByRole('button', { name: 'Language' }));
     await user.click(screen.getByRole('radio', { name: 'हिंदी' }));
 
     expect(await screen.findByRole('heading', { name: 'अपना पंप रजिस्टर करें' })).toBeInTheDocument();
@@ -123,51 +100,34 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Register your pump' }));
 
     expect(await screen.findByRole('heading', { name: 'Register your pump' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Your name')).toBeInTheDocument();
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
+    expect(screen.getByLabelText('SAP code')).toBeInTheDocument();
   });
 
   it('sends nothing until the required details and the terms are in', async () => {
     const user = userEvent.setup();
     renderAt('/register');
 
-    // Step 1: each step is checked before the next opens, so the errors are next to the button.
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+
     expect(await screen.findByText('Enter your name')).toBeInTheDocument();
     expect(
       screen.getByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
     ).toBeInTheDocument();
-    // Email is optional, as on the website; and still on step 1.
-    expect(screen.queryByText('Enter a valid email')).not.toBeInTheDocument();
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
-
-    await fillStep1Fields(user);
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(stepLine()).toHaveTextContent('2 of 3: your pump');
-
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Choose Type A or Type B')).toBeInTheDocument();
+    expect(screen.getByText('Choose Type A or Type B')).toBeInTheDocument();
     expect(screen.getByText('Enter your SAP code')).toBeInTheDocument();
-    expect(stepLine()).toHaveTextContent('2 of 3: your pump');
-
-    await user.click(screen.getByLabelText('Type A'));
-    await user.type(screen.getByLabelText('SAP code'), '41001234');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(stepLine()).toHaveTextContent('3 of 3: password and terms');
-
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
     // The password is not optional: a registration is how the dealer gets their login.
-    expect(await screen.findByText('At least 8 characters')).toBeInTheDocument();
+    expect(screen.getByText('At least 8 characters')).toBeInTheDocument();
     expect(
       screen.getByText('Read and accept the Terms & Conditions to continue'),
     ).toBeInTheDocument();
+    // Email and pump name are optional, as on the website.
+    expect(screen.queryByText('Enter a valid email')).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('opens the terms in the app; the link does not tick the box, agreeing does', async () => {
     const user = userEvent.setup();
     renderAt('/register');
-    await fillValidForm(user);
     const box = screen.getByRole('checkbox');
 
     await user.click(screen.getByRole('button', { name: 'Terms & Conditions' }));
@@ -185,12 +145,6 @@ describe('RegisterPage', () => {
   it('on the Hindi screen, says the English terms are binding and shows them on request', async () => {
     const user = userEvent.setup();
     renderAt('/register', 'hi');
-    await user.type(screen.getByLabelText('आपका नाम'), 'रमेश कुमार');
-    await user.type(screen.getByLabelText('आपका मोबाइल'), '9876543210');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
-    await user.click(screen.getByLabelText('Type A'));
-    await user.type(screen.getByLabelText('SAP कोड'), '41001234');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
 
     await user.click(screen.getByRole('button', { name: 'नियम व शर्तें' }));
     const sheet = await screen.findByRole('dialog');
@@ -212,14 +166,11 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     expect(await screen.findByText('You are registered.')).toBeInTheDocument();
-    // What happens next, in three plain steps, and a way to a person.
-    expect(screen.getByText('What happens next')).toBeInTheDocument();
-    expect(screen.getByText('A person at MDG checks your details.')).toBeInTheDocument();
     expect(
-      screen.getByText('We send you a WhatsApp message when your account is ready.'),
+      screen.getByText(
+        'The MDG team will check it, and a WhatsApp message will tell you when your account is ready. Then sign in with your mobile number and this same password.',
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/^Received at /)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Call MDG/ })).toHaveAttribute('href', 'tel:18008913496');
     expect(
       screen.getByText('A welcome email is on its way to ramesh@example.com.'),
     ).toBeInTheDocument();
@@ -254,18 +205,19 @@ describe('RegisterPage', () => {
 
     await user.type(screen.getByLabelText('आपका नाम'), 'रमेश कुमार');
     await user.type(screen.getByLabelText('आपका मोबाइल'), '9876543210');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
-    await user.click(screen.getByLabelText('Type A'));
-    await user.type(screen.getByLabelText('SAP कोड'), '41001234');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
     await user.type(screen.getByLabelText('पासवर्ड चुनिए'), PASSWORD);
     await user.type(screen.getByLabelText('पासवर्ड दोबारा'), PASSWORD);
+    await user.click(screen.getByLabelText('Type A'));
+    await user.type(screen.getByLabelText('SAP कोड'), '41001234');
     await user.click(screen.getByRole('checkbox'));
     await user.click(screen.getByRole('button', { name: 'भेजिए' }));
 
     expect(await screen.findByText('रजिस्ट्रेशन हो गया।')).toBeInTheDocument();
-    expect(screen.getByText('आगे क्या होगा')).toBeInTheDocument();
-    expect(screen.getByText('MDG का एक व्यक्ति आपकी जानकारी जाँचेगा।')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'MDG टीम इसे देखेगी, और खाता तैयार होते ही WhatsApp पर संदेश आएगा। फिर अपने मोबाइल नंबर और इसी पासवर्ड से साइन इन करें।',
+      ),
+    ).toBeInTheDocument();
     const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
     expect(body).toMatchObject({ ref: 'Ab3_x-9', lang: 'hi', consentWhatsApp: true });
   });
@@ -494,8 +446,6 @@ describe('RegisterPage', () => {
     it('is hidden by default, and each box has its own eye', async () => {
       const user = userEvent.setup();
       renderAt('/register');
-      await fillStep1(user);
-      await fillStep2(user);
       const first = screen.getByLabelText('Choose a password');
       const again = screen.getByLabelText('Password again');
       expect(first).toHaveAttribute('type', 'password');
@@ -530,11 +480,8 @@ describe('RegisterPage', () => {
     });
   });
 
-  it('the one tick says it covers WhatsApp messages about the account', async () => {
-    const user = userEvent.setup();
+  it('the one tick says it covers WhatsApp messages about the account', () => {
     renderAt('/register');
-    await fillStep1(user);
-    await fillStep2(user);
     expect(screen.getByRole('checkbox')).toHaveAccessibleName(
       'I accept the Terms and Conditions and agree to get messages about my account on WhatsApp',
     );
@@ -557,15 +504,10 @@ describe('RegisterPage', () => {
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await screen.findByRole('alert');
-    // Corrected: a different form (the SAP code is on step 2; going back loses nothing).
-    await user.click(screen.getByRole('button', { name: 'Back' }));
+    // Corrected: a different form.
     const sap = screen.getByLabelText('SAP code');
-    expect(sap).toHaveValue('41001234');
     await user.clear(sap);
     await user.type(sap, '41009999');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    expect(screen.getByLabelText('Choose a password')).toHaveValue(PASSWORD);
-    expect(screen.getByRole('checkbox')).toBeChecked();
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     await screen.findByText('You are registered.');
 
@@ -583,24 +525,18 @@ describe('RegisterPage', () => {
 
     await fillValidForm(user);
     await user.click(screen.getByRole('checkbox'));
-    // Back to step 1, where the mobile is.
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    await user.click(screen.getByRole('button', { name: 'Back' }));
     const mobile = screen.getByLabelText('Your mobile');
 
     await user.clear(mobile);
     await user.type(mobile, '1234567890');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
     expect(
       await screen.findByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
     ).toBeInTheDocument();
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
     expect(fetchMock).not.toHaveBeenCalled();
 
     await user.clear(mobile);
     await user.type(mobile, '+९१ ९४६७४ ६६९६३');
-    await user.click(screen.getByRole('button', { name: 'Next' }));
-    await user.click(screen.getByRole('button', { name: 'Next' }));
     await user.click(screen.getByRole('button', { name: 'Submit' }));
     expect(await screen.findByText('You are registered.')).toBeInTheDocument();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -619,8 +555,6 @@ describe('RegisterPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Your registration could not be completed. Check your network and try again.',
     );
-    expect(screen.getByLabelText('Choose a password')).toHaveValue(PASSWORD);
-    await user.click(screen.getByRole('button', { name: 'Back' }));
     expect(screen.getByLabelText('SAP code')).toHaveValue('41001234');
     expect(screen.queryByText('You are registered.')).not.toBeInTheDocument();
   });
@@ -659,169 +593,12 @@ describe('RegisterPage — the privacy policy', () => {
     expect(link).toHaveAttribute('href', 'https://mdgservices.in/privacy');
     await user.click(link);
     expect(open).toHaveBeenCalledWith('https://mdgservices.in/privacy', '_blank', 'noopener');
-    // Reading it does not move the form on or send it.
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
+    // Reading it does not tick the box or send the form.
+    expect(screen.getByRole('checkbox')).not.toBeChecked();
   });
 
   it('says it in Hindi', () => {
     renderAt('/register', 'hi');
     expect(screen.getByRole('link', { name: 'प्राइवेसी पॉलिसी' })).toBeInTheDocument();
-  });
-});
-
-describe('RegisterPage — first run', () => {
-  let fetchMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    fetchMock = vi.fn();
-    vi.stubGlobal('fetch', fetchMock);
-  });
-  afterEach(() => resetStores());
-
-  it('on a phone nobody has used, asks which language first, once, before the form', async () => {
-    const user = userEvent.setup();
-    // Nothing explicit, nobody signed in, no mark of an account on this phone.
-    useLangStore.setState({ lang: 'hi', explicit: false });
-    renderWithProviders(
-      <Routes>
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>,
-      { route: '/register' },
-    );
-
-    expect(screen.getByRole('heading', { name: 'अपनी भाषा चुनें' })).toBeInTheDocument();
-    expect(screen.queryByLabelText('आपका नाम')).not.toBeInTheDocument();
-    // Each language in its own script.
-    expect(screen.getAllByRole('radio').map((r) => r.getAttribute('aria-label'))).toEqual([
-      'हिंदी',
-      'Hinglish',
-      'English',
-    ]);
-
-    await user.click(screen.getByRole('radio', { name: 'English' }));
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
-
-    // The form is now in English, and the choice is the phone's from here on.
-    expect(await screen.findByLabelText('Your name')).toBeInTheDocument();
-    expect(useLangStore.getState()).toMatchObject({ lang: 'en', explicit: true });
-  });
-
-  it('never asks again once the phone has answered', () => {
-    useLangStore.setState({ lang: 'en', explicit: true });
-    renderWithProviders(
-      <Routes>
-        <Route path="/register" element={<RegisterPage />} />
-      </Routes>,
-      { route: '/register' },
-    );
-    expect(screen.queryByRole('heading', { name: 'अपनी भाषा चुनें' })).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Your name')).toBeInTheDocument();
-  });
-
-  it('shows the step line, and Back keeps what was typed', async () => {
-    const user = userEvent.setup();
-    renderAt('/register');
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
-    await fillStep1(user);
-    expect(stepLine()).toHaveTextContent('2 of 3: your pump');
-    await user.click(screen.getByRole('button', { name: 'Back' }));
-    expect(stepLine()).toHaveTextContent('1 of 3: you');
-    expect(screen.getByLabelText('Your name')).toHaveValue('  Ramesh Kumar ');
-    expect(screen.getByLabelText('Your mobile')).toHaveValue('98765 43210');
-  });
-
-  it('step 1 asks only for name and mobile and does not mention a password; step 3 does', async () => {
-    const user = userEvent.setup();
-    renderAt('/register', 'hi');
-    expect(screen.getByText('अपना नाम और मोबाइल नंबर बताइए।')).toBeInTheDocument();
-    expect(document.body.textContent).not.toContain('पासवर्ड चुनिए');
-    await user.type(screen.getByLabelText(/आपका नाम/), 'Ramesh Kumar');
-    await user.type(screen.getByLabelText(/मोबाइल/), '9876543210');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
-    await user.click(screen.getByRole('radio', { name: 'Type A' }));
-    await user.type(screen.getByLabelText(/SAP/), 'SAP1');
-    await user.click(screen.getByRole('button', { name: 'आगे बढ़ें' }));
-    expect(screen.getByText(/अपना पासवर्ड चुनिए/)).toBeInTheDocument();
-  });
-
-  it('the title has a row of its own, so it is never crushed beside the language switch', () => {
-    renderAt('/register');
-    const title = screen.getByRole('heading', { level: 1 });
-    const switchButton = screen.getByRole('button', { name: /Language/ });
-    expect(title.parentElement).not.toBe(switchButton.parentElement);
-    expect(title.className).not.toMatch(/flex-1|min-w-0/);
-  });
-
-  it('the privacy link and the sign-in link are 44px tall', () => {
-    renderAt('/register');
-    expect(screen.getByRole('link', { name: 'Privacy policy' }).className).toMatch(/min-h-11/);
-    expect(screen.getByRole('button', { name: 'Sign in' }).className).toMatch(/min-h-11/);
-  });
-
-  it('says where to find the SAP code, and gives no hint for Type A or Type B', async () => {
-    const user = userEvent.setup();
-    renderAt('/register');
-    await fillStep1(user);
-    expect(
-      screen.getByText("The user ID you sign in with on your oil company's dealer portal."),
-    ).toBeInTheDocument();
-    // The wording for Type A / Type B is the owner's to give (open question 8): until then, nothing.
-    expect(screen.getByLabelText('Type A')).toBeInTheDocument();
-    expect(screen.getByLabelText('Type B')).toBeInTheDocument();
-    expect(screen.queryByText(/Type A means|Type B means/i)).not.toBeInTheDocument();
-  });
-
-  it('the terms are read at body size', async () => {
-    const user = userEvent.setup();
-    renderAt('/register');
-    await fillValidForm(user);
-    await user.click(screen.getByRole('button', { name: 'Terms & Conditions' }));
-    const sheet = await screen.findByRole('dialog');
-    const clause = within(sheet).getByText(TERMS_EN[0]!);
-    expect(clause).toHaveClass('text-body');
-    expect(clause).not.toHaveClass('text-meta');
-  });
-
-  it('an account that is ready lands where the person was going, with its query kept', async () => {
-    fetchMock
-      .mockResolvedValueOnce(okResponse('ready'))
-      .mockResolvedValueOnce(
-        jsonResponse(200, { ok: true, data: { token: 'new-token', user: makeUser({ id: 'u-new' }) } }),
-      );
-    const user = userEvent.setup();
-    useLangStore.setState({ lang: 'en', explicit: true });
-    renderWithProviders(
-      <Routes>
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/chat/:id" element={<div>chat-thread</div>} />
-        <Route path="/" element={<div>today-page</div>} />
-      </Routes>,
-      { route: { pathname: '/register', state: { from: '/chat/c1?c=m9' } } as never },
-    );
-    await fillValidForm(user);
-    await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-    expect(await screen.findByText('chat-thread')).toBeInTheDocument();
-  });
-
-  it('a waiting registration says when it came in, what happens next, and has a call button but no video (the list needs a session)', async () => {
-    fetchMock.mockResolvedValue(okResponse());
-    const user = userEvent.setup();
-    renderAt('/register');
-    await fillValidForm(user);
-    await user.click(screen.getByRole('checkbox'));
-    await user.click(screen.getByRole('button', { name: 'Submit' }));
-
-    await screen.findByText('What happens next');
-    const call = screen.getByRole('link', { name: /Call MDG/ });
-    expect(call).toHaveAttribute('href', 'tel:18008913496');
-    expect(call).toHaveTextContent(HELPLINE.display);
-    expect(screen.getByText(/^Received at /)).toBeInTheDocument();
-    // The guide-video list needs a signed-in session, which this card is drawn without: no video
-    // chip, and the list is never even asked for.
-    expect(screen.queryByRole('button', { name: /Getting started|Watch/i })).not.toBeInTheDocument();
-    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('guide-videos'))).toBe(false);
-    // The one way on is Back to sign in.
-    expect(screen.getAllByRole('button', { name: 'Back to sign in' }).length).toBeGreaterThan(0);
   });
 });

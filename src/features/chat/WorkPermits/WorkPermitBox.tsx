@@ -3,8 +3,8 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 
 import { PdfViewer } from '@/components/PdfViewer';
-import { Spinner, useToast } from '@/components/ui';
 import { ZoomableImage } from '@/components/ZoomableImage';
+import { Spinner, useToast } from '@/components/ui';
 import { GuideVideoSheet } from '@/features/help/GuideVideoSheet';
 import { videoTitle } from '@/features/help/helpView';
 import { useGuideVideos } from '@/features/help/useGuideVideos';

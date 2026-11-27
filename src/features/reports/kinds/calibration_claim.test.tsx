@@ -125,23 +125,3 @@ describe('calibration_claim', () => {
     expect(container.querySelector('svg')).toHaveAttribute('viewBox', '0 0 40 28');
   });
 });
-
-describe('calibration_claim: the kit parts', () => {
-  it('puts the dispensers in a card that counts them', () => {
-    open(claim);
-    const card = screen.getByRole('region', { name: /Dispensers/ });
-    expect(within(card).getByRole('heading', { name: /Dispensers/ })).toHaveTextContent('3');
-    expect(within(card).getAllByRole('listitem')).toHaveLength(3);
-  });
-
-  it('draws no dispenser card when the claim lists none', () => {
-    open({ ...claim, units: [] });
-    expect(screen.queryByRole('region', { name: /Dispensers/ })).toBeNull();
-  });
-
-  it('keeps the amount on the type scale and the stub in rem', () => {
-    const { container } = open(claim);
-    expect(within(container.querySelector('[data-cheque-stub]') as HTMLElement).getByText('₹12,600').className).toContain('text-display');
-    expect(container.innerHTML).not.toMatch(/text-\[\d|h-\[\d+px|w-\[\d+px/);
-  });
-});

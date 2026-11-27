@@ -1,25 +1,15 @@
 import { fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { useLangStore } from '@/store/lang';
-import { resetStores } from '@/test/utils';
-
-import { compareWords, isSold, salesLead, weekCompare, view } from './dsr_sales';
 import { PENDING_SALES, fakeReport, ledgerRow, salesBlock, salesData } from './dsr_sales/fixtures';
+import { compareWords, isSold, salesLead, weekCompare, view } from './dsr_sales';
 
 const LANGS = ['hi', 'hl', 'en'] as const;
 
-afterEach(() => resetStores());
-
-/** The kit's own words follow the app's language, so the store is set to the language the overlay is opened in. */
 function open(data = salesData(), lang: 'hi' | 'hl' | 'en' = 'en') {
-  useLangStore.setState({ lang });
   const Overlay = view.Overlay;
   return render(<Overlay data={data} report={fakeReport('dsr_sales')} lang={lang} />);
 }
-
-/** The dealer's sheets only: the kit's bars carry a hidden table of their own (by name "Last 14 days of ..."). */
-const ledgers = () => screen.queryAllByRole('table', { name: /daily sales report/ });
 
 describe('dsr_sales: tile', () => {
   it('puts each fuel side by side, never added together, with the weekday comparison', () => {
@@ -127,17 +117,13 @@ describe('dsr_sales: overlay', () => {
     open();
     expect(screen.getByText('On 23 Nov you sold 10,430 L of Diesel and 4,210 L of Petrol.')).toBeInTheDocument();
     expect(screen.getAllByText('Sold 23 Nov')).toHaveLength(2);
-    // The big figure is a number with its unit beside it, one tile per figure.
-    expect(screen.getAllByText('10,430').length).toBeGreaterThan(0);
-    expect(screen.getByText('24,330')).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Diesel, Sold 23 Nov: 10,430 L' })).toBeInTheDocument();
+    expect(screen.getAllByText('10,430 L').length).toBeGreaterThan(0);
+    expect(screen.getByText('24,330 L')).toBeInTheDocument();
     expect(screen.getAllByText('Stock this morning')).toHaveLength(2);
     // The receipt source is words, never only a letter.
     expect(screen.getByText('entered by hand')).toBeInTheDocument();
     expect(screen.getByText('worked out from the tank dip')).toBeInTheDocument();
-    // The change against the same weekday is the kit's chip: an arrow, the words and the number.
-    expect(screen.getByText('6% more than last Monday')).toBeInTheDocument();
-    expect(screen.getByText('4% less than last Monday')).toBeInTheDocument();
+    expect(screen.getByText('+6% vs last Monday')).toBeInTheDocument();
     expect(screen.getByText('Diesel')).toBeInTheDocument();
     expect(screen.getByText('(HSD)')).toBeInTheDocument();
     expect(screen.getByText('· tanks 4, 6, 8')).toBeInTheDocument();
@@ -145,7 +131,7 @@ describe('dsr_sales: overlay', () => {
 
   it('draws the ledger as a real table with a caption and a pinned date column', () => {
     open();
-    const tables = ledgers();
+    const tables = screen.getAllByRole('table');
     expect(tables).toHaveLength(2);
     const diesel = tables[0]!;
     expect(within(diesel).getByText(/Diesel \(HSD\), daily sales report/)).toBeInTheDocument();
@@ -175,12 +161,12 @@ describe('dsr_sales: overlay', () => {
     expect(rowHeaders[0]!.className).toContain('sticky');
     expect(rowHeaders[0]!.className).toContain('left-0');
     // The scroll region is reachable by keyboard and labelled.
-    expect(screen.getAllByRole('region', { name: /daily sales report/ })[0]).toHaveAttribute('tabindex', '0');
+    expect(screen.getAllByRole('region')[0]).toHaveAttribute('tabindex', '0');
   });
 
   it('marks the open day "Today" as the sheet does, and shows a dash for its sales', () => {
     open();
-    const diesel = ledgers()[0]!;
+    const diesel = screen.getAllByRole('table')[0]!;
     const openRow = diesel.querySelector('tr[data-open="true"]') as HTMLElement;
     expect(within(openRow).getByText('Today')).toBeInTheDocument();
     const cells = within(openRow).getAllByRole('cell');
@@ -197,7 +183,7 @@ describe('dsr_sales: overlay', () => {
       rows: [ledgerRow({ pumps: [{ nozzleNo: 1, reading: 1_234_567 }, { nozzleNo: 2, reading: null as never }] })],
     };
     open(d);
-    const table = ledgers()[0]!;
+    const table = screen.getAllByRole('table')[0]!;
     expect(within(table).getByText('1234567')).toBeInTheDocument();
     expect(within(table).queryByText('12,34,567')).not.toBeInTheDocument();
   });
@@ -239,7 +225,7 @@ describe('dsr_sales: overlay', () => {
       }),
     ];
     open(salesData({ products: [{ key: 'HSD', tankNos: [4, 6], sales: salesBlock({ rows }) }] }));
-    const table = ledgers()[0]!;
+    const table = screen.getByRole('table');
     expect(within(table).getByText('Tank 4')).toBeInTheDocument();
     expect(within(table).getByText('Tank 6')).toBeInTheDocument();
     expect(within(table).getAllByText('Stock')).toHaveLength(2);
@@ -250,7 +236,7 @@ describe('dsr_sales: overlay', () => {
   it('shows every day the report carries, as the card did', () => {
     const rows = Array.from({ length: 3 }, (_, i) => ledgerRow({ day: `2026-11-${String(21 + i).padStart(2, '0')}` }));
     open(salesData({ products: [{ key: 'HSD', tankNos: [4], sales: salesBlock({ rows }) }] }));
-    expect(within(ledgers()[0]!).getAllByRole('rowheader')).toHaveLength(3);
+    expect(screen.getAllByRole('rowheader')).toHaveLength(3);
   });
 
   it('offers a jump control from three fuels up', () => {
@@ -274,7 +260,7 @@ describe('dsr_sales: overlay', () => {
 
   it('marks a receipt typed by hand with the sheet\'s M, and one read from the dip with D', () => {
     open();
-    const tables = ledgers();
+    const tables = screen.getAllByRole('table');
     expect(within(tables[0]!).getByText('M')).toBeInTheDocument();
     expect(within(tables[1]!).getByText('D')).toBeInTheDocument();
   });
@@ -308,69 +294,5 @@ describe('dsr_sales: glyph', () => {
   it('is the view of its own kind', () => {
     expect(view.kind).toBe('dsr_sales');
     for (const lang of LANGS) expect(view.headline(salesData(), lang).trim()).not.toBe('');
-  });
-});
-
-describe('dsr_sales: the figures and the 14 days', () => {
-  it('draws the 14 closed days as bars with a spoken summary and a hidden table of the same numbers', () => {
-    open();
-    // The bars are one picture to a screen reader, named by the sentence that says what they show.
-    const diesel = screen.getByRole('img', { name: /Last 14 days of Diesel: highest 10,430 L on 23 Nov, lowest 9,000 L on 10 Nov, average/ });
-    expect(diesel).toBeInTheDocument();
-    const hidden = screen.getAllByRole('table', { name: /^Last 14 days of Diesel/ });
-    expect(hidden).toHaveLength(1);
-    // 14 days, each one a row of the same numbers the bars draw.
-    expect(within(hidden[0]!).getAllByRole('row')).toHaveLength(15);
-    expect(within(hidden[0]!).getByRole('row', { name: /Mon 23 Nov/ })).toHaveTextContent('10,430');
-  });
-
-  it('says what the dashed line is, in numbers', () => {
-    open();
-    expect(screen.getAllByText(/Dashed line: your 14-day average, 9,6\d\d L/).length).toBeGreaterThan(0);
-  });
-
-  it('shows the month so far as its own tile, and no such tile when the report has no month figure', () => {
-    const first = open();
-    expect(screen.getAllByText('This month so far')).toHaveLength(2);
-    expect(screen.getAllByText('2,30,000').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Up to 23 Nov')).toHaveLength(2);
-    first.unmount();
-    const d = salesData();
-    d.products = [{ ...d.products[0]!, sales: salesBlock({ monthToDateL: null }) }];
-    const { unmount } = open(d);
-    expect(screen.queryByText('This month so far')).toBeNull();
-    unmount();
-  });
-
-  it('draws no bars when fewer than two days are known, and none for a fuel not worked out yet', () => {
-    const d = salesData();
-    d.products = [{ ...d.products[0]!, sales: salesBlock({ trend: [{ day: '2026-11-23', soldL: 10_430 }] }) }];
-    open(d);
-    expect(screen.queryByRole('img', { name: /Last \d+ days of/ })).toBeNull();
-  });
-
-  it('says "same as" when the day matches the same weekday last week, and nothing of a change when there is nothing to compare', () => {
-    const same = salesBlock({ sameWeekdayLastWeek: { day: '2026-11-16', soldL: 10_430 } });
-    const { unmount } = open(salesData({ products: [{ key: 'HSD', tankNos: [4], sales: same }] }));
-    expect(screen.getByText('Same as last Monday')).toBeInTheDocument();
-    unmount();
-    open(salesData({ products: [{ key: 'HSD', tankNos: [4], sales: salesBlock({ sameWeekdayLastWeek: null }) }] }));
-    expect(screen.getByText(/Not enough weeks to compare yet/)).toBeInTheDocument();
-    expect(screen.queryByText(/more than|less than/)).toBeNull();
-  });
-
-  it('uses no fixed pixel size anywhere in the figures', () => {
-    const { container } = open();
-    expect(container.innerHTML).not.toMatch(/text-\[\d|h-\[\d+px|w-\[\d+px/);
-  });
-
-  it('puts each fuel\'s sheet in a card of its own, named for the fuel, in Hindi too', () => {
-    open();
-    expect(screen.getByRole('heading', { name: 'Sales sheet, Diesel' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Sales sheet, Petrol' })).toBeInTheDocument();
-    const { container } = open(salesData(), 'hi');
-    expect(container.textContent).toContain('बिक्री शीट, डीज़ल');
-    expect(container.textContent).toContain('इस महीने अब तक');
-    expect(container.textContent).toContain('पिछले सोमवार से 6% ज़्यादा');
   });
 });

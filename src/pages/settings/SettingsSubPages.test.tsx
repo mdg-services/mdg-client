@@ -28,7 +28,6 @@ function renderAt(route: string) {
   return renderWithProviders(
     <Routes>
       <Route path="/settings" element={<div>settings-page</div>} />
-      <Route path="/pump" element={<div>pump-page</div>} />
       <Route path="/chat" element={<div>chat-list</div>} />
       <Route path="/login" element={<div>login-page</div>} />
       <Route path="/settings/profile" element={<SettingsProfilePage />} />
@@ -99,12 +98,11 @@ describe('Settings → profile', () => {
     expect(screen.getByText('chat-list')).toBeInTheDocument();
   });
 
-  // The arrow goes to My pump now (the address's parent, spec 2.5), where Settings used to be.
-  it('goes back to My pump when it was opened cold', async () => {
+  it('goes back to Settings when it was opened cold', async () => {
     signIn({ role: 'dealer-owner', status: 'ACTIVE' });
     renderAt('/settings/profile');
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(await screen.findByText('pump-page')).toBeInTheDocument();
+    expect(await screen.findByText('settings-page')).toBeInTheDocument();
   });
 });
 
@@ -126,15 +124,6 @@ describe('Settings → account (change password)', () => {
     renderAt('/settings/account');
     expect(screen.getByText('Account')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Update password' })).toBeInTheDocument();
-  });
-
-  // The three password boxes have names a screen reader can read (the label is tied to its box), and
-  // the eight-character rule is said BEFORE the first try.
-  it('names each password box by its label, and says the 8-character rule up front', () => {
-    renderAt('/settings/account');
-    expect(screen.getByLabelText('Current password')).toBeInTheDocument();
-    expect(screen.getByLabelText('New password')).toHaveAccessibleDescription(/8/);
-    expect(screen.getByLabelText('Confirm new password')).toBeInTheDocument();
   });
 
   it('sends the CURRENT password along with the new one', async () => {
@@ -231,11 +220,10 @@ describe('Settings → your team', () => {
       ...over,
     }) as User;
 
-  // A manager who types the address is sent to My pump (the page's parent), and nothing is asked.
-  it('is the owner\'s: anyone else goes back to My pump', async () => {
+  it('is the owner\'s: anyone else goes back to Settings', async () => {
     signIn({ id: 'u2', dealerId: 'd1', role: 'dealer-staff' });
     renderAt('/settings/team');
-    expect(await screen.findByText('pump-page')).toBeInTheDocument();
+    expect(await screen.findByText('settings-page')).toBeInTheDocument();
     expect(api.get).not.toHaveBeenCalled();
   });
 
@@ -247,50 +235,12 @@ describe('Settings → your team', () => {
     ] as never);
     renderAt('/settings/team');
 
-    // The bar's title is the page's heading now (the kit's header draws an h1).
-    expect(screen.getByText('Your team', { selector: 'h1' })).toBeInTheDocument();
+    expect(screen.getByText('Your team', { selector: 'span' })).toBeInTheDocument();
     expect(await screen.findByText('Pump Manager')).toBeInTheDocument();
     expect(api.get).toHaveBeenCalledWith('/v1/dealers/d1/users');
     expect(screen.getByText('manager@pump.in')).toBeInTheDocument();
-    // Only the MANAGER can be paused from here: a co-owner is MDG's to change. The button names the person.
-    expect(screen.getAllByRole('button', { name: /^Suspend/ })).toHaveLength(1);
-    expect(screen.getByRole('button', { name: 'Suspend Pump Manager' })).toBeInTheDocument();
-  });
-
-  // A person is a word beside a shape, never an 8-pixel dot: Active, Paused, or Not signed in yet.
-  it('says where each person stands in a word with a shape, and when they last opened the app', async () => {
-    signIn(owner);
-    vi.mocked(api.get).mockResolvedValue([
-      member({ id: 'u1', name: 'Ramesh Kumar', role: 'dealer-owner', lastLoginAt: '2026-11-27T04:00:00.000Z' }),
-      member({ id: 'u2', name: 'Active Manager', lastLoginAt: '2026-11-20T04:00:00.000Z' }),
-      member({ id: 'u3', name: 'New Manager', lastLoginAt: undefined }),
-      member({ id: 'u4', name: 'Paused Manager', status: 'SUSPENDED', lastLoginAt: '2026-10-01T04:00:00.000Z' }),
-    ] as never);
-    const { container } = renderAt('/settings/team');
-    await screen.findByText('Active Manager');
-    const item = (name: string) => screen.getByText(name).closest('li')!;
-    expect(within(item('Active Manager')).getByText('Active')).toBeInTheDocument();
-    expect(within(item('New Manager')).getByText('Not signed in yet')).toBeInTheDocument();
-    expect(within(item('Paused Manager')).getByText('Paused')).toBeInTheDocument();
-    expect(within(item('Active Manager')).getByText(/^Last opened /)).toBeInTheDocument();
-    expect(within(item('New Manager')).queryByText(/^Last opened /)).not.toBeInTheDocument();
-    // Each state is drawn with its shape (the pill's icon), not by colour alone.
-    for (const name of ['Active Manager', 'New Manager', 'Paused Manager']) {
-      expect(item(name).querySelector('[data-status] svg')).not.toBeNull();
-    }
-    expect(container.innerHTML).not.toMatch(/\btruncate\b|line-clamp|text-\[|min-h-\[|h-\[\d+px\]|h-2 w-2/);
-  });
-
-  it('names the person on the Suspend and Activate buttons, and keeps them tall enough to tap', async () => {
-    signIn(owner);
-    vi.mocked(api.get).mockResolvedValue([
-      member({ id: 'u1', name: 'Ramesh Kumar', role: 'dealer-owner' }),
-      member({ id: 'u3', name: 'Paused Manager', status: 'SUSPENDED' }),
-    ] as never);
-    renderAt('/settings/team');
-    const activate = await screen.findByRole('button', { name: 'Activate Paused Manager' });
-    expect(activate.className).toMatch(/min-h-11/);
-    expect(screen.getByRole('button', { name: 'Invite' }).className).toMatch(/min-h-11/);
+    // Only the MANAGER can be paused from here: a co-owner is MDG's to change.
+    expect(screen.getAllByRole('button', { name: 'Suspend' })).toHaveLength(1);
   });
 
   // The failure must not read as "No teammates yet": the obvious next move is to
@@ -314,16 +264,13 @@ describe('Settings → your team', () => {
     await screen.findByText('No teammates yet.');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
-    // Every field has its label (the old form had placeholders only, which vanish as the owner types).
-    expect(screen.getByLabelText('Full name')).toHaveAttribute('id');
-    expect(screen.queryByPlaceholderText('Full name')).not.toBeInTheDocument();
-    await user.type(screen.getByLabelText('Full name'), 'New Manager');
+    await user.type(screen.getByPlaceholderText('Full name'), 'New Manager');
     await user.type(
-      screen.getByLabelText("Manager's mobile number (they sign in with it)"),
+      screen.getByPlaceholderText("Manager's mobile number (they sign in with it)"),
       '+91 98765 43210',
     );
-    await user.type(screen.getByLabelText('Email (optional)'), 'new@pump.in');
-    await user.type(screen.getByLabelText(/^Temporary password/), 'temp-pass-1');
+    await user.type(screen.getByPlaceholderText('Email (optional)'), 'new@pump.in');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
     await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
@@ -346,10 +293,10 @@ describe('Settings → your team', () => {
     await screen.findByText('No teammates yet.');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
-    await user.type(screen.getByLabelText('Full name'), 'New Manager');
-    const mobile = screen.getByLabelText("Manager's mobile number (they sign in with it)");
+    await user.type(screen.getByPlaceholderText('Full name'), 'New Manager');
+    const mobile = screen.getByPlaceholderText("Manager's mobile number (they sign in with it)");
     await user.type(mobile, '12345');
-    await user.type(screen.getByLabelText(/^Temporary password/), 'temp-pass-1');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
     expect(
       await screen.findByText('Enter a 10-digit mobile number that starts with 6, 7, 8 or 9'),
@@ -380,12 +327,12 @@ describe('Settings → your team', () => {
     await user.click(screen.getByRole('button', { name: 'Invite' }));
     await user.click(screen.getByRole('radio', { name: 'Partner (another owner)' }));
     expect(screen.getByRole('radio', { name: 'Partner (another owner)' })).toHaveAttribute('aria-checked', 'true');
-    await user.type(screen.getByLabelText('Full name'), 'Ravi Partner');
+    await user.type(screen.getByPlaceholderText('Full name'), 'Ravi Partner');
     await user.type(
-      screen.getByLabelText("Partner's mobile number (they sign in with it)"),
+      screen.getByPlaceholderText("Partner's mobile number (they sign in with it)"),
       '9876543212',
     );
-    await user.type(screen.getByLabelText(/^Temporary password/), 'temp-pass-1');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     expect(screen.getByText(/A partner sees everything you see/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
@@ -412,12 +359,12 @@ describe('Settings → your team', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
     await user.click(screen.getByRole('radio', { name: 'Partner (another owner)' }));
-    await user.type(screen.getByLabelText('Full name'), 'Ravi Partner');
+    await user.type(screen.getByPlaceholderText('Full name'), 'Ravi Partner');
     await user.type(
-      screen.getByLabelText("Partner's mobile number (they sign in with it)"),
+      screen.getByPlaceholderText("Partner's mobile number (they sign in with it)"),
       '9876543213',
     );
-    await user.type(screen.getByLabelText(/^Temporary password/), 'temp-pass-1');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
     expect(
@@ -436,12 +383,12 @@ describe('Settings → your team', () => {
     await screen.findByText('No teammates yet.');
     const user = userEvent.setup();
     await user.click(screen.getByRole('button', { name: 'Invite' }));
-    await user.type(screen.getByLabelText('Full name'), 'Second');
+    await user.type(screen.getByPlaceholderText('Full name'), 'Second');
     await user.type(
-      screen.getByLabelText("Manager's mobile number (they sign in with it)"),
+      screen.getByPlaceholderText("Manager's mobile number (they sign in with it)"),
       '9876543211',
     );
-    await user.type(screen.getByLabelText(/^Temporary password/), 'temp-pass-1');
+    await user.type(screen.getByPlaceholderText('Temporary password'), 'temp-pass-1');
     await user.click(screen.getByRole('button', { name: 'Send invite' }));
 
     expect(

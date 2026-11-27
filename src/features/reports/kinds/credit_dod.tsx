@@ -1,9 +1,7 @@
 import { Check, Info, Lock, TriangleAlert } from 'lucide-react';
 import { useId, type ReactElement } from 'react';
 
-import { Num, SectionCard, StatTile } from '@/components/kit';
 import { cn } from '@/lib/cn';
-import { translate } from '@/lib/i18n';
 import type { Lang } from '@/store/lang';
 import { findFestival } from '@dk/shared';
 import type { CreditDodData } from '@dk/shared/types';
@@ -41,19 +39,6 @@ import { daysFromToday } from './dsr_sales/fmt';
  *  - A back-dated report says so first and is never read as today's.
  */
 
-/**
- * Limit figures are shown to the whole rupee: nobody reads paise off a limit. The amount to deposit
- * (the hero) keeps its paise because that is the figure paid in.
- */
-function wholeRupees(n: number): string {
-  return `${n < 0 ? '−' : ''}₹${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Math.round(Math.abs(n)))}`;
-}
-
-/** "₹12.75 L" from a lakh up, otherwise whole rupees: never paise. */
-function limitRupees(n: number): string {
-  return Math.abs(n) >= 1e5 ? rupeesShort(n) : wholeRupees(n);
-}
-
 const T = {
   title: { hi: 'उधार और DOD', hl: 'Credit aur DOD', en: 'Credit & DOD' },
   // Hero
@@ -62,11 +47,7 @@ const T = {
   eyToday: { hi: 'आज जमा करें', hl: 'Aaj jama karein', en: 'Deposit today' },
   eyOverdue: { hi: 'तारीख निकल चुकी है', hl: 'Taareekh nikal chuki hai', en: 'Overdue' },
   eyLag: { hi: 'तारीख निकल गई', hl: 'Taareekh nikal gayi', en: 'Deadline passed' },
-  eyAdvance: {
-    hi: 'IndianOil के पास आपका एडवांस',
-    hl: 'IndianOil ke paas aapka advance',
-    en: 'IndianOil holds your advance',
-  },
+  eyAdvance: { hi: 'IndianOil के पास आपका एडवांस', hl: 'IndianOil ke paas aapka advance', en: 'IndianOil holds your advance' },
   eySettled: { hi: 'कुछ बकाया नहीं', hl: 'Kuch baaki nahi', en: 'Nothing due' },
   noDues: { hi: 'कोई बकाया नहीं', hl: 'Koi baaki nahi', en: 'No dues' },
   leadSettled: {
@@ -81,27 +62,11 @@ const T = {
   wordDue: { hi: 'जमा करना है', hl: 'Jama karna hai', en: 'To deposit' },
   wordAdvance: { hi: 'एडवांस', hl: 'Advance', en: 'Advance' },
   wordSettled: { hi: 'सब चुकता', hl: 'Sab chukta', en: 'Settled' },
-  deadlineWas: {
-    hi: 'आखिरी तारीख {day} थी',
-    hl: 'Aakhri taareekh {day} thi',
-    en: 'Deadline was {day}',
-  },
-  deadlineWasApprox: {
-    hi: 'आखिरी तारीख लगभग {day} थी',
-    hl: 'Aakhri taareekh lagbhag {day} thi',
-    en: 'Deadline was about {day}',
-  },
+  deadlineWas: { hi: 'आखिरी तारीख {day} थी', hl: 'Aakhri taareekh {day} thi', en: 'Deadline was {day}' },
+  deadlineWasApprox: { hi: 'आखिरी तारीख लगभग {day} थी', hl: 'Aakhri taareekh lagbhag {day} thi', en: 'Deadline was about {day}' },
   daysOverdue: { hi: '{d} की देरी', hl: '{d} ki der', en: '{d} overdue' },
-  daysOverdueMin: {
-    hi: 'कम से कम {d} की देरी',
-    hl: 'Kam se kam {d} ki der',
-    en: 'At least {d} overdue',
-  },
-  coversMissed: {
-    hi: '{n} छूटी हुई तारीखें इसमें शामिल हैं',
-    hl: '{n} chhooti hui taareekhein isme shaamil hain',
-    en: 'Covers {n} missed deadlines',
-  },
+  daysOverdueMin: { hi: 'कम से कम {d} की देरी', hl: 'Kam se kam {d} ki der', en: 'At least {d} overdue' },
+  coversMissed: { hi: '{n} छूटी हुई तारीखें इसमें शामिल हैं', hl: '{n} chhooti hui taareekhein isme shaamil hain', en: 'Covers {n} missed deadlines' },
   partOfThis: {
     hi: 'इसमें से {n} सबसे पुराना बकाया है, बाकी भी देर हो चुकी है।',
     hl: 'Isme se {n} sabse purana baaki hai, baaki bhi der ho chuki hai.',
@@ -142,23 +107,11 @@ const T = {
   },
   // Ring
   pctUsed: { hi: 'इस्तेमाल', hl: 'istemaal', en: 'used' },
-  ringAria: {
-    hi: 'लिमिट का {p} प्रतिशत इस्तेमाल हुआ',
-    hl: 'Limit ka {p} percent istemaal hua',
-    en: 'Used {p} percent of the limit',
-  },
-  ringLockedAria: {
-    hi: 'क्रेडिट लॉक है, लिमिट इस्तेमाल नहीं हो सकती',
-    hl: 'Credit lock hai, limit istemaal nahi ho sakti',
-    en: 'Credit is locked, the limit cannot be used',
-  },
+  ringAria: { hi: 'लिमिट का {p} प्रतिशत इस्तेमाल हुआ', hl: 'Limit ka {p} percent istemaal hua', en: 'Used {p} percent of the limit' },
+  ringLockedAria: { hi: 'क्रेडिट लॉक है, लिमिट इस्तेमाल नहीं हो सकती', hl: 'Credit lock hai, limit istemaal nahi ho sakti', en: 'Credit is locked, the limit cannot be used' },
   usedLabel: { hi: 'इस्तेमाल {n}', hl: 'Istemaal {n}', en: 'Used {n}' },
   leftLabel: { hi: 'बची {n}', hl: 'Bachi {n}', en: 'Left {n}' },
-  nearlyFull: {
-    hi: 'लिमिट लगभग भर गई है',
-    hl: 'Limit lagbhag bhar gayi hai',
-    en: 'The limit is nearly full',
-  },
+  nearlyFull: { hi: 'लिमिट लगभग भर गई है', hl: 'Limit lagbhag bhar gayi hai', en: 'The limit is nearly full' },
   // Three tiles
   limit: { hi: 'लिमिट', hl: 'Limit', en: 'Limit' },
   used: { hi: 'इस्तेमाल', hl: 'Istemaal', en: 'Used' },
@@ -169,81 +122,32 @@ const T = {
   bought: { hi: '{day} को खरीदी', hl: '{day} ko kharidi', en: 'Bought {day}' },
   depositBy: { hi: '{day} तक जमा करें', hl: '{day} tak jama karein', en: 'deposit by {day}' },
   // Review
-  review: {
-    hi: 'क्रेडिट रिव्यू {day} को ({d} बाद)',
-    hl: 'Credit review {day} ko ({d} baad)',
-    en: 'Credit review on {day} ({d})',
-  },
-  reviewFar: {
-    hi: 'क्रेडिट रिव्यू लगभग {m} महीने बाद ({day} को)',
-    hl: 'Credit review lagbhag {m} mahine baad ({day} ko)',
-    en: 'Credit review in about {m} months ({day})',
-  },
-  reviewToday: {
-    hi: 'क्रेडिट रिव्यू आज है',
-    hl: 'Credit review aaj hai',
-    en: 'Credit review is today',
-  },
+  review: { hi: 'क्रेडिट रिव्यू {day} को ({d} बाद)', hl: 'Credit review {day} ko ({d} baad)', en: 'Credit review on {day} ({d})' },
+  reviewToday: { hi: 'क्रेडिट रिव्यू आज है', hl: 'Credit review aaj hai', en: 'Credit review is today' },
   // More
-  moreTitle: {
-    hi: 'और देखें: पूरी रकम',
-    hl: 'Aur dekhein: poori rakam',
-    en: 'More details: full amounts',
-  },
-  asOfLine: {
-    hi: 'हिसाब {when} तक का है।',
-    hl: 'Hisaab {when} tak ka hai.',
-    en: 'Figures are up to {when}.',
-  },
+  moreTitle: { hi: 'और देखें: पूरी रकम', hl: 'Aur dekhein: poori rakam', en: 'More details: exact amounts' },
+  asOfLine: { hi: 'हिसाब {when} तक का है।', hl: 'Hisaab {when} tak ka hai.', en: 'Figures are up to {when}.' },
   laterNot: {
     hi: 'इसके बाद की खरीद और भुगतान इसमें नहीं हैं।',
     hl: 'Iske baad ki kharid aur payment isme nahi hain.',
     en: 'Later purchases and payments are not in it.',
   },
   // Alert
-  alertOverdueLine: {
-    hi: 'IndianOil में अभी जमा करें।',
-    hl: 'IndianOil mein abhi jama karein.',
-    en: 'Deposit it with IndianOil now.',
-  },
-  alertAlsoLocked: {
-    hi: ' क्रेडिट भी लॉक है।',
-    hl: ' Credit bhi lock hai.',
-    en: ' Credit is also locked.',
-  },
-  alertLagHead: {
-    hi: 'जमा करने की तारीख निकल गई',
-    hl: 'Jama karne ki taareekh nikal gayi',
-    en: 'The deposit deadline passed',
-  },
+  alertOverdueLine: { hi: 'IndianOil में अभी जमा करें।', hl: 'IndianOil mein abhi jama karein.', en: 'Deposit it with IndianOil now.' },
+  alertAlsoLocked: { hi: ' क्रेडिट भी लॉक है।', hl: ' Credit bhi lock hai.', en: ' Credit is also locked.' },
+  alertLagHead: { hi: 'जमा करने की तारीख निकल गई', hl: 'Jama karne ki taareekh nikal gayi', en: 'The deposit deadline passed' },
   // Headline
-  headDue: {
-    hi: '{day} तक {n} जमा करें',
-    hl: '{day} tak {n} jama karein',
-    en: '{n} to deposit by {day}',
-  },
+  headDue: { hi: '{day} तक {n} जमा करें', hl: '{day} tak {n} jama karein', en: '{n} to deposit by {day}' },
   headDueBare: { hi: '{n} जमा करें', hl: '{n} jama karein', en: '{n} to deposit' },
   headToday: { hi: 'आज {n} जमा करें', hl: 'Aaj {n} jama karein', en: '{n} to deposit today' },
   headOverdue: { hi: '{n} की तारीख निकल गई', hl: '{n} ki taareekh nikal gayi', en: '{n} overdue' },
   headLag: { hi: '{n}: तारीख निकल गई', hl: '{n}: taareekh nikal gayi', en: '{n}: deadline passed' },
-  headAdvance: {
-    hi: 'IndianOil के पास आपका {n} एडवांस है',
-    hl: 'IndianOil ke paas aapka {n} advance hai',
-    en: 'IndianOil holds {n} for you',
-  },
+  headAdvance: { hi: 'IndianOil के पास आपका {n} एडवांस है', hl: 'IndianOil ke paas aapka {n} advance hai', en: 'IndianOil holds {n} for you' },
   // Tile
   tileOverdue: { hi: 'देर हो चुकी', hl: 'Der ho chuki', en: 'Overdue' },
-  tileLag: {
-    hi: 'भुगतान अभी न दिखा हो',
-    hl: 'Payment abhi na dikha ho',
-    en: 'Payment may not be posted',
-  },
+  tileLag: { hi: 'भुगतान अभी न दिखा हो', hl: 'Payment abhi na dikha ho', en: 'Payment may not be posted' },
   tileToday: { hi: 'आज जमा करें', hl: 'Aaj jama karein', en: 'Deposit today' },
-  tileAdvance: {
-    hi: 'IndianOil के पास आपका',
-    hl: 'IndianOil ke paas aapka',
-    en: 'IndianOil holds it for you',
-  },
+  tileAdvance: { hi: 'IndianOil के पास आपका', hl: 'IndianOil ke paas aapka', en: 'IndianOil holds it for you' },
   tileLimitLeft: { hi: 'बची लिमिट {n}', hl: 'Bachi limit {n}', en: 'Limit left {n}' },
   tileLocked: { hi: 'क्रेडिट लॉक', hl: 'Credit lock', en: 'Credit locked' },
   tileAsOf: { hi: '{day} का हिसाब', hl: '{day} ka hisaab', en: 'As of {day}' },
@@ -296,13 +200,7 @@ export function liveCredit(data: CreditDodData, now: number = Date.now()): Credi
 
 /** The server's reading of a deposit that is not yet overdue, for a count of days. */
 function dueVerdictAt(days: number): 'overdue' | 'due_today' | 'due_soon' | 'due' {
-  return days < 0
-    ? 'overdue'
-    : days === 0
-      ? 'due_today'
-      : days <= DUE_SOON_DAYS
-        ? 'due_soon'
-        : 'due';
+  return days < 0 ? 'overdue' : days === 0 ? 'due_today' : days <= DUE_SOON_DAYS ? 'due_soon' : 'due';
 }
 
 export function isLocked(data: CreditDodData): boolean {
@@ -394,13 +292,7 @@ function eyebrow(data: CreditDodData, lang: Lang): string {
 
 // ── pieces ──────────────────────────────────────────────────────────────────
 
-function FestivalStrip({
-  festivalKey,
-  lang,
-}: {
-  festivalKey: CreditDodData['festivalKey'];
-  lang: Lang;
-}): ReactElement | null {
+function FestivalStrip({ festivalKey, lang }: { festivalKey: CreditDodData['festivalKey']; lang: Lang }): ReactElement | null {
   const f = findFestival(festivalKey);
   if (!f) return null;
   const [a, b, c] = f.colors;
@@ -409,15 +301,8 @@ function FestivalStrip({
       ? `linear-gradient(to bottom, ${a} 0 33.33%, ${b} 33.33% 66.66%, ${c} 66.66% 100%)`
       : `linear-gradient(to right, ${a}, ${b}, ${c})`;
   return (
-    <div
-      data-testid="festival-strip"
-      className="flex min-h-10 items-center justify-center rounded-xl px-3 py-1"
-      style={{ background }}
-    >
-      <span
-        className={cn('rounded-full px-3 py-0.5 text-center text-cta', leadingFor(lang))}
-        style={{ backgroundColor: 'rgba(255,255,255,0.94)', color: f.ink }}
-      >
+    <div data-testid="festival-strip" className="flex min-h-[40px] items-center justify-center rounded-xl px-3 py-1" style={{ background }}>
+      <span className={cn('rounded-full px-3 py-0.5 text-center text-cta', leadingFor(lang))} style={{ backgroundColor: 'rgba(255,255,255,0.94)', color: f.ink }}>
         {lang === 'hi' ? f.greetingHi : f.greetingEn}
       </span>
     </div>
@@ -432,53 +317,23 @@ const RING_C = 2 * Math.PI * RING;
  * At 85% or more it gets white notches and a triangle (a pattern, not only a colour);
  * locked, it is a hatched grey ring with a padlock in the middle.
  */
-export function LimitRing({
-  pct,
-  locked,
-  lang,
-}: {
-  pct: number | null;
-  locked: boolean;
-  lang: Lang;
-}): ReactElement {
+export function LimitRing({ pct, locked, lang }: { pct: number | null; locked: boolean; lang: Lang }): ReactElement {
   const uid = useId().replace(/:/g, '');
   const hatchId = `hatch-${uid}`;
   const rounded = pct === null ? 0 : Math.max(0, Math.min(100, Math.round(pct)));
   const arc = (RING_C * rounded) / 100;
   const heavy = !locked && rounded >= 85;
-  const aria = locked
-    ? say(T.ringLockedAria, lang)
-    : fill(T.ringAria, lang, { p: String(rounded) });
+  const aria = locked ? say(T.ringLockedAria, lang) : fill(T.ringAria, lang, { p: String(rounded) });
   return (
-    <div
-      role="img"
-      aria-label={aria}
-      data-testid="limit-ring"
-      data-locked={locked ? 'true' : 'false'}
-      data-pct={locked ? '' : String(rounded)}
-      className="relative mx-auto aspect-square w-44 max-w-full"
-    >
-      <svg viewBox="0 0 176 176" className="h-full w-full" aria-hidden="true" focusable="false">
+    <div role="img" aria-label={aria} data-testid="limit-ring" data-locked={locked ? 'true' : 'false'} data-pct={locked ? '' : String(rounded)} className="relative mx-auto h-[176px] w-[176px]">
+      <svg viewBox="0 0 176 176" width="176" height="176" aria-hidden="true" focusable="false">
         <defs>
-          <pattern
-            id={hatchId}
-            width="9"
-            height="9"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
+          <pattern id={hatchId} width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="9" height="9" fill="var(--color-surface-2)" />
             <line x1="0" y1="0" x2="0" y2="9" stroke="var(--color-text-muted)" strokeWidth="4" />
           </pattern>
         </defs>
-        <circle
-          cx="88"
-          cy="88"
-          r={RING}
-          fill="none"
-          stroke={locked ? `url(#${hatchId})` : 'var(--color-border-strong)'}
-          strokeWidth="22"
-        />
+        <circle cx="88" cy="88" r={RING} fill="none" stroke={locked ? `url(#${hatchId})` : 'var(--color-border-strong)'} strokeWidth="22" />
         {!locked && rounded > 0 ? (
           <circle
             cx="88"
@@ -516,7 +371,7 @@ export function LimitRing({
           </>
         ) : (
           <>
-            <span className="text-display leading-none text-text">{rounded}%</span>
+            <span className="text-[36px] font-semibold leading-none text-text">{rounded}%</span>
             <span className="text-body text-text-muted">{say(T.pctUsed, lang)}</span>
           </>
         )}
@@ -525,23 +380,13 @@ export function LimitRing({
   );
 }
 
-function Amount({
-  children,
-  tone,
-}: {
-  children: string;
-  tone?: 'problem' | 'attention';
-}): ReactElement {
+function Amount({ children, tone }: { children: string; tone?: 'problem' | 'attention' }): ReactElement {
   return (
     <p
       data-testid="credit-amount"
       className={cn(
-        'break-words text-display',
-        tone === 'problem'
-          ? 'text-status-problem-ink'
-          : tone === 'attention'
-            ? 'text-status-attention-ink'
-            : 'text-text',
+        'break-words text-[40px] font-semibold leading-tight',
+        tone === 'problem' ? 'text-status-problem-ink' : tone === 'attention' ? 'text-status-attention-ink' : 'text-text',
       )}
     >
       {children}
@@ -563,47 +408,24 @@ function Hero({ data, lang }: { data: CreditDodData; lang: Lang }): ReactElement
         ? fill(m.dateIsApprox ? T.byDayApprox : T.byDay, lang, { day })
         : ''
       : '';
-  const days =
-    v === 'overdue'
-      ? overdueDays(data, lang)
-      : v === 'due' || v === 'due_soon'
-        ? daysLeftText(data, lang)
-        : '';
+  const days = v === 'overdue' ? overdueDays(data, lang) : v === 'due' || v === 'due_soon' ? daysLeftText(data, lang) : '';
   const status = statusOf(data);
   const tone = v === 'overdue' ? 'problem' : v === 'overdue_lag' ? 'attention' : undefined;
   return (
-    <section
-      data-testid="credit-hero"
-      data-verdict={v}
-      className="rounded-xl bg-kind-credit-soft p-4"
-    >
-      <p className={cn('text-subheading text-kind-credit-ink', leadingFor(lang))}>
-        {eyebrow(data, lang)}
-      </p>
-      {v === 'settled' ? (
-        <Amount>{say(T.noDues, lang)}</Amount>
-      ) : (
-        <Amount tone={tone}>{rupees(m.amount)}</Amount>
-      )}
+    <section data-testid="credit-hero" data-verdict={v} className="rounded-xl bg-kind-credit-soft p-4">
+      <p className={cn('text-subheading text-kind-credit-ink', leadingFor(lang))}>{eyebrow(data, lang)}</p>
+      {v === 'settled' ? <Amount>{say(T.noDues, lang)}</Amount> : <Amount tone={tone}>{rupees(m.amount)}</Amount>}
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <StatusBadge status={status} lang={lang} word={say(statusWord(data), lang)} />
         {dateLine ? <span className="text-subheading text-text">{dateLine}</span> : null}
         {days ? <span className="text-body text-text">{days}</span> : null}
       </div>
-      {v === 'overdue_lag' ? (
-        <p className={cn('mt-2 text-subheading text-text', leadingFor(lang))}>
-          {say(T.lagNote, lang)}
-        </p>
-      ) : null}
+      {v === 'overdue_lag' ? <p className={cn('mt-2 text-subheading text-text', leadingFor(lang))}>{say(T.lagNote, lang)}</p> : null}
       {overdue && m.deadlines !== null && m.deadlines > 1 ? (
-        <p className={cn('mt-2 text-body text-text', leadingFor(lang))}>
-          {fill(T.coversMissed, lang, { n: String(m.deadlines) })}
-        </p>
+        <p className={cn('mt-2 text-body text-text', leadingFor(lang))}>{fill(T.coversMissed, lang, { n: String(m.deadlines) })}</p>
       ) : null}
       {overdue && m.dueAmount > 0 && m.dueAmount < m.amount ? (
-        <p className={cn('mt-2 text-body text-text', leadingFor(lang))}>
-          {fill(T.partOfThis, lang, { n: rupees(m.dueAmount) })}
-        </p>
+        <p className={cn('mt-2 text-body text-text', leadingFor(lang))}>{fill(T.partOfThis, lang, { n: rupees(m.dueAmount) })}</p>
       ) : null}
     </section>
   );
@@ -613,40 +435,29 @@ function LockBand({ data, lang }: { data: CreditDodData; lang: Lang }): ReactEle
   if (!data.review || !data.review.lapsed) return null;
   const ago = Math.abs(data.review.daysUntil);
   return (
-    <div
-      data-testid="lock-band"
-      role="status"
-      className="flex items-start gap-3 rounded-xl bg-status-attention-soft px-4 py-3 text-status-attention-ink"
-    >
+    <div data-testid="lock-band" role="status" className="flex items-start gap-3 rounded-xl bg-status-attention-soft px-4 py-3 text-status-attention-ink">
       <Lock aria-hidden="true" className="mt-1 h-6 w-6 shrink-0" strokeWidth={2.4} />
       <div className={cn('min-w-0', leadingFor(lang))}>
         <p className="text-subheading">{say(T.lockHead, lang)}</p>
         <p className="text-body">{say(T.lockBody, lang)}</p>
-        <p className="mt-1 text-body">
-          {fill(T.lockSince, lang, {
-            day: dayOf(data, data.review.on, lang),
-            d: ago > 0 ? daysWords(ago, lang) : daysWords(0, lang),
-          })}
-        </p>
+        <p className="mt-1 text-body">{fill(T.lockSince, lang, { day: dayOf(data, data.review.on, lang), d: ago > 0 ? daysWords(ago, lang) : daysWords(0, lang) })}</p>
       </div>
     </div>
   );
 }
 
-/** One of the three limit figures as a kit tile: the label, the amount in short form (₹47.25 L), never shrunk. */
 function FigureTile({ label, value }: { label: string; value: string }): ReactElement {
-  return <StatTile label={label} value={<Num>{value}</Num>} ariaLabel={`${label}: ${value}`} />;
+  return (
+    <div className="min-w-0 rounded-xl border border-border bg-surface px-2 py-2 text-center">
+      <p className="text-body text-text-muted">{label}</p>
+      <p className="text-subheading leading-tight text-text [overflow-wrap:anywhere]">{value}</p>
+    </div>
+  );
 }
 
 const FORMS = ['DOD', 'CREDIT', 'CASH & CARRY'] as const;
 
-function FormChips({
-  form,
-  lang,
-}: {
-  form: CreditDodData['limit']['form'];
-  lang: Lang;
-}): ReactElement | null {
+function FormChips({ form, lang }: { form: CreditDodData['limit']['form']; lang: Lang }): ReactElement | null {
   if (!form) return null;
   return (
     <div data-testid="form-chips">
@@ -659,10 +470,8 @@ function FormChips({
               key={f}
               data-lit={lit ? 'true' : 'false'}
               className={cn(
-                'inline-flex min-h-10 items-center gap-1.5 rounded-full px-4 text-body',
-                lit
-                  ? 'border-2 border-kind-credit-ink bg-kind-credit-soft font-semibold text-text'
-                  : 'border border-dashed border-border-strong text-text-muted',
+                'inline-flex min-h-[40px] items-center gap-1.5 rounded-full px-4 text-body',
+                lit ? 'border-2 border-kind-credit-ink bg-kind-credit-soft font-semibold text-text' : 'border border-dashed border-border-strong text-text-muted',
               )}
             >
               {lit ? <Check aria-hidden="true" className="h-4 w-4" strokeWidth={3} /> : null}
@@ -681,19 +490,17 @@ function Purchases({ data, lang }: { data: CreditDodData; lang: Lang }): ReactEl
   if (lots.length === 0) return null;
   return (
     <section data-testid="open-purchases">
-      <SectionCard title={say(T.purchases, lang)} count={lots.length} variant="list">
-        <ul className="divide-y divide-border">
-          {lots.map((lot, i) => (
-            <li key={`${lot.boughtOn}-${i}`} className="min-h-14 py-2">
-              <p className="text-subheading text-text">{rupees(lot.amount)}</p>
-              <p className={cn('text-body text-text-muted', leadingFor(lang))}>
-                {fill(T.bought, lang, { day: dayOf(data, lot.boughtOn, lang) })} ·{' '}
-                {fill(T.depositBy, lang, { day: dayOf(data, lot.deadline, lang) })}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </SectionCard>
+      <h3 className={cn('text-subheading text-text', leadingFor(lang))}>{say(T.purchases, lang)}</h3>
+      <ul className="mt-2 space-y-2">
+        {lots.map((lot, i) => (
+          <li key={`${lot.boughtOn}-${i}`} className="rounded-xl border border-border bg-surface px-4 py-2">
+            <p className="text-subheading text-text">{rupees(lot.amount)}</p>
+            <p className={cn('text-body text-text-muted', leadingFor(lang))}>
+              {fill(T.bought, lang, { day: dayOf(data, lot.boughtOn, lang) })} · {fill(T.depositBy, lang, { day: dayOf(data, lot.deadline, lang) })}
+            </p>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -702,11 +509,7 @@ function reviewLine(data: CreditDodData, lang: Lang): string {
   const r = data.review;
   if (!r || r.lapsed) return '';
   if (r.daysUntil === 0) return say(T.reviewToday, lang);
-  const day = dayWords(r.on, lang, { year: true });
-  // A date months away is easier to read as months: "about 4 months", with the date in brackets.
-  if (r.daysUntil >= 60)
-    return fill(T.reviewFar, lang, { day, m: num(Math.round(r.daysUntil / 30)) });
-  return fill(T.review, lang, { day, d: daysWords(r.daysUntil, lang) });
+  return fill(T.review, lang, { day: dayWords(r.on, lang, { year: true }), d: daysWords(r.daysUntil, lang) });
 }
 
 export function Overlay({ data: sent, lang }: OverlayProps<'credit_dod'>): ReactElement {
@@ -721,65 +524,43 @@ export function Overlay({ data: sent, lang }: OverlayProps<'credit_dod'>): React
     <div data-kind-view="credit_dod" data-verdict={data.verdict} className="space-y-4 p-4">
       <FestivalStrip festivalKey={data.festivalKey} lang={lang} />
       {data.backdated ? (
-        <div
-          data-testid="backdated-banner"
-          role="status"
-          className="flex items-start gap-3 rounded-xl bg-status-info-soft px-4 py-3 text-status-info-ink"
-        >
+        <div data-testid="backdated-banner" role="status" className="flex items-start gap-3 rounded-xl bg-status-info-soft px-4 py-3 text-status-info-ink">
           <Info aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
-          <p className={cn('text-subheading', leadingFor(lang))}>
-            {fill(T.backdated, lang, { day: asOfDay })}
-          </p>
+          <p className={cn('text-subheading', leadingFor(lang))}>{fill(T.backdated, lang, { day: asOfDay })}</p>
         </div>
       ) : null}
 
-      <Lead lang={lang}>
-        {data.verdict === 'settled' ? say(T.leadSettled, lang) : headlineOf(data, lang)}
-      </Lead>
+      <Lead lang={lang}>{data.verdict === 'settled' ? say(T.leadSettled, lang) : headlineOf(data, lang)}</Lead>
       <Hero data={data} lang={lang} />
       <LockBand data={data} lang={lang} />
 
-      <SectionCard title={translate(lang, 'rv2.credit.limitTitle')}>
-        <div className="space-y-3">
-          {showRing ? (
-            <section className="space-y-3">
-              <LimitRing pct={lim.usedPct} locked={locked} lang={lang} />
-              {locked ? (
-                <p className={cn('text-center text-subheading text-text', leadingFor(lang))}>
-                  {say(T.lockedRing, lang)}
-                </p>
-              ) : (
-                <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-subheading text-text">
-                  <span>{fill(T.usedLabel, lang, { n: limitRupees(lim.availed) })}</span>
-                  <span>{fill(T.leftLabel, lang, { n: limitRupees(lim.available) })}</span>
-                </div>
-              )}
-              {heavy ? (
-                <p
-                  className={cn(
-                    'flex items-center justify-center gap-2 text-subheading text-status-attention-ink',
-                    leadingFor(lang),
-                  )}
-                >
-                  <TriangleAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
-                  {say(T.nearlyFull, lang)}
-                </p>
-              ) : null}
-            </section>
+      {showRing ? (
+        <section className="space-y-3">
+          <LimitRing pct={lim.usedPct} locked={locked} lang={lang} />
+          {locked ? (
+            <p className={cn('text-center text-subheading text-text', leadingFor(lang))}>{say(T.lockedRing, lang)}</p>
+          ) : (
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-1 text-subheading text-text">
+              <span>{fill(T.usedLabel, lang, { n: rupeesShort(lim.availed) })}</span>
+              <span>{fill(T.leftLabel, lang, { n: rupeesShort(lim.available) })}</span>
+            </div>
+          )}
+          {heavy ? (
+            <p className={cn('flex items-center justify-center gap-2 text-subheading text-status-attention-ink', leadingFor(lang))}>
+              <TriangleAlert aria-hidden="true" className="h-5 w-5 shrink-0" />
+              {say(T.nearlyFull, lang)}
+            </p>
           ) : null}
+        </section>
+      ) : null}
 
-          <div
-            data-testid="limit-figures"
-            className="grid grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))] gap-2"
-          >
-            <FigureTile label={say(T.limit, lang)} value={limitRupees(lim.current)} />
-            <FigureTile label={say(T.used, lang)} value={limitRupees(lim.availed)} />
-            <FigureTile label={say(T.left, lang)} value={limitRupees(lim.available)} />
-          </div>
+      <div data-testid="limit-figures" className="grid grid-cols-3 gap-2">
+        <FigureTile label={say(T.limit, lang)} value={rupeesShort(lim.current)} />
+        <FigureTile label={say(T.used, lang)} value={rupeesShort(lim.availed)} />
+        <FigureTile label={say(T.left, lang)} value={rupeesShort(lim.available)} />
+      </div>
 
-          <FormChips form={lim.form} lang={lang} />
-        </div>
-      </SectionCard>
+      <FormChips form={lim.form} lang={lang} />
       <Purchases data={data} lang={lang} />
 
       {review ? (
@@ -797,20 +578,15 @@ export function Overlay({ data: sent, lang }: OverlayProps<'credit_dod'>): React
               [T.left, lim.available],
             ] as const
           ).map(([label, amount]) => (
-            <div key={label.en} className="flex flex-wrap justify-between gap-x-4 gap-y-0.5">
-              <dt className="min-w-0 break-words text-text-muted">{say(label, lang)}</dt>
-              <dd
-                data-testid={`exact-${label.en.toLowerCase()}`}
-                className="min-w-0 break-words font-semibold"
-              >
-                {wholeRupees(amount)}
+            <div key={label.en} className="flex justify-between gap-4">
+              <dt className="text-text-muted">{say(label, lang)}</dt>
+              <dd data-testid={`exact-${label.en.toLowerCase()}`} className="font-semibold">
+                {rupees(amount)}
               </dd>
             </div>
           ))}
         </dl>
-        <p className="mt-3">
-          {fill(T.asOfLine, lang, { when: instantWords(data.capturedAt, lang) || asOfDay })}
-        </p>
+        <p className="mt-3">{fill(T.asOfLine, lang, { when: instantWords(data.capturedAt, lang) || asOfDay })}</p>
         <p>{say(T.laterNot, lang)}</p>
       </MoreRow>
     </div>
@@ -824,25 +600,8 @@ export function Glyph({ size = 28 }: { size?: number }): ReactElement {
   const c = 2 * Math.PI * r;
   return (
     <svg width={width} height={size} viewBox="0 0 40 28" aria-hidden="true" focusable="false">
-      <circle
-        cx="20"
-        cy="14"
-        r={r}
-        fill="none"
-        stroke="currentColor"
-        strokeOpacity="0.25"
-        strokeWidth="5"
-      />
-      <circle
-        cx="20"
-        cy="14"
-        r={r}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="5"
-        strokeDasharray={`${c * 0.72} ${c}`}
-        transform="rotate(-90 20 14)"
-      />
+      <circle cx="20" cy="14" r={r} fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="5" />
+      <circle cx="20" cy="14" r={r} fill="none" stroke="currentColor" strokeWidth="5" strokeDasharray={`${c * 0.72} ${c}`} transform="rotate(-90 20 14)" />
     </svg>
   );
 }
@@ -871,17 +630,13 @@ function headlineOf(data: CreditDodData, lang: Lang): string {
 
 function tile(sent: CreditDodData, lang: Lang): KindTile | null {
   const data = liveCredit(sent);
-  const left = fill(T.tileLimitLeft, lang, { n: limitRupees(data.limit.available) });
+  const left = fill(T.tileLimitLeft, lang, { n: rupeesShort(data.limit.available) });
   const lockedWord = isLocked(data) ? say(T.tileLocked, lang) : '';
   const join = (...parts: string[]): string => parts.filter(Boolean).join(' · ');
   const status = statusOf(data);
   const base = (value: string, sub: string): KindTile => ({ value, sub: sub || undefined, status });
   if (data.backdated) {
-    return {
-      value: data.verdict === 'settled' ? say(T.noDues, lang) : rupees(data.money.amount),
-      sub: join(fill(T.tileAsOf, lang, { day: dayOf(data, data.asOf, lang) }), lockedWord),
-      status: 'info',
-    };
+    return { value: data.verdict === 'settled' ? say(T.noDues, lang) : rupees(data.money.amount), sub: join(fill(T.tileAsOf, lang, { day: dayOf(data, data.asOf, lang) }), lockedWord), status: 'info' };
   }
   const day = dayOf(data, data.money.date, lang);
   switch (data.verdict) {
@@ -895,10 +650,7 @@ function tile(sent: CreditDodData, lang: Lang): KindTile | null {
       return base(rupees(data.money.amount), join(say(T.tileToday, lang), lockedWord));
     case 'due_soon':
     case 'due':
-      return base(
-        rupees(data.money.amount),
-        join(day ? fill(T.byDay, lang, { day }) : '', daysLeftText(data, lang), lockedWord),
-      );
+      return base(rupees(data.money.amount), join(day ? fill(T.byDay, lang, { day }) : '', daysLeftText(data, lang), lockedWord));
     case 'advance':
       return base(rupees(data.money.amount), join(say(T.tileAdvance, lang), lockedWord));
     case 'settled':
@@ -919,11 +671,7 @@ function alert(sent: CreditDodData, lang: Lang): KindAlert | null {
     };
   }
   if (data.verdict === 'overdue_lag') {
-    return {
-      headline: say(T.alertLagHead, lang),
-      line: say(T.lagNote, lang),
-      severity: 'attention',
-    };
+    return { headline: say(T.alertLagHead, lang), line: say(T.lagNote, lang), severity: 'attention' };
   }
   if (locked) {
     return { headline: say(T.lockHead, lang), line: say(T.lockBody, lang), severity: 'attention' };
@@ -941,9 +689,7 @@ function share(sent: CreditDodData, lang: Lang): string {
   const when = instantWords(data.capturedAt, lang) || dayOf(data, data.asOf, lang);
   const lockLine = isLocked(data) ? `${say(T.lockHead, lang)}. ${say(T.lockBody, lang)}` : '';
   const partOf =
-    (data.verdict === 'overdue' || data.verdict === 'overdue_lag') &&
-    data.money.dueAmount > 0 &&
-    data.money.dueAmount < data.money.amount
+    (data.verdict === 'overdue' || data.verdict === 'overdue_lag') && data.money.dueAmount > 0 && data.money.dueAmount < data.money.amount
       ? fill(T.partOfThis, lang, { n: rupees(data.money.dueAmount) })
       : '';
   return shareLines([

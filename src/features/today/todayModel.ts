@@ -1,14 +1,23 @@
 import { getKindView } from '@/features/reports/registry';
-import type { KindAlert } from '@/features/reports/types';
+import type { KindAlert, KindTile } from '@/features/reports/types';
 import type { Lang } from '@/store/lang';
 import { AGING_REPORT_KINDS, OWNER_ONLY_REPORT_KINDS } from '@dk/shared';
 import type { ReportData, ReportKind, TodayFeed, TodayReport } from '@dk/shared/types';
 
-import { ALERT_PER_REPORT_KINDS, newestFirst, taskCoversReport, usableData } from './todayView';
+import {
+  ALERT_PER_REPORT_KINDS,
+  TILE_SLOTS,
+  dayOf,
+  newestFirst,
+  salesSheetOf,
+  taskCoversReport,
+  usableData,
+  type TileItem,
+} from './todayView';
 
 /**
  * The part of the Today page that asks each report kind what it has to say (ADR 0056):
- * the alert a kind raises and its one plain line. Kept apart from
+ * the alert a kind raises, the tile it draws, its one plain line. Kept apart from
  * `todayView.ts` so the small decisions there (the lists, the days, the paths) can be used without
  * loading every kind's drawing.
  *
@@ -22,6 +31,11 @@ function safely<T>(fn: () => T): T | null {
   } catch {
     return null;
   }
+}
+
+function tileOf(data: ReportData, lang: Lang): KindTile | null {
+  const view = getKindView(data.kind);
+  return safely(() => view.tile(data as never, lang));
 }
 
 function alertOf(data: ReportData, lang: Lang): KindAlert | null {
@@ -132,4 +146,47 @@ export function buildAlertsAndCovered(
       .map((x) => x.item),
     covered,
   };
+}
+
+// ── Your pump today ─────────────────────────────────────────────────────────
+
+interface Candidate {
+  report: TodayReport;
+  data: ReportData;
+}
+
+/** The tiles the feed can fill, in the fixed order. A tile exists only for a report that has a snapshot. */
+export function buildTiles(feed: TodayFeed, lang: Lang, isOwner: boolean): TileItem[] {
+  const all = [...feed.reports, ...feed.done];
+  const items: TileItem[] = [];
+  for (const slot of TILE_SLOTS) {
+    if (slot.ownerOnly && !isOwner) continue;
+    const candidates: Candidate[] = [];
+    for (const report of all) {
+      if (slot.kinds.includes(report.kind)) {
+        const data = usableData(report, isOwner);
+        if (data) candidates.push({ report, data });
+      } else if (slot.id === 'sales' && report.kind === 'dsr_variation') {
+        // A message holding both DSR sheets is tagged as the variation: read the sales sheet out of it.
+        const sheet = salesSheetOf(usableData(report, isOwner));
+        if (sheet) candidates.push({ report: { ...report, kind: 'dsr_sales', data: sheet }, data: sheet });
+      }
+    }
+    // Newest business day first, then the newest message.
+    candidates.sort(
+      (a, b) =>
+        dayOf(b.report, b.data).localeCompare(dayOf(a.report, a.data)) ||
+        b.report.sentAt.localeCompare(a.report.sentAt),
+    );
+    for (const c of candidates) {
+      const drawn = tileOf(c.data, lang);
+      if (drawn) {
+        // An aged alarm keeps its figure but loses its warning.
+        const tile = isAgedOut(c.report) && (drawn.status === 'problem' || drawn.status === 'attention') ? { ...drawn, status: 'ok' as const } : drawn;
+        items.push({ slot, report: c.report, kind: c.data.kind, tile, day: dayOf(c.report, c.data) });
+        break;
+      }
+    }
+  }
+  return items;
 }

@@ -16,7 +16,7 @@ export type SendState = 'sending' | 'failed' | 'sent' | 'wrongType';
 /** A stalled upload or filing must end in "it did not go", never in a spinner with no way out. */
 const UPLOAD_MS = 45_000;
 const FILE_MS = 20_000;
-/** How long a when-it-happens row (or a replaced photo) says "Sent" before its button comes back. */
+/** How long a when-it-happens row says "Sent" before its button comes back for the next one. */
 const SENT_SHOWN_MS = 3_000;
 
 function within<T>(work: Promise<T>, ms: number): Promise<T> {
@@ -55,14 +55,7 @@ interface Pending extends PhotoToConfirm {
  * `sentKeys` is what the page hands to `sectionsOf`: a row is shown as sent from the moment the
  * server took the answer, before the refreshed list comes back.
  */
-export function useKavachActions(
-  lang: Lang,
-  opts: {
-    /** A photo for a when-it-happens point went: the check the server made, so the page can keep it in view. */
-    onEventSent?: (check: KavachDealerItem) => void;
-  } = {},
-) {
-  const onEventSent = opts.onEventSent;
+export function useKavachActions(lang: Lang) {
   const { mutateAsync: send } = useKavachSend();
   const dealerId = useAuthStore((s) => s.user?.dealerId ?? null);
   const [entries, setEntries] = React.useState<Readonly<Record<string, SendState>>>({});
@@ -90,18 +83,12 @@ export function useKavachActions(
       try {
         if (!dealerId) throw new Error('No outlet');
         const attachment = await within(uploadKavachFile(item.file, dealerId), UPLOAD_MS);
-        const result = await within(
-          send({ target: row.checkId ? { checkId: row.checkId } : { code: row.code }, files: [attachment] }),
-          FILE_MS,
-        );
+        await within(send({ target: row.checkId ? { checkId: row.checkId } : { code: row.code }, files: [attachment] }), FILE_MS);
         files.current.delete(key);
-        if (row.checkId && row.state !== 'sent') {
+        if (row.checkId) {
           setSentKeys((cur) => new Set(cur).add(sentKey(row)));
           mark(key, null);
         } else {
-          // A when-it-happens point, or a photo already With MDG that was replaced: the row stays where it
-          // is. A point with no check gets one now, and the page keeps it in view (it is never listed by the server).
-          if (!row.checkId && result?.check?.checkId) onEventSent?.(result.check);
           mark(key, 'sent');
           // A second one the same day needs its button back.
           window.setTimeout(() => setEntries((cur) => {
@@ -118,7 +105,7 @@ export function useKavachActions(
         inFlight.current.delete(key);
       }
     },
-    [dealerId, mark, send, onEventSent],
+    [dealerId, mark, send],
   );
 
   /** A picture, or a PDF where the point takes one. Null when it is neither. */

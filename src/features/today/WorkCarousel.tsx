@@ -1,29 +1,25 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import * as React from 'react';
 
-import type { NeedsMeItem } from '@/features/glance/needsMe';
 import { cn } from '@/lib/cn';
-import { useLang, useT } from '@/lib/i18n';
+import { useT } from '@/lib/i18n';
 import type { TodayTask } from '@dk/shared/types';
 
 import type { PhotoState } from './useInlinePhoto';
 import { WorkCard } from './WorkCard';
 
 export interface WorkCarouselProps {
-  items: NeedsMeItem[];
-  /** The id of the section heading ("Needs you"), which names the slider for a screen reader. */
+  tasks: TodayTask[];
+  /** The id of the section heading ("Your work"), which names the slider for a screen reader. */
   labelledBy: string;
   photoFor: (task: TodayTask) => PhotoState | undefined;
   onPhoto: (task: TodayTask, file: File) => void;
   onRetry: (task: TodayTask) => boolean;
-  onOpenTask: (task: TodayTask) => void;
-  onOpenItem: (item: NeedsMeItem) => void;
-  /** The kind's own line for an alert row. */
-  detailFor?: (item: NeedsMeItem) => string | undefined;
+  onOpen: (task: TodayTask) => void;
 }
 
 /**
- * "Needs you", one card at a time (owner, 25 Nov 2026: two upload boxes stacked took the whole
+ * "Your work", one card at a time (owner, 25 Nov 2026: two upload boxes stacked took the whole
  * first screen). The cards sit side by side in a row the dealer swipes, each one the full width
  * and snapping into place; under it, ‹ "1 / 3" › says where they are and moves one card each way.
  *
@@ -35,40 +31,13 @@ export interface WorkCarouselProps {
  *   follows; with one card left the ‹ › row goes away.
  * - The arrows scroll without animation when the phone asks for reduced motion.
  */
-export function WorkCarousel({ items, labelledBy, photoFor, onPhoto, onRetry, onOpenTask, onOpenItem, detailFor }: WorkCarouselProps) {
+export function WorkCarousel({ tasks, labelledBy, photoFor, onPhoto, onRetry, onOpen }: WorkCarouselProps) {
   const t = useT();
-  const lang = useLang();
   const trackRef = React.useRef<HTMLDivElement>(null);
   const [index, setIndex] = React.useState(0);
-  const count = items.length;
+  const count = tasks.length;
   const last = Math.max(0, count - 1);
   const at = Math.min(index, last);
-
-  // The row opens on its FIRST card, the most urgent one, and goes back to it when the words change
-  // language (the cards re-flow, so an old scroll offset would point at another card). The position
-  // is the `index` state: the scroll offset only reports where a swipe ended.
-  React.useLayoutEffect(() => {
-    if (trackRef.current) trackRef.current.scrollLeft = 0;
-    setIndex(0);
-  }, [lang]);
-
-  // A card left (its photo went) or the order changed: the dealer stays on the card they were reading
-  // when it is still there; if that one left, the next one slides into its place.
-  const ids = items.map((i) => i.id);
-  const idsKey = ids.join('|');
-  const held = React.useRef<{ id: string | undefined; at: number }>({ id: ids[0], at: 0 });
-  React.useLayoutEffect(() => {
-    const el = trackRef.current;
-    const keep = held.current.id !== undefined ? ids.indexOf(held.current.id) : -1;
-    const next = keep >= 0 ? keep : Math.min(held.current.at, Math.max(0, ids.length - 1));
-    if (el && el.clientWidth > 0) el.scrollLeft = next * el.clientWidth;
-    setIndex(next);
-    // `ids` is read through `idsKey`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idsKey]);
-  React.useEffect(() => {
-    held.current = { id: ids[Math.min(index, last)], at: Math.min(index, last) };
-  });
 
   // A card that leaves must not leave the count pointing past the end.
   React.useEffect(() => {
@@ -110,11 +79,11 @@ export function WorkCarousel({ items, labelledBy, photoFor, onPhoto, onRetry, on
       <div
         ref={trackRef}
         onScroll={onScroll}
-        className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-surface shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-surface [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        {items.map((item, i) => (
+        {tasks.map((task, i) => (
           <div
-            key={item.id}
+            key={task.id}
             role="group"
             aria-roledescription={t('today.work.slide')}
             aria-label={t('today.work.position', { n: i + 1, total: count })}
@@ -123,13 +92,11 @@ export function WorkCarousel({ items, labelledBy, photoFor, onPhoto, onRetry, on
           >
             <WorkCard
               as="div"
-              item={item}
-              photo={item.task ? photoFor(item.task) : undefined}
+              task={task}
+              photo={photoFor(task)}
               onPhoto={onPhoto}
               onRetry={onRetry}
-              onOpenTask={onOpenTask}
-              onOpenItem={onOpenItem}
-              detail={detailFor?.(item)}
+              onOpen={onOpen}
             />
           </div>
         ))}
@@ -144,9 +111,9 @@ export function WorkCarousel({ items, labelledBy, photoFor, onPhoto, onRetry, on
             </p>
             {count <= 8 ? (
               <span className="flex items-center gap-1.5" aria-hidden>
-                {items.map((item, i) => (
+                {tasks.map((task, i) => (
                   <span
-                    key={item.id}
+                    key={task.id}
                     className={cn(
                       'h-1.5 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none',
                       i === at ? 'w-4 bg-text' : 'w-1.5 bg-border-strong',
@@ -181,7 +148,7 @@ function ArrowButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="flex size-12 shrink-0 items-center justify-center rounded-md border border-border-strong bg-surface text-text transition-colors duration-150 active:bg-surface-2 disabled:border-border disabled:text-text-subtle"
+      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-border-strong bg-surface text-text transition-colors duration-150 active:bg-surface-2 disabled:border-border disabled:text-text-subtle"
     >
       <Icon className="size-5 rtl:rotate-180" strokeWidth={2} aria-hidden />
     </button>

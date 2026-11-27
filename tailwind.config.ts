@@ -120,15 +120,6 @@ export default {
         micro: ['0.75rem', { lineHeight: '1rem' }],
       },
       borderRadius: { sm: '4px', md: '8px', lg: '12px' },
-      /**
-       * `min-h-tap`: a tap floor of 44 CSS pixels, NOT scaled by the reader's text size. Everything
-       * else here is in rem and grows with the text (a `min-h-11` button is 88 px tall at 200%).
-       * That is right for a row, and wrong for the one strip that lives at the bottom of every door: at
-       * 200% text a bar of 88 px doors is a third of a 640 px phone. WCAG's target size is a size on
-       * the screen, so this floor is held in pixels and the label inside still grows and wraps (it is
-       * a MINIMUM, it never clips). Used by the bar at large text and nowhere else yet.
-       */
-      minHeight: { tap: '44px' },
       boxShadow: {
         sm: '0 1px 2px rgba(15,23,42,0.06)',
         md: '0 4px 12px rgba(15,23,42,0.08)',
